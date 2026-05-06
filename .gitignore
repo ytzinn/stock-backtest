@@ -1,0 +1,36 @@
+# 환경 변수 (절대 커밋 금지)
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+.venv/
+venv/
+
+# 실험 결과 (대용량, 재현 가능)
+experiments/runs/*.csv
+experiments/ablation/*.csv
+experiments/sensitivity/
+experiments/reports/
+
+# 로그
+*.log
+/var/log/
+
+# DB 백업
+*.sql.gz
+*.dump
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
