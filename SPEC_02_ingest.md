@@ -113,6 +113,10 @@ def collect_historical_universe(rebalance_dates: list) -> None:
 
 ## 3-3-1. pykrx 티커 목록 → stock_listing_events 저장 전략
 
+> **⚠️ 2026-05 pykrx 제약**: `get_market_ticker_list()` 불작동 (KRX 2024 웹 API 변경으로 OTP 엔드포인트 404).
+> `collect_historical_universe()` 및 `update_listing_events_daily()` 현재 실행 불가.
+> 대안: FDR StockListing 스냅샷 비교 방식으로 대체 예정.
+
 pykrx `get_market_ticker_list(날짜)`는 해당 날의 전체 상장 종목 스냅샷을 반환한다.
 이벤트 이력 구조(stock_listing_events)로 변환하기 위해 **전일 대비 delta** 를 계산해 저장한다.
 
@@ -153,10 +157,25 @@ def update_financial_flag() -> None:
     """
     pykrx get_market_sector_classifications()로 KRX 섹터코드 조회.
     섹터명에 '금융', '은행', '보험', '증권'이 포함되면 is_financial=TRUE.
-    추가 API 호출 없이 pykrx 수집 파이프라인 내에서 처리.
+
+    ⚠️ 2026-05: KRX 섹터 API 불작동으로 현재 실행 불가.
+    최근 5 거래일 순차 시도하나 모두 빈 응답 반환.
+    is_financial은 수동으로 직접 UPDATE 필요.
     """
     from pykrx import stock as krx
-    df = krx.get_market_sector_classifications(_today_str(), market='ALL')
+    from datetime import date, timedelta
+    df = None
+    for offset in range(5):
+        d = (date.today() - timedelta(days=offset)).strftime('%Y%m%d')
+        try:
+            df = krx.get_market_sector_classifications(d, market='ALL')
+            if df is not None and not df.empty:
+                break
+        except Exception:
+            df = None
+    if df is None or df.empty:
+        log.warning('섹터 분류 조회 실패 — is_financial 수동 설정 필요')
+        return
     for _, row in df.iterrows():
         ticker     = row.get('Code', '')
         sector_nm  = row.get('Sector', '')
@@ -164,7 +183,8 @@ def update_financial_flag() -> None:
         update_stock_is_financial(ticker, is_fin)
 ```
 
-> pykrx 섹터코드가 종목에 따라 누락될 수 있으므로, 초기 운영 후 누락 종목을 수동 확인해 `is_financial`을 직접 수정한다.
+> **⚠️ 2026-05 현황**: KRX 섹터 API 불작동으로 `update_financial_flag()` 실행 불가.
+> `is_financial`은 DB에서 직접 수동 업데이트: `UPDATE stocks SET is_financial=TRUE WHERE corp_name LIKE '%은행%' OR ...`
 
 ## 3-4. 수정주가 수집
 
@@ -173,19 +193,27 @@ def update_financial_flag() -> None:
 ```python
 # ingest/price_ingest.py
 
-def collect_price_and_turnover(ticker: str, start: str = '20140101', end: str = None):
+def collect_price_and_turnover(ticker: str, start: str = '20140101', end: str = None) -> int:
     """
-    pykrx get_market_ohlcv_by_date()로 일별 OHLCV + 거래대금 + 수정주가 수집.
+    pykrx get_market_ohlcv()로 일별 OHLCV + 수정주가 수집.
+
+    ⚠️ 2026-05: get_market_ohlcv_by_date() 불작동 (KRX API 변경).
+    get_market_ohlcv(start, end, ticker) 로 대체.
 
     adj_close: 액면분할·무상증자 반영 수정주가 (배당 미반영).
+    turnover: 거래대금 컬럼 없음 → volume × close 근사값.
     수익률 계산에는 adj_close 사용. 모멘텀 MA 계산도 adj_close 기준.
     """
     from pykrx import stock as krx
-    df_raw = krx.get_market_ohlcv_by_date(start, end or _today(), ticker, adjusted=False)
-    df_adj = krx.get_market_ohlcv_by_date(start, end or _today(), ticker, adjusted=True)
-    # adj_close: df_adj의 종가
-    # is_suspended: 거래량 == 0이면 True
-    ...
+    df_raw = krx.get_market_ohlcv(start, end or _today(), ticker, adjusted=False)
+    df_adj = krx.get_market_ohlcv(start, end or _today(), ticker, adjusted=True)
+    for idx in df_raw.index:
+        raw = df_raw.loc[idx]
+        close     = float(raw.get('종가', 0)) or None
+        volume    = int(raw.get('거래량', 0)) or None
+        adj_close = float(df_adj.loc[idx]['종가']) if idx in df_adj.index else close
+        turnover  = (volume * close) if (volume and close) else None  # 근사
+        is_suspended = volume is None or volume == 0
 ```
 
 **배당 처리 확정**: 수익률 계산에서 배당 제외. 벤치마크(KOSPI)도 동일하게 배당 미반영으로 통일.
@@ -196,12 +224,32 @@ def collect_price_and_turnover(ticker: str, start: str = '20140101', end: str = 
 ```python
 # ingest/market_cap_ingest.py
 
-def collect_market_cap(ticker: str, start: str = '20140101'):
-    """pykrx get_market_cap_by_date()로 일별 시가총액·상장주식수 수집."""
+def _load_shares() -> dict[str, int]:
+    """FDR StockListing으로 현재 상장주식수 로드."""
+    import FinanceDataReader as fdr
+    listing = fdr.StockListing('KRX')
+    return {
+        str(row['Code']).strip(): int(row['Stocks'])
+        for _, row in listing.iterrows()
+        if row.get('Stocks') and int(row['Stocks']) > 0
+    }
+
+def collect_market_cap(ticker: str, shares: int, start: str = '20140101', end: str = None) -> int:
+    """
+    pykrx 종가 × 상장주식수(FDR) → market_cap 추정 후 market_cap_history upsert.
+
+    ⚠️ 2026-05: get_market_cap_by_date() 불작동 (KRX API 변경).
+    대안: FDR StockListing의 현재 Stocks 컬럼 × 일별 종가로 근사.
+    한계: 주식수 변경 이력(유상증자·감자) 미반영, 현재 주식수로 전 기간 적용.
+    """
     from pykrx import stock as krx
-    df = krx.get_market_cap_by_date(start, _today(), ticker)
+    df = krx.get_market_ohlcv(start, end or _today(), ticker, adjusted=False)
+    rows = [
+        (ticker, idx.date(), float(row['종가']) * shares if row.get('종가') else None,
+         shares, 'fdr_shares')
+        for idx, row in df.iterrows() if row.get('종가')
+    ]
     # market_cap_history 테이블에 upsert
-    ...
 ```
 
 ## 3-6. 리츠·스팩 사전 제외

@@ -76,6 +76,21 @@ universe_gate_pit(PASS) + financials_pit + price_history
     ← Phase 4 OOS Alpha 확인 후 결정
 ```
 
+### pykrx API 제약 (2026-05 확인)
+
+KRX 2024 웹사이트 리뉴얼로 OTP 엔드포인트(`/cgi-bin/service/otp.cmd`)가 404 반환.
+아래 함수들은 **빈 응답** 또는 오류를 반환하므로 대체 로직 적용:
+
+| 함수 | 상태 | 대체 |
+|------|------|------|
+| `get_market_ohlcv(start, end, ticker)` | ✅ 작동 | — |
+| `get_market_ohlcv_by_date(start, end, ticker)` | ❌ 빈 응답 | `get_market_ohlcv` 사용 |
+| `get_market_cap_by_date(start, end, ticker)` | ❌ 빈 응답 | FDR shares × 종가 근사 |
+| `get_market_sector_classifications(date)` | ❌ 빈 응답 | `is_financial` 수동 설정 |
+| `get_market_ticker_list(date)` | ❌ 빈 응답 | FDR StockListing 스냅샷 비교 예정 |
+
+한계: 시가총액은 FDR 현재 상장주식수 × 종가 근사 (주식수 변경 이력 미반영).
+
 ---
 
 # 3. 핵심 파라미터 확정값
