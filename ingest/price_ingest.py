@@ -43,8 +43,8 @@ def collect_price_and_turnover(ticker: str, start: str = '20140101',
     """
     end = end or _today()
     try:
-        df_raw = krx.get_market_ohlcv_by_date(start, end, ticker, adjusted=False)
-        df_adj = krx.get_market_ohlcv_by_date(start, end, ticker, adjusted=True)
+        df_raw = krx.get_market_ohlcv(start, end, ticker, adjusted=False)
+        df_adj = krx.get_market_ohlcv(start, end, ticker, adjusted=True)
     except Exception as e:
         log.warning(f'{ticker} pykrx 조회 실패: {e}')
         return 0
@@ -55,18 +55,21 @@ def collect_price_and_turnover(ticker: str, start: str = '20140101',
     rows = []
     for idx in df_raw.index:
         raw = df_raw.loc[idx]
-        adj_close = float(df_adj.loc[idx]['종가']) if idx in df_adj.index else None
-        is_suspended = int(raw.get('거래량', 0)) == 0
+        close  = float(raw.get('종가', 0)) or None
+        volume = int(raw.get('거래량', 0)) or None
+        adj_close = float(df_adj.loc[idx]['종가']) if idx in df_adj.index else close
+        turnover  = (volume * close) if (volume and close) else None
+        is_suspended = volume is None or volume == 0
         rows.append((
             ticker,
             idx.date(),
-            float(raw.get('시가',   0)) or None,
-            float(raw.get('고가',   0)) or None,
-            float(raw.get('저가',   0)) or None,
-            float(raw.get('종가',   0)) or None,
+            float(raw.get('시가', 0)) or None,
+            float(raw.get('고가', 0)) or None,
+            float(raw.get('저가', 0)) or None,
+            close,
             adj_close,
-            int(raw.get('거래량',   0)) or None,
-            float(raw.get('거래대금', 0)) or None,
+            volume,
+            turnover,
             is_suspended,
         ))
 
