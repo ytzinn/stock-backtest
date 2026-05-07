@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS financials_pit (
     available_from  DATE    NOT NULL,
     source_rcept_no TEXT,
     fallback_used   BOOLEAN NOT NULL DEFAULT FALSE,
-    UNIQUE (ticker, year, report_type, fs_div, account_nm, available_from)
+    UNIQUE (ticker, year, report_type, fs_div, account_nm)
 );
 
 CREATE INDEX IF NOT EXISTS idx_financials_pit_avail_ticker

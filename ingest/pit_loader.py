@@ -111,10 +111,12 @@ def build_financials_pit(ticker: str | None = None) -> None:
                          account_nm, amount, available_from,
                          source_rcept_no, fallback_used)
                     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                    ON CONFLICT (ticker, year, report_type, fs_div,
-                                 account_nm, available_from) DO UPDATE SET
-                        amount        = EXCLUDED.amount,
-                        fallback_used = EXCLUDED.fallback_used
+                    ON CONFLICT (ticker, year, report_type, fs_div, account_nm)
+                    DO UPDATE SET
+                        amount          = EXCLUDED.amount,
+                        available_from  = EXCLUDED.available_from,
+                        source_rcept_no = EXCLUDED.source_rcept_no,
+                        fallback_used   = EXCLUDED.fallback_used
                     """,
                     (tkr, corp_code, year, report_type, fs_div,
                      account_nm, amount, avail, rcept_no, fallback),

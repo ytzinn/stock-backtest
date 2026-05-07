@@ -229,7 +229,17 @@ def _upsert_disclosures(cur, ticker: str, items: list[dict]) -> None:
         except ValueError:
             rcept_date = None
 
-        year = int(bsns_year) if bsns_year else None
+        if bsns_year:
+            year = int(bsns_year)
+        elif rcept_date:
+            # list.json API는 bsns_year를 반환하지 않으므로 rcept_dt에서 역산
+            # FY: 3~6월 접수 → 전년도 결산, H1/Q1/Q3: 접수연도 = 사업연도
+            if report_type == 'FY' and rcept_date.month <= 6:
+                year = rcept_date.year - 1
+            else:
+                year = rcept_date.year
+        else:
+            year = None
 
         cur.execute(
             """
