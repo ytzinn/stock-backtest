@@ -109,8 +109,7 @@ class DartAPI:
             raise
         return data.get('list', [])
 
-    def get_disclosures(self, corp_code: str, year: int,
-                         reprt_code: str) -> list[dict]:
+    def get_disclosures(self, corp_code: str, year: int) -> list[dict]:
         """공시 목록 조회 (rcept_dt 확보용)."""
         # pblntf_ty: A=사업보고서 계열
         pblntf_type_map = {'11011': 'A', '11013': 'A', '11012': 'A', '11014': 'A'}
