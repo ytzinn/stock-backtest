@@ -195,25 +195,25 @@ def update_financial_flag() -> None:
 
 def collect_price_and_turnover(ticker: str, start: str = '20140101', end: str = None) -> int:
     """
-    pykrx get_market_ohlcv()로 일별 OHLCV + 수정주가 수집.
+    FDR DataReader로 일별 OHLCV 수집 → price_history upsert.
 
-    ⚠️ 2026-05: get_market_ohlcv_by_date() 불작동 (KRX API 변경).
-    get_market_ohlcv(start, end, ticker) 로 대체.
+    ⚠️ 2026-05: pykrx get_market_ohlcv(start, end, ticker)는 내부적으로
+    get_market_ohlcv_by_date()를 호출 → KRX OTP 엔드포인트 404로 전종목 0행.
+    FDR DataReader(Naver Finance 기반)으로 완전 교체.
 
-    adj_close: 액면분할·무상증자 반영 수정주가 (배당 미반영).
-    turnover: 거래대금 컬럼 없음 → volume × close 근사값.
-    수익률 계산에는 adj_close 사용. 모멘텀 MA 계산도 adj_close 기준.
+    adj_close = close (FDR 단일 종가 계열; 배당 미반영).
+    turnover: volume × close 근사값.
+    수익률 계산 및 모멘텀 MA는 adj_close 기준.
     """
-    from pykrx import stock as krx
-    df_raw = krx.get_market_ohlcv(start, end or _today(), ticker, adjusted=False)
-    df_adj = krx.get_market_ohlcv(start, end or _today(), ticker, adjusted=True)
-    for idx in df_raw.index:
-        raw = df_raw.loc[idx]
-        close     = float(raw.get('종가', 0)) or None
-        volume    = int(raw.get('거래량', 0)) or None
-        adj_close = float(df_adj.loc[idx]['종가']) if idx in df_adj.index else close
-        turnover  = (volume * close) if (volume and close) else None  # 근사
-        is_suspended = volume is None or volume == 0
+    import FinanceDataReader as fdr
+    df = fdr.DataReader(ticker, start, end or _today())
+    # 컬럼: Open, High, Low, Close, Volume, Change
+    for idx, row in df.iterrows():
+        close     = float(row.get('Close', 0)) or None
+        volume    = int(row.get('Volume', 0)) or None
+        adj_close = close  # FDR은 단일 종가 계열
+        turnover  = (volume * close) if (volume and close) else None
+        is_suspended = volume is None
 ```
 
 **배당 처리 확정**: 수익률 계산에서 배당 제외. 벤치마크(KOSPI)도 동일하게 배당 미반영으로 통일.
