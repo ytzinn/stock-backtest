@@ -20,7 +20,7 @@ def collect_delisting_universe() -> list[dict]:
     df = fdr.StockListing('KRX-DELISTING')
     result = []
     for _, row in df.iterrows():
-        ticker = str(row.get('Code', '')).strip()
+        ticker = str(row.get('Symbol', row.get('Code', ''))).strip()
         if not ticker:
             continue
         result.append({

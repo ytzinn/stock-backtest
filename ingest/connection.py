@@ -14,6 +14,7 @@ def get_connection():
         dbname=os.getenv('DB_NAME', 'backtest'),
         user=os.getenv('DB_USER', 'postgres'),
         password=os.getenv('DB_PASSWORD'),
+        connect_timeout=int(os.getenv('DB_CONNECT_TIMEOUT', 3)),
     )
 
 

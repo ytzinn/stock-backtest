@@ -20,6 +20,8 @@ experiments/reports/
 # 로그
 *.log
 /var/log/
+logs/
+dashboard/status/
 
 # DB 백업
 *.sql.gz
