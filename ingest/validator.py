@@ -80,12 +80,11 @@ def validate_period(ticker: str, year: int, report_type: str,
 
 
 def validate_ticker(ticker: str) -> dict:
-    """종목 전체 기간 검사. 반환: {(year, report_type): (rejects, warnings)}"""
+    """종목 전체 기간 검사 + validation_log upsert. 반환: {(year, report_type): (rejects, warnings)}"""
     results = {}
     with db_conn() as conn:
         cur = conn.cursor()
 
-        # 사용 가능한 기간 목록
         cur.execute(
             """
             SELECT DISTINCT year, report_type, fs_div
@@ -107,6 +106,27 @@ def validate_ticker(ticker: str) -> dict:
             accounts = {row[0]: row[1] for row in cur.fetchall()}
             rejects, warnings = validate_period(ticker, year, report_type, accounts)
             results[(year, report_type)] = (rejects, warnings)
+
+            rows = [
+                (ticker, year, report_type, msg.split(':')[0].strip(), 'REJECT', msg)
+                for msg in rejects
+            ] + [
+                (ticker, year, report_type, msg.split(':')[0].strip(), 'WARN', msg)
+                for msg in warnings
+            ]
+            if rows:
+                cur.executemany(
+                    """
+                    INSERT INTO validation_log
+                        (ticker, year, report_type, check_id, severity, message)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (ticker, year, report_type, check_id) DO UPDATE SET
+                        severity     = EXCLUDED.severity,
+                        message      = EXCLUDED.message,
+                        evaluated_at = now()
+                    """,
+                    rows,
+                )
 
     return results
 

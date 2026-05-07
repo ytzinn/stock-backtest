@@ -27,7 +27,7 @@ RIM(잔여이익모델) 기반 한국 주식 멀티팩터 백테스트 머신.
 | 파일 | 내용 | 관련 Phase |
 |------|------|-----------|
 | `SPEC_01_infra.md` | 인프라(Ubuntu/cron/Docker), 디렉토리 구조, 데이터 흐름 | 사전 준비 |
-| `SPEC_02_ingest.md` | 데이터 수집(DART/pykrx/FDR), DB 스키마, PIT/DQ Gate | Phase 0 |
+| `SPEC_02_ingest.md` | 데이터 수집(DART/FDR), DB 공통 스키마, PIT/DQ Gate | Phase 0~1 + 공통 DB |
 | `SPEC_03_universe.md` | Universe 필터 4단계, interfaces, BacktestPipeline, configs | Phase 1~2 |
 | `SPEC_04_models.md` | RIM 모델, 분류기(skeleton), 포트폴리오, 엔진 | Phase 2~3 |
 | `SPEC_05_backtest.md` | Ablation Test, 성과측정, Fitness Function, 튜닝, 과최적화 방지 | Phase 2~4 |

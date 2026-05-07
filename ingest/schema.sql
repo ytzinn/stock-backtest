@@ -183,3 +183,30 @@ CREATE TABLE IF NOT EXISTS classification_history (
     soft_label     JSONB,
     UNIQUE (ticker, rebalance_date)
 );
+
+-- 13. 재무 이상치 검사 로그 (validator.py → V01~V09)
+CREATE TABLE IF NOT EXISTS validation_log (
+    id           SERIAL      PRIMARY KEY,
+    ticker       TEXT        NOT NULL,
+    year         INTEGER     NOT NULL,
+    report_type  TEXT        NOT NULL,
+    check_id     TEXT        NOT NULL,  -- 'V01', 'V02', ...
+    severity     TEXT        NOT NULL,  -- 'REJECT' | 'WARN'
+    message      TEXT,
+    evaluated_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (ticker, year, report_type, check_id)
+);
+CREATE INDEX IF NOT EXISTS idx_validation_log_ticker
+    ON validation_log (ticker, year, report_type);
+
+-- 14. RIM 입력값 상태 메타 (Phase 2 — dividend_status 3분류 등)
+CREATE TABLE IF NOT EXISTS rim_input_status (
+    ticker       TEXT    NOT NULL,
+    year         INTEGER NOT NULL,
+    report_type  TEXT    NOT NULL,
+    field_name   TEXT    NOT NULL,  -- 'dividend', 'cfo', ...
+    status       TEXT    NOT NULL,  -- 'missing' | 'reported_positive' | 'confirmed_zero'
+    note         TEXT,
+    evaluated_at TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (ticker, year, report_type, field_name)
+);
