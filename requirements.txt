@@ -1,10 +1,10 @@
 pykrx==1.0.47
 finance-datareader>=0.9.50
 psycopg2-binary>=2.9.9
-python-dotenv==1.0.1
-requests==2.31.0
-tenacity==8.2.3
-optuna==3.6.1
-pandas==2.2.2
-numpy==1.26.4
-scipy==1.13.0
+python-dotenv>=1.0.1
+requests>=2.31.0
+tenacity>=8.2.3
+optuna>=3.6.1
+pandas>=2.2.2
+numpy>=1.26.4
+scipy>=1.13.0
