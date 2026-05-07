@@ -2,7 +2,10 @@
 일별 시가총액·상장주식수 수집.
 
 FDR StockListing에서 현재 상장주식수를 가져오고,
-pykrx get_market_ohlcv로 과거 종가를 곱해 시가총액을 추정한다.
+FDR DataReader로 과거 종가를 곱해 시가총액을 추정한다.
+
+pykrx get_market_cap_by_date는 KRX 2024 API 변경으로 불작동.
+한계: 현재 주식수를 전 기간에 적용 (유상증자·감자 이력 미반영).
 
 실행:
     python -m ingest.market_cap_ingest
@@ -13,7 +16,6 @@ import logging
 from datetime import date
 
 import FinanceDataReader as fdr
-from pykrx import stock as krx
 
 from ingest.connection import db_conn
 
@@ -39,25 +41,25 @@ def collect_market_cap(ticker: str, shares: int,
                         start: str = '20140101',
                         end: str | None = None) -> int:
     """
-    pykrx 종가 × 상장주식수 → market_cap 추정 후 market_cap_history upsert.
+    FDR 종가 × 상장주식수 → market_cap 추정 후 market_cap_history upsert.
     반환: 저장된 행 수.
     """
     end = end or _today()
     try:
-        df = krx.get_market_ohlcv(start, end, ticker, adjusted=False)
+        df = fdr.DataReader(ticker, start, end)
     except Exception as e:
-        log.warning(f'{ticker} 가격 조회 실패: {e}')
+        log.warning(f'{ticker} FDR 조회 실패: {e}')
         return 0
 
     if df is None or df.empty:
         return 0
 
     rows = [
-        (ticker, idx.date(),
-         float(row['종가']) * shares if row.get('종가') else None,
+        (ticker, idx.date() if hasattr(idx, 'date') else idx,
+         float(row['Close']) * shares if row.get('Close') else None,
          shares, 'fdr_shares')
         for idx, row in df.iterrows()
-        if row.get('종가')
+        if row.get('Close')
     ]
 
     if not rows:
