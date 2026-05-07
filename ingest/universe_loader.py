@@ -164,16 +164,26 @@ def update_financial_flag() -> None:
     """
     pykrx 섹터 분류로 is_financial 갱신.
     섹터명에 금융·은행·보험·증권이 포함되면 TRUE.
+    오늘 데이터 없으면 최근 5 거래일을 순차 시도.
     """
+    from datetime import timedelta
     log.info('is_financial 갱신 시작')
-    today = _today_str()
     with db_conn() as conn:
         cur = conn.cursor()
         for market in ('KOSPI', 'KOSDAQ'):
-            try:
-                df = krx.get_market_sector_classifications(today, market=market)
-            except Exception as e:
-                log.warning(f'{market} 섹터 조회 실패: {e}')
+            df = None
+            for offset in range(5):
+                d = (date.today() - timedelta(days=offset)).strftime('%Y%m%d')
+                try:
+                    df = krx.get_market_sector_classifications(d, market=market)
+                    if not df.empty:
+                        log.info(f'{market} 섹터 조회 성공: {d}')
+                        break
+                except Exception as e:
+                    log.warning(f'{market} 섹터 조회 실패({d}): {e}')
+                    df = None
+            if df is None or df.empty:
+                log.warning(f'{market} 섹터 데이터 없음, 건너뜀')
                 continue
             for _, row in df.iterrows():
                 ticker    = str(row.get('Code',   '')).strip()
