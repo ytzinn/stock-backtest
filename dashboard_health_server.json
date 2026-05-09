@@ -1,0 +1,813 @@
+{
+  "generated_at": "2026-05-08T19:11:52+00:00",
+  "overall_status": "FAIL",
+  "summary": "Overall FAIL; findings: FAIL=1, UNKNOWN=8.",
+  "environment": {
+    "run_env": "server",
+    "project_root": "/opt/stock-backtest",
+    "log_dir": "/var/log/backtest"
+  },
+  "sections": {
+    "db": {
+      "status": "UNKNOWN",
+      "checks": []
+    },
+    "ingest": {
+      "status": "FAIL",
+      "checks": [
+        {
+          "severity": "FAIL",
+          "area": "ingest",
+          "title": "DART ingest error ratio",
+          "evidence": {
+            "pct": 14.72,
+            "total": 2127
+          }
+        },
+        {
+          "severity": "OK",
+          "area": "ingest",
+          "title": "DART ingest pending ratio",
+          "evidence": {
+            "pct": 0.0,
+            "total": 2127
+          }
+        }
+      ]
+    },
+    "data_integrity": {
+      "status": "OK",
+      "checks": [
+        {
+          "severity": "OK",
+          "area": "data_integrity",
+          "title": "price_history freshness",
+          "evidence": {
+            "latest_date": "2026-05-07",
+            "lag_days": 1,
+            "ticker_count": 2668
+          }
+        },
+        {
+          "severity": "OK",
+          "area": "data_integrity",
+          "title": "market_cap_history freshness",
+          "evidence": {
+            "latest_date": "2026-05-07",
+            "lag_days": 1,
+            "ticker_count": 2668
+          }
+        },
+        {
+          "severity": "OK",
+          "area": "data_integrity",
+          "title": "PIT fallback rate",
+          "evidence": {
+            "fallback_cnt": 0,
+            "total_cnt": 168,
+            "fallback_pct": 0.0
+          }
+        },
+        {
+          "severity": "OK",
+          "area": "data_integrity",
+          "title": "Validation REJECT count",
+          "evidence": {
+            "count": 0
+          }
+        },
+        {
+          "severity": "OK",
+          "area": "data_integrity",
+          "title": "validation_without_stocks",
+          "evidence": {
+            "check_id": "validation_without_stocks",
+            "cnt": 0
+          }
+        },
+        {
+          "severity": "OK",
+          "area": "data_integrity",
+          "title": "market_cap_without_stocks",
+          "evidence": {
+            "check_id": "market_cap_without_stocks",
+            "cnt": 0
+          }
+        },
+        {
+          "severity": "OK",
+          "area": "data_integrity",
+          "title": "price_history_without_stocks",
+          "evidence": {
+            "check_id": "price_history_without_stocks",
+            "cnt": 0
+          }
+        }
+      ]
+    },
+    "logs": {
+      "status": "UNKNOWN",
+      "checks": [
+        {
+          "severity": "UNKNOWN",
+          "area": "logs",
+          "title": "dart.log",
+          "evidence": {
+            "hit_count": null,
+            "error": "File does not exist"
+          }
+        },
+        {
+          "severity": "UNKNOWN",
+          "area": "logs",
+          "title": "dart_retry.log",
+          "evidence": {
+            "hit_count": null,
+            "error": "File does not exist"
+          }
+        },
+        {
+          "severity": "UNKNOWN",
+          "area": "logs",
+          "title": "price.log",
+          "evidence": {
+            "hit_count": null,
+            "error": "File does not exist"
+          }
+        },
+        {
+          "severity": "UNKNOWN",
+          "area": "logs",
+          "title": "market_cap.log",
+          "evidence": {
+            "hit_count": null,
+            "error": "File does not exist"
+          }
+        },
+        {
+          "severity": "UNKNOWN",
+          "area": "logs",
+          "title": "pit.log",
+          "evidence": {
+            "hit_count": null,
+            "error": "File does not exist"
+          }
+        },
+        {
+          "severity": "UNKNOWN",
+          "area": "logs",
+          "title": "dq_gate.log",
+          "evidence": {
+            "hit_count": null,
+            "error": "File does not exist"
+          }
+        },
+        {
+          "severity": "UNKNOWN",
+          "area": "logs",
+          "title": "healthcheck.log",
+          "evidence": {
+            "hit_count": null,
+            "error": "File does not exist"
+          }
+        }
+      ]
+    },
+    "system": {
+      "status": "OK",
+      "checks": [
+        {
+          "severity": "OK",
+          "area": "system",
+          "title": "Disk usage",
+          "evidence": {
+            "used_pct": 2.0
+          }
+        },
+        {
+          "severity": "OK",
+          "area": "system",
+          "title": "Dashboard systemd status",
+          "evidence": {
+            "status": "OK",
+            "cmd": [
+              "systemctl",
+              "is-active",
+              "backtest-dashboard"
+            ],
+            "returncode": 0,
+            "stdout": "active",
+            "stderr": ""
+          }
+        }
+      ]
+    },
+    "backtest_runs": {
+      "status": "UNKNOWN",
+      "checks": [
+        {
+          "severity": "UNKNOWN",
+          "area": "backtest_runs",
+          "title": "Recent backtest run failures",
+          "evidence": {
+            "failed_count": 0,
+            "run_count": 0
+          }
+        }
+      ]
+    }
+  },
+  "findings": [
+    {
+      "severity": "FAIL",
+      "area": "ingest",
+      "title": "DART ingest error ratio",
+      "evidence": {
+        "pct": 14.72,
+        "total": 2127
+      },
+      "suggested_next_check": "Inspect ingest_status errors and recent DART logs."
+    },
+    {
+      "severity": "UNKNOWN",
+      "area": "logs",
+      "title": "dart.log",
+      "evidence": {
+        "hit_count": null,
+        "error": "File does not exist"
+      },
+      "suggested_next_check": "Open Logs tab and inspect extracted context."
+    },
+    {
+      "severity": "UNKNOWN",
+      "area": "logs",
+      "title": "dart_retry.log",
+      "evidence": {
+        "hit_count": null,
+        "error": "File does not exist"
+      },
+      "suggested_next_check": "Open Logs tab and inspect extracted context."
+    },
+    {
+      "severity": "UNKNOWN",
+      "area": "logs",
+      "title": "price.log",
+      "evidence": {
+        "hit_count": null,
+        "error": "File does not exist"
+      },
+      "suggested_next_check": "Open Logs tab and inspect extracted context."
+    },
+    {
+      "severity": "UNKNOWN",
+      "area": "logs",
+      "title": "market_cap.log",
+      "evidence": {
+        "hit_count": null,
+        "error": "File does not exist"
+      },
+      "suggested_next_check": "Open Logs tab and inspect extracted context."
+    },
+    {
+      "severity": "UNKNOWN",
+      "area": "logs",
+      "title": "pit.log",
+      "evidence": {
+        "hit_count": null,
+        "error": "File does not exist"
+      },
+      "suggested_next_check": "Open Logs tab and inspect extracted context."
+    },
+    {
+      "severity": "UNKNOWN",
+      "area": "logs",
+      "title": "dq_gate.log",
+      "evidence": {
+        "hit_count": null,
+        "error": "File does not exist"
+      },
+      "suggested_next_check": "Open Logs tab and inspect extracted context."
+    },
+    {
+      "severity": "UNKNOWN",
+      "area": "logs",
+      "title": "healthcheck.log",
+      "evidence": {
+        "hit_count": null,
+        "error": "File does not exist"
+      },
+      "suggested_next_check": "Open Logs tab and inspect extracted context."
+    },
+    {
+      "severity": "UNKNOWN",
+      "area": "backtest_runs",
+      "title": "Recent backtest run failures",
+      "evidence": {
+        "failed_count": 0,
+        "run_count": 0
+      },
+      "suggested_next_check": "Inspect recent run metadata and traceback."
+    }
+  ],
+  "raw": {
+    "db": {
+      "data": {
+        "row_counts": [
+          {
+            "tbl": "backtest_runs",
+            "rows": 0
+          },
+          {
+            "tbl": "disclosures",
+            "rows": 35363
+          },
+          {
+            "tbl": "financials",
+            "rows": 184999
+          },
+          {
+            "tbl": "financials_pit",
+            "rows": 168
+          },
+          {
+            "tbl": "ingest_status",
+            "rows": 2127
+          },
+          {
+            "tbl": "market_cap_history",
+            "rows": 6388858
+          },
+          {
+            "tbl": "price_history",
+            "rows": 8602618
+          },
+          {
+            "tbl": "rim_input_status",
+            "rows": 0
+          },
+          {
+            "tbl": "stock_listing_events",
+            "rows": 6894
+          },
+          {
+            "tbl": "stocks",
+            "rows": 6882
+          },
+          {
+            "tbl": "universe_gate_pit",
+            "rows": 0
+          },
+          {
+            "tbl": "validation_log",
+            "rows": 0
+          }
+        ],
+        "ingest_progress": [
+          {
+            "done": 1814,
+            "error": 313,
+            "pending": 0,
+            "total": 2127
+          }
+        ],
+        "ingest_status_summary": [
+          {
+            "status": "done",
+            "count": 1814,
+            "latest": "2026-05-08T19:11:38.576229+00:00",
+            "total_calls": 1814
+          },
+          {
+            "status": "error",
+            "count": 313,
+            "latest": "2026-05-08T01:03:51.229265+00:00",
+            "total_calls": 0
+          }
+        ],
+        "ingest_errors": [
+          {
+            "ticker": "086900",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:03:51.229265+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64cb65d0 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "086890",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:03:43.078225+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64cb5e50 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "086820",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:03:34.919153+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64cb56d0 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "086790",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:03:26.755376+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64cb4f50 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "086710",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:03:18.584778+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64cb47d0 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "086670",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:03:10.392318+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64c2c5d0 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "086520",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:03:02.226848+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64c2c350 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "086460",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:02:54.081493+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64c2d650 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "086450",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:02:45.624814+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64c2de50 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "086390",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:02:35.962186+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64c2e1d0 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "086280",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:02:27.804611+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64c2e950 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "086200",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:02:19.597810+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64c2f0d0 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "086080",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:02:11.459066+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64c2f850 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "086060",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:02:03.307340+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64c2e350 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "086040",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:01:55.166657+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64be9fd0 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "085980",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:01:47.025403+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64beabd0 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "085910",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:01:38.877772+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64beaa50 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "085810",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:01:30.750180+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64bea9d0 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "085680",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:01:22.550146+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64bea250 state=finished raised RuntimeError>]"
+          },
+          {
+            "ticker": "085670",
+            "status": "error",
+            "last_attempt": "2026-05-08T01:01:14.405878+00:00",
+            "error_msg": "RetryError[<Future at 0x7fdc64be9950 state=finished raised RuntimeError>]"
+          }
+        ],
+        "price_freshness": [
+          {
+            "latest_date": "2026-05-07",
+            "ticker_count": 2668
+          }
+        ],
+        "market_cap_freshness": [
+          {
+            "latest_date": "2026-05-07",
+            "ticker_count": 2668
+          }
+        ],
+        "recent_price_coverage": [
+          {
+            "date": "2026-05-07",
+            "ticker_count": 2668
+          },
+          {
+            "date": "2026-05-06",
+            "ticker_count": 2669
+          },
+          {
+            "date": "2026-05-04",
+            "ticker_count": 2669
+          },
+          {
+            "date": "2026-04-30",
+            "ticker_count": 2670
+          },
+          {
+            "date": "2026-04-29",
+            "ticker_count": 2670
+          },
+          {
+            "date": "2026-04-28",
+            "ticker_count": 2669
+          },
+          {
+            "date": "2026-04-27",
+            "ticker_count": 2669
+          },
+          {
+            "date": "2026-04-24",
+            "ticker_count": 2669
+          },
+          {
+            "date": "2026-04-23",
+            "ticker_count": 2669
+          },
+          {
+            "date": "2026-04-22",
+            "ticker_count": 2669
+          }
+        ],
+        "recent_market_cap_coverage": [
+          {
+            "date": "2026-05-07",
+            "ticker_count": 2668
+          },
+          {
+            "date": "2026-05-06",
+            "ticker_count": 2668
+          },
+          {
+            "date": "2026-05-04",
+            "ticker_count": 2668
+          },
+          {
+            "date": "2026-04-30",
+            "ticker_count": 2668
+          },
+          {
+            "date": "2026-04-29",
+            "ticker_count": 2668
+          },
+          {
+            "date": "2026-04-28",
+            "ticker_count": 2667
+          },
+          {
+            "date": "2026-04-27",
+            "ticker_count": 2667
+          },
+          {
+            "date": "2026-04-24",
+            "ticker_count": 2667
+          },
+          {
+            "date": "2026-04-23",
+            "ticker_count": 2667
+          },
+          {
+            "date": "2026-04-22",
+            "ticker_count": 2667
+          }
+        ],
+        "dq_gate_summary": [],
+        "dq_gate_top_rejects": [],
+        "validation_summary": [],
+        "validation_top_tickers": [],
+        "pit_fallback_rate": [
+          {
+            "fallback_cnt": 0,
+            "total_cnt": 168,
+            "fallback_pct": 0.0
+          }
+        ],
+        "pit_available_from_anomalies": [],
+        "stocks_stats": [
+          {
+            "market": "KONEX",
+            "total": 116,
+            "active": 116,
+            "financial": 0,
+            "excluded": 0
+          },
+          {
+            "market": "KOSDAQ",
+            "total": 3703,
+            "active": 3627,
+            "financial": 9,
+            "excluded": 76
+          },
+          {
+            "market": "KOSPI",
+            "total": 3063,
+            "active": 3037,
+            "financial": 44,
+            "excluded": 26
+          }
+        ],
+        "orphan_checks": [
+          {
+            "check_id": "validation_without_stocks",
+            "cnt": 0
+          },
+          {
+            "check_id": "market_cap_without_stocks",
+            "cnt": 0
+          },
+          {
+            "check_id": "price_history_without_stocks",
+            "cnt": 0
+          }
+        ],
+        "backtest_runs": []
+      },
+      "errors": {}
+    },
+    "logs": [
+      {
+        "name": "dart.log",
+        "path": "/var/log/backtest/dart.log",
+        "status": "UNKNOWN",
+        "findings": [],
+        "error": "File does not exist"
+      },
+      {
+        "name": "dart_retry.log",
+        "path": "/var/log/backtest/dart_retry.log",
+        "status": "UNKNOWN",
+        "findings": [],
+        "error": "File does not exist"
+      },
+      {
+        "name": "price.log",
+        "path": "/var/log/backtest/price.log",
+        "status": "UNKNOWN",
+        "findings": [],
+        "error": "File does not exist"
+      },
+      {
+        "name": "market_cap.log",
+        "path": "/var/log/backtest/market_cap.log",
+        "status": "UNKNOWN",
+        "findings": [],
+        "error": "File does not exist"
+      },
+      {
+        "name": "pit.log",
+        "path": "/var/log/backtest/pit.log",
+        "status": "UNKNOWN",
+        "findings": [],
+        "error": "File does not exist"
+      },
+      {
+        "name": "dq_gate.log",
+        "path": "/var/log/backtest/dq_gate.log",
+        "status": "UNKNOWN",
+        "findings": [],
+        "error": "File does not exist"
+      },
+      {
+        "name": "healthcheck.log",
+        "path": "/var/log/backtest/healthcheck.log",
+        "status": "UNKNOWN",
+        "findings": [],
+        "error": "File does not exist"
+      }
+    ],
+    "system": {
+      "systemd": {
+        "status": "OK",
+        "cmd": [
+          "systemctl",
+          "is-active",
+          "backtest-dashboard"
+        ],
+        "returncode": 0,
+        "stdout": "active",
+        "stderr": ""
+      },
+      "crontab": {
+        "status": "WARN",
+        "cmd": [
+          "crontab",
+          "-l"
+        ],
+        "returncode": 1,
+        "stdout": "",
+        "stderr": "no crontab for milmelmul"
+      },
+      "disk": {
+        "status": "OK",
+        "cmd": [
+          "df",
+          "-h",
+          "/"
+        ],
+        "returncode": 0,
+        "stdout": "Filesystem                         Size  Used Avail Use% Mounted on\n/dev/mapper/ubuntu--vg-ubuntu--lv  914G   17G  859G   2% /",
+        "stderr": "",
+        "used_pct": 2.0
+      },
+      "git": {
+        "commit": {
+          "status": "OK",
+          "cmd": [
+            "git",
+            "rev-parse",
+            "HEAD"
+          ],
+          "returncode": 0,
+          "stdout": "***",
+          "stderr": ""
+        },
+        "status": {
+          "status": "OK",
+          "cmd": [
+            "git",
+            "status",
+            "--short"
+          ],
+          "returncode": 0,
+          "stdout": "M ingest/connection.py\n M ingest/delisting_ingest.py\n M requirements.txt\n?? dashboard/",
+          "stderr": ""
+        }
+      },
+      "logs": [
+        {
+          "name": "dart.log",
+          "path": "/var/log/backtest/dart.log",
+          "status": "UNKNOWN",
+          "error": "missing"
+        },
+        {
+          "name": "dart_retry.log",
+          "path": "/var/log/backtest/dart_retry.log",
+          "status": "UNKNOWN",
+          "error": "missing"
+        },
+        {
+          "name": "price.log",
+          "path": "/var/log/backtest/price.log",
+          "status": "UNKNOWN",
+          "error": "missing"
+        },
+        {
+          "name": "market_cap.log",
+          "path": "/var/log/backtest/market_cap.log",
+          "status": "UNKNOWN",
+          "error": "missing"
+        },
+        {
+          "name": "pit.log",
+          "path": "/var/log/backtest/pit.log",
+          "status": "UNKNOWN",
+          "error": "missing"
+        },
+        {
+          "name": "dq_gate.log",
+          "path": "/var/log/backtest/dq_gate.log",
+          "status": "UNKNOWN",
+          "error": "missing"
+        },
+        {
+          "name": "healthcheck.log",
+          "path": "/var/log/backtest/healthcheck.log",
+          "status": "UNKNOWN",
+          "error": "missing"
+        }
+      ]
+    }
+  }
+}

@@ -11,9 +11,10 @@ import json
 import logging
 
 from ingest.connection import db_conn
+from ingest.logging_config import configure_logging
 from ingest.validator import validate_period
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+configure_logging('dq_gate.log')
 log = logging.getLogger(__name__)
 
 

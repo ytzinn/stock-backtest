@@ -20,9 +20,10 @@ from dotenv import load_dotenv
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ingest.connection import db_conn
+from ingest.logging_config import configure_logging
 
 load_dotenv()
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+configure_logging('dart.log')
 log = logging.getLogger(__name__)
 
 DART_BASE = 'https://opendart.fss.or.kr/api'
@@ -367,6 +368,8 @@ def main() -> None:
     parser.add_argument('--skip-if-done', action='store_true')
     parser.add_argument('--ticker', help='단일 종목 테스트')
     args = parser.parse_args()
+    if args.skip_if_done:
+        configure_logging('dart_retry.log')
 
     dart = DartAPI()
 

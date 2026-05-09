@@ -10,8 +10,9 @@ import logging
 from datetime import date
 
 from ingest.connection import db_conn
+from ingest.logging_config import configure_logging
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+configure_logging('pit.log')
 log = logging.getLogger(__name__)
 
 # 법정 제출 마감일 + 5일 fallback

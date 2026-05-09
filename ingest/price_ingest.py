@@ -17,8 +17,9 @@ from datetime import date
 import FinanceDataReader as fdr
 
 from ingest.connection import db_conn
+from ingest.logging_config import configure_logging
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+configure_logging('price.log')
 log = logging.getLogger(__name__)
 
 

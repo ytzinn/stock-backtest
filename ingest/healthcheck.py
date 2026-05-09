@@ -8,8 +8,9 @@ import logging
 from datetime import date
 
 from ingest.connection import db_conn
+from ingest.logging_config import configure_logging
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+configure_logging('healthcheck.log')
 log = logging.getLogger(__name__)
 
 PRICE_MIN_ROWS   = 100   # 오늘 가격 데이터 최소 종목 수
