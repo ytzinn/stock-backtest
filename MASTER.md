@@ -88,6 +88,7 @@ KRX 2024 웹사이트 리뉴얼로 OTP 엔드포인트(`/cgi-bin/service/otp.cmd
 | `get_market_cap_by_date(start, end, ticker)` | ❌ 빈 응답 | FDR shares × 종가 근사 |
 | `get_market_sector_classifications(date)` | ❌ 빈 응답 | `is_financial` 수동 설정 |
 | `get_market_ticker_list(date)` | ❌ 빈 응답 | FDR StockListing 스냅샷 비교 예정 |
+| `get_index_ohlcv_by_date(start, end, ticker)` | ❌ KeyError('지수명') | `price_history` DISTINCT date 조회 (영업일 캘린더 대용) |
 
 한계: 시가총액은 FDR 현재 상장주식수 × 종가 근사 (주식수 변경 이력 미반영).
 
