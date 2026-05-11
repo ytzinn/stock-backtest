@@ -250,7 +250,7 @@ def _upsert_disclosures(cur, ticker: str, items: list[dict]) -> None:
                 rcept_dt    = EXCLUDED.rcept_dt,
                 report_nm   = EXCLUDED.report_nm,
                 report_type = EXCLUDED.report_type,
-                year        = EXCLUDED.year
+                year        = COALESCE(EXCLUDED.year, disclosures.year)
             """,
             (rcept_no, ticker, rcept_date, report_nm, report_type, year),
         )
