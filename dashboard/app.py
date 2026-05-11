@@ -377,15 +377,19 @@ with tabs[2]:
     note_box(
         [
             "Orphan은 상세 데이터에는 ticker가 있는데 종목 마스터에는 없는 상태입니다. 정상 목표는 0건입니다.",
-            "Stocks는 종목 마스터의 시장별 구성이고, Row Counts는 주요 테이블 적재량을 빠르게 보는 숫자입니다.",
+            "Stocks는 종목 마스터의 시장별 구성이고, Row Counts는 주요 테이블 누적 적재량을 빠르게 보는 숫자입니다.",
+            "price_history와 market_cap_history의 누적 행 수는 같지 않아도 됩니다. 상장폐지 종목의 과거 가격처럼 price에만 적재되는 구간이 있을 수 있습니다.",
         ]
     )
     c1, c2, c3 = st.columns(3)
     with c1:
+        hint_caption("Stocks")
         show_table(raw_db.get("stocks_stats"), height=260)
     with c2:
+        hint_caption("Orphan checks")
         show_table(raw_db.get("orphan_checks"), height=260)
     with c3:
+        hint_caption("Row counts")
         show_table(raw_db.get("row_counts"), height=260)
 
 with tabs[3]:

@@ -33,6 +33,38 @@ Phase 0A 게이팅 통과 전 Phase 1 코드 작성 금지.
 RF, RK = 0.0263, 0.0873  # backtest/models/rim.py, backtest/filters/stability_filter.py
 ```
 
+## 알려진 API 한계 및 대체 수단
+
+pykrx는 KRX 2024 웹 리뉴얼 이후 다수 함수가 불작동한다. 아래 목록 외 pykrx 함수를 새로 사용할 경우 반드시 빈 응답 여부를 확인한다.
+
+| 불작동 함수 | 증상 | 현재 대체 수단 |
+|------------|------|--------------|
+| `get_market_ohlcv_by_date()` | 빈 DataFrame | `fdr.DataReader(ticker, start, end)` |
+| `get_market_cap_by_date()` | 빈 DataFrame | `fdr.StockListing('KRX')` 현재 주식수 × 종가 근사 (상폐 종목 미적용) |
+| `get_market_ticker_list()` | 빈 응답 | `fdr.StockListing('KRX')` 스냅샷 |
+| `get_market_sector_classifications()` | 빈 응답 | 최근 5거래일 retry → 실패 시 DB 수동 UPDATE |
+
+**FDR 한계**
+- `adj_close`: FDR은 단일 종가만 제공 → `adj_close = close`로 처리 (Naver 기준 수정주가 포함됨)
+- `turnover`: `volume × close` 근사값 (실제 거래대금 아님)
+- `market_cap`: 현재 주식수 기준 추정 (유상증자·감자 이력 미반영)
+- 상폐 종목: `fdr.StockListing('KRX')` 현재 상장 목록만 제공 → 상폐 종목 주식수 없음
+
+**DART API**
+- 일일 한도: 10,000콜, stock-analysis `dart-watcher`와 API 키 공유 중
+- 새 키 발급 전까지 cron을 KST 00:05(쿼터 리셋 직후)에 실행 (`5 15 * * *` UTC)
+- 에러 status `020` = 쿼터 초과 → RetryError로 나타남 (`ingest_status.error_msg` 기준)
+
+## 서버 명령 실행 패턴
+
+- **SSH**: 항상 `-i "$env:USERPROFILE\.ssh\id_ed25519"` 포함. 생략 시 인증 실패.
+- **psql 금지**: 서버 호스트 PATH에 psql 없음(Docker 내부 전용). DB 조회는 psycopg2 스크립트로.
+- **멀티라인 Python**: PowerShell→SSH 직접 전달 시 따옴표 3중 충돌로 항상 실패.
+  패턴: `$script=@'...'@ | Out-File "$env:TEMP\t.py"` → `scp -i ... t.py :/tmp/t.py` → `ssh ... "venv/bin/python /tmp/t.py"`
+- **백그라운드 모듈**: `nohup python -m X` 단독 실행 시 ModuleNotFoundError.
+  패턴: `ssh ... 'bash -c "cd /opt/stock-backtest && nohup venv/bin/python -m ingest.X >> logs/X.log 2>&1 &"'`
+- **현황 확인 순서**: ① 로컬 `dashboard_health_server.json` → ② SSH `dashboard/status/health.json` → ③ psycopg2 직접 쿼리. 신규 스크립트 작성은 마지막 수단.
+
 ## 실행 순서 (Phase 0)
 ```bash
 # 1. DB 스키마 적용

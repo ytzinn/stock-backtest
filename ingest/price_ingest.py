@@ -6,15 +6,15 @@
     python -m ingest.price_ingest --skip-if-done    # 이미 수집된 날짜 건너뜀
     python -m ingest.price_ingest --from 20140101   # 특정 날짜부터
 
-데이터 소스: FinanceDataReader (Naver Finance 기반).
-pykrx get_market_ohlcv_by_date는 KRX 2024 API 변경으로 불작동.
-adj_close = close (FDR은 단일 종가 계열 제공; 액면분할 수정 여부는 Naver 기준).
+데이터 소스: pykrx get_market_ohlcv_by_date(adjusted=True).
+OHLCV 전체(open/high/low/close)가 동일 수정 계수로 조정되므로 스케일 일치 보장.
+배당 미반영; 액면분할·무상증자 수정 적용.
 """
 import argparse
 import logging
 from datetime import date
 
-import FinanceDataReader as fdr
+from pykrx import stock as krx
 
 from ingest.connection import db_conn
 from ingest.logging_config import configure_logging
@@ -40,17 +40,18 @@ def _today_already_collected(conn) -> bool:
 def collect_price_and_turnover(ticker: str, start: str = '20140101',
                                 end: str | None = None) -> int:
     """
-    FDR DataReader로 일별 OHLCV 수집 → price_history upsert.
+    pykrx로 일별 OHLCV 수집 → price_history upsert.
 
-    adj_close = close (FDR 단일 종가; 배당 미반영).
+    adjusted=True: open/high/low/close 전체가 동일 수정 계수 적용.
+    adj_close = close (동일 값; 스키마 일관성 유지).
     수익률 계산 및 모멘텀 MA는 adj_close 기준.
     반환: 저장된 행 수.
     """
     end = end or _today()
     try:
-        df = fdr.DataReader(ticker, start, end)
+        df = krx.get_market_ohlcv_by_date(start, end, ticker, adjusted=True)
     except Exception as e:
-        log.warning(f'{ticker} FDR 조회 실패: {e}')
+        log.warning(f'{ticker} pykrx 조회 실패: {e}')
         return 0
 
     if df is None or df.empty:
@@ -58,8 +59,8 @@ def collect_price_and_turnover(ticker: str, start: str = '20140101',
 
     rows = []
     for idx, row in df.iterrows():
-        close  = float(row.get('Close', 0)) or None
-        volume = int(row.get('Volume', 0)) if row.get('Volume') is not None else None
+        close  = float(row.get('종가', 0)) or None
+        volume = int(row.get('거래량', 0)) if row.get('거래량') is not None else None
         if volume == 0:
             volume = None
         adj_close    = close
@@ -68,9 +69,9 @@ def collect_price_and_turnover(ticker: str, start: str = '20140101',
         rows.append((
             ticker,
             idx.date() if hasattr(idx, 'date') else idx,
-            float(row.get('Open', 0)) or None,
-            float(row.get('High', 0)) or None,
-            float(row.get('Low', 0)) or None,
+            float(row.get('시가', 0)) or None,
+            float(row.get('고가', 0)) or None,
+            float(row.get('저가', 0)) or None,
             close,
             adj_close,
             volume,
@@ -116,7 +117,7 @@ def ingest_all(start: str = '20140101', skip_if_done: bool = False) -> None:
         )
         tickers = [r[0] for r in cur.fetchall()]
 
-    log.info(f'가격 수집 시작: {len(tickers)}개 종목, {start}~')
+    log.info(f'가격 수집 시작 (pykrx): {len(tickers)}개 종목, {start}~')
     for i, ticker in enumerate(tickers, 1):
         n = collect_price_and_turnover(ticker, start=start)
         if i % 100 == 0:

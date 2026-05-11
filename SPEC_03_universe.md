@@ -1,15 +1,18 @@
 # SPEC_03 — Universe 구성 & 모듈화 파이프라인
 
-> **관련 파일**: `backtest/interfaces.py`, `backtest/pipeline.py`,
+> **관련 파일**: `backtest/interfaces.py`, `backtest/data_access.py`, `backtest/pipeline.py`,
 >   `backtest/filters/hard_filter.py`, `backtest/filters/stability_filter.py`,
 >   `backtest/filters/factor_screener.py`, `backtest/filters/momentum_filter.py`,
->   `backtest/configs/phase2_rim.py`
+>   `backtest/configs/phase2_rim.py`, `backtest/configs/rebalance_dates.py`
 > **선행 조건**: SPEC_02 완료 (DB에 샘플 데이터 적재 확인)
 > **Claude Code 지시**:
 >   1. `interfaces.py`를 가장 먼저 작성하라. 이후 모든 필터/모델은 이 Protocol을 준수해야 한다.
->   2. 각 필터는 독립 파일로 작성하라. `universe.py` 단일 파일에 몰아 넣지 말 것.
->   3. `BacktestPipeline`은 필터 목록·모델을 생성자 주입으로 받아야 한다. 내부 하드코딩 금지.
->   4. Phase 2 파이프라인 조립은 `configs/phase2_rim.py`에서만 한다.
+>   2. `data_access.py`를 두 번째로 작성하라. 필터가 DB를 직접 조회하지 않도록 이 모듈만 import한다.
+>   3. 각 필터는 독립 파일로 작성하라. `universe.py` 단일 파일에 몰아 넣지 말 것.
+>   4. 모든 필터는 생성자에서 파라미터를 주입받고, `apply(tickers, rebalance_date, pit_series)` 메서드를 구현한다.
+>   5. `BacktestPipeline`은 필터 목록·모델을 생성자 주입으로 받아야 한다. 내부 하드코딩 금지.
+>   6. Phase 2 파이프라인 조립은 `configs/phase2_rim.py`에서만 한다.
+>   7. `pit_series[ticker] = [현재FY, t-1FY, t-2FY]` 인덱스 규칙을 전체에서 일관되게 유지한다.
 
 ---
 
@@ -36,10 +39,21 @@ v4.3에서 Universe 구성은 다음 4단계를 순서대로 적용한다.
 
 ## 6-1. Step 1 — Hard Filter
 
+> **클래스 구조**: `HardFilter`, `StabilityFilter`, `FactorScreener`, `MomentumFilter` 모두
+> 동일한 패턴을 따른다. 생성자(`__init__`)에서 파라미터를 주입받고, `apply(tickers, rebalance_date, pit_series)`
+> 메서드에서 종목별로 내부 로직 함수(`_hard_filter`, `_financial_stability_filter` 등)를 호출해
+> 통과/탈락을 분류한 뒤 `(passed_list, rejected_dict)`를 반환한다.
+>
+> `pit_series[ticker]` 인덱스 규칙: `[0]`=현재 FY, `[1]`=t-1 FY, `[2]`=t-2 FY.
+> DB 조회 헬퍼는 모두 `backtest/data_access.py`에서 import한다.
+
 ```python
 # backtest/filters/hard_filter.py
+# HardFilter.apply() 내부에서 호출되는 단일 종목 로직:
     ticker: str,
     rebalance_date: date,
+    pit_series_for_ticker: list[dict],
+    conn,
     min_turnover: float = 100_000_000,   # 일평균 거래대금 1억원
     min_listed_months: int = 6,
 ) -> tuple[bool, str]:
@@ -85,7 +99,34 @@ v4.3에서 Universe 구성은 다음 4단계를 순서대로 적용한다.
 
 RF, RK = 0.0263, 0.0873   # CAPM 상수 — RIM 모델(models/rim.py)과 동일 값 유지
 
-def financial_stability_filter(
+
+class StabilityFilter:
+    """UniverseFilter Protocol 구현체. 생성자로 파라미터 주입."""
+
+    def __init__(self, r2_exception: bool = True):
+        self.r2_exception = r2_exception
+
+    def apply(
+        self,
+        tickers:        list[str],
+        rebalance_date: date,
+        pit_series:     dict[str, list[dict]],
+    ) -> tuple[list[str], dict]:
+        passed, rejected = [], {}
+        for t in tickers:
+            series  = pit_series.get(t, [])
+            pit0    = series[0] if len(series) > 0 else {}
+            pit1    = series[1] if len(series) > 1 else None
+            pit2    = series[2] if len(series) > 2 else None
+            ok, reasons = _financial_stability_filter(t, rebalance_date, pit0, pit1, pit2)
+            if ok:
+                passed.append(t)
+            else:
+                rejected[t] = reasons
+        return passed, rejected
+
+
+def _financial_stability_filter(
     ticker: str,
     rebalance_date: date,
     pit_data: dict,
@@ -96,9 +137,9 @@ def financial_stability_filter(
     True = 통과, False = 제외.
     반환: (pass_flag, fail_reasons)
 
-    pit_data:    rebalance_date 기준 최신 PIT FY 데이터
-    pit_prev:    전년 FY PIT 데이터
-    pit_2y_ago:  2년 전 FY PIT 데이터
+    pit_data:    pit_series[ticker][0] — 최신 FY
+    pit_prev:    pit_series[ticker][1] — t-1 FY
+    pit_2y_ago:  pit_series[ticker][2] — t-2 FY
     """
     fails = []
 
@@ -253,39 +294,60 @@ def financial_stability_filter(
 ```python
 # backtest/filters/factor_screener.py
 
-def factor_screening(
+class FactorScreener:
+    """UniverseFilter Protocol 구현체."""
+
+    def __init__(
+        self,
+        weights: dict | None = None,   # None이면 동일가중
+        top_pct: float = 0.20,         # 상위 20% (Bayesian 튜닝 대상: 10~40%)
+    ):
+        self.weights = weights or {
+            'rev_yoy':  1/6,
+            'op_yoy':   1/6,
+            'gpa':      1/3,
+            'inv_pbr':  1/3,
+        }
+        self.top_pct = top_pct
+
+    def apply(
+        self,
+        tickers:        list[str],
+        rebalance_date: date,
+        pit_series:     dict[str, list[dict]],
+    ) -> tuple[list[str], dict]:
+        selected_set = set(_factor_screening(
+            tickers, rebalance_date, pit_series, self.weights, self.top_pct
+        ))
+        rejected = {t: '팩터 스크리닝 하위' for t in tickers if t not in selected_set}
+        return [t for t in tickers if t in selected_set], rejected
+
+
+def _factor_screening(
     universe: list[str],
     rebalance_date: date,
-    pit_data: dict[str, dict],
-    weights: dict | None = None,    # None이면 동일가중
-    top_pct: float = 0.20,          # 상위 20% (Bayesian 튜닝 대상: 10~40%)
+    pit_series: dict[str, list[dict]],
+    weights: dict,
+    top_pct: float,
 ) -> list[str]:
     """
     4개 팩터 합산 점수 기준 상위 top_pct 종목 반환.
 
-    팩터 (초기 동일가중, Phase 3+ Bayesian 튜닝 적용):
-      - 매출액 YoY:    weight_rev_yoy    (초기 1/6)
-      - 영업이익 YoY:  weight_op_yoy     (초기 1/6)
-      - GP/A:         weight_gpa        (초기 1/3)
-      - 1/PBR:        weight_inv_pbr    (초기 1/3)
+    팩터 키 (영어 통일, phase2_rim.py에서도 동일 키 사용):
+      rev_yoy   — 매출액 YoY    (초기 1/6)
+      op_yoy    — 영업이익 YoY  (초기 1/6)
+      gpa       — GP/A          (초기 1/3)
+      inv_pbr   — 1/PBR         (초기 1/3)
 
-    가중치 합은 항상 1.0. 튜닝 시 자유도 3개 (4번째는 1-나머지).
+    가중치 합은 항상 1.0. 튜닝 시 자유도 3개 (4번째 inv_pbr = 1-나머지).
 
     점수 계산:
       - 각 팩터를 유니버스 내 백분위(percentile rank)로 변환 → [0, 1]
       - 1/PBR 팩터: PBR이 낮을수록 점수 높게 → 이미 역수이므로 동일 방향
       - 가중 합산 → 최종 점수
     """
-    if weights is None:
-        weights = {
-            'rev_yoy':  1/6,
-            'op_yoy':   1/6,
-            'gpa':      1/3,
-            'inv_pbr':  1/3,
-        }
-
     scores = {}
-    raw = {ticker: _compute_factors(ticker, rebalance_date, pit_data[ticker])
+    raw = {ticker: _compute_factors(ticker, rebalance_date, pit_series.get(ticker, [{}]))
            for ticker in universe}
 
     # 팩터별 percentile rank 계산 (NaN은 최하위 처리)
@@ -301,16 +363,20 @@ def factor_screening(
     return selected
 
 
-def _compute_factors(ticker: str, rebalance_date: date, pit: dict) -> dict:
-    """단일 종목 팩터 원시값 계산."""
-    prev_rev = get_prev_fy_account(ticker, rebalance_date, '매출액')
-    prev_op  = get_prev_fy_account(ticker, rebalance_date, '영업이익')
+def _compute_factors(ticker: str, rebalance_date: date, series: list[dict]) -> dict:
+    """단일 종목 팩터 원시값 계산. series = pit_series[ticker]."""
+    from backtest.data_access import get_market_cap
+    pit     = series[0] if len(series) > 0 else {}
+    pit_prev = series[1] if len(series) > 1 else {}
+
     cur_rev  = pit.get('매출액')
     cur_op   = pit.get('영업이익')
+    prev_rev = pit_prev.get('매출액')
+    prev_op  = pit_prev.get('영업이익')
     assets   = pit.get('자산총계')
     gross    = (cur_rev or 0) - (pit.get('매출원가') or 0)   # 매출총이익
 
-    # PBR 직접 계산 (market_cap_history 사용)
+    # PBR 직접 계산 (market_cap_history 사용, data_access 경유)
     mktcap = get_market_cap(ticker, rebalance_date)
     equity = pit.get('자본총계')
     pbr    = (mktcap / equity) if mktcap and equity and equity > 0 else None
@@ -335,8 +401,17 @@ v4.2에서 확정된 내용 그대로 유지.
 
 ```python
 # backtest/filters/momentum_filter.py
+# MomentumFilter.apply() 내부에서 호출되는 단일 종목 로직:
+#   _momentum_filter(ticker, rebalance_date, conn, short_window, long_window, ...) -> bool
+#
+# MomentumFilter 클래스:
+#   def __init__(self, ma_short=20, ma_long=60, confirm_days=5, slope_lookback=20): ...
+#   def apply(self, tickers, rebalance_date, pit_series) -> tuple[list[str], dict]: ...
+#
+# 단일 종목 로직 시그니처:
     ticker:         str,
     rebalance_date: date,
+    conn,
     short_window:   int = 20,    # 고정값 (Phase 2 튜닝 제외. Phase 4 민감도 분석에서만 확인)
     long_window:    int = 60,    # 고정값
     confirm_days:   int = 5,     # 고정값
@@ -349,9 +424,10 @@ v4.2에서 확정된 내용 그대로 유지.
     - 조건 1: MA_short < MA_long 이 confirm_days 영업일 연속
     - 조건 2: MA_long(현재) < MA_long(slope_lookback일 전) — 우하향
 
-    adj_close 기준으로 계산.
+    adj_close 기준으로 계산. price_history 조회는 data_access.get_adj_close_range() 사용.
     """
-    prices = get_adj_close_range(ticker, rebalance_date,
+    from backtest.data_access import get_adj_close_range
+    prices = get_adj_close_range(conn, ticker, rebalance_date,
                                   lookback=long_window + slope_lookback + confirm_days)
     if len(prices) < long_window + slope_lookback:
         return True   # 데이터 부족 → 통과
@@ -392,11 +468,15 @@ class UniverseFilter(Protocol):
         self,
         tickers:        list[str],
         rebalance_date: date,
-        pit_data:       dict[str, dict],
-        pit_prev:       dict[str, dict] | None,
+        pit_series:     dict[str, list[dict]],
+        # pit_series[ticker] = [현재FY, t-1FY, t-2FY] (내림차순, 없으면 리스트 짧아짐)
+        # [0] = rebalance_date 기준 최신 FY (available_from <= rebalance_date)
+        # [1] = 전년도 FY
+        # [2] = 2년 전 FY
+        # StabilityFilter(R2/R3)는 [2]까지, HardFilter/Momentum은 [0]만 사용
     ) -> tuple[list[str], dict]:
         """
-        반환: (통과 종목 리스트, 탈락 상세 dict {ticker: reason})
+        반환: (통과 종목 리스트, 탈락 상세 dict {ticker: reason_str 또는 reason_list})
         """
         ...
 
@@ -412,7 +492,7 @@ class ValuationModel(Protocol):
     def fair_value(
         self,
         ticker:   str,
-        pit_data: dict,
+        pit_data: dict,   # 단일 연도 PIT dict (pit_series[ticker][0])
         shares:   float,
         beta:     float,
     ) -> float | None:
@@ -452,8 +532,8 @@ class BacktestPipeline:
         self,
         gate_passed:    list[str],
         rebalance_date: date,
-        pit_data:       dict[str, dict],
-        pit_prev:       dict[str, dict] | None = None,
+        pit_series:     dict[str, list[dict]],
+        # pit_series[ticker] = [현재FY, t-1FY, t-2FY]  ← pit_prev 제거, pit_series로 통일
     ) -> dict:
         """
         filters를 순서대로 적용. 단계별 탈락 수 반환.
@@ -462,7 +542,7 @@ class BacktestPipeline:
             'universe': [ticker, ...],
             'stats': {
                 'HardFilter':       {'passed': N, 'rejected': {ticker: reason}},
-                'StabilityFilter':  {'passed': N, 'rejected': {ticker: reason}},
+                'StabilityFilter':  {'passed': N, 'rejected': {ticker: reason_list}},
                 'FactorScreener':   {'passed': N, 'rejected': {ticker: reason}},
                 'MomentumFilter':   {'passed': N, 'rejected': {ticker: reason}},
             }
@@ -471,7 +551,7 @@ class BacktestPipeline:
         tickers = gate_passed
         stats   = {}
         for f in self.filters:
-            tickers, step_stats = f.apply(tickers, rebalance_date, pit_data, pit_prev)
+            tickers, step_stats = f.apply(tickers, rebalance_date, pit_series)
             stats[f.__class__.__name__] = {
                 'passed':   len(tickers),
                 'rejected': step_stats,
@@ -482,17 +562,20 @@ class BacktestPipeline:
         self,
         universe:       list[str],
         rebalance_date: date,
-        pit_data:       dict[str, dict],
+        pit_series:     dict[str, list[dict]],
+        conn,           # psycopg2 connection (data_access 헬퍼에 전달)
     ) -> list[dict]:
         """
         valuation_model로 적정가 계산 → 밸류에이션 필터 → upside% 내림차순 정렬.
         매도 우선순위: upside% 낮은 순.
         """
+        from backtest.data_access import get_shares_outstanding, get_close_price
         result = []
         for ticker in universe:
-            shares = get_shares_outstanding(ticker, rebalance_date)
-            fv     = self.model.fair_value(ticker, pit_data[ticker], shares, beta=1.0)
-            price  = get_close_price(ticker, rebalance_date)
+            pit0   = pit_series.get(ticker, [{}])[0]
+            shares = get_shares_outstanding(conn, ticker, rebalance_date)
+            fv     = self.model.fair_value(ticker, pit0, shares, beta=1.0)
+            price  = get_close_price(conn, ticker, rebalance_date)
             if fv is None or price is None or price <= 0:
                 continue
             upside = (fv / price - 1) * 100
@@ -522,7 +605,7 @@ PHASE2_PIPELINE = BacktestPipeline(
         HardFilter(),
         StabilityFilter(r2_exception=True),
         FactorScreener(
-            weights={'매출YoY': 1/6, '영업이익YoY': 1/6, 'GP/A': 1/3, '1/PBR': 1/3},
+            weights={'rev_yoy': 1/6, 'op_yoy': 1/6, 'gpa': 1/3, 'inv_pbr': 1/3},
             top_pct=0.20,
         ),
         MomentumFilter(ma_short=20, ma_long=60, confirm_days=5, slope_lookback=20),
@@ -545,6 +628,116 @@ PHASE2_PIPELINE = BacktestPipeline(
 #         weights='equal',
 #     ),
 # )
+```
+
+---
+
+## 6-7. data_access.py — DB 조회 헬퍼 (v4.8 신규)
+
+모든 필터와 파이프라인에서 공통으로 사용하는 DB 조회 함수를 한 파일에 집중한다.
+커넥션은 엔진 레벨에서 열어 인자로 전달(`conn` 주입 패턴). `ingest/connection.py`의 팩토리 재사용.
+
+```python
+# backtest/data_access.py
+from ingest.connection import get_conn   # 팩토리 재사용 (DB 포트 5433)
+import pandas as pd
+
+# ── 가격 / 거래대금 ─────────────────────────────────────────────────────────
+def get_avg_turnover(conn, ticker: str, date, window: int = 20) -> float:
+    """최근 window 영업일 평균 거래대금(원). 데이터 없으면 0 반환."""
+    ...
+
+def get_adj_close_range(conn, ticker: str, date, lookback: int) -> pd.Series:
+    """date 이전 lookback 영업일 adj_close 시계열. 데이터 없으면 빈 Series."""
+    ...
+
+def get_close_price(conn, ticker: str, date) -> float | None:
+    """date 기준 종가(adj_close). 없으면 None."""
+    ...
+
+# ── 시가총액 / 주식수 ────────────────────────────────────────────────────────
+def get_market_cap(conn, ticker: str, date) -> float | None:
+    """date 기준 가장 가까운 시가총액(원). 없으면 None."""
+    ...
+
+def get_shares_outstanding(conn, ticker: str, date) -> int | None:
+    """date 기준 가장 가까운 상장주식수. 없으면 None."""
+    ...
+
+# ── PIT 데이터 ──────────────────────────────────────────────────────────────
+def load_pit_series(
+    conn,
+    rebalance_date,
+    n_years: int = 3,
+) -> dict[str, list[dict]]:
+    """
+    universe_gate_pit PASS 종목 전체에 대해 rebalance_date 기준
+    최신 n_years 개 FY PIT 데이터를 로드.
+
+    반환: {ticker: [FY현재dict, FY(t-1)dict, FY(t-2)dict]}
+      - available_from <= rebalance_date 조건 필수 (룩어헤드 방지)
+      - 각 원소는 {account_nm: amount, ...} flat dict (피벗된 형태)
+      - 연도가 부족한 종목은 리스트 길이가 짧아짐 (len 1 또는 2)
+    """
+    ...
+
+def load_gate_passed_tickers(conn, rebalance_date) -> list[str]:
+    """
+    리밸런싱 기준일에 투자 가능한 종목 목록.
+
+    조건:
+      1. stocks.is_excluded = FALSE
+      2. universe_gate_pit.status = 'PASS' (해당 시점 FY)
+      3. stock_listing_events 기준 실제 상장 중 (listed_date <= date < delisted_date)
+    """
+    ...
+```
+
+---
+
+## 6-8. configs/rebalance_dates.py — 리밸런싱 날짜 생성 (v4.8)
+
+Phase 2 시작 시 아래 스크립트를 서버에서 **1회** 실행해 21개 날짜를 계산하고,
+그 결과를 `configs/rebalance_dates.py`에 하드코딩한다 (재현성 보장).
+
+```python
+# scripts/generate_rebalance_dates.py  ← Phase 2 시작 시 1회 실행
+# 출력: 아래 REBALANCE_DATES 리스트에 붙여넣을 값
+
+from datetime import date, timedelta
+from pykrx import stock as krx
+
+def nth_trading_day_after(base: date, n: int) -> date:
+    d, count = base + timedelta(days=1), 0
+    while True:
+        ym_start = d.strftime('%Y%m01')
+        ym_end   = d.strftime('%Y%m%d')
+        cal = krx.get_index_ohlcv_by_date(ym_start, ym_end, 'KOSPI')
+        if d in [idx.date() for idx in cal.index]:
+            count += 1
+            if count == n:
+                return d
+        d += timedelta(days=1)
+        if (d - base).days > 30:
+            raise ValueError(f'영업일 탐색 실패: {base}')
+
+dates = []
+for yr in range(2015, 2027):
+    dates.append(nth_trading_day_after(date(yr, 3, 31), 3))   # 상반기: FY 사업보고서
+    if yr < 2026:
+        dates.append(nth_trading_day_after(date(yr, 8, 14), 3))  # 하반기: H1 반기보고서
+dates.sort()
+print([d.isoformat() for d in dates])
+```
+
+```python
+# backtest/configs/rebalance_dates.py  ← 위 스크립트 출력 결과를 하드코딩
+from datetime import date
+
+REBALANCE_DATES = [
+    # 2015~2026 (21개 구간) — scripts/generate_rebalance_dates.py 실행 후 채움
+    # date(2015, 4, X), date(2015, 8, X), ...
+]
 ```
 
 ---

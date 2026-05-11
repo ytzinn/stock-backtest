@@ -66,12 +66,20 @@ def get_row_counts() -> list[dict[str, Any]]:
 def get_ingest_progress() -> list[dict[str, Any]]:
     return _query(
         """
+        WITH dart_targets AS (
+            SELECT ticker
+            FROM stocks
+            WHERE is_excluded = FALSE
+              AND corp_code IS NOT NULL
+        )
         SELECT
-            COUNT(*) FILTER (WHERE status = 'done')::bigint AS done,
-            COUNT(*) FILTER (WHERE status = 'error')::bigint AS error,
-            COUNT(*) FILTER (WHERE status = 'pending')::bigint AS pending,
+            COUNT(*) FILTER (WHERE i.status = 'done')::bigint AS done,
+            COUNT(*) FILTER (WHERE i.status = 'error')::bigint AS error,
+            COUNT(*) FILTER (WHERE i.status = 'pending' OR i.ticker IS NULL)::bigint AS pending,
+            COUNT(*) FILTER (WHERE i.ticker IS NULL)::bigint AS missing_status,
             COUNT(*)::bigint AS total
-        FROM ingest_status
+        FROM dart_targets d
+        LEFT JOIN ingest_status i ON i.ticker = d.ticker
         """
     )
 
@@ -282,4 +290,3 @@ def get_backtest_runs() -> list[dict[str, Any]]:
         LIMIT 20
         """
     )
-

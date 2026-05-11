@@ -4,7 +4,7 @@
 FDR StockListing에서 현재 상장주식수를 가져오고,
 FDR DataReader로 과거 종가를 곱해 시가총액을 추정한다.
 
-pykrx get_market_cap_by_date는 KRX 2024 API 변경으로 불작동.
+pykrx get_market_cap_by_date는 빈 DataFrame 반환으로 사용 불가 (2026-05 확인).
 한계: 현재 주식수를 전 기간에 적용 (유상증자·감자 이력 미반영).
 
 실행:

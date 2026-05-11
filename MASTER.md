@@ -1,6 +1,6 @@
 # stock-backtest — MASTER 설계서
 
-> **설계서 버전**: v4.8
+> **설계서 버전**: v4.9
 > **프로젝트 저장소**: `stock-backtest/`
 > **기준 문서**: 멀티모델_백테스트_머신_설계서_v4.8.md
 
@@ -157,6 +157,20 @@ RF, RK = 0.0263, 0.0873   # 두 파일에서 동일 값 유지
 
 **Phase 2 설계 원칙**: 팩터 간 상관관계 측정 및 PCA/직교화 필요성 검토는 **Phase 2 Ablation 결과 확인 후** 결정. 상위 20% 기준 매출YoY-영업이익YoY 상관계수 ≥ 0.5 시 가중 구조 재검토.
 
+## 3-7. Phase 2 튜닝 파라미터 (4개)
+
+| 파라미터 | 초기값 | 튜닝 범위 | 비고 |
+|---------|--------|----------|------|
+| `beta_adj` (r 오프셋) | 0.0 | [-0.02, +0.02] | r = RF + β×(RK-RF) + **beta_adj**. β=1.0 고정 유지, r 수준만 미세 조정 |
+| `rim_threshold` | 0.05 | [-0.10, +0.20] | 밸류에이션 필터 임계값 (현재가 > FV×(1+rim_threshold) 제외) |
+| `top_pct` | 0.20 | [0.10, 0.40] | 팩터 스크리닝 컷오프 비율 |
+| `n_stocks` | 20 | [10, 30] | 포트폴리오 목표 종목 수 |
+
+> `beta_adj`는 종목별 β 차이를 흡수하기 위한 전역 오프셋. β=1.0 고정은 유지.
+> `beta_adj` < 0: r 낙관적(할인율 낮음) → 적정가 상승. `beta_adj` > 0: r 보수적 → 적정가 하락.
+
+**Phase 2 고정값 (튜닝 제외):** 모멘텀 파라미터 4개 / 업종 집중 상한 25% / 거래대금 기준 1억원 / 팩터 가중치 (동일가중 고정)
+
 ## 3-6. 재무안정성 필터 기준 (R1~R6, 하드 룰)
 
 Bayesian 튜닝 대상에서 제외. 조건 충족 시 즉시 탈락.
@@ -236,6 +250,7 @@ korean-stock-backtest/
 │
 ├─ backtest/
 │   ├─ interfaces.py              # [v4.8] Protocol 정의: UniverseFilter, ValuationModel
+│   ├─ data_access.py             # [v4.8] DB 조회 헬퍼 (ingest/connection.py 재사용)
 │   ├─ pipeline.py                # [v4.8] BacktestPipeline 조립 클래스
 │   ├─ engine.py                  # 리밸런싱 루프, 수익률 계산
 │   ├─ filters/                   # [v4.8] 유니버스 필터 구현체
@@ -282,6 +297,7 @@ korean-stock-backtest/
 > **v4.6**: 인프라 운영 환경 확정 (개발: Windows 11 / 실행: Ubuntu 서버). §0 신규 추가. §1-1·§1-2·§3-1 Ubuntu 환경 기준으로 수정
 > **v4.7**: 설계 비판 검토 반영. ① `backtest_runs` 재현성 컬럼 6개 추가 ② `stock_listing_history` → `stock_listing_events` (상장 이벤트 이력 구조) 교체 ③ `universe_gate` → 영구제외(`stocks`) + 시점별(`universe_gate_pit`) 분리 ④ `financials_pit`에 `fallback_used` 추가 ⑤ `dividend_status` 3분류 도입 + RIM 코드 수정 ⑥ `requirements.txt` 버전 고정 명시
 > **v4.8**: 모듈화 설계 도입. `backtest/` 하위 `filters/` · `models/` · `configs/` 디렉토리 분리. `interfaces.py` Protocol 정의(UniverseFilter, ValuationModel). `build_universe()` → `BacktestPipeline` 클래스로 교체. `RIMModel` 클래스화. Phase별 파이프라인 조립을 `configs/`에서 관리.
+> **v4.9** (인터뷰 반영): ① `UniverseFilter.apply()` 시그니처 `pit_prev` 제거 → `pit_series: dict[str, list[dict]]`([0]=현재, [1]=t-1, [2]=t-2) 통일. ② `backtest/data_access.py` 신규 — DB 조회 헬퍼 집중, `ingest/connection.py` 재사용, `conn` 주입 패턴. ③ 필터 클래스: 생성자 파라미터 주입 + `apply()` 메서드 구조 확정. ④ FactorScreener 가중치 키 영어 통일(`rev_yoy, op_yoy, gpa, inv_pbr`). ⑤ `beta_adj` 파라미터 정의 명시 (r 오프셋, β=1.0 유지). ⑥ `configs/rebalance_dates.py` 생성 스크립트 추가. ⑦ Phase 2 튜닝 파라미터 테이블 §3-7 신규.
 >
 > **핵심 변경 철학**: "모든 모델 산식 먼저 → 구현" 순서 대신 "RIM + 모멘텀으로 Baseline 먼저 → 결과 보고 확장" 순서로 전환.
 > 멀티모델(EV/Sales, Peer PER, NAV, FCFF 등) 산식 확정은 Phase 2 Ablation Test 결과 이후로 이동.
