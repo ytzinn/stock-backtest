@@ -80,6 +80,7 @@ def _collect_db() -> dict[str, Any]:
         "recent_market_cap_coverage": queries.get_recent_market_cap_coverage,
         "dq_gate_summary": queries.get_dq_gate_summary,
         "dq_gate_top_rejects": queries.get_dq_gate_top_rejects,
+        "dq_gate_top_flags": queries.get_dq_gate_top_flags,
         "validation_summary": queries.get_validation_summary,
         "validation_top_tickers": queries.get_validation_top_tickers,
         "pit_fallback_rate": queries.get_pit_fallback_rate,

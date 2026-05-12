@@ -27,6 +27,9 @@ HELP = {
     "Freshness": "가격/시가총액 데이터가 얼마나 최신 거래일까지 들어왔는지 봅니다.",
     "PIT / DQ / Validation": "PIT, DQ Gate, validation은 백테스트 입력 데이터가 믿을 만한지 확인하는 영역입니다.",
     "Stocks / Orphans / Row Counts": "종목 마스터 통계, orphan 데이터, 주요 테이블 행 수를 보여줍니다.",
+    "DB Browser": "DB에 저장된 종목별 원천 데이터를 읽기 전용으로 확인합니다.",
+    "Stock Catalog": "종목별 수집 데이터 건수와 최신 적재일을 보여줍니다.",
+    "Raw Table Preview": "허용된 public 테이블의 앞부분을 읽기 전용으로 미리 봅니다.",
     "Log Summary": "로그에서 ERROR/WARN/FAIL/Traceback/Exception 같은 라인을 추출해 최근 원인 후보를 보여줍니다.",
     "System": "서버의 systemd, disk, git, crontab, 로그 파일 상태를 읽기 전용으로 보여줍니다.",
     "Recent Backtest Runs": "최근 백테스트 실행 이력입니다. 성과 분석이 아니라 실패/metadata 확인용입니다.",
@@ -38,7 +41,8 @@ HELP = {
     "PIT available_from anomalies": "available_from이 미래 날짜이거나 비정상적으로 오래된 PIT 데이터 후보입니다.",
     "DQ gate summary": "Data Quality Gate의 PASS/REJECT 분포입니다. REJECT가 높으면 유니버스 품질 문제가 있을 수 있습니다.",
     "DQ top rejects": "DQ Gate에서 가장 자주 나온 reject 사유입니다.",
-    "Validation summary": "V01~V09 재무 이상치 검사 결과를 check_id와 severity별로 집계합니다.",
+    "DQ top flags": "DQ Gate에서 PASS는 했지만 주의 플래그가 많이 붙은 사유입니다.",
+    "Validation summary": "V01~V11 재무 이상치 검사 결과를 check_id별 REJECT/WARN 건수로 집계합니다.",
     "Validation top tickers": "validation 문제가 많이 나온 종목입니다.",
     "Sanitized tail": "민감정보를 마스킹한 로그 끝부분입니다.",
     "Extracted recent context": "로그에서 에러/경고 키워드가 나온 최근 위치와 앞뒤 문맥입니다.",
@@ -202,6 +206,16 @@ def show_table(rows, height: int = 280):
             st.dataframe(data, use_container_width=True, height=height, column_config=column_config)
 
 
+def show_query_table(rows, error: str | None = None, height: int = 280):
+    if error:
+        st.warning(error)
+    show_table(rows, height=height)
+
+
+def call_query(fn, *args, **kwargs):
+    return queries.safe_call(lambda: fn(*args, **kwargs))
+
+
 def status_badge(value: str) -> str:
     color = STATUS_COLORS.get(str(value).upper(), STATUS_COLORS["UNKNOWN"])
     return (
@@ -258,7 +272,7 @@ with st.expander("Status Legend / 화면 읽는 법", expanded=True):
     )
     st.caption("섹션 제목의 ?, ⓘ, 표의 컬럼 헤더에 마우스를 올리면 의미 설명이 표시됩니다.")
 
-tabs = st.tabs(["Agent Summary", "Health Matrix", "Data Integrity", "Logs", "System", "Backtest Runs"])
+tabs = st.tabs(["Agent Summary", "Health Matrix", "Data Integrity", "DB Browser", "Logs", "System", "Backtest Runs"])
 
 with tabs[0]:
     tab_guide(
@@ -363,11 +377,17 @@ with tabs[2]:
         hint_caption("PIT available_from anomalies")
         show_table(raw_db.get("pit_available_from_anomalies"), height=260)
     with c2:
+        with st.expander("DQ nomenclature", expanded=False):
+            show_table(queries.get_dq_gate_nomenclature(), height=420)
         hint_caption("DQ gate summary")
         show_table(raw_db.get("dq_gate_summary"), height=220)
         hint_caption("DQ top rejects")
-        show_table(raw_db.get("dq_gate_top_rejects"), height=220)
+        show_table(raw_db.get("dq_gate_top_rejects"), height=180)
+        hint_caption("DQ top flags")
+        show_table(raw_db.get("dq_gate_top_flags"), height=180)
     with c3:
+        with st.expander("Validation nomenclature", expanded=False):
+            show_table(queries.get_validation_nomenclature(), height=420)
         hint_caption("Validation summary")
         show_table(raw_db.get("validation_summary"), height=220)
         hint_caption("Validation top tickers")
@@ -393,6 +413,89 @@ with tabs[2]:
         show_table(raw_db.get("row_counts"), height=260)
 
 with tabs[3]:
+    st.subheader("DB Browser", help=HELP["DB Browser"])
+    tab_guide(
+        "DB Browser",
+        [
+            "종목을 검색하고 선택하면 대시보드가 수집한 가격, 시총, 재무, PIT, 공시, 검증 데이터를 테이블별로 보여줍니다.",
+            "모든 조회는 읽기 전용입니다. 여기서 보이는 값이 백테스트 입력의 원천 상태라고 보면 됩니다.",
+            "Raw Table Preview는 전체 DB 구조를 빠르게 훑기 위한 보조 화면입니다. 큰 테이블은 앞부분 일부만 가져옵니다.",
+        ],
+    )
+
+    stock_view, raw_view = st.tabs(["By Stock", "Raw Tables"])
+
+    with stock_view:
+        c1, c2 = st.columns([3, 1])
+        with c1:
+            search = st.text_input("Search ticker / company", value="", placeholder="예: 005930 또는 삼성")
+        with c2:
+            catalog_limit = st.number_input("Catalog rows", min_value=50, max_value=1000, value=300, step=50)
+
+        catalog, catalog_error = call_query(queries.get_stock_browser_catalog, search, int(catalog_limit))
+        st.subheader("Stock Catalog", help=HELP["Stock Catalog"])
+        show_query_table(catalog, catalog_error, height=280)
+
+        if catalog:
+            options = [row["ticker"] for row in catalog]
+
+            def stock_label(ticker: str) -> str:
+                row = next((item for item in catalog if item["ticker"] == ticker), {})
+                name = row.get("corp_name") or ""
+                market = row.get("market") or ""
+                latest_price = row.get("latest_price_date") or "-"
+                return f"{ticker} | {name} | {market} | price {latest_price}"
+
+            selected_ticker = st.selectbox("Selected stock", options, format_func=stock_label)
+            row_limit = st.slider("Rows per detail table", 50, 1000, 250, step=50)
+
+            overview, overview_error = call_query(queries.get_stock_browser_overview, selected_ticker)
+            if overview:
+                meta = overview[0]
+                st.markdown(
+                    f"**{meta.get('ticker')} {meta.get('corp_name')}** · "
+                    f"{meta.get('market') or '-'} · {meta.get('sector_name') or '-'} · "
+                    f"ingest `{meta.get('ingest_status') or 'missing'}`"
+                )
+            show_query_table(overview, overview_error, height=120)
+
+            detail_tabs = st.tabs(["Price", "Market Cap", "Financials", "PIT", "Disclosures", "Quality", "Listing", "RIM Input"])
+            detail_specs = [
+                ("Price", queries.get_stock_browser_price_history, 0, 420),
+                ("Market Cap", queries.get_stock_browser_market_cap_history, 1, 420),
+                ("Financials", queries.get_stock_browser_financials, 2, 520),
+                ("PIT", queries.get_stock_browser_financials_pit, 3, 520),
+                ("Disclosures", queries.get_stock_browser_disclosures, 4, 360),
+                ("Quality", queries.get_stock_browser_quality, 5, 360),
+                ("Listing", queries.get_stock_browser_listing_events, 6, 260),
+                ("RIM Input", queries.get_stock_browser_rim_input_status, 7, 320),
+            ]
+            for title, fn, tab_index, height in detail_specs:
+                with detail_tabs[tab_index]:
+                    st.caption(title)
+                    rows, error = call_query(fn, selected_ticker, int(row_limit))
+                    show_query_table(rows, error, height=height)
+        else:
+            st.info("검색 조건에 맞는 종목이 없습니다.")
+
+    with raw_view:
+        st.subheader("Raw Table Preview", help=HELP["Raw Table Preview"])
+        tables, tables_error = call_query(queries.get_db_browser_tables)
+        if tables_error:
+            st.warning(tables_error)
+        table_names = [row["table_name"] for row in tables]
+        if table_names:
+            c1, c2 = st.columns([3, 1])
+            with c1:
+                selected_table = st.selectbox("Table", table_names)
+            with c2:
+                preview_limit = st.number_input("Preview rows", min_value=20, max_value=1000, value=200, step=20)
+            rows, error = call_query(queries.get_db_browser_table_preview, selected_table, int(preview_limit))
+            show_query_table(rows, error, height=560)
+        else:
+            st.info("미리 볼 수 있는 public 테이블이 없습니다.")
+
+with tabs[4]:
     st.subheader("Log Summary", help=HELP["Log Summary"])
     tab_guide(
         "Logs",
@@ -424,7 +527,7 @@ with tabs[3]:
     selected_summary = next((item for item in log_summaries if item["name"] == selected), {})
     st.json(selected_summary.get("findings", []), expanded=False)
 
-with tabs[4]:
+with tabs[5]:
     st.subheader("System", help=HELP["System"])
     tab_guide(
         "System",
@@ -456,7 +559,7 @@ with tabs[4]:
             with st.expander(key):
                 st.code(json.dumps(system[key], ensure_ascii=False, indent=2), language="json")
 
-with tabs[5]:
+with tabs[6]:
     st.subheader("Recent Backtest Runs", help=HELP["Recent Backtest Runs"])
     tab_guide(
         "Backtest Runs",
