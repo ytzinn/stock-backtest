@@ -107,7 +107,7 @@ KRX 2024 웹사이트 리뉴얼로 OTP 엔드포인트(`/cgi-bin/service/otp.cmd
 | RK (시장기대수익률 = RF + ERP) | 8.73% | ERP = 6.10%, stock-analysis 기존값 유지 |
 | r (요구수익률, β=1.0 고정) | **8.73%** | r = RF + 1.0 × (RK − RF) = RK |
 | β | 1.0 고정 (Phase 2~4) | get_beta() 미구현. Phase 3 이후 rolling β 도입 검토 |
-| adjROE 방식 | Dechow(1994) Method C, λ=0.5 | adjROE = (0.5×NI + 0.5×CFO) / equity — **stock-analysis fair_value.py와 동일** |
+| adjROE 방식 | Dechow(1994) Method C, λ=0.5 | adjROE = (0.5×NI + 0.5×CFO) / equity. equity = **지배기업소유주지분** 우선, 없으면 자본총계 fallback. CFS에서 비지배지분 제외하여 지배주주 기준 적정가 산출. |
 | dividend_status missing 처리 | payout=0 가정 (낙관적 편향 허용) | KOSDAQ 소형주 누락 다수 → 제외 시 소형주 편향 |
 
 코드 내 선언 위치: `backtest/models/rim.py`, `backtest/filters/stability_filter.py`

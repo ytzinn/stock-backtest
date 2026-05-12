@@ -50,9 +50,10 @@ ACCOUNT_ALIASES: dict[str, list[str]] = {
     '영업이익':         ['영업이익', '영업이익(손실)', '영업손익'],
     '당기순이익':       ['당기순이익', '당기순이익(손실)', '분기순이익',
                         '분기순이익(손실)', '연결당기순이익'],
-    '자본총계':         ['자본총계', '자본합계', '지배기업소유주지분',
-                        '자본및부채총계'],
-    '자산총계':         ['자산총계', '자산합계'],
+    '자본총계':             ['자본총계', '자본합계'],
+    '지배기업소유주지분':   ['지배기업소유주지분', '지배기업소유주지분합계',
+                             '지배기업소유주에게귀속되는자본합계', '지배주주지분'],
+    '자산총계':             ['자산총계', '자산합계'],
     '부채총계':         ['부채총계', '부채합계'],
     '유동자산':         ['유동자산'],
     '유동부채':         ['유동부채'],
@@ -64,6 +65,28 @@ ACCOUNT_ALIASES: dict[str, list[str]] = {
     '유동성장기부채':   ['유동성장기부채', '유동성장기차입금', '유동성사채'],
     '장기차입금':       ['장기차입금'],
     '사채':             ['사채', '장기사채'],
+}
+
+# 각 계정의 정규 출처 재무제표. 동일 계정명이 여러 재무제표에 등장할 때
+# 자본변동표의 0값 등이 손익계산서 정답을 덮어쓰는 버그를 방지한다.
+_CANONICAL_SJ: dict[str, str] = {
+    '매출액':           '손익계산서',
+    '매출총이익':       '손익계산서',
+    '영업이익':         '손익계산서',
+    '당기순이익':       '손익계산서',
+    '자산총계':         '재무상태표',
+    '부채총계':         '재무상태표',
+    '자본총계':             '재무상태표',
+    '지배기업소유주지분':   '재무상태표',
+    '유동자산':             '재무상태표',
+    '유동부채':         '재무상태표',
+    '단기차입금':       '재무상태표',
+    '유동성장기부채':   '재무상태표',
+    '장기차입금':       '재무상태표',
+    '사채':             '재무상태표',
+    '영업활동현금흐름': '현금흐름표',
+    '재무활동현금흐름': '현금흐름표',
+    '배당금지급':       '현금흐름표',
 }
 
 # 역방향 조회 테이블: raw name → standard name
@@ -197,6 +220,16 @@ def _upsert_financials(cur, ticker: str, corp_code: str, year: int,
         std_nm = standardize_account(raw_nm)
         if std_nm is None:
             continue
+
+        # 정규 출처 재무제표가 지정된 계정은 해당 sj_nm에서 온 행만 허용.
+        # fnlttSinglAcntAll은 동일 계정명을 여러 재무제표(손익/포괄손익/현금흐름/자본변동)에
+        # 걸쳐 반환하며, 자본변동표 행은 열별 분해값이라 0이 다수 포함된다.
+        canonical = _CANONICAL_SJ.get(std_nm)
+        if canonical:
+            sj_nm = (item.get('sj_nm') or '').replace(' ', '')
+            if canonical.replace(' ', '') not in sj_nm:
+                continue
+
         amount_str = item.get('thstrm_amount', '') or ''
         try:
             amount = float(amount_str.replace(',', ''))
@@ -314,6 +347,118 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
             (ticker,),
         )
         log.info(f'{ticker} 완료: {total}개 계정 저장')
+
+
+def repair_ni() -> None:
+    """
+    당기순이익 0 버그 복구.
+
+    자본변동표의 0값이 손익계산서 정답을 upsert로 덮어쓴 종목만 대상.
+    조건: 당기순이익=0 AND 매출>0. 영업손실 기업도 포함(이전 영업이익>0 조건보다 넓음).
+    수정된 _upsert_financials(sj_nm 필터)로 재수집하므로 손익계산서 값만 저장된다.
+    """
+    dart = DartAPI()
+
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT ni.ticker, s.corp_code, ni.year, ni.report_type, ni.fs_div
+            FROM financials ni
+            JOIN financials rev ON rev.ticker = ni.ticker
+                               AND rev.year = ni.year
+                               AND rev.report_type = ni.report_type
+                               AND rev.fs_div = ni.fs_div
+                               AND rev.account_nm = '매출액'
+            JOIN stocks s ON s.ticker = ni.ticker
+            WHERE ni.account_nm = '당기순이익'
+              AND (ni.amount IS NULL OR ni.amount = 0)
+              AND rev.amount > 0
+              AND s.corp_code IS NOT NULL
+            ORDER BY ni.ticker, ni.year, ni.report_type
+        """)
+        targets = cur.fetchall()
+
+    log.info(f'당기순이익 복구 대상: {len(targets)}개 (ticker×year×report_type×fs_div)')
+    ok = 0
+    for ticker, corp_code, year, report_type, fs_div in targets:
+        reprt_code = REPRT_CODE.get(report_type)
+        if not reprt_code:
+            continue
+        try:
+            items = dart.get_financial_statement(corp_code, year, reprt_code, fs_div)
+            if not items:
+                log.warning(f'{ticker} {year} {report_type} {fs_div} — API 빈 응답')
+                continue
+            with db_conn() as conn:
+                cur = conn.cursor()
+                _upsert_financials(cur, ticker, corp_code, year, report_type, fs_div, items)
+            ok += 1
+            log.info(f'{ticker} {year} {report_type} {fs_div} 복구 완료')
+        except QuotaExceededError:
+            log.error('DART 쿼터 초과 — 복구 중단, 내일 재실행')
+            break
+        except Exception as e:
+            log.error(f'{ticker} {year} {report_type} 복구 실패: {e}')
+
+    log.info(f'당기순이익 복구 완료: {ok}/{len(targets)}개')
+
+
+def repair_equity() -> None:
+    """
+    자산 ≠ 부채+자본 버그 복구.
+
+    원인: '자본및부채총계'(=자산총계)나 '지배기업소유주지분'이 자본총계 alias로
+    잘못 매핑돼 upsert로 덮어쓰여진 케이스.
+    조건: |자산 - 부채 - 자본| / 자산 > 1% (1% 초과 오차).
+    수정된 _upsert_financials + ACCOUNT_ALIASES로 재수집하면
+    자본총계와 지배기업소유주지분이 분리 저장된다.
+    """
+    dart = DartAPI()
+
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT a.ticker, s.corp_code, a.year, a.report_type, a.fs_div
+            FROM financials a
+            JOIN financials l ON l.ticker=a.ticker AND l.year=a.year
+                             AND l.report_type=a.report_type AND l.fs_div=a.fs_div
+                             AND l.account_nm='부채총계'
+            JOIN financials e ON e.ticker=a.ticker AND e.year=a.year
+                             AND e.report_type=a.report_type AND e.fs_div=a.fs_div
+                             AND e.account_nm='자본총계'
+            JOIN stocks s ON s.ticker=a.ticker
+            WHERE a.account_nm='자산총계'
+              AND a.amount > 0
+              AND l.amount IS NOT NULL AND e.amount IS NOT NULL
+              AND ABS(a.amount - l.amount - e.amount) / a.amount > 0.01
+              AND s.corp_code IS NOT NULL
+            ORDER BY a.ticker, a.year, a.report_type
+        """)
+        targets = cur.fetchall()
+
+    log.info(f'자산=부채+자본 복구 대상: {len(targets)}개 (ticker×year×report_type×fs_div)')
+    ok = 0
+    for ticker, corp_code, year, report_type, fs_div in targets:
+        reprt_code = REPRT_CODE.get(report_type)
+        if not reprt_code:
+            continue
+        try:
+            items = dart.get_financial_statement(corp_code, year, reprt_code, fs_div)
+            if not items:
+                log.warning(f'{ticker} {year} {report_type} {fs_div} — API 빈 응답')
+                continue
+            with db_conn() as conn:
+                cur = conn.cursor()
+                _upsert_financials(cur, ticker, corp_code, year, report_type, fs_div, items)
+            ok += 1
+            log.info(f'{ticker} {year} {report_type} {fs_div} 복구 완료')
+        except QuotaExceededError:
+            log.error('DART 쿼터 초과 — 복구 중단, 내일 재실행')
+            break
+        except Exception as e:
+            log.error(f'{ticker} {year} {report_type} 복구 실패: {e}')
+
+    log.info(f'자산=부채+자본 복구 완료: {ok}/{len(targets)}개')
 
 
 def _mark_error(ticker: str, msg: str) -> None:
@@ -454,6 +599,10 @@ def main() -> None:
                         help='영업활동현금흐름 누락 종목에 CF 데이터 보완 수집')
     parser.add_argument('--max-tickers', type=int, default=300,
                         help='--supplement-cf 일일 처리 종목 수 (기본 300 ≈ 7,800콜/일)')
+    parser.add_argument('--repair-ni', action='store_true',
+                        help='당기순이익=0 버그 복구 (자본변동표 0값 덮어쓰기 수정)')
+    parser.add_argument('--repair-equity', action='store_true',
+                        help='자산≠부채+자본 버그 복구 (자본총계 alias 오매핑 수정)')
     parser.add_argument('--ticker', help='단일 종목 테스트')
     args = parser.parse_args()
     if args.skip_if_done:
@@ -464,6 +613,12 @@ def main() -> None:
     if args.supplement_cf:
         configure_logging('dart_cf_supplement.log')
         supplement_cf(max_tickers=args.max_tickers)
+    elif args.repair_ni:
+        configure_logging('dart_ni_repair.log')
+        repair_ni()
+    elif args.repair_equity:
+        configure_logging('dart_equity_repair.log')
+        repair_equity()
     elif args.ticker:
         with db_conn() as conn:
             cur = conn.cursor()

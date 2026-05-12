@@ -16,7 +16,8 @@ log = logging.getLogger(__name__)
 
 
 def _get_amount(accounts: dict, name: str) -> float | None:
-    return accounts.get(name)
+    val = accounts.get(name)
+    return float(val) if val is not None else None
 
 
 def _pct_change(a, b) -> float | None:
@@ -41,6 +42,8 @@ def validate_period(ticker: str, year: int, report_type: str,
     op_income   = _get_amount(accounts, '영업이익')
     net_income  = _get_amount(accounts, '당기순이익')
     cfo         = _get_amount(accounts, '영업활동현금흐름')
+    gross       = _get_amount(accounts, '매출총이익')
+    ctrl_equity = _get_amount(accounts, '지배기업소유주지분')
 
     # V01: 자산 = 부채 + 자본 (허용 오차)
     if assets is not None and liabilities is not None and equity is not None:
@@ -75,6 +78,25 @@ def validate_period(ticker: str, year: int, report_type: str,
     missing = [k for k, v in core.items() if v is None]
     if len(missing) >= 2:
         rejects.append(f'V08: 핵심 계정 누락 {missing}')
+
+    # V09: 부채총계 < 0
+    if liabilities is not None and liabilities < 0:
+        rejects.append('V09: 부채총계 < 0')
+
+    # V10: P&L 계층 순서 위반
+    # 매출총이익은 매출에서 원가를 뺀 것 → 매출총이익 ≤ 매출액이어야 함
+    if gross is not None and revenue is not None and revenue > 0:
+        if gross > revenue:
+            warnings.append('V10: 매출총이익 > 매출액')
+    # 영업이익은 매출총이익에서 판관비를 뺀 것 → 영업이익 ≤ 매출총이익이어야 함
+    if op_income is not None and gross is not None:
+        if op_income > gross:
+            warnings.append('V10: 영업이익 > 매출총이익')
+
+    # V11: 지배기업소유주지분 > 자본총계 (비지배지분은 음수 불가)
+    if ctrl_equity is not None and equity is not None and equity > 0:
+        if ctrl_equity > equity * 1.01:
+            warnings.append('V11: 지배기업소유주지분 > 자본총계')
 
     return rejects, warnings
 

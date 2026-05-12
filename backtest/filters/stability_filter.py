@@ -116,10 +116,12 @@ def _financial_stability_filter(
             fails.append('영업CF(-) + 재무CF(+): 차입 운영')
 
     # [R6] adjROE < 요구수익률 r (RIM 기준 가치 파괴 구간)
-    # adjROE = (0.5×NI + 0.5×CFO) / equity — Dechow(1994) Method C
+    # adjROE = (0.5×NI + 0.5×CFO) / equity_rim — Dechow(1994) Method C
+    # equity_rim: RIM과 동일하게 지배기업소유주지분 우선, 없으면 자본총계 fallback
     ni = pit_data.get('당기순이익')
-    if ni is not None and cfo_cur is not None and equity > 0:
-        adj_roe = (0.5 * ni + 0.5 * cfo_cur) / equity
+    equity_rim = pit_data.get('지배기업소유주지분') or equity
+    if ni is not None and cfo_cur is not None and equity_rim > 0:
+        adj_roe = (0.5 * ni + 0.5 * cfo_cur) / equity_rim
         r       = RF + 1.0 * (RK - RF)   # β=1.0 고정 (Phase 2)
         if adj_roe < r:
             fails.append(f'adjROE({adj_roe:.1%}) < 요구수익률({r:.1%}): RIM 적정가 < 장부가')

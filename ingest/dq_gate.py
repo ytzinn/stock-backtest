@@ -1,5 +1,9 @@
 """
-Data Quality Gate — universe_gate_pit 판정 (R01~R09).
+Data Quality Gate — universe_gate_pit 판정.
+
+규칙 접두사:
+  R (Reject) — 조건 충족 시 status='REJECT', 백테스트 유니버스에서 제외
+  P (Pass flag) — 제외하지 않고 flags 컬럼에 기록, 추가 검토용 이상 징후
 
 실행:
     python -m ingest.dq_gate                   # 전종목 전기간 판정
@@ -91,6 +95,17 @@ def run_dq_gate(ticker: str, year: int, report_type: str,
     if cfo is None:
         flags.append('P04:cfo_missing')
 
+    # P05: 계정 단위 급변 (전년비 100배 이상 — 단위 변경 의심)
+    # P01(±500%)은 사업 급성장도 포함. 100배(9,900%)는 단위 오류 외 설명 어려운 수준.
+    if accounts_prev:
+        for acct in ['매출액', '자산총계', '자본총계']:
+            cur_val  = accounts_cur.get(acct)
+            prev_val = accounts_prev.get(acct)
+            if cur_val and prev_val and prev_val != 0:
+                ratio = abs(cur_val / prev_val)
+                if ratio > 100 or ratio < 0.01:
+                    flags.append(f'P05:unit_change_suspect:{acct}')
+
     status = 'REJECT' if reject_reasons else 'PASS'
 
     with db_conn() as conn:
@@ -121,7 +136,8 @@ def _load_accounts(cur, ticker: str, year: int,
         """,
         (ticker, year, report_type),
     )
-    return {row[0]: row[1] for row in cur.fetchall()}
+    return {row[0]: (float(row[1]) if row[1] is not None else None)
+            for row in cur.fetchall()}
 
 
 def evaluate_ticker(ticker: str) -> None:

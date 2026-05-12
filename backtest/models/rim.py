@@ -4,6 +4,10 @@ RIM (Residual Income Model) 적정가 모델.
 adjROE = (0.5×NI + 0.5×CFO) / equity — Dechow(1994) Method C, λ=0.5
 FV_per_share = equity * adjROE / r / shares   (영구연금 가정, payout=0)
 
+equity 우선순위: 지배기업소유주지분 > 자본총계
+  CFS(연결)에서 자본총계는 비지배지분을 포함하므로 지배주주 기준 적정가 산출 시
+  지배기업소유주지분을 먼저 사용한다. OFS나 비지배지분=0인 기업은 동일값.
+
 payout=0 가정: KOSDAQ 소형주 배당 데이터 누락 다수 → 낙관적 편향 허용 (설계서 §3-1).
 β=1.0 고정: Phase 2~4. Phase 3 이후 rolling β 도입 검토.
 
@@ -48,7 +52,7 @@ class RIMModel:
 
         ni     = pit_data.get('당기순이익')
         cfo    = pit_data.get('영업활동현금흐름')
-        equity = pit_data.get('자본총계')
+        equity = pit_data.get('지배기업소유주지분') or pit_data.get('자본총계')
 
         if None in (ni, cfo, equity) or equity <= 0 or (shares or 0) <= 0:
             return None

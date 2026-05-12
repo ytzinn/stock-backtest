@@ -37,6 +37,10 @@ g      = adjROE × (1 - payout), clamp [0, r×0.9]
 FV     = equity + equity × (adjROE - r) × g / (1+r-g)
 FV_per_share = FV / shares
 
+equity 우선순위: 지배기업소유주지분 > 자본총계
+  CFS(연결)에서 자본총계는 비지배지분을 포함하므로 지배주주 기준 적정가를 산출하려면
+  지배기업소유주지분을 먼저 사용한다. OFS(개별) 또는 비지배지분=0인 법인은 동일값.
+
 payout=0 가정: KOSDAQ 소형주 배당 데이터 누락 다수 → 낙관적 편향 허용 (§3-1).
 β=1.0 고정: Phase 2~4. Phase 3 이후 rolling β 도입 검토.
 beta_adj: r 오프셋 [-0.02, +0.02]. β=1.0 고정 유지하면서 r 수준만 미세 조정.
@@ -70,6 +74,7 @@ class RIMModel:
         주당 적정가(KRW) 반환. 계산 불가 시 None.
 
         산식 (stock-analysis fair_value.py 동일):
+          equity = 지배기업소유주지분 (없으면 자본총계 fallback)
           adjROE = (0.5×NI + 0.5×CFO) / equity   Dechow(1994) Method C
           g      = adjROE × (1 - payout), clamp [0, r×0.9]
           FV     = equity + equity × (adjROE - r) × g / (1+r-g)
@@ -83,7 +88,7 @@ class RIMModel:
 
         ni     = pit_data.get('당기순이익')
         cfo    = pit_data.get('영업활동현금흐름')
-        equity = pit_data.get('자본총계')
+        equity = pit_data.get('지배기업소유주지분') or pit_data.get('자본총계')
 
         if None in (ni, cfo, equity) or equity <= 0 or (shares or 0) <= 0:
             return None
