@@ -17,7 +17,7 @@ from typing import Optional
 
 import requests
 from dotenv import load_dotenv
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_not_exception_type, stop_after_attempt, wait_exponential
 
 from ingest.connection import db_conn
 from ingest.logging_config import configure_logging
@@ -27,6 +27,10 @@ configure_logging('dart.log')
 log = logging.getLogger(__name__)
 
 DART_BASE = 'https://opendart.fss.or.kr/api'
+
+
+class QuotaExceededError(RuntimeError):
+    """DART API 일일 쿼터 초과 (status 020). 재시도 없이 즉시 배치 중단."""
 
 REPRT_CODE = {
     'FY': '11011',
@@ -84,21 +88,28 @@ class DartAPI:
         self.session = requests.Session()
 
     @retry(stop=stop_after_attempt(3),
-           wait=wait_exponential(multiplier=1, min=4, max=30))
+           wait=wait_exponential(multiplier=1, min=4, max=30),
+           retry=retry_if_not_exception_type(QuotaExceededError))
     def _get(self, endpoint: str, params: dict) -> dict:
         params['crtfc_key'] = self.api_key
         resp = self.session.get(f'{DART_BASE}/{endpoint}', params=params, timeout=30)
         resp.raise_for_status()
         data = resp.json()
+        if data.get('status') == '020':
+            raise QuotaExceededError('DART 일일 쿼터 초과 (020)')
         if data.get('status') not in ('000', '013'):
             raise RuntimeError(f"DART API 오류: {data.get('status')} {data.get('message')}")
         return data
 
     def get_financial_statement(self, corp_code: str, year: int,
                                  reprt_code: str, fs_div: str) -> list[dict]:
-        """단일 회사 재무제표 조회. status 013(없음)이면 빈 리스트."""
+        """단일 회사 재무제표 전체 계정 조회. status 013(없음)이면 빈 리스트.
+
+        fnlttSinglAcntAll: 현금흐름표 포함 전체 계정 반환.
+        fnlttSinglAcnt(구): 주요계정만 — 현금흐름표 계정 제외됨.
+        """
         try:
-            data = self._get('fnlttSinglAcnt.json', {
+            data = self._get('fnlttSinglAcntAll.json', {
                 'corp_code': corp_code,
                 'bsns_year': str(year),
                 'reprt_code': reprt_code,
@@ -321,6 +332,79 @@ def _mark_error(ticker: str, msg: str) -> None:
         )
 
 
+def supplement_cf(start_year: int = 2014, max_tickers: int = 300) -> None:
+    """
+    현금흐름표 계정 보완 수집 v2 (Lean).
+
+    개선 사항 (v1 대비):
+    - 공시목록(get_disclosures) 완전 스킵 → 13콜/종목 절약
+    - 기존 financials의 fs_div 재사용 → CFS/OFS fallback 시도 불필요
+    - max_tickers로 일일 쿼터 제어
+
+    콜 수: 13년 × (FY + H1) × 1 fs_div = 26콜/종목
+    기본값 300종목/일 × 26 = 7,800콜 (10,000 한도 대비 2,200 여유)
+    2,522개 대상 기준 약 8.4일 완료.
+    cron 재실행 시 NOT EXISTS 조건으로 자동 이어받기.
+    """
+    dart = DartAPI()
+    end_year = date.today().year
+
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT s.ticker, s.corp_code,
+                COALESCE(
+                    (SELECT f.fs_div FROM financials f
+                     WHERE f.ticker = s.ticker LIMIT 1),
+                    'CFS'
+                ) AS fs_div
+            FROM stocks s
+            WHERE s.is_excluded = FALSE
+              AND s.corp_code IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM financials f
+                WHERE f.ticker = s.ticker
+                  AND f.account_nm = '영업활동현금흐름'
+              )
+            ORDER BY s.ticker
+            LIMIT %s
+        """, (max_tickers,))
+        targets = cur.fetchall()  # (ticker, corp_code, fs_div)
+
+    log.info(f'CF 보완 대상: {len(targets)}개 종목 (max={max_tickers})')
+    ok, skip = 0, 0
+    for ticker, corp_code, fs_div in targets:
+        try:
+            total = 0
+            with db_conn() as conn:
+                cur = conn.cursor()
+                for year in range(start_year, end_year + 1):
+                    for report_type in TARGET_REPORTS:  # FY + H1
+                        reprt_code = REPRT_CODE[report_type]
+                        items = dart.get_financial_statement(
+                            corp_code, year, reprt_code, fs_div
+                        )
+                        if items:
+                            total += _upsert_financials(
+                                cur, ticker, corp_code, year, report_type, fs_div, items
+                            )
+                        time.sleep(0.1)
+            if total > 0:
+                ok += 1
+                log.debug(f'{ticker} CF 추가: {total}행')
+            else:
+                skip += 1
+                log.debug(f'{ticker} DART 데이터 없음')
+        except QuotaExceededError:
+            log.warning(f'DART 일일 쿼터 초과 — {ticker}에서 배치 중단 (성공={ok}, 건너뜀={skip})')
+            break
+        except Exception as e:
+            log.error(f'{ticker} CF 보완 실패: {e}')
+            _mark_error(ticker, str(e))
+
+    log.info(f'CF 보완 완료: 성공={ok}, 건너뜀={skip}/{len(targets)}')
+
+
 def ingest_all(skip_if_done: bool = False) -> None:
     """stocks 테이블 전종목 DART 수집 (14일+ 분산 실행)."""
     dart = DartAPI()
@@ -366,6 +450,10 @@ def ingest_all(skip_if_done: bool = False) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--skip-if-done', action='store_true')
+    parser.add_argument('--supplement-cf', action='store_true',
+                        help='영업활동현금흐름 누락 종목에 CF 데이터 보완 수집')
+    parser.add_argument('--max-tickers', type=int, default=300,
+                        help='--supplement-cf 일일 처리 종목 수 (기본 300 ≈ 7,800콜/일)')
     parser.add_argument('--ticker', help='단일 종목 테스트')
     args = parser.parse_args()
     if args.skip_if_done:
@@ -373,7 +461,10 @@ def main() -> None:
 
     dart = DartAPI()
 
-    if args.ticker:
+    if args.supplement_cf:
+        configure_logging('dart_cf_supplement.log')
+        supplement_cf(max_tickers=args.max_tickers)
+    elif args.ticker:
         with db_conn() as conn:
             cur = conn.cursor()
             cur.execute("SELECT corp_code FROM stocks WHERE ticker = %s", (args.ticker,))

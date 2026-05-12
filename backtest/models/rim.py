@@ -35,34 +35,50 @@ class RIMModel:
         """
         주당 적정가(KRW) 반환. 계산 불가 시 None.
 
-        pit_data: pit_series[ticker][0] — 최신 FY flat dict
-        shares:   상장주식수 (실제 주식 수)
-        beta:     β=1.0 고정 (Phase 2~4). 인자 유지는 Protocol 호환성.
+        산식 (SPEC_04 §7-1, stock-analysis fair_value.py 동일):
+          adjROE = (0.5×NI + 0.5×CFO) / equity   Dechow(1994) Method C
+          g      = adjROE × (1 - payout), clamp [0, r×0.9]
+          FV     = equity + equity × (adjROE - r) × g / (1+r-g)
+          FV_per_share = FV / shares
+
+        배당금지급 missing → payout=0 (낙관적 편향 허용, KOSDAQ 소형주 누락 다수).
+        beta_adj: r 오프셋 [-0.02, +0.02]. β=1.0 고정.
         """
-        equity = pit_data.get('자본총계')
+        import logging
+
         ni     = pit_data.get('당기순이익')
         cfo    = pit_data.get('영업활동현금흐름')
+        equity = pit_data.get('자본총계')
 
-        if equity is None or equity <= 0:
+        if None in (ni, cfo, equity) or equity <= 0 or (shares or 0) <= 0:
             return None
-        if shares is None or shares <= 0:
-            return None
 
-        ni  = ni  if ni  is not None else 0.0
-        cfo = cfo if cfo is not None else 0.0
-
-        adj_roe = (0.5 * ni + 0.5 * cfo) / equity
-        r       = RF + beta * (RK - RF) + self.beta_adj
-
+        r = RF + beta * (RK - RF) + self.beta_adj
         if r <= 0:
             return None
 
-        # FV_equity = equity × (adjROE / r)  — 영구연금, payout=0 낙관적 편향
-        fv_equity = equity * adj_roe / r
-        if fv_equity <= 0:
+        adj_roe = (0.5 * ni + 0.5 * cfo) / equity
+
+        # 배당금지급 3분류 처리 (v4.7)
+        div_raw = pit_data.get('배당금지급')
+        if div_raw is None:
+            logging.debug(f'[RIM] {ticker} 배당금지급 missing — payout=0 적용')
+            div = 0.0
+        else:
+            div = float(div_raw)
+
+        payout = abs(div) / max(abs(ni), 1) if ni != 0 else 0.0
+        g      = max(0.0, min(adj_roe * (1 - payout), r * 0.9))
+
+        denom = 1 + r - g
+        if abs(denom) < 1e-6:
             return None
 
-        return fv_equity / shares
+        fv_total = equity + equity * (adj_roe - r) * g / denom
+        if fv_total <= 0:
+            return None
+
+        return fv_total / shares
 
 
 class _SkeletonModel:

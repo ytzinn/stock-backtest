@@ -81,6 +81,66 @@ def collect_market_cap(ticker: str, shares: int,
     return len(rows)
 
 
+def _load_delisted_shares() -> dict[str, int]:
+    """
+    KRX-DELISTING에서 상장폐지 종목 ListingShares 로드.
+    2015년 이후 상장폐지 종목은 100% 커버.
+    """
+    try:
+        dl = fdr.StockListing('KRX-DELISTING')
+        dl['Symbol'] = dl['Symbol'].astype(str).str.zfill(6)
+        result = {}
+        for _, row in dl.iterrows():
+            shares = row.get('ListingShares')
+            if shares and shares > 0:
+                result[row['Symbol']] = int(shares)
+        log.info(f'KRX-DELISTING 주식수: {len(result)}개 종목')
+        return result
+    except Exception as e:
+        log.warning(f'KRX-DELISTING 로드 실패: {e}')
+        return {}
+
+
+def supplement_delisted(start: str = '20140101') -> None:
+    """
+    market_cap_history 없는 상장폐지 종목에 대해 보완 수집.
+    KRX-DELISTING ListingShares × 종가(FDR)로 시가총액 추정.
+    FDR은 상장폐지 전 과거 데이터를 조회 가능.
+    """
+    with db_conn() as conn:
+        cur = conn.cursor()
+        # market_cap_history 없는 종목
+        cur.execute("""
+            SELECT s.ticker FROM stocks s
+            WHERE s.is_excluded = FALSE
+              AND NOT EXISTS (
+                SELECT 1 FROM market_cap_history m WHERE m.ticker = s.ticker
+              )
+            ORDER BY s.ticker
+        """)
+        missing = [r[0] for r in cur.fetchall()]
+
+    log.info(f'market_cap_history 없는 종목: {len(missing)}개')
+    if not missing:
+        return
+
+    delisted_shares = _load_delisted_shares()
+    ok, skip = 0, 0
+    for ticker in missing:
+        shares = delisted_shares.get(ticker)
+        if not shares:
+            log.debug(f'{ticker} KRX-DELISTING에도 주식수 없음 — 건너뜀')
+            skip += 1
+            continue
+        n = collect_market_cap(ticker, shares, start=start)
+        if n > 0:
+            ok += 1
+        else:
+            log.debug(f'{ticker} FDR 가격 데이터 없음')
+
+    log.info(f'상장폐지 종목 보완 완료: 성공={ok}, 건너뜀={skip}')
+
+
 def ingest_all(start: str = '20140101', skip_if_done: bool = False) -> None:
     with db_conn() as conn:
         if skip_if_done:
@@ -113,8 +173,13 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--skip-if-done', action='store_true')
     parser.add_argument('--from', dest='start', default='20140101')
+    parser.add_argument('--supplement-delisted', action='store_true',
+                        help='market_cap_history 없는 상장폐지 종목 보완 수집')
     args = parser.parse_args()
-    ingest_all(start=args.start, skip_if_done=args.skip_if_done)
+    if args.supplement_delisted:
+        supplement_delisted(start=args.start)
+    else:
+        ingest_all(start=args.start, skip_if_done=args.skip_if_done)
 
 
 if __name__ == '__main__':

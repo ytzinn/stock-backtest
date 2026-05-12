@@ -174,14 +174,16 @@ def _last_known_price(conn, ticker: str, before_date: date) -> float:
 
 def _calc_kospi_return(start_date: date, end_date: date) -> float:
     """
-    KOSPI 구간 수익률. FDR 'KRX/INDEX/KOSPI' 사용.
+    KOSPI 구간 수익률. FDR 'KS11' 사용 (Naver Finance/KRX 기반).
 
-    pykrx get_index_ohlcv_by_date는 KRX 2024 리뉴얼 후 KeyError('지수명')로 불작동.
-    MASTER.md §2 pykrx 불작동 목록에 등재. 실패 시 0 반환.
+    'KRX/INDEX/KOSPI' 포맷은 FDR이 Yahoo Finance로 fallback → 500 에러.
+    'KS11'은 Naver Finance 라우트 (컬럼: Close, UpDown, Comp, Change).
+    pykrx get_index_ohlcv_by_date는 KRX 2024 리뉴얼 후 KeyError로 불작동.
+    실패 시 0 반환.
     """
     import FinanceDataReader as fdr
     try:
-        df = fdr.DataReader('KRX/INDEX/KOSPI', str(start_date), str(end_date))
+        df = fdr.DataReader('KS11', str(start_date), str(end_date))
         if df is None or df.empty or len(df) < 2:
             return 0.0
         close = df['Close'].dropna()

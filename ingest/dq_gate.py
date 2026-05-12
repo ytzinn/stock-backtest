@@ -87,6 +87,10 @@ def run_dq_gate(ticker: str, year: int, report_type: str,
         if abs(net_income - cfo) > abs(equity) * 0.30:
             flags.append('P03:accrual_alert')
 
+    # P04: 영업활동현금흐름 누락 — RIM 모델 필수값, 경고 전용 (REJECT 아님)
+    if cfo is None:
+        flags.append('P04:cfo_missing')
+
     status = 'REJECT' if reject_reasons else 'PASS'
 
     with db_conn() as conn:

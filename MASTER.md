@@ -115,6 +115,9 @@ KRX 2024 웹사이트 리뉴얼로 OTP 엔드포인트(`/cgi-bin/service/otp.cmd
 RF, RK = 0.0263, 0.0873   # 두 파일에서 동일 값 유지
 ```
 
+- **성장률 상한**: `g = max(0, min(adjROE × (1−payout), r × 0.9))`. 상한 `r × 0.9`는 분모 `(1+r−g)` 발산 방지 수학적 안전장치. 튜닝 제외, 고정값.
+- **FV 음수 방어**: `fv_total ≤ 0`이면 `None` 반환. R6 필터로 대부분 선제 제거되지만, PIT 데이터와 재무안정성 필터 타이밍 불일치(리밸런싱 시점 vs FY 시점)로 FV 음수 발생 가능 → 방어적 처리. 실제 발생 확인으로 추가됨.
+
 ## 3-2. 리밸런싱 날짜
 
 | 구분 | 법정 마감일 | 리밸런싱 기준일 |
@@ -123,8 +126,8 @@ RF, RK = 0.0263, 0.0873   # 두 파일에서 동일 값 유지
 | 하반기 (H1 반기보고서 활용) | 8월 14일 | 8/14 + **3 영업일** |
 
 - 백테스트 구간: 2015년 상반기 ~ 2026년 상반기 (**21개 구간**)
-- 영업일 계산: pykrx `get_index_ohlcv_by_date('KOSPI')` 기준
-- 21개 날짜는 사전 계산 후 `configs/rebalance_dates.py`에 하드코딩 (재현성 보장)
+- 영업일 계산: `price_history` DISTINCT date (대표 KOSPI 종목 기준, 삼성전자 005930). pykrx `get_index_ohlcv_by_date('KOSPI')`는 KRX 리뉴얼 후 KeyError 반환으로 사용 불가.
+- 21개 날짜는 사전 계산 후 `configs/rebalance_dates.py`에 하드코딩 (재현성 보장). 생성 스크립트: `scripts/generate_rebalance_dates.py`
 
 ## 3-3. 포트폴리오 구성
 
@@ -170,7 +173,9 @@ RF, RK = 0.0263, 0.0873   # 두 파일에서 동일 값 유지
 > `beta_adj`는 종목별 β 차이를 흡수하기 위한 전역 오프셋. β=1.0 고정은 유지.
 > `beta_adj` < 0: r 낙관적(할인율 낮음) → 적정가 상승. `beta_adj` > 0: r 보수적 → 적정가 하락.
 
-**Phase 2 고정값 (튜닝 제외):** 모멘텀 파라미터 4개 / 업종 집중 상한 25% / 거래대금 기준 1억원 / 팩터 가중치 (동일가중 고정)
+**Phase 2 고정값 (튜닝 제외):** 모멘텀 파라미터 4개 / 업종 집중 상한 25%\* / 거래대금 기준 1억원 / 팩터 가중치 (동일가중 고정)
+
+> \* 업종 집중 상한 25%: `stocks.sector` 수동 업데이트 의존으로 데이터 신뢰도 불확실. Phase 2에서는 하드 룰로 유지. Phase 3 이후 sector 데이터 정비 완료 시 Bayesian 튜닝 대상 [15%, 40%] 검토.
 
 ## 3-6. 재무안정성 필터 기준 (R1~R6, 하드 룰)
 
@@ -299,6 +304,7 @@ korean-stock-backtest/
 > **v4.7**: 설계 비판 검토 반영. ① `backtest_runs` 재현성 컬럼 6개 추가 ② `stock_listing_history` → `stock_listing_events` (상장 이벤트 이력 구조) 교체 ③ `universe_gate` → 영구제외(`stocks`) + 시점별(`universe_gate_pit`) 분리 ④ `financials_pit`에 `fallback_used` 추가 ⑤ `dividend_status` 3분류 도입 + RIM 코드 수정 ⑥ `requirements.txt` 버전 고정 명시
 > **v4.8**: 모듈화 설계 도입. `backtest/` 하위 `filters/` · `models/` · `configs/` 디렉토리 분리. `interfaces.py` Protocol 정의(UniverseFilter, ValuationModel). `build_universe()` → `BacktestPipeline` 클래스로 교체. `RIMModel` 클래스화. Phase별 파이프라인 조립을 `configs/`에서 관리.
 > **v4.9** (인터뷰 반영): ① `UniverseFilter.apply()` 시그니처 `pit_prev` 제거 → `pit_series: dict[str, list[dict]]`([0]=현재, [1]=t-1, [2]=t-2) 통일. ② `backtest/data_access.py` 신규 — DB 조회 헬퍼 집중, `ingest/connection.py` 재사용, `conn` 주입 패턴. ③ 필터 클래스: 생성자 파라미터 주입 + `apply()` 메서드 구조 확정. ④ FactorScreener 가중치 키 영어 통일(`rev_yoy, op_yoy, gpa, inv_pbr`). ⑤ `beta_adj` 파라미터 정의 명시 (r 오프셋, β=1.0 유지). ⑥ `configs/rebalance_dates.py` 생성 스크립트 추가. ⑦ Phase 2 튜닝 파라미터 테이블 §3-7 신규.
+> **v4.9 추가** (심층 인터뷰 반영): ⑧ `g` 상한 `r×0.9` 수학적 안전장치 명시(§3-1). ⑨ `fv_total ≤ 0` 방어 처리 추가 — 실제 발생 확인, R6 이후 PIT 타이밍 불일치 케이스. ⑩ 리밸런싱 날짜 영업일 계산: pykrx 불가 → `price_history` DISTINCT date(삼성전자 기준) 대체. ⑪ `dividend_status` 로컬 변수 제거, `logging.debug` 유지 — Phase 4 민감도용 DB 원본 활용. ⑫ 업종 집중 상한 25%: `stocks.sector` 데이터 미정비로 Phase 2 고정, Phase 3 이후 검토.
 >
 > **핵심 변경 철학**: "모든 모델 산식 먼저 → 구현" 순서 대신 "RIM + 모멘텀으로 Baseline 먼저 → 결과 보고 확장" 순서로 전환.
 > 멀티모델(EV/Sales, Peer PER, NAV, FCFF 등) 산식 확정은 Phase 2 Ablation Test 결과 이후로 이동.
