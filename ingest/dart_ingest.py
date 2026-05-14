@@ -68,27 +68,31 @@ ACCOUNT_ALIASES: dict[str, list[str]] = {
     '사채':             ['사채', '장기사채'],
 }
 
-# 각 계정의 정규 출처 재무제표. 동일 계정명이 여러 재무제표에 등장할 때
-# 자본변동표의 0값 등이 손익계산서 정답을 덮어쓰는 버그를 방지한다.
-_CANONICAL_SJ: dict[str, str] = {
-    '매출액':           '손익계산서',
-    '매출총이익':       '손익계산서',
-    '영업이익':         '손익계산서',
-    '당기순이익':       '손익계산서',
-    '자산총계':         '재무상태표',
-    '부채총계':         '재무상태표',
-    '자본총계':             '재무상태표',
-    '지배기업소유주지분':   '재무상태표',
-    '유동자산':             '재무상태표',
-    '유동부채':         '재무상태표',
-    '단기차입금':       '재무상태표',
-    '유동성장기부채':   '재무상태표',
-    '장기차입금':       '재무상태표',
-    '사채':             '재무상태표',
-    '영업활동현금흐름': '현금흐름표',
-    '투자활동현금흐름': '현금흐름표',
-    '재무활동현금흐름': '현금흐름표',
-    '배당금지급':       '현금흐름표',
+# 각 계정의 허용 sj_nm 집합. 포괄손익계산서·자본변동표 등 오염 출처를 명시적으로 차단한다.
+# fnlttSinglAcntAll은 동일 계정명을 여러 재무제표에 걸쳐 반환하므로 정확한 집합 매칭 사용.
+_SJ_BS  = frozenset({'재무상태표', '연결재무상태표'})
+_SJ_IS  = frozenset({'손익계산서', '연결손익계산서'})
+_SJ_CF  = frozenset({'현금흐름표', '연결현금흐름표'})
+
+_CANONICAL_SJ: dict[str, frozenset] = {
+    '매출액':             _SJ_IS,
+    '매출총이익':         _SJ_IS,
+    '영업이익':           _SJ_IS,
+    '당기순이익':         _SJ_IS,
+    '자산총계':           _SJ_BS,
+    '부채총계':           _SJ_BS,
+    '자본총계':           _SJ_BS,
+    '지배기업소유주지분': _SJ_BS,
+    '유동자산':           _SJ_BS,
+    '유동부채':           _SJ_BS,
+    '단기차입금':         _SJ_BS,
+    '유동성장기부채':     _SJ_BS,
+    '장기차입금':         _SJ_BS,
+    '사채':               _SJ_BS,
+    '영업활동현금흐름':   _SJ_CF,
+    '투자활동현금흐름':   _SJ_CF,
+    '재무활동현금흐름':   _SJ_CF,
+    '배당금지급':         _SJ_CF,
 }
 
 # 역방향 조회 테이블: raw name → standard name
@@ -96,6 +100,11 @@ _RAW_TO_STD: dict[str, str] = {}
 for std, aliases in ACCOUNT_ALIASES.items():
     for alias in aliases:
         _RAW_TO_STD[alias.replace(' ', '')] = std
+
+# 재무상태표 계정 집합 — H1 시 frmtrm이 전기 FY말 잔액을 가리킴 (IS/CF는 전기 동기간)
+_BS_ACCOUNTS: frozenset = frozenset(
+    k for k, v in _CANONICAL_SJ.items() if v is _SJ_BS
+)
 
 
 def standardize_account(raw_nm: str) -> Optional[str]:
@@ -223,13 +232,10 @@ def _upsert_financials(cur, ticker: str, corp_code: str, year: int,
         if std_nm is None:
             continue
 
-        # 정규 출처 재무제표가 지정된 계정은 해당 sj_nm에서 온 행만 허용.
-        # fnlttSinglAcntAll은 동일 계정명을 여러 재무제표(손익/포괄손익/현금흐름/자본변동)에
-        # 걸쳐 반환하며, 자본변동표 행은 열별 분해값이라 0이 다수 포함된다.
-        canonical = _CANONICAL_SJ.get(std_nm)
-        if canonical:
+        allowed_sj = _CANONICAL_SJ.get(std_nm)
+        if allowed_sj:
             sj_nm = (item.get('sj_nm') or '').replace(' ', '')
-            if canonical.replace(' ', '') not in sj_nm:
+            if sj_nm not in allowed_sj:
                 continue
 
         amount_str = item.get('thstrm_amount', '') or ''
@@ -238,14 +244,21 @@ def _upsert_financials(cur, ticker: str, corp_code: str, year: int,
         except (ValueError, AttributeError):
             amount = None
 
+        frmtrm_str = item.get('frmtrm_amount', '') or ''
+        try:
+            frmtrm_amount = float(frmtrm_str.replace(',', ''))
+        except (ValueError, AttributeError):
+            frmtrm_amount = None
+
         cur.execute(
             """
-            INSERT INTO financials (ticker, corp_code, year, report_type, fs_div, account_nm, amount)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO financials (ticker, corp_code, year, report_type, fs_div, account_nm, amount, frmtrm_amount)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (ticker, year, report_type, fs_div, account_nm) DO UPDATE SET
-                amount = EXCLUDED.amount
+                amount = EXCLUDED.amount,
+                frmtrm_amount = EXCLUDED.frmtrm_amount
             """,
-            (ticker, corp_code, year, report_type, fs_div, std_nm, amount),
+            (ticker, corp_code, year, report_type, fs_div, std_nm, amount, frmtrm_amount),
         )
         saved += 1
     return saved
@@ -273,6 +286,56 @@ def _check_bs_integrity(cur, ticker: str, year: int,
                 f'BS_INTEGRITY {ticker} {year} {report_type} {fs_div}: '
                 f'자산≠부채+자본 오차 {err:.1%} '
                 f'(자산={assets:.0f} 부채={liab:.0f} 자본={equity:.0f})'
+            )
+
+
+def _check_frmtrm_consistency(cur, ticker: str, year: int,
+                               report_type: str, fs_div: str) -> None:
+    """frmtrm_amount vs 전년도 저장 amount 교차검증.
+    재무상태표·손익계산서·현금흐름표 전 계정 대상.
+    1% 초과 불일치 시 FRMTRM_MISMATCH 경고 로그.
+    H1 재무상태표 계정: frmtrm = FY 전년말 잔액 기준으로 비교.
+    H1 손익/현금흐름 계정: frmtrm = H1 전년 동기 기준으로 비교.
+    """
+    cur.execute(
+        """
+        SELECT account_nm, frmtrm_amount
+        FROM financials
+        WHERE ticker=%s AND year=%s AND report_type=%s AND fs_div=%s
+          AND frmtrm_amount IS NOT NULL
+        """,
+        (ticker, year, report_type, fs_div),
+    )
+    rows = cur.fetchall()
+    if not rows:
+        return
+
+    prev_year = year - 1
+    for account_nm, frmtrm_val in rows:
+        frmtrm_float = float(frmtrm_val)
+        prev_rpt = 'FY' if (report_type == 'H1' and account_nm in _BS_ACCOUNTS) else report_type
+
+        cur.execute(
+            """
+            SELECT amount FROM financials
+            WHERE ticker=%s AND year=%s AND report_type=%s AND fs_div=%s AND account_nm=%s
+            """,
+            (ticker, prev_year, prev_rpt, fs_div, account_nm),
+        )
+        row = cur.fetchone()
+        if row is None or row[0] is None:
+            continue
+
+        prev_amount = float(row[0])
+        if prev_amount == 0:
+            continue
+
+        diff = abs(frmtrm_float - prev_amount) / abs(prev_amount)
+        if diff > 0.01:
+            log.warning(
+                f'FRMTRM_MISMATCH {ticker} {year} {report_type} {fs_div} {account_nm}: '
+                f'frmtrm={frmtrm_float:,.0f} vs {prev_year}/{prev_rpt}={prev_amount:,.0f} '
+                f'(차이 {diff:.1%})'
             )
 
 
@@ -357,6 +420,7 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
                         )
                         total += n
                         _check_bs_integrity(cur, ticker, year, report_type, fs_div)
+                        _check_frmtrm_consistency(cur, ticker, year, report_type, fs_div)
                         time.sleep(0.1)
                         break  # CFS 성공하면 OFS 건너뜀
                     time.sleep(0.1)
@@ -505,78 +569,6 @@ def _mark_error(ticker: str, msg: str) -> None:
         )
 
 
-def supplement_cf(start_year: int = 2014, max_tickers: int = 300) -> None:
-    """
-    현금흐름표 계정 보완 수집 v2 (Lean).
-
-    개선 사항 (v1 대비):
-    - 공시목록(get_disclosures) 완전 스킵 → 13콜/종목 절약
-    - 기존 financials의 fs_div 재사용 → CFS/OFS fallback 시도 불필요
-    - max_tickers로 일일 쿼터 제어
-
-    콜 수: 13년 × (FY + H1) × 1 fs_div = 26콜/종목
-    기본값 300종목/일 × 26 = 7,800콜 (10,000 한도 대비 2,200 여유)
-    2,522개 대상 기준 약 8.4일 완료.
-    cron 재실행 시 NOT EXISTS 조건으로 자동 이어받기.
-    """
-    dart = DartAPI()
-    end_year = date.today().year
-
-    with db_conn() as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT DISTINCT s.ticker, s.corp_code,
-                COALESCE(
-                    (SELECT f.fs_div FROM financials f
-                     WHERE f.ticker = s.ticker LIMIT 1),
-                    'CFS'
-                ) AS fs_div
-            FROM stocks s
-            WHERE s.is_excluded = FALSE
-              AND s.corp_code IS NOT NULL
-              AND NOT EXISTS (
-                SELECT 1 FROM financials f
-                WHERE f.ticker = s.ticker
-                  AND f.account_nm = '영업활동현금흐름'
-              )
-            ORDER BY s.ticker
-            LIMIT %s
-        """, (max_tickers,))
-        targets = cur.fetchall()  # (ticker, corp_code, fs_div)
-
-    log.info(f'CF 보완 대상: {len(targets)}개 종목 (max={max_tickers})')
-    ok, skip = 0, 0
-    for ticker, corp_code, fs_div in targets:
-        try:
-            total = 0
-            with db_conn() as conn:
-                cur = conn.cursor()
-                for year in range(start_year, end_year + 1):
-                    for report_type in TARGET_REPORTS:  # FY + H1
-                        reprt_code = REPRT_CODE[report_type]
-                        items = dart.get_financial_statement(
-                            corp_code, year, reprt_code, fs_div
-                        )
-                        if items:
-                            total += _upsert_financials(
-                                cur, ticker, corp_code, year, report_type, fs_div, items
-                            )
-                        time.sleep(0.1)
-            if total > 0:
-                ok += 1
-                log.debug(f'{ticker} CF 추가: {total}행')
-            else:
-                skip += 1
-                log.debug(f'{ticker} DART 데이터 없음')
-        except QuotaExceededError:
-            log.warning(f'DART 일일 쿼터 초과 — {ticker}에서 배치 중단 (성공={ok}, 건너뜀={skip})')
-            break
-        except Exception as e:
-            log.error(f'{ticker} CF 보완 실패: {e}')
-            _mark_error(ticker, str(e))
-
-    log.info(f'CF 보완 완료: 성공={ok}, 건너뜀={skip}/{len(targets)}')
-
 
 def ingest_all(skip_if_done: bool = False, max_tickers: int = 0) -> None:
     """stocks 테이블 전종목 DART 수집 (14일+ 분산 실행).
@@ -628,10 +620,8 @@ def ingest_all(skip_if_done: bool = False, max_tickers: int = 0) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--skip-if-done', action='store_true')
-    parser.add_argument('--supplement-cf', action='store_true',
-                        help='영업활동현금흐름 누락 종목에 CF 데이터 보완 수집 (레거시)')
     parser.add_argument('--max-tickers', type=int, default=0,
-                        help='처리 종목 수 제한 (0=무제한). 파일럿/일별 분산 및 --supplement-cf 공용')
+                        help='처리 종목 수 제한 (0=무제한). 파일럿/일별 분산용')
     parser.add_argument('--repair-ni', action='store_true',
                         help='당기순이익=0 버그 복구 (자본변동표 0값 덮어쓰기 수정)')
     parser.add_argument('--repair-equity', action='store_true',
@@ -643,10 +633,7 @@ def main() -> None:
 
     dart = DartAPI()
 
-    if args.supplement_cf:
-        configure_logging('dart_cf_supplement.log')
-        supplement_cf(max_tickers=args.max_tickers if args.max_tickers > 0 else 300)
-    elif args.repair_ni:
+    if args.repair_ni:
         configure_logging('dart_ni_repair.log')
         repair_ni()
     elif args.repair_equity:

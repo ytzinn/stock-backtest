@@ -39,14 +39,15 @@ CREATE INDEX IF NOT EXISTS idx_listing_events_listed_date
 
 -- 3. 재무제표 원시 수치 (DART → 계정명 표준화 후 저장)
 CREATE TABLE IF NOT EXISTS financials (
-    id          SERIAL  PRIMARY KEY,
-    ticker      TEXT    NOT NULL REFERENCES stocks(ticker),
-    corp_code   TEXT    NOT NULL,
-    year        INTEGER NOT NULL,
-    report_type TEXT    NOT NULL,   -- 'FY' | 'H1' | 'Q1' | 'Q3'
-    fs_div      TEXT    NOT NULL,   -- 'CFS' | 'OFS'
-    account_nm  TEXT    NOT NULL,   -- 표준화된 계정명
-    amount      NUMERIC,
+    id            SERIAL  PRIMARY KEY,
+    ticker        TEXT    NOT NULL REFERENCES stocks(ticker),
+    corp_code     TEXT    NOT NULL,
+    year          INTEGER NOT NULL,
+    report_type   TEXT    NOT NULL,   -- 'FY' | 'H1' | 'Q1' | 'Q3'
+    fs_div        TEXT    NOT NULL,   -- 'CFS' | 'OFS'
+    account_nm    TEXT    NOT NULL,   -- 표준화된 계정명
+    amount        NUMERIC,            -- 당기(thstrm)
+    frmtrm_amount NUMERIC,            -- 전기(frmtrm) — 시계열 교차검증용
     UNIQUE (ticker, year, report_type, fs_div, account_nm)
 );
 
