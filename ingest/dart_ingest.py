@@ -238,11 +238,21 @@ def _upsert_financials(cur, ticker: str, corp_code: str, year: int,
             if sj_nm not in allowed_sj:
                 continue
 
-        amount_str = item.get('thstrm_amount', '') or ''
-        try:
-            amount = float(amount_str.replace(',', ''))
-        except (ValueError, AttributeError):
-            amount = None
+        # H1/Q1/Q3 IS·CF 계정은 YTD 누계(thstrm_add_amount) 우선, BS 계정은 thstrm_amount 그대로
+        amount = None
+        if report_type in ('H1', 'Q1', 'Q3') and std_nm not in _BS_ACCOUNTS:
+            add_str = item.get('thstrm_add_amount', '') or ''
+            try:
+                amount = float(add_str.replace(',', ''))
+            except (ValueError, AttributeError):
+                pass
+
+        if amount is None:
+            amount_str = item.get('thstrm_amount', '') or ''
+            try:
+                amount = float(amount_str.replace(',', ''))
+            except (ValueError, AttributeError):
+                log.debug(f'{ticker} {year} {report_type} {std_nm}: thstrm 파싱 실패')
 
         frmtrm_str = item.get('frmtrm_amount', '') or ''
         try:
@@ -266,7 +276,7 @@ def _upsert_financials(cur, ticker: str, corp_code: str, year: int,
 
 def _check_bs_integrity(cur, ticker: str, year: int,
                          report_type: str, fs_div: str) -> None:
-    """upsert 직후 자산 = 부채 + 자본 항등식 검증. 5% 초과 오차 시 WARNING 로그."""
+    """upsert 직후 자산 = 부채 + 자본 항등식 검증. 1% 초과 오차 시 WARNING 로그."""
     cur.execute(
         """
         SELECT account_nm, amount FROM financials
@@ -281,7 +291,7 @@ def _check_bs_integrity(cur, ticker: str, year: int,
     equity = row.get('자본총계')
     if assets and liab is not None and equity is not None and assets != 0:
         err = abs(assets - liab - equity) / abs(assets)
-        if err > 0.05:
+        if err > 0.01:
             log.warning(
                 f'BS_INTEGRITY {ticker} {year} {report_type} {fs_div}: '
                 f'자산≠부채+자본 오차 {err:.1%} '
@@ -331,11 +341,16 @@ def _check_frmtrm_consistency(cur, ticker: str, year: int,
             continue
 
         diff = abs(frmtrm_float - prev_amount) / abs(prev_amount)
-        if diff > 0.01:
+        if diff > 0.10:
             log.warning(
                 f'FRMTRM_MISMATCH {ticker} {year} {report_type} {fs_div} {account_nm}: '
                 f'frmtrm={frmtrm_float:,.0f} vs {prev_year}/{prev_rpt}={prev_amount:,.0f} '
                 f'(차이 {diff:.1%})'
+            )
+        elif diff > 0.01:
+            log.debug(
+                f'FRMTRM_MINOR {ticker} {year} {report_type} {fs_div} {account_nm}: '
+                f'차이 {diff:.1%} (재작성 가능성)'
             )
 
 
@@ -404,26 +419,31 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
             _upsert_disclosures(cur, ticker, disclosures)
             time.sleep(0.05)  # 과도한 API 호출 방지
 
+        # ticker fs_div 결정 — 연도별 CFS/OFS 혼재 방지
+        # 가장 최근 FY 기준으로 CFS 존재 여부 확인 후 전 연도에 일관 적용
+        fs_div = 'OFS'
+        for check_year in (end_year, end_year - 1):
+            probe = dart.get_financial_statement(corp_code, check_year, REPRT_CODE['FY'], 'CFS')
+            if probe:
+                fs_div = 'CFS'
+                break
+            time.sleep(0.1)
+        log.info(f'{ticker} fs_div={fs_div}')
+
         # 재무제표 수집
         total = 0
         for year in range(start_year, end_year + 1):
             for report_type in TARGET_REPORTS:
                 reprt_code = REPRT_CODE[report_type]
-                # CFS 우선, 없으면 OFS
-                for fs_div in ('CFS', 'OFS'):
-                    items = dart.get_financial_statement(
-                        corp_code, year, reprt_code, fs_div
+                items = dart.get_financial_statement(corp_code, year, reprt_code, fs_div)
+                if items:
+                    n = _upsert_financials(
+                        cur, ticker, corp_code, year, report_type, fs_div, items
                     )
-                    if items:
-                        n = _upsert_financials(
-                            cur, ticker, corp_code, year, report_type, fs_div, items
-                        )
-                        total += n
-                        _check_bs_integrity(cur, ticker, year, report_type, fs_div)
-                        _check_frmtrm_consistency(cur, ticker, year, report_type, fs_div)
-                        time.sleep(0.1)
-                        break  # CFS 성공하면 OFS 건너뜀
-                    time.sleep(0.1)
+                    total += n
+                    _check_bs_integrity(cur, ticker, year, report_type, fs_div)
+                    _check_frmtrm_consistency(cur, ticker, year, report_type, fs_div)
+                time.sleep(0.1)
 
         # ingest_status 갱신
         cur.execute(
