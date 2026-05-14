@@ -36,3 +36,8 @@ dashboard/status/
 # OS
 .DS_Store
 Thumbs.db
+
+# 로컬 전용
+.claude/
+dashboard_health_server_current.json
+\[현황 공유\]*
