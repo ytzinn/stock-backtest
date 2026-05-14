@@ -6,6 +6,9 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(os.getenv("BACKTEST_PROJECT_ROOT", Path.cwd())).resolve()
+DEV_PC_PROJECT_ROOT = Path(
+    os.getenv("BACKTEST_DEV_PC_PROJECT_ROOT", r"C:\Users\진윤태\Documents\stock-backtest")
+)
 IS_WINDOWS = platform.system() == "Windows"
 RUN_ENV = os.getenv("DASHBOARD_RUN_ENV", "local-windows" if IS_WINDOWS else "server")
 DASHBOARD_DIR = PROJECT_ROOT / "dashboard"

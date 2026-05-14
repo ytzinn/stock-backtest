@@ -32,6 +32,7 @@ HELP = {
     "Raw Table Preview": "허용된 public 테이블의 앞부분을 읽기 전용으로 미리 봅니다.",
     "Log Summary": "로그에서 ERROR/WARN/FAIL/Traceback/Exception 같은 라인을 추출해 최근 원인 후보를 보여줍니다.",
     "System": "서버의 systemd, disk, git, crontab, 로그 파일 상태를 읽기 전용으로 보여줍니다.",
+    "Workspace/Admin": "서버와 개발 PC 프로젝트 경로, 디렉토리 트리, 용량/온도/프로세스 등 관리 정보를 보여줍니다.",
     "Recent Backtest Runs": "최근 백테스트 실행 이력입니다. 성과 분석이 아니라 실패/metadata 확인용입니다.",
     "price_history latest": "price_history 테이블에 들어온 가장 최신 날짜와 그 날짜의 종목 수입니다.",
     "recent price coverage": "최근 날짜별 price_history 종목 수입니다. 갑자기 줄면 수집 누락 가능성이 있습니다.",
@@ -272,7 +273,7 @@ with st.expander("Status Legend / 화면 읽는 법", expanded=True):
     )
     st.caption("섹션 제목의 ?, ⓘ, 표의 컬럼 헤더에 마우스를 올리면 의미 설명이 표시됩니다.")
 
-tabs = st.tabs(["Agent Summary", "Health Matrix", "Data Integrity", "DB Browser", "Logs", "System", "Backtest Runs"])
+tabs = st.tabs(["Agent Summary", "Health Matrix", "Data Integrity", "DB Browser", "Logs", "Workspace/Admin", "System", "Backtest Runs"])
 
 with tabs[0]:
     tab_guide(
@@ -528,6 +529,56 @@ with tabs[4]:
     st.json(selected_summary.get("findings", []), expanded=False)
 
 with tabs[5]:
+    st.subheader("Workspace/Admin", help=HELP["Workspace/Admin"])
+    tab_guide(
+        "Workspace/Admin",
+        [
+            "서버에서 대시보드가 실행 중이면 서버 프로젝트 경로와 서버 디렉토리를 실제로 읽습니다.",
+            "개발 PC 경로는 서버가 Windows 파일시스템을 직접 볼 수 없어서 참조 경로와 접근 가능 여부를 함께 표시합니다.",
+            "온도는 lm-sensors 또는 /sys/class/thermal 값이 있는 경우에만 표시됩니다.",
+        ],
+    )
+    tree_depth = st.slider("Directory depth", 1, 4, 2, step=1)
+    admin = system_checks.collect_workspace_admin(max_depth=int(tree_depth))
+
+    st.subheader("Project Paths")
+    st.json(admin.get("overview"), expanded=True)
+
+    c1, c2 = st.columns(2)
+    with c1:
+        hint_caption("Server project directory")
+        show_table(admin.get("server_tree"), height=420)
+    with c2:
+        hint_caption("Development PC project directory")
+        dev_tree = admin.get("dev_pc_tree") or [
+            {
+                "path": admin.get("overview", {}).get("dev_pc_project_root"),
+                "kind": "not accessible from this runtime",
+                "depth": 0,
+            }
+        ]
+        show_table(dev_tree, height=420)
+
+    st.subheader("Server Management")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        hint_caption("disk")
+        st.json(admin.get("disk"), expanded=False)
+        hint_caption("storage")
+        st.code(admin.get("storage", {}).get("stdout") or admin.get("storage", {}).get("error") or "", language=None)
+    with c2:
+        hint_caption("memory")
+        st.code(admin.get("memory", {}).get("stdout") or admin.get("memory", {}).get("error") or "", language=None)
+        hint_caption("temperature")
+        st.json(admin.get("temperature"), expanded=False)
+    with c3:
+        hint_caption("log files")
+        show_table(admin.get("logs"), height=300)
+
+    with st.expander("Processes", expanded=False):
+        st.code(admin.get("processes", {}).get("stdout") or admin.get("processes", {}).get("error") or "", language=None)
+
+with tabs[6]:
     st.subheader("System", help=HELP["System"])
     tab_guide(
         "System",
@@ -559,7 +610,7 @@ with tabs[5]:
             with st.expander(key):
                 st.code(json.dumps(system[key], ensure_ascii=False, indent=2), language="json")
 
-with tabs[6]:
+with tabs[7]:
     st.subheader("Recent Backtest Runs", help=HELP["Recent Backtest Runs"])
     tab_guide(
         "Backtest Runs",

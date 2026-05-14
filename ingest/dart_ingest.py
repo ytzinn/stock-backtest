@@ -59,6 +59,7 @@ ACCOUNT_ALIASES: dict[str, list[str]] = {
     '유동부채':         ['유동부채'],
     '영업활동현금흐름': ['영업활동현금흐름', '영업활동으로인한현금흐름',
                         '영업활동현금흐름합계'],
+    '투자활동현금흐름': ['투자활동현금흐름', '투자활동으로인한현금흐름'],
     '재무활동현금흐름': ['재무활동현금흐름', '재무활동으로인한현금흐름'],
     '배당금지급':       ['배당금지급', '배당금의지급', '현금배당금지급'],
     '단기차입금':       ['단기차입금'],
@@ -85,6 +86,7 @@ _CANONICAL_SJ: dict[str, str] = {
     '장기차입금':       '재무상태표',
     '사채':             '재무상태표',
     '영업활동현금흐름': '현금흐름표',
+    '투자활동현금흐름': '현금흐름표',
     '재무활동현금흐름': '현금흐름표',
     '배당금지급':       '현금흐름표',
 }
@@ -249,6 +251,31 @@ def _upsert_financials(cur, ticker: str, corp_code: str, year: int,
     return saved
 
 
+def _check_bs_integrity(cur, ticker: str, year: int,
+                         report_type: str, fs_div: str) -> None:
+    """upsert 직후 자산 = 부채 + 자본 항등식 검증. 5% 초과 오차 시 WARNING 로그."""
+    cur.execute(
+        """
+        SELECT account_nm, amount FROM financials
+        WHERE ticker=%s AND year=%s AND report_type=%s AND fs_div=%s
+          AND account_nm IN ('자산총계','부채총계','자본총계')
+        """,
+        (ticker, year, report_type, fs_div),
+    )
+    row = {r[0]: float(r[1]) for r in cur.fetchall() if r[1] is not None}
+    assets = row.get('자산총계')
+    liab   = row.get('부채총계')
+    equity = row.get('자본총계')
+    if assets and liab is not None and equity is not None and assets != 0:
+        err = abs(assets - liab - equity) / abs(assets)
+        if err > 0.05:
+            log.warning(
+                f'BS_INTEGRITY {ticker} {year} {report_type} {fs_div}: '
+                f'자산≠부채+자본 오차 {err:.1%} '
+                f'(자산={assets:.0f} 부채={liab:.0f} 자본={equity:.0f})'
+            )
+
+
 def _upsert_disclosures(cur, ticker: str, items: list[dict]) -> None:
     """공시 목록 → disclosures 테이블 upsert."""
     reprt_nm_map = {
@@ -329,6 +356,7 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
                             cur, ticker, corp_code, year, report_type, fs_div, items
                         )
                         total += n
+                        _check_bs_integrity(cur, ticker, year, report_type, fs_div)
                         time.sleep(0.1)
                         break  # CFS 성공하면 OFS 건너뜀
                     time.sleep(0.1)
@@ -550,8 +578,11 @@ def supplement_cf(start_year: int = 2014, max_tickers: int = 300) -> None:
     log.info(f'CF 보완 완료: 성공={ok}, 건너뜀={skip}/{len(targets)}')
 
 
-def ingest_all(skip_if_done: bool = False) -> None:
-    """stocks 테이블 전종목 DART 수집 (14일+ 분산 실행)."""
+def ingest_all(skip_if_done: bool = False, max_tickers: int = 0) -> None:
+    """stocks 테이블 전종목 DART 수집 (14일+ 분산 실행).
+
+    max_tickers > 0 이면 해당 수만큼만 처리하고 중단 (파일럿/일별 분산용).
+    """
     dart = DartAPI()
 
     with db_conn() as conn:
@@ -581,6 +612,8 @@ def ingest_all(skip_if_done: bool = False) -> None:
             """)
         targets = cur.fetchall()
 
+    if max_tickers > 0:
+        targets = targets[:max_tickers]
     log.info(f'DART 수집 대상: {len(targets)}개 종목')
     for ticker, corp_code in targets:
         try:
@@ -596,9 +629,9 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--skip-if-done', action='store_true')
     parser.add_argument('--supplement-cf', action='store_true',
-                        help='영업활동현금흐름 누락 종목에 CF 데이터 보완 수집')
-    parser.add_argument('--max-tickers', type=int, default=300,
-                        help='--supplement-cf 일일 처리 종목 수 (기본 300 ≈ 7,800콜/일)')
+                        help='영업활동현금흐름 누락 종목에 CF 데이터 보완 수집 (레거시)')
+    parser.add_argument('--max-tickers', type=int, default=0,
+                        help='처리 종목 수 제한 (0=무제한). 파일럿/일별 분산 및 --supplement-cf 공용')
     parser.add_argument('--repair-ni', action='store_true',
                         help='당기순이익=0 버그 복구 (자본변동표 0값 덮어쓰기 수정)')
     parser.add_argument('--repair-equity', action='store_true',
@@ -612,7 +645,7 @@ def main() -> None:
 
     if args.supplement_cf:
         configure_logging('dart_cf_supplement.log')
-        supplement_cf(max_tickers=args.max_tickers)
+        supplement_cf(max_tickers=args.max_tickers if args.max_tickers > 0 else 300)
     elif args.repair_ni:
         configure_logging('dart_ni_repair.log')
         repair_ni()
@@ -629,7 +662,7 @@ def main() -> None:
             return
         ingest_company(dart, args.ticker, row[0])
     else:
-        ingest_all(skip_if_done=args.skip_if_done)
+        ingest_all(skip_if_done=args.skip_if_done, max_tickers=args.max_tickers)
 
 
 if __name__ == '__main__':
