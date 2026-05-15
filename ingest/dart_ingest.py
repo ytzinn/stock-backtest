@@ -174,7 +174,7 @@ class DartAPI:
     def download_corp_codes(self) -> dict[str, str]:
         """
         DART 법인코드 다운로드 (ZIP XML).
-        반환: {corp_code: corp_name}
+        반환: {stock_code(ticker): corp_code}  — 상장법인만 포함 (stock_code 비어있는 항목 제외)
         """
         resp = self.session.get(
             f'{DART_BASE}/corpCode.xml',
@@ -189,34 +189,35 @@ class DartAPI:
         root = ET.fromstring(xml_bytes)
         result = {}
         for item in root.findall('list'):
-            corp_code = (item.findtext('corp_code') or '').strip()
-            corp_name = (item.findtext('corp_name') or '').strip()
-            if corp_code:
-                result[corp_code] = corp_name
-        log.info(f'법인코드 {len(result)}개 다운로드')
+            corp_code  = (item.findtext('corp_code')  or '').strip()
+            stock_code = (item.findtext('stock_code') or '').strip()
+            if corp_code and stock_code:          # 상장법인만 (비상장은 stock_code 없음)
+                result[stock_code] = corp_code
+        log.info(f'상장법인 ticker→corp_code 매핑 {len(result)}개 다운로드')
         return result
 
 
 # ── corp_code 매핑 ─────────────────────────────────────────────────────────────
 
 def init_corp_codes(dart: DartAPI) -> None:
-    """DART 법인코드를 stocks 테이블의 corp_code 컬럼에 매핑."""
-    corp_map = dart.download_corp_codes()  # {corp_code: corp_name}
-    name_to_code = {v: k for k, v in corp_map.items()}
+    """DART 법인코드를 stocks 테이블의 corp_code 컬럼에 매핑 (ticker 기준 정확 매칭)."""
+    ticker_to_corp = dart.download_corp_codes()  # {stock_code(ticker): corp_code}
 
     with db_conn() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT ticker, corp_name FROM stocks WHERE corp_code IS NULL")
+        cur.execute("SELECT ticker FROM stocks WHERE corp_code IS NULL")
         rows = cur.fetchall()
         matched = 0
-        for ticker, corp_name in rows:
-            code = name_to_code.get(corp_name)
+        for (ticker,) in rows:
+            code = ticker_to_corp.get(ticker)
             if code:
                 cur.execute(
                     "UPDATE stocks SET corp_code = %s WHERE ticker = %s",
                     (code, ticker),
                 )
                 matched += 1
+            else:
+                log.debug(f'{ticker}: DART corp_code 없음 (비상장 or 상폐)')
         log.info(f'법인코드 매핑: {matched}/{len(rows)}개 매칭')
 
 
