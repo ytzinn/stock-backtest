@@ -200,7 +200,7 @@ class DartAPI:
 # ── corp_code 매핑 ─────────────────────────────────────────────────────────────
 
 def init_corp_codes(dart: DartAPI) -> None:
-    """DART 법인코드를 stocks 테이블의 corp_code 컬럼에 매핑 (ticker 기준 정확 매칭)."""
+    """DART 법인코드 + 결산월을 stocks 테이블에 매핑 (ticker 기준 정확 매칭)."""
     ticker_to_corp = dart.download_corp_codes()  # {stock_code(ticker): corp_code}
 
     with db_conn() as conn:
@@ -219,6 +219,30 @@ def init_corp_codes(dart: DartAPI) -> None:
             else:
                 log.debug(f'{ticker}: DART corp_code 없음 (비상장 or 상폐)')
         log.info(f'법인코드 매핑: {matched}/{len(rows)}개 매칭')
+
+        # 결산월(fscl_month) 수집 — corp_code 있는 종목 전체 대상
+        cur.execute("SELECT ticker, corp_code FROM stocks WHERE corp_code IS NOT NULL AND fscl_month IS NULL")
+        fscl_rows = cur.fetchall()
+        fscl_updated = 0
+        for ticker, corp_code in fscl_rows:
+            try:
+                resp = dart.session.get(
+                    f'{DART_BASE}/company.json',
+                    params={'crtfc_key': dart.api_key, 'corp_code': corp_code},
+                    timeout=10,
+                )
+                data = resp.json()
+                fscl_month_str = (data.get('fscl_month') or '').strip()
+                if fscl_month_str.isdigit():
+                    cur.execute(
+                        "UPDATE stocks SET fscl_month = %s WHERE ticker = %s",
+                        (int(fscl_month_str), ticker),
+                    )
+                    fscl_updated += 1
+                time.sleep(0.05)
+            except Exception as e:
+                log.debug(f'{ticker} fscl_month 조회 실패: {e}')
+        log.info(f'결산월 수집: {fscl_updated}/{len(fscl_rows)}개 완료')
 
 
 # ── 수집 핵심 로직 ─────────────────────────────────────────────────────────────

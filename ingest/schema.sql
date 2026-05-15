@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS stocks (
     market          TEXT,
     sector          TEXT,
     sector_name     TEXT,
+    fscl_month      INTEGER,    -- 결산월 (1~12, NULL=미확인). DART company.json fscl_month
     is_financial    BOOLEAN     DEFAULT FALSE,
     is_excluded     BOOLEAN     DEFAULT FALSE,
     exclude_reason  TEXT,
