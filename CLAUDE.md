@@ -20,10 +20,10 @@ RIM(잔여이익모델) 기반 한국 주식 멀티팩터 백테스트 머신.
 
 ### 코드 배포 규칙 (개발PC → 서버 동기화)
 - **scp 직접 배포 절대 금지.** 코드는 항상 git을 통해서만 서버에 반영한다.
-- 코드 수정 후 서버 반영 순서:
+- **세션에서 파일을 수정했고 다른 주제로 넘어가거나 세션이 끝날 때, 사용자가 요청하지 않아도 아래 3단계를 자동 수행한다:**
   1. `git commit` (로컬)
   2. `git push origin master` (GitHub)
-  3. `ssh ... "cd /opt/stock-backtest && git pull"` (서버)
+  3. `ssh -i "$env:USERPROFILE\.ssh\id_ed25519" milmelmul@172.30.1.96 "cd /opt/stock-backtest && git pull"` (서버)
 - 긴급 핫픽스도 동일 순서. scp 우회 시 세 곳 상태가 갈라져 다음 세션에서 충돌 발생.
 
 ### 데이터 정합성
@@ -75,31 +75,4 @@ pykrx는 KRX 2024 웹 리뉴얼 이후 다수 함수가 불작동한다. 아래 
   패턴: `ssh -i "..." user@host "cd /opt/stock-backtest && nohup venv/bin/python -m ingest.X >> /opt/stock-backtest/logs/X.log 2>&1 &"` (double quotes, 절대경로 필수)
 - **현황 확인 순서**: ① 로컬 `dashboard_health_server.json` → ② SSH `dashboard/status/health.json` → ③ psycopg2 직접 쿼리. 신규 스크립트 작성은 마지막 수단.
 
-## 실행 순서 (Phase 0)
-```bash
-# 1. DB 스키마 적용
-psql -h localhost -p 5433 -U postgres -d backtest -f ingest/schema.sql
-
-# 2. 전종목 초기화
-python -m ingest.universe_loader --init
-python -m ingest.universe_loader --financial-flag
-
-# 3. 상장폐지 종목
-python -m ingest.delisting_ingest
-
-# 4. DART 재무 (14일+ 분산)
-python -m ingest.dart_ingest --skip-if-done
-
-# 5. 가격 + 시가총액
-python -m ingest.price_ingest --skip-if-done
-python -m ingest.market_cap_ingest --skip-if-done
-
-# 6. PIT 변환 + DQ Gate
-python -m ingest.pit_loader
-python -m ingest.dq_gate
-
-# 7. Phase 0A 게이팅 확인
-python -m ingest.pit_loader --check-fallback
-python -m ingest.dq_gate --report
-```
 
