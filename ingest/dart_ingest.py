@@ -201,7 +201,12 @@ class DartAPI:
 
 def init_corp_codes(dart: DartAPI) -> None:
     """DART 법인코드 + 결산월을 stocks 테이블에 매핑 (ticker 기준 정확 매칭)."""
-    ticker_to_corp = dart.download_corp_codes()  # {stock_code(ticker): corp_code}
+    try:
+        ticker_to_corp = dart.download_corp_codes()  # {stock_code(ticker): corp_code}
+    except Exception as e:
+        # ZIP 다운로드 실패 시 경고 후 계속 (기존 DB 매핑 유지, 신규 종목만 누락)
+        log.warning(f'corp_code ZIP 다운로드 실패 — 기존 매핑 유지하고 진행: {e}')
+        ticker_to_corp = {}
 
     with db_conn() as conn:
         cur = conn.cursor()
