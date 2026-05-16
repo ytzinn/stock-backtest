@@ -18,6 +18,14 @@ RIM(잔여이익모델) 기반 한국 주식 멀티팩터 백테스트 머신.
 - DB 포트는 5433 (5432는 stock-analysis 전용, 혼용 금지).
 - `stock-analysis/` 저장소와 코드·DB를 공유하지 않는다. import 금지.
 
+### 코드 배포 규칙 (개발PC → 서버 동기화)
+- **scp 직접 배포 절대 금지.** 코드는 항상 git을 통해서만 서버에 반영한다.
+- 코드 수정 후 서버 반영 순서:
+  1. `git commit` (로컬)
+  2. `git push origin master` (GitHub)
+  3. `ssh ... "cd /opt/stock-backtest && git pull"` (서버)
+- 긴급 핫픽스도 동일 순서. scp 우회 시 세 곳 상태가 갈라져 다음 세션에서 충돌 발생.
+
 ### 데이터 정합성
 - 백테스트 엔진의 모든 데이터 조회는 `available_from <= rebalance_date` 조건 필수 (룩어헤드 방지).
 - `financials_pit` 기준: `fallback_used=TRUE`는 법정마감+5일, 항상 실제 공시일보다 늦음.
