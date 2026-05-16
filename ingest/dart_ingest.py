@@ -232,7 +232,7 @@ def init_corp_codes(dart: DartAPI) -> None:
                     timeout=10,
                 )
                 data = resp.json()
-                fscl_month_str = (data.get('fscl_month') or '').strip()
+                fscl_month_str = (data.get('acc_mt') or '').strip()
                 if fscl_month_str.isdigit():
                     cur.execute(
                         "UPDATE stocks SET fscl_month = %s WHERE ticker = %s",

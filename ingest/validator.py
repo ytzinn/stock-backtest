@@ -1,5 +1,5 @@
 """
-재무 이상치 검사 (V01~V09).
+재무 이상치 검사 (V01~V11, V04).
 financials 테이블 대상. CFS 기준, 없으면 OFS fallback.
 
 실행:
@@ -13,6 +13,13 @@ from ingest.connection import db_conn
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 log = logging.getLogger(__name__)
+
+
+# H1 frmtrm 교차검증 시 IS/CF로 분류되는 계정 (나머지는 BS 잔액)
+_IS_CF_ACCOUNTS = frozenset([
+    '매출액', '매출총이익', '영업이익', '당기순이익', '지배기업소유주지분순이익',
+    '영업활동현금흐름', '투자활동현금흐름', '재무활동현금흐름', '배당금지급', '법인세비용차감전순이익',
+])
 
 
 def _get_amount(accounts: dict, name: str) -> float | None:
@@ -101,11 +108,143 @@ def validate_period(ticker: str, year: int, report_type: str,
     return rejects, warnings
 
 
+def _has_correction_report(cur, ticker: str, year: int, report_type: str) -> bool:
+    """해당 기간 정정보고서가 disclosures에 있으면 True (재작성으로 인한 frmtrm 불일치 정상 처리)."""
+    cur.execute(
+        """
+        SELECT 1 FROM disclosures
+        WHERE ticker = %s AND year = %s AND report_type = %s
+          AND report_nm LIKE '%%정정%%'
+        LIMIT 1
+        """,
+        (ticker, year, report_type),
+    )
+    return cur.fetchone() is not None
+
+
+def _check_frmtrm(cur, ticker: str, year: int, fs_div: str, fscl_month: int) -> list[str]:
+    """
+    H1 frmtrm 교차검증 (V04).
+
+    DART bsns_year 관행:
+      fscl_month <= 6: H1 bsns_year=N은 FY N 이후 반기 → frmtrm 기준 = FY 동년(N)
+      fscl_month >= 7: H1 bsns_year=N은 FY N 이전 반기 → frmtrm 기준 = FY 전년(N-1)
+    IS/CF 계정: 항상 전년 H1 비교 (누계 개념)
+    참조 기간에 정정보고서가 있으면 skip.
+    임계값 >10% → WARN (restatement 정상 범위 수용)
+    """
+    cur.execute(
+        """
+        SELECT account_nm, frmtrm_amount FROM financials
+        WHERE ticker = %s AND year = %s AND report_type = 'H1' AND fs_div = %s
+          AND frmtrm_amount IS NOT NULL
+        """,
+        (ticker, year, fs_div),
+    )
+    h1_rows = cur.fetchall()
+    if not h1_rows:
+        return []
+
+    bs_ref_year = year if (fscl_month or 12) <= 6 else year - 1
+    correction_cache: dict[tuple, bool] = {}
+    warnings = []
+
+    for acct_nm, frmtrm_amt in h1_rows:
+        if acct_nm in _IS_CF_ACCOUNTS:
+            ref_year, ref_rpt = year - 1, 'H1'
+        else:
+            ref_year, ref_rpt = bs_ref_year, 'FY'
+
+        cache_key = (ref_year, ref_rpt)
+        if cache_key not in correction_cache:
+            correction_cache[cache_key] = _has_correction_report(cur, ticker, ref_year, ref_rpt)
+        if correction_cache[cache_key]:
+            continue
+
+        cur.execute(
+            """
+            SELECT amount FROM financials
+            WHERE ticker = %s AND year = %s AND report_type = %s
+              AND fs_div = %s AND account_nm = %s AND amount IS NOT NULL
+            """,
+            (ticker, ref_year, ref_rpt, fs_div, acct_nm),
+        )
+        row = cur.fetchone()
+        if row is None or row[0] == 0:
+            continue
+        frmtrm_v = float(frmtrm_amt)
+        actual_v = float(row[0])
+        # 배당금지급은 부호 기준이 연도별로 달라지는 경우가 있어 절대값 비교
+        if acct_nm == '배당금지급':
+            diff = abs(abs(frmtrm_v) - abs(actual_v)) / abs(actual_v)
+        else:
+            diff = abs(frmtrm_v - actual_v) / abs(actual_v)
+        if diff > 0.10:
+            warnings.append(
+                f'V04: frmtrm 불일치 {acct_nm} {diff:.1%}'
+                f' (H1{year} vs {ref_rpt}{ref_year})'
+            )
+
+    return warnings
+
+
+def _check_frmtrm_fy(cur, ticker: str, year: int, fs_div: str) -> list[str]:
+    """
+    FY frmtrm 교차검증 (V04).
+    FY.frmtrm_amount(year N) == FY.amount(year N-1) 여야 함.
+    year N-1에 정정보고서가 있으면 skip (합법적 재작성).
+    임계값 >10% → WARN
+    """
+    cur.execute(
+        """
+        SELECT f.account_nm, f.frmtrm_amount, prev.amount
+        FROM financials f
+        JOIN financials prev
+            ON prev.ticker = f.ticker
+            AND prev.year = f.year - 1
+            AND prev.report_type = 'FY'
+            AND prev.fs_div = f.fs_div
+            AND prev.account_nm = f.account_nm
+            AND prev.amount IS NOT NULL
+        WHERE f.ticker = %s AND f.year = %s AND f.report_type = 'FY' AND f.fs_div = %s
+          AND f.frmtrm_amount IS NOT NULL
+          AND prev.amount != 0
+        """,
+        (ticker, year, fs_div),
+    )
+    rows = cur.fetchall()
+    if not rows:
+        return []
+
+    if _has_correction_report(cur, ticker, year - 1, 'FY'):
+        return []
+
+    warnings = []
+    for acct_nm, frmtrm_amt, prev_amt in rows:
+        frmtrm_v = float(frmtrm_amt)
+        actual_v = float(prev_amt)
+        if acct_nm == '배당금지급':
+            diff = abs(abs(frmtrm_v) - abs(actual_v)) / abs(actual_v)
+        else:
+            diff = abs(frmtrm_v - actual_v) / abs(actual_v)
+        if diff > 0.10:
+            warnings.append(
+                f'V04: frmtrm 불일치 {acct_nm} {diff:.1%}'
+                f' (FY{year}.frmtrm vs FY{year - 1})'
+            )
+
+    return warnings
+
+
 def validate_ticker(ticker: str) -> dict:
     """종목 전체 기간 검사 + validation_log upsert. 반환: {(year, report_type): (rejects, warnings)}"""
     results = {}
     with db_conn() as conn:
         cur = conn.cursor()
+
+        cur.execute("SELECT fscl_month FROM stocks WHERE ticker = %s", (ticker,))
+        row = cur.fetchone()
+        fscl_month = row[0] if row else None
 
         cur.execute(
             """
@@ -127,6 +266,11 @@ def validate_ticker(ticker: str) -> dict:
             )
             accounts = {row[0]: row[1] for row in cur.fetchall()}
             rejects, warnings = validate_period(ticker, year, report_type, accounts)
+
+            if report_type == 'H1':
+                warnings += _check_frmtrm(cur, ticker, year, fs_div, fscl_month)
+            elif report_type == 'FY':
+                warnings += _check_frmtrm_fy(cur, ticker, year, fs_div)
             results[(year, report_type)] = (rejects, warnings)
 
             rows = [
