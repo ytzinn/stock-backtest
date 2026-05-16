@@ -8,7 +8,7 @@
 """
 import argparse
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import FinanceDataReader as fdr
 from pykrx import stock as krx
@@ -166,7 +166,6 @@ def update_financial_flag() -> None:
     섹터명에 금융·은행·보험·증권이 포함되면 TRUE.
     오늘 데이터 없으면 최근 5 거래일을 순차 시도.
     """
-    from datetime import timedelta
     log.info('is_financial 갱신 시작')
     with db_conn() as conn:
         cur = conn.cursor()

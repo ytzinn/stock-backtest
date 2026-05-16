@@ -103,26 +103,31 @@ def build_financials_pit(ticker: str | None = None) -> None:
                 (tkr, year, report_type, fs_div),
             )
             accounts = cur2.fetchall()
+            if not accounts:
+                continue
 
-            for account_nm, amount in accounts:
-                cur2.execute(
-                    """
-                    INSERT INTO financials_pit
-                        (ticker, corp_code, year, report_type, fs_div,
-                         account_nm, amount, available_from,
-                         source_rcept_no, fallback_used)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                    ON CONFLICT (ticker, year, report_type, fs_div, account_nm)
-                    DO UPDATE SET
-                        amount          = EXCLUDED.amount,
-                        available_from  = EXCLUDED.available_from,
-                        source_rcept_no = EXCLUDED.source_rcept_no,
-                        fallback_used   = EXCLUDED.fallback_used
-                    """,
-                    (tkr, corp_code, year, report_type, fs_div,
-                     account_nm, amount, avail, rcept_no, fallback),
-                )
-                saved += 1
+            pit_rows = [
+                (tkr, corp_code, year, report_type, fs_div,
+                 account_nm, amount, avail, rcept_no, fallback)
+                for account_nm, amount in accounts
+            ]
+            cur2.executemany(
+                """
+                INSERT INTO financials_pit
+                    (ticker, corp_code, year, report_type, fs_div,
+                     account_nm, amount, available_from,
+                     source_rcept_no, fallback_used)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                ON CONFLICT (ticker, year, report_type, fs_div, account_nm)
+                DO UPDATE SET
+                    amount          = EXCLUDED.amount,
+                    available_from  = EXCLUDED.available_from,
+                    source_rcept_no = EXCLUDED.source_rcept_no,
+                    fallback_used   = EXCLUDED.fallback_used
+                """,
+                pit_rows,
+            )
+            saved += len(pit_rows)
 
         log.info(f'PIT 변환 완료: {saved}개 저장')
 

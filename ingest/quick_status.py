@@ -46,31 +46,7 @@ def main() -> None:
     with db_conn() as conn:
         cur = conn.cursor()
 
-        # ── 1. supplement_cf 진도 ─────────────────────────────────
-        cur.execute("""
-            SELECT
-                COUNT(DISTINCT s.ticker)                                 AS total,
-                COUNT(DISTINCT f.ticker)                                 AS cf_done
-            FROM stocks s
-            LEFT JOIN (
-                SELECT DISTINCT ticker FROM financials
-                WHERE account_nm = '영업활동현금흐름'
-            ) f ON s.ticker = f.ticker
-            WHERE s.is_excluded = FALSE
-              AND s.corp_code IS NOT NULL
-        """)
-        total, cf_done = cur.fetchone()
-        cf_remain = total - cf_done
-        cf_pct = cf_done / total * 100 if total else 0
-        bar_filled = int(cf_pct / 5)
-        bar = '█' * bar_filled + '░' * (20 - bar_filled)
-        print(f'[CF 수집 진도]')
-        print(f'  {bar}  {cf_pct:.1f}%')
-        print(f'  {cf_done:,} / {total:,} 종목  (잔여 {cf_remain:,}개)')
-        days_left = cf_remain / 300 if cf_remain > 0 else 0
-        print(f'  예상 완료: {days_left:.0f}일 후 (300종목/일 기준)\n')
-
-        # ── 2. DART ingest 상태 ──────────────────────────────────
+        # ── 1. DART ingest 상태 ──────────────────────────────────
         cur.execute("""
             SELECT status, COUNT(*) FROM ingest_status
             GROUP BY status ORDER BY status
@@ -104,17 +80,12 @@ def main() -> None:
 
     # ── 4. 실행 중인 프로세스 ─────────────────────────────────
     print(f'\n[프로세스]')
-    cf_procs  = _active_procs('supplement-cf', 'supplement_cf')
-    all_procs = _active_procs('dart_ingest', 'price_ingest', 'market_cap_ingest', 'pit_loader', 'dq_gate')
-    ingest_procs = [p for p in all_procs if 'supplement' not in p]
-
-    print(f'  supplement_cf : {"실행 중 🟢" if cf_procs  else "중지됨 ⚪"}')
+    ingest_procs = _active_procs('dart_ingest', 'price_ingest', 'market_cap_ingest', 'pit_loader', 'dq_gate')
     print(f'  dart_ingest   : {"실행 중 🟢" if ingest_procs else "중지됨 ⚪"}')
 
     # ── 5. 최근 로그 요약 ────────────────────────────────────
     print(f'\n[최근 로그]')
     for log_name in [
-        'dart_cf_supplement.log',
         'dart_ingest.log',
         'price_ingest.log',
     ]:

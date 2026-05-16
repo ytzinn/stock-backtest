@@ -11,6 +11,7 @@ import io
 import logging
 import os
 import time
+import xml.etree.ElementTree as ET
 import zipfile
 from datetime import date, datetime
 from typing import Optional
@@ -185,7 +186,6 @@ class DartAPI:
         with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
             xml_name = zf.namelist()[0]
             xml_bytes = zf.read(xml_name)
-        import xml.etree.ElementTree as ET
         root = ET.fromstring(xml_bytes)
         result = {}
         for item in root.findall('list'):
