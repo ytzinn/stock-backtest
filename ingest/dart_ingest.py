@@ -72,7 +72,8 @@ ACCOUNT_ALIASES: dict[str, list[str]] = {
 # 각 계정의 허용 sj_nm 집합. 포괄손익계산서·자본변동표 등 오염 출처를 명시적으로 차단한다.
 # fnlttSinglAcntAll은 동일 계정명을 여러 재무제표에 걸쳐 반환하므로 정확한 집합 매칭 사용.
 _SJ_BS  = frozenset({'재무상태표', '연결재무상태표'})
-_SJ_IS  = frozenset({'손익계산서', '연결손익계산서'})
+_SJ_IS  = frozenset({'손익계산서', '연결손익계산서',
+                     '포괄손익계산서', '연결포괄손익계산서'})
 _SJ_CF  = frozenset({'현금흐름표', '연결현금흐름표'})
 
 _CANONICAL_SJ: dict[str, frozenset] = {
