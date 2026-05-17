@@ -660,6 +660,10 @@ def ingest_all(skip_if_done: bool = False, max_tickers: int = 0) -> None:
     for ticker, corp_code in targets:
         try:
             ingest_company(dart, ticker, corp_code)
+        except QuotaExceededError as e:
+            log.error(f'{ticker} 수집 실패: {e}')
+            _mark_error(ticker, str(e))
+            break  # 쿼터 초과 시 배치 즉시 중단
         except Exception as e:
             log.error(f'{ticker} 수집 실패: {e}')
             _mark_error(ticker, str(e))
