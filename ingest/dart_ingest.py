@@ -257,15 +257,28 @@ def _upsert_financials(cur, ticker: str, corp_code: str, year: int,
                         report_type: str, fs_div: str, items: list[dict]) -> int:
     """재무제표 항목 → financials 테이블 upsert. 반환: 저장 행 수."""
     saved = 0
+    _jibae_idx = 0      # BS '지배' 키워드 fallback 카운터
+    _nci_idx   = 0      # BS '비지배' 키워드 fallback 카운터
     for item in items:
         raw_nm = (item.get('account_nm') or '').strip()
+        sj_nm  = (item.get('sj_nm') or '').replace(' ', '')
         std_nm = standardize_account(raw_nm)
         if std_nm is None:
-            continue
+            cleaned = raw_nm.replace(' ', '')
+            if sj_nm in _SJ_BS:
+                if '비지배' in cleaned:
+                    _nci_idx += 1
+                    std_nm = f'비지배지분_{_nci_idx}'
+                elif '지배' in cleaned:
+                    _jibae_idx += 1
+                    std_nm = f'지배기업소유주지분_{_jibae_idx}'
+                else:
+                    continue
+            else:
+                continue
 
         allowed_sj = _CANONICAL_SJ.get(std_nm)
         if allowed_sj:
-            sj_nm = (item.get('sj_nm') or '').replace(' ', '')
             if sj_nm not in allowed_sj:
                 continue
 
@@ -307,12 +320,16 @@ def _upsert_financials(cur, ticker: str, corp_code: str, year: int,
 
 def _check_bs_integrity(cur, ticker: str, year: int,
                          report_type: str, fs_div: str) -> None:
-    """upsert 직후 자산 = 부채 + 자본 항등식 검증. 1% 초과 오차 시 WARNING 로그."""
+    """upsert 직후 두 가지 BS 항등식 검증. 1% 초과 오차 시 WARNING 로그.
+    ① 자산 = 부채 + 자본
+    ② 자본 = 지배기업소유주지분 + 비지배지분  (두 항목이 모두 있을 때만)
+    """
     cur.execute(
         """
         SELECT account_nm, amount FROM financials
         WHERE ticker=%s AND year=%s AND report_type=%s AND fs_div=%s
-          AND account_nm IN ('자산총계','부채총계','자본총계')
+          AND (account_nm IN ('자산총계','부채총계','자본총계','지배기업소유주지분','비지배지분_1')
+               OR account_nm LIKE '지배기업소유주지분_%')
         """,
         (ticker, year, report_type, fs_div),
     )
@@ -320,6 +337,8 @@ def _check_bs_integrity(cur, ticker: str, year: int,
     assets = row.get('자산총계')
     liab   = row.get('부채총계')
     equity = row.get('자본총계')
+
+    # ① 자산 = 부채 + 자본
     if assets and liab is not None and equity is not None and assets != 0:
         err = abs(assets - liab - equity) / abs(assets)
         if err > 0.01:
@@ -327,6 +346,22 @@ def _check_bs_integrity(cur, ticker: str, year: int,
                 f'BS_INTEGRITY {ticker} {year} {report_type} {fs_div}: '
                 f'자산≠부채+자본 오차 {err:.1%} '
                 f'(자산={assets:.0f} 부채={liab:.0f} 자본={equity:.0f})'
+            )
+
+    # ② 자본 = 지배기업소유주지분 + 비지배지분
+    ctrl = row.get('지배기업소유주지분')
+    for k, v in row.items():
+        if k.startswith('지배기업소유주지분_'):
+            ctrl = v
+            break
+    nci = row.get('비지배지분_1')
+    if equity is not None and ctrl is not None and nci is not None and equity != 0:
+        err2 = abs(equity - ctrl - nci) / abs(equity)
+        if err2 > 0.01:
+            log.warning(
+                f'EQUITY_SPLIT {ticker} {year} {report_type} {fs_div}: '
+                f'자본≠지배+비지배 오차 {err2:.1%} '
+                f'(자본={equity:.0f} 지배={ctrl:.0f} 비지배={nci:.0f})'
             )
 
 

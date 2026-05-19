@@ -52,7 +52,9 @@ class RIMModel:
 
         ni     = pit_data.get('당기순이익')
         cfo    = pit_data.get('영업활동현금흐름')
-        equity = pit_data.get('지배기업소유주지분') or pit_data.get('자본총계')
+        equity = (pit_data.get('지배기업소유주지분')
+                  or pit_data.get('지배기업소유주지분_1')
+                  or pit_data.get('자본총계'))
 
         if None in (ni, cfo, equity) or equity <= 0 or (shares or 0) <= 0:
             return None
