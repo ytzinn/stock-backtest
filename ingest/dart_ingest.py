@@ -283,8 +283,10 @@ def _upsert_financials(cur, ticker: str, corp_code: str, year: int,
                 continue
 
         # H1/Q1/Q3 IS·CF 계정은 YTD 누계(thstrm_add_amount) 우선, BS 계정은 thstrm_amount 그대로
+        # 키워드 fallback(_N 형태)은 _BS_ACCOUNTS 미등록이므로 sj_nm으로 BS 여부 판단
+        is_bs = (std_nm in _BS_ACCOUNTS) or (sj_nm in _SJ_BS)
         amount = None
-        if report_type in ('H1', 'Q1', 'Q3') and std_nm not in _BS_ACCOUNTS:
+        if report_type in ('H1', 'Q1', 'Q3') and not is_bs:
             add_str = item.get('thstrm_add_amount', '') or ''
             try:
                 amount = float(add_str.replace(',', ''))
@@ -349,11 +351,13 @@ def _check_bs_integrity(cur, ticker: str, year: int,
             )
 
     # ② 자본 = 지배기업소유주지분 + 비지배지분
+    # alias 매핑 우선, 없을 때만 _N fallback 사용
     ctrl = row.get('지배기업소유주지분')
-    for k, v in row.items():
-        if k.startswith('지배기업소유주지분_'):
-            ctrl = v
-            break
+    if ctrl is None:
+        for k, v in row.items():
+            if k.startswith('지배기업소유주지분_'):
+                ctrl = v
+                break
     nci = row.get('비지배지분_1')
     if equity is not None and ctrl is not None and nci is not None and equity != 0:
         err2 = abs(equity - ctrl - nci) / abs(equity)
