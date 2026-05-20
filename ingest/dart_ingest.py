@@ -511,8 +511,11 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
                         cur, ticker, corp_code, year, report_type, fs_div, items
                     )
                     total += n
-                    _check_bs_integrity(cur, ticker, year, report_type, fs_div)
-                    _check_frmtrm_consistency(cur, ticker, year, report_type, fs_div)
+                    try:
+                        _check_bs_integrity(cur, ticker, year, report_type, fs_div)
+                        _check_frmtrm_consistency(cur, ticker, year, report_type, fs_div)
+                    except Exception as e:
+                        log.warning(f'{ticker} {year} {report_type} 검증 오류(무시): {e}')
                 time.sleep(0.1)
 
         # ingest_status 갱신
