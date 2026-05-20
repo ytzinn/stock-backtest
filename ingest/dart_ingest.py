@@ -331,7 +331,7 @@ def _check_bs_integrity(cur, ticker: str, year: int,
         SELECT account_nm, amount FROM financials
         WHERE ticker=%s AND year=%s AND report_type=%s AND fs_div=%s
           AND (account_nm IN ('자산총계','부채총계','자본총계','지배기업소유주지분','비지배지분_1')
-               OR account_nm LIKE '지배기업소유주지분_%')
+               OR account_nm LIKE '지배기업소유주지분_%%')
         """,
         (ticker, year, report_type, fs_div),
     )
