@@ -393,7 +393,10 @@ def _check_frmtrm_consistency(cur, ticker: str, year: int,
     prev_year = year - 1
     for account_nm, frmtrm_val in rows:
         frmtrm_float = float(frmtrm_val)
-        prev_rpt = 'FY' if (report_type == 'H1' and account_nm in _BS_ACCOUNTS) else report_type
+        is_bs_acct = (account_nm in _BS_ACCOUNTS
+                      or account_nm.startswith('지배기업소유주지분_')
+                      or account_nm.startswith('비지배지분_'))
+        prev_rpt = 'FY' if (report_type == 'H1' and is_bs_acct) else report_type
 
         cur.execute(
             """
