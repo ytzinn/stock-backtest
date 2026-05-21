@@ -49,7 +49,7 @@ pykrx는 KRX 2024 웹 리뉴얼 이후 다수 함수가 불작동한다. 아래 
 |------------|------|--------------|
 | `get_market_ohlcv_by_date()` | 빈 DataFrame | `fdr.DataReader(ticker, start, end)` |
 | `get_market_cap_by_date()` | 빈 DataFrame | `fdr.StockListing('KRX')` 현재 주식수 × 종가 근사 (상폐 종목 미적용) |
-| `get_market_ticker_list()` | 빈 응답 | `fdr.StockListing('KRX')` 스냅샷 |
+| `get_market_ticker_list()` | 빈 응답 | **KRX Open API** `stk_bydd_trd`/`ksq_bydd_trd` (연도별 정확한 스냅샷 가능) |
 | `get_market_sector_classifications()` | 빈 응답 | 최근 5거래일 retry → 실패 시 DB 수동 UPDATE |
 
 **FDR 한계**
@@ -58,6 +58,18 @@ pykrx는 KRX 2024 웹 리뉴얼 이후 다수 함수가 불작동한다. 아래 
 - `market_cap`: 현재 주식수 기준 추정 (유상증자·감자 이력 미반영)
 - 상폐 종목 주식수: `fdr.StockListing('KRX')` 현재 상장 목록만 제공 → `fdr.StockListing('KRX-DELISTING')`의 `ListingShares` 컬럼으로 보완 (`supplement_delisted()`)
 - KOSPI 지수: `fdr.DataReader('KS11')` 사용 (Naver Finance 라우트). `'KRX/INDEX/KOSPI'`는 Yahoo fallback → 500 에러
+
+**KRX Open API** (`data-dbg.krx.co.kr`)
+- **엔드포인트**: `https://data-dbg.krx.co.kr/svc/apis/sto/{api_id}`
+- **인증**: HTTP 헤더 `AUTH_KEY: {키값}` — 서버 `.env`에 `KRX_API_KEY` 저장
+- **구독된 API ID**:
+  - `stk_bydd_trd` — KOSPI(유가증권) 일별 시세 (종목코드·종목명·시장구분·종가·상장주식수 등)
+  - `ksq_bydd_trd` — KOSDAQ 일별 시세 (동일 필드)
+  - KONEX(`knx_bydd_trd`)는 미구독 — 사용 금지
+- **파라미터**: `basDd=YYYYMMDD` (거래일 기준)
+- **응답**: `OutBlock_1` 배열, 주요 필드: `BAS_DD`, `ISU_CD`(6자리), `ISU_NM`, `MKT_NM`, `SECT_TP_NM`, `TDD_CLSPRC`, `LIST_SHRS`
+- **용도**: 연말 영업일(`basDd`) 기준 상장 종목 스냅샷 → 연도별 유니버스 구성, `listed_date=NULL` 문제 해결
+- **주의**: `ISU_CD`는 6자리 숫자 코드. 우선주·스팩·리츠 포함 → 필터링 필요 시 `ISU_NM`으로 구분
 
 **DART API**
 - 일일 한도: 10,000콜, stock-analysis `dart-watcher`와 API 키 공유 중
