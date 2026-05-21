@@ -123,12 +123,12 @@ class DartAPI:
             raise RuntimeError('DART_API_KEY 환경변수 없음')
         self.session = requests.Session()
 
-    @retry(stop=stop_after_attempt(3),
-           wait=wait_exponential(multiplier=1, min=4, max=30),
+    @retry(stop=stop_after_attempt(5),
+           wait=wait_exponential(multiplier=1, min=2, max=20),
            retry=retry_if_not_exception_type(QuotaExceededError))
     def _get(self, endpoint: str, params: dict) -> dict:
         params['crtfc_key'] = self.api_key
-        resp = self.session.get(f'{DART_BASE}/{endpoint}', params=params, timeout=30)
+        resp = self.session.get(f'{DART_BASE}/{endpoint}', params=params, timeout=60)
         resp.raise_for_status()
         data = resp.json()
         if data.get('status') == '020':
@@ -702,17 +702,21 @@ def ingest_all(skip_if_done: bool = False, max_tickers: int = 0) -> None:
 
     if max_tickers > 0:
         targets = targets[:max_tickers]
-    log.info(f'DART 수집 대상: {len(targets)}개 종목')
-    for ticker, corp_code in targets:
+    total = len(targets)
+    log.info(f'DART 수집 대상: {total}개 종목')
+    for i, (ticker, corp_code) in enumerate(targets, 1):
         try:
             ingest_company(dart, ticker, corp_code)
         except QuotaExceededError as e:
-            log.error(f'{ticker} 수집 실패: {e}')
+            log.error(f'[{i}/{total}] {ticker} 쿼터 초과 — 배치 중단')
             _mark_error(ticker, str(e))
-            break  # 쿼터 초과 시 배치 즉시 중단
+            break
         except Exception as e:
-            log.error(f'{ticker} 수집 실패: {e}')
+            log.error(f'[{i}/{total}] {ticker} 수집 실패: {e}')
             _mark_error(ticker, str(e))
+        else:
+            if i % 100 == 0:
+                log.info(f'진행: {i}/{total} ({i/total:.1%}) 완료')
 
 
 # ── CLI ────────────────────────────────────────────────────────────────────────
