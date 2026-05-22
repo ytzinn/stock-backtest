@@ -11,11 +11,10 @@ equity 우선순위: 지배기업소유주지분 > 자본총계
 payout=0 가정: KOSDAQ 소형주 배당 데이터 누락 다수 → 낙관적 편향 허용 (설계서 §3-1).
 β=1.0 고정: Phase 2~4. Phase 3 이후 rolling β 도입 검토.
 
-constants: RF, RK — stability_filter.py와 반드시 동일 값 유지.
 """
 from __future__ import annotations
 
-RF, RK = 0.0263, 0.0873   # stock-analysis 기존값 유지
+from backtest.configs.constants import RF, RK  # noqa: F401
 
 
 class RIMModel:

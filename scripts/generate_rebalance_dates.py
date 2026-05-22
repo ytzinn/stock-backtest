@@ -10,23 +10,9 @@ pykrx get_index_ohlcv_by_date KRX 2024 리뉴얼 이후 불작동 확인.
     cd /opt/stock-backtest
     venv/bin/python scripts/generate_rebalance_dates.py
 """
-import os
 from datetime import date, timedelta
 
-import psycopg2
-from dotenv import load_dotenv
-
-load_dotenv()
-
-
-def _get_conn():
-    return psycopg2.connect(
-        host=os.getenv('DB_HOST', 'localhost'),
-        port=int(os.getenv('DB_PORT', 5433)),
-        dbname=os.getenv('DB_NAME', 'backtest'),
-        user=os.getenv('DB_USER', 'postgres'),
-        password=os.getenv('DB_PASSWORD'),
-    )
+from ingest.connection import db_conn
 
 
 def nth_trading_day_after(cur, base: date, n: int) -> date:
@@ -54,9 +40,8 @@ def nth_trading_day_after(cur, base: date, n: int) -> date:
 
 
 def main():
-    conn = _get_conn()
-    cur  = conn.cursor()
-    try:
+    with db_conn() as conn:
+        cur = conn.cursor()
         dates = []
         for yr in range(2015, 2027):
             # 상반기: 3월 31일 + 3 영업일 (FY 사업보고서 법정 마감 후)
@@ -64,9 +49,6 @@ def main():
             # 하반기: 8월 14일 + 3 영업일 (H1 반기보고서 법정 마감 후)
             if yr < 2026:
                 dates.append(nth_trading_day_after(cur, date(yr, 8, 14), 3))
-    finally:
-        cur.close()
-        conn.close()
 
     dates.sort()
 

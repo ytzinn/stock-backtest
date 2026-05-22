@@ -6,7 +6,7 @@ Step 2 — 재무안정성 필터 (v4.3 신규).
 """
 from datetime import date
 
-RF, RK = 0.0263, 0.0873   # CAPM 상수 — models/rim.py와 동일 값 유지
+from backtest.configs.constants import RF, RK  # noqa: F401
 
 
 class StabilityFilter:

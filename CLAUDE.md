@@ -36,9 +36,9 @@ RIM(잔여이익모델) 기반 한국 주식 멀티팩터 백테스트 머신.
 SPEC_06_phases.md의 Phase 순서를 반드시 준수한다.
 Phase 0A 게이팅 통과 전 Phase 1 코드 작성 금지.
 
-## 주요 상수 (변경 시 두 파일 동시 수정)
+## 주요 상수
 ```python
-RF, RK = 0.0263, 0.0873  # backtest/models/rim.py, backtest/filters/stability_filter.py
+RF, RK = 0.0263, 0.0873  # backtest/configs/constants.py (rim.py, stability_filter.py가 import)
 ```
 
 ## 알려진 API 한계 및 대체 수단
