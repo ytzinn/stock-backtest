@@ -34,7 +34,8 @@ API_IDS = {
 
 def _create_table() -> None:
     with db_conn() as conn:
-        conn.cursor().execute("""
+        cur = conn.cursor()
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS krx_listing_snapshots (
                 snapshot_date DATE    NOT NULL,
                 ticker        CHAR(6) NOT NULL,
@@ -44,6 +45,10 @@ def _create_table() -> None:
                 close_price   INTEGER,
                 PRIMARY KEY (snapshot_date, ticker)
             )
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_krx_listing_snapshots_ticker
+                ON krx_listing_snapshots (ticker)
         """)
 
 

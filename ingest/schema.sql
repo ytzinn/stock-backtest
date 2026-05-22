@@ -212,3 +212,19 @@ CREATE TABLE IF NOT EXISTS rim_input_status (
     evaluated_at TIMESTAMPTZ DEFAULT now(),
     PRIMARY KEY (ticker, year, report_type, field_name)
 );
+
+-- 15. KRX 리밸런싱 시점 상장 스냅샷
+-- backtest.configs.rebalance_dates.REBALANCE_DATES 기준 KOSPI+KOSDAQ 종목 스냅샷
+-- 수집: python -m ingest.krx_listing_ingest
+CREATE TABLE IF NOT EXISTS krx_listing_snapshots (
+    snapshot_date DATE    NOT NULL,
+    ticker        CHAR(6) NOT NULL,
+    company_name  VARCHAR(200),
+    market        VARCHAR(20),   -- 'KOSPI' | 'KOSDAQ'
+    shares        BIGINT,
+    close_price   INTEGER,
+    PRIMARY KEY (snapshot_date, ticker)
+);
+
+CREATE INDEX IF NOT EXISTS idx_krx_listing_snapshots_ticker
+    ON krx_listing_snapshots (ticker);

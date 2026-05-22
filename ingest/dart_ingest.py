@@ -478,6 +478,36 @@ def _upsert_disclosures(cur, ticker: str, items: list[dict]) -> None:
         )
 
 
+def _get_valid_collection_targets(ticker: str, conn) -> list[tuple[int, str]]:
+    """
+    krx_listing_snapshots 기반으로 유효 (year, report_type) 쌍 반환.
+
+    날짜 매핑:
+      4월 snapshot → ('FY', snapshot_year - 1)  # 사업보고서
+      8월 snapshot → ('H1', snapshot_year)       # 반기보고서
+    """
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT DISTINCT snapshot_date FROM krx_listing_snapshots WHERE TRIM(ticker) = %s",
+        (ticker,),
+    )
+    rows = cur.fetchall()
+    if not rows:
+        return []
+
+    targets: set[tuple[int, str]] = set()
+    for (d,) in rows:
+        if d.month == 4:
+            targets.add((d.year - 1, 'FY'))
+        elif d.month == 8:
+            targets.add((d.year, 'H1'))
+        else:
+            log.warning(f'{ticker}: 예상치 못한 snapshot_date {d} — FY fallback')
+            targets.add((d.year - 1, 'FY'))
+
+    return sorted(targets)
+
+
 def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
                     start_year: int = 2014) -> None:
     """단일 회사 재무제표 + 공시 수집."""
@@ -486,16 +516,37 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
     with db_conn() as conn:
         cur = conn.cursor()
 
-        # 공시 목록 먼저 수집 (rcept_dt 확보)
-        for year in range(start_year, end_year + 1):
+        # KRX 스냅샷 기반 유효 (year, report_type) 결정
+        valid_targets = _get_valid_collection_targets(ticker, conn)
+        if not valid_targets:
+            log.warning(f'{ticker}: krx_listing_snapshots 미등장 — 건너뜀')
+            cur.execute(
+                """
+                INSERT INTO ingest_status (ticker, status, last_attempt, error_msg)
+                VALUES (%s, 'skipped', now(), 'KRX 스냅샷 미등장')
+                ON CONFLICT (ticker) DO UPDATE SET
+                    status       = 'skipped',
+                    last_attempt = now(),
+                    error_msg    = 'KRX 스냅샷 미등장'
+                """,
+                (ticker,),
+            )
+            return
+
+        valid_years = sorted({yr for yr, _ in valid_targets})
+
+        # 공시 목록 먼저 수집 (rcept_dt 확보, 유효 연도만)
+        for year in valid_years:
             disclosures = dart.get_disclosures(corp_code, year)
             _upsert_disclosures(cur, ticker, disclosures)
-            time.sleep(0.05)  # 과도한 API 호출 방지
+            time.sleep(0.05)
 
-        # ticker fs_div 결정 — 연도별 CFS/OFS 혼재 방지
-        # 가장 최근 FY 기준으로 CFS 존재 여부 확인 후 전 연도에 일관 적용
+        # fs_div 결정 — 상폐 기업은 end_year probe 시 빈 응답 → CFS 오판 방지
+        # valid_targets 최대 FY 연도 기준으로 probe
+        max_fy_year = max((yr for yr, rt in valid_targets if rt == 'FY'), default=None)
+        probe_years = [max_fy_year, max_fy_year - 1] if max_fy_year else [end_year, end_year - 1]
         fs_div = 'OFS'
-        for check_year in (end_year, end_year - 1):
+        for check_year in probe_years:
             probe = dart.get_financial_statement(corp_code, check_year, REPRT_CODE['FY'], 'CFS')
             if probe:
                 fs_div = 'CFS'
@@ -503,23 +554,22 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
             time.sleep(0.1)
         log.info(f'{ticker} fs_div={fs_div}')
 
-        # 재무제표 수집
+        # 재무제표 수집 (KRX 유효 쌍만)
         total = 0
-        for year in range(start_year, end_year + 1):
-            for report_type in TARGET_REPORTS:
-                reprt_code = REPRT_CODE[report_type]
-                items = dart.get_financial_statement(corp_code, year, reprt_code, fs_div)
-                if items:
-                    n = _upsert_financials(
-                        cur, ticker, corp_code, year, report_type, fs_div, items
-                    )
-                    total += n
-                    try:
-                        _check_bs_integrity(cur, ticker, year, report_type, fs_div)
-                        _check_frmtrm_consistency(cur, ticker, year, report_type, fs_div)
-                    except Exception as e:
-                        log.warning(f'{ticker} {year} {report_type} 검증 오류(무시): {e}')
-                time.sleep(0.1)
+        for year, report_type in valid_targets:
+            reprt_code = REPRT_CODE[report_type]
+            items = dart.get_financial_statement(corp_code, year, reprt_code, fs_div)
+            if items:
+                n = _upsert_financials(
+                    cur, ticker, corp_code, year, report_type, fs_div, items
+                )
+                total += n
+                try:
+                    _check_bs_integrity(cur, ticker, year, report_type, fs_div)
+                    _check_frmtrm_consistency(cur, ticker, year, report_type, fs_div)
+                except Exception as e:
+                    log.warning(f'{ticker} {year} {report_type} 검증 오류(무시): {e}')
+            time.sleep(0.1)
 
         # ingest_status 갱신
         cur.execute(
@@ -534,7 +584,7 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
             """,
             (ticker,),
         )
-        log.info(f'{ticker} 완료: {total}개 계정 저장')
+        log.info(f'{ticker} 완료: {total}개 계정 저장 ({len(valid_targets)}쌍 대상)')
 
 
 def repair_ni() -> None:
@@ -689,7 +739,7 @@ def ingest_all(skip_if_done: bool = False, max_tickers: int = 0) -> None:
                 LEFT JOIN ingest_status i ON i.ticker = s.ticker
                 WHERE s.is_excluded = FALSE
                   AND s.corp_code IS NOT NULL
-                  AND (i.status IS NULL OR i.status != 'done')
+                  AND (i.status IS NULL OR i.status NOT IN ('done', 'skipped'))
                 ORDER BY s.ticker
             """)
         else:
