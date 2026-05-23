@@ -266,13 +266,19 @@ def _upsert_financials(cur, ticker: str, corp_code: str, year: int,
         if std_nm is None:
             cleaned = raw_nm.replace(' ', '')
             if sj_nm in _SJ_BS:
-                if '비지배' in cleaned:
+                if '비지배' in cleaned and '부채' not in cleaned:
                     _nci_idx += 1
                     std_nm = f'비지배지분_{_nci_idx}'
-                elif '지배' in cleaned:
+                elif '지배' in cleaned and '부채' not in cleaned:
                     _jibae_idx += 1
                     std_nm = f'지배기업소유주지분_{_jibae_idx}'
                 else:
+                    # alias 미등록 BS 계정 — 합계성 계정 포함 시 로깅 (alias 보강용)
+                    if any(kw in cleaned for kw in ('자본', '자산', '부채')):
+                        log.info(
+                            f'ALIAS_MISS_BS {ticker} {year} {report_type} '
+                            f'fs_div={fs_div} raw="{raw_nm}"'
+                        )
                     continue
             else:
                 continue
@@ -330,8 +336,9 @@ def _check_bs_integrity(cur, ticker: str, year: int,
         """
         SELECT account_nm, amount FROM financials
         WHERE ticker=%s AND year=%s AND report_type=%s AND fs_div=%s
-          AND (account_nm IN ('자산총계','부채총계','자본총계','지배기업소유주지분','비지배지분_1')
-               OR account_nm LIKE '지배기업소유주지분_%%')
+          AND (account_nm IN ('자산총계','부채총계','자본총계','지배기업소유주지분')
+               OR account_nm LIKE '지배기업소유주지분_%%'
+               OR account_nm LIKE '비지배지분%%')
         """,
         (ticker, year, report_type, fs_div),
     )
@@ -351,21 +358,22 @@ def _check_bs_integrity(cur, ticker: str, year: int,
             )
 
     # ② 자본 = 지배기업소유주지분 + 비지배지분
-    # alias 매핑 우선, 없을 때만 _N fallback 사용
-    ctrl = row.get('지배기업소유주지분')
-    if ctrl is None:
-        for k, v in row.items():
-            if k.startswith('지배기업소유주지분_'):
-                ctrl = v
-                break
-    nci = row.get('비지배지분_1')
-    if equity is not None and ctrl is not None and nci is not None and equity != 0:
-        err2 = abs(equity - ctrl - nci) / abs(equity)
-        if err2 > 0.01:
+    # 모든 (지배_X, 비지배_Y) 조합 중 하나라도 1% 이내이면 PASS
+    ctrl_vals = (
+        ([row['지배기업소유주지분']] if '지배기업소유주지분' in row else [])
+        + [v for k, v in row.items() if k.startswith('지배기업소유주지분_')]
+    )
+    nci_vals = [v for k, v in row.items() if k.startswith('비지배지분')]
+    if equity is not None and equity != 0 and ctrl_vals and nci_vals:
+        matched = any(
+            abs(equity - cv - nv) / abs(equity) <= 0.01
+            for cv in ctrl_vals for nv in nci_vals
+        )
+        if not matched:
             log.warning(
                 f'EQUITY_SPLIT {ticker} {year} {report_type} {fs_div}: '
-                f'자본≠지배+비지배 오차 {err2:.1%} '
-                f'(자본={equity:.0f} 지배={ctrl:.0f} 비지배={nci:.0f})'
+                f'자본≠지배+비지배 오차 — 모든 suffix 조합 불일치 '
+                f'(자본={equity:.0f} 지배후보={len(ctrl_vals)}개 비지배후보={len(nci_vals)}개)'
             )
 
 
