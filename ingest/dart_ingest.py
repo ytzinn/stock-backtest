@@ -664,10 +664,6 @@ def main() -> None:
     parser.add_argument('--skip-if-done', action='store_true')
     parser.add_argument('--max-tickers', type=int, default=0,
                         help='처리 종목 수 제한 (0=무제한). 파일럿/일별 분산용')
-    parser.add_argument('--repair-ni', action='store_true',
-                        help='당기순이익=0 버그 복구 (자본변동표 0값 덮어쓰기 수정)')
-    parser.add_argument('--repair-equity', action='store_true',
-                        help='자산≠부채+자본 버그 복구 (자본총계 alias 오매핑 수정)')
     parser.add_argument('--ticker', help='단일 종목 테스트')
     args = parser.parse_args()
     if args.skip_if_done:
@@ -675,15 +671,7 @@ def main() -> None:
 
     dart = DartAPI()
 
-    if args.repair_ni:
-        configure_logging('dart_ni_repair.log')
-        from ingest.dart_repair import repair_ni
-        repair_ni()
-    elif args.repair_equity:
-        configure_logging('dart_equity_repair.log')
-        from ingest.dart_repair import repair_equity
-        repair_equity()
-    elif args.ticker:
+    if args.ticker:
         with db_conn() as conn:
             cur = conn.cursor()
             cur.execute("SELECT corp_code FROM stocks WHERE ticker = %s", (args.ticker,))
