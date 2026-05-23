@@ -35,8 +35,8 @@ class QuotaExceededError(RuntimeError):
 
 REPRT_CODE = {
     'FY': '11011',
-    'H1': '11013',
-    'Q1': '11012',
+    'H1': '11012',  # 반기보고서
+    'Q1': '11013',  # 1분기보고서
     'Q3': '11014',
 }
 
