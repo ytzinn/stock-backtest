@@ -517,8 +517,13 @@ def _get_valid_collection_targets(ticker: str, conn) -> list[tuple[int, str]]:
 
 
 def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
-                    start_year: int = 2014) -> None:
-    """단일 회사 재무제표 + 공시 수집."""
+                    start_year: int = 2014,
+                    only_reports: tuple[str, ...] = ()) -> None:
+    """단일 회사 재무제표 + 공시 수집.
+
+    only_reports: 비어있으면 전체(FY+H1), 지정하면 해당 report_type만 수집.
+                  H1-only 재수집 시 fs_div를 DB에서 읽어 probe API 콜 절약.
+    """
     end_year = date.today().year
 
     with db_conn() as conn:
@@ -541,30 +546,53 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
             )
             return
 
+        # only_reports 필터 적용
+        if only_reports:
+            collect_targets = [(yr, rt) for yr, rt in valid_targets if rt in only_reports]
+        else:
+            collect_targets = valid_targets
+
+        if not collect_targets:
+            return
+
         valid_years = sorted({yr for yr, _ in valid_targets})
 
-        # 공시 목록 먼저 수집 (rcept_dt 확보, 유효 연도만)
-        for year in valid_years:
-            disclosures = dart.get_disclosures(corp_code, year)
-            _upsert_disclosures(cur, ticker, disclosures)
-            time.sleep(0.05)
+        # 공시 목록 수집 — only_reports 지정 시 스킵 (API 콜 절약)
+        if not only_reports:
+            for year in valid_years:
+                disclosures = dart.get_disclosures(corp_code, year)
+                _upsert_disclosures(cur, ticker, disclosures)
+                time.sleep(0.05)
 
-        # fs_div 결정 — 상폐 기업은 end_year probe 시 빈 응답 → CFS 오판 방지
-        # valid_targets 최대 FY 연도 기준으로 probe
-        max_fy_year = max((yr for yr, rt in valid_targets if rt == 'FY'), default=None)
-        probe_years = [max_fy_year, max_fy_year - 1] if max_fy_year else [end_year, end_year - 1]
-        fs_div = 'OFS'
-        for check_year in probe_years:
-            probe = dart.get_financial_statement(corp_code, check_year, REPRT_CODE['FY'], 'CFS')
-            if probe:
-                fs_div = 'CFS'
-                break
-            time.sleep(0.1)
+        # fs_div 결정
+        # only_reports 지정 시: DB 기존 FY 데이터에서 읽어 probe 콜 절약
+        # 전체 수집 시: DART probe
+        fs_div = None
+        if only_reports:
+            cur.execute(
+                "SELECT DISTINCT fs_div FROM financials WHERE ticker=%s AND report_type='FY' LIMIT 1",
+                (ticker,),
+            )
+            row = cur.fetchone()
+            if row:
+                fs_div = row[0]
+
+        if not fs_div:
+            max_fy_year = max((yr for yr, rt in valid_targets if rt == 'FY'), default=None)
+            probe_years = [max_fy_year, max_fy_year - 1] if max_fy_year else [end_year, end_year - 1]
+            fs_div = 'OFS'
+            for check_year in probe_years:
+                probe = dart.get_financial_statement(corp_code, check_year, REPRT_CODE['FY'], 'CFS')
+                if probe:
+                    fs_div = 'CFS'
+                    break
+                time.sleep(0.1)
+
         log.info(f'{ticker} fs_div={fs_div}')
 
-        # 재무제표 수집 (KRX 유효 쌍만)
+        # 재무제표 수집 (KRX 유효 쌍 중 collect_targets만)
         total = 0
-        for year, report_type in valid_targets:
+        for year, report_type in collect_targets:
             reprt_code = REPRT_CODE[report_type]
             items = dart.get_financial_statement(corp_code, year, reprt_code, fs_div)
             if items:
@@ -592,7 +620,7 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
             """,
             (ticker,),
         )
-        log.info(f'{ticker} 완료: {total}개 계정 저장 ({len(valid_targets)}쌍 대상)')
+        log.info(f'{ticker} 완료: {total}개 계정 저장 ({len(collect_targets)}쌍 대상)')
 
 
 def _mark_error(ticker: str, msg: str) -> None:
@@ -612,10 +640,12 @@ def _mark_error(ticker: str, msg: str) -> None:
 
 
 
-def ingest_all(skip_if_done: bool = False, max_tickers: int = 0) -> None:
+def ingest_all(skip_if_done: bool = False, max_tickers: int = 0,
+               only_reports: tuple[str, ...] = ()) -> None:
     """stocks 테이블 전종목 DART 수집 (14일+ 분산 실행).
 
     max_tickers > 0 이면 해당 수만큼만 처리하고 중단 (파일럿/일별 분산용).
+    only_reports: 비어있으면 전체, ('H1',) 이면 H1만 재수집 (FY 보존).
     """
     dart = DartAPI()
 
@@ -628,7 +658,15 @@ def ingest_all(skip_if_done: bool = False, max_tickers: int = 0) -> None:
             init_corp_codes(dart)
 
         # 수집 대상 조회
-        if skip_if_done:
+        # only_reports 지정 시: skip_if_done 무시하고 FY 있는 전종목 대상
+        if only_reports:
+            cur.execute("""
+                SELECT DISTINCT s.ticker, s.corp_code
+                FROM stocks s
+                WHERE s.is_excluded = FALSE AND s.corp_code IS NOT NULL
+                ORDER BY s.ticker
+            """)
+        elif skip_if_done:
             cur.execute("""
                 SELECT s.ticker, s.corp_code
                 FROM stocks s
@@ -649,10 +687,10 @@ def ingest_all(skip_if_done: bool = False, max_tickers: int = 0) -> None:
     if max_tickers > 0:
         targets = targets[:max_tickers]
     total = len(targets)
-    log.info(f'DART 수집 대상: {total}개 종목')
+    log.info(f'DART 수집 대상: {total}개 종목 (only_reports={only_reports or "전체"})')
     for i, (ticker, corp_code) in enumerate(targets, 1):
         try:
-            ingest_company(dart, ticker, corp_code)
+            ingest_company(dart, ticker, corp_code, only_reports=only_reports)
         except QuotaExceededError as e:
             log.error(f'[{i}/{total}] {ticker} 쿼터 초과 — 배치 중단')
             _mark_error(ticker, str(e))
@@ -673,9 +711,13 @@ def main() -> None:
     parser.add_argument('--max-tickers', type=int, default=0,
                         help='처리 종목 수 제한 (0=무제한). 파일럿/일별 분산용')
     parser.add_argument('--ticker', help='단일 종목 테스트')
+    parser.add_argument('--h1-only', action='store_true',
+                        help='H1(반기) 데이터만 재수집. FY 보존, fs_div는 DB에서 읽음')
     args = parser.parse_args()
     if args.skip_if_done:
         configure_logging('dart_retry.log')
+
+    only_reports: tuple[str, ...] = ('H1',) if args.h1_only else ()
 
     dart = DartAPI()
 
@@ -687,9 +729,10 @@ def main() -> None:
         if not row or not row[0]:
             log.error(f'{args.ticker} corp_code 없음 — universe_loader --init 먼저 실행')
             return
-        ingest_company(dart, args.ticker, row[0])
+        ingest_company(dart, args.ticker, row[0], only_reports=only_reports)
     else:
-        ingest_all(skip_if_done=args.skip_if_done, max_tickers=args.max_tickers)
+        ingest_all(skip_if_done=args.skip_if_done, max_tickers=args.max_tickers,
+                   only_reports=only_reports)
 
 
 if __name__ == '__main__':
