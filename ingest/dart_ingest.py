@@ -555,6 +555,16 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
         if not collect_targets:
             return
 
+        # H1-only 모드: FY 데이터 없는 종목은 건너뜀 (status 유지 → 전체 재수집 대상으로 남김)
+        if only_reports and 'FY' not in only_reports:
+            cur.execute(
+                "SELECT 1 FROM financials WHERE ticker=%s AND report_type='FY' LIMIT 1",
+                (ticker,),
+            )
+            if not cur.fetchone():
+                log.info(f'{ticker}: H1-only 모드 — FY 데이터 없음, 건너뜀 (전체 재수집 필요)')
+                return
+
         valid_years = sorted({yr for yr, _ in valid_targets})
 
         # 공시 목록 수집 — only_reports 지정 시 스킵 (API 콜 절약)
