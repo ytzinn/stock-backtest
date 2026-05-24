@@ -326,6 +326,100 @@ def _upsert_financials(cur, ticker: str, corp_code: str, year: int,
     return saved
 
 
+def _deduplicate_equity_variants(cur, ticker: str, year: int,
+                                  report_type: str, fs_div: str) -> None:
+    """upsert 직후 지배/비지배 suffix 중복 행 정리 (B전략).
+
+    자본총계 = 지배_X + 비지배_Y 를 만족하는 단일 쌍을 찾아 나머지 삭제.
+    단계: ① None 값 행 제거 → ② 단일 쌍 탐색 → ③ 동일 값 중복 제거.
+    해결 안 되는 경우(지배 완전 누락 등)는 손대지 않는다.
+    """
+    cur.execute(
+        """
+        SELECT id, account_nm, amount FROM financials
+        WHERE ticker=%s AND year=%s AND report_type=%s AND fs_div=%s
+          AND (account_nm = '자본총계'
+               OR account_nm LIKE '지배기업소유주지분%%'
+               OR account_nm LIKE '비지배지분%%')
+        """,
+        (ticker, year, report_type, fs_div),
+    )
+    rows = cur.fetchall()
+
+    capital = None
+    jibae: dict[str, tuple[int, float | None]] = {}
+    biji:  dict[str, tuple[int, float | None]] = {}
+    for row_id, acct, amount in rows:
+        val = float(amount) if amount is not None else None
+        if acct == '자본총계':
+            capital = val
+        elif acct.startswith('지배기업소유주지분'):
+            jibae[acct] = (row_id, val)
+        elif acct.startswith('비지배지분'):
+            biji[acct] = (row_id, val)
+
+    if capital is None or (len(jibae) <= 1 and len(biji) <= 1):
+        return
+
+    to_delete: list[int] = []
+
+    # ① None 값 행 제거
+    jibae_valid = {k: (rid, v) for k, (rid, v) in jibae.items() if v is not None}
+    biji_valid  = {k: (rid, v) for k, (rid, v) in biji.items()  if v is not None}
+    to_delete += [rid for k, (rid, v) in jibae.items() if v is None]
+    to_delete += [rid for k, (rid, v) in biji.items()  if v is None]
+
+    if len(jibae_valid) <= 1 and len(biji_valid) <= 1:
+        if to_delete:
+            cur.execute('DELETE FROM financials WHERE id = ANY(%s)', (to_delete,))
+            log.debug(f'{ticker} {year} {report_type}: None 지배/비지배 {len(to_delete)}행 삭제')
+        return
+
+    tol = max(1.0, abs(capital) * 0.001)
+    best_j: str | None = None
+    best_b: str | None = None
+
+    # ② 단일 쌍 B전략
+    if jibae_valid and biji_valid:
+        for jk, (_, jv) in jibae_valid.items():
+            for bk, (_, bv) in biji_valid.items():
+                if abs((jv + bv) - capital) <= tol:
+                    best_j, best_b = jk, bk
+                    break
+            if best_j:
+                break
+    elif jibae_valid and not biji_valid:
+        for jk, (_, jv) in jibae_valid.items():
+            if abs(jv - capital) <= tol:
+                best_j = jk
+                break
+
+    if best_j is not None:
+        to_delete += [rid for k, (rid, _) in jibae_valid.items() if k != best_j]
+        to_delete += [rid for k, (rid, _) in biji_valid.items()  if k != best_b]
+    else:
+        # ③ 동일 값 중복 제거 (방정식 미해결 시 fallback)
+        seen: set[float] = set()
+        for k, (rid, val) in jibae_valid.items():
+            if val in seen:
+                to_delete.append(rid)
+            else:
+                seen.add(val)
+        seen = set()
+        for k, (rid, val) in biji_valid.items():
+            if val in seen:
+                to_delete.append(rid)
+            else:
+                seen.add(val)
+
+    if to_delete:
+        cur.execute('DELETE FROM financials WHERE id = ANY(%s)', (to_delete,))
+        log.debug(
+            f'{ticker} {year} {report_type} {fs_div}: '
+            f'지배/비지배 중복 {len(to_delete)}행 삭제 (B전략)'
+        )
+
+
 def _check_bs_integrity(cur, ticker: str, year: int,
                          report_type: str, fs_div: str) -> None:
     """upsert 직후 두 가지 BS 항등식 검증. 1% 초과 오차 시 WARNING 로그.
@@ -610,6 +704,7 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
                     cur, ticker, corp_code, year, report_type, fs_div, items
                 )
                 total += n
+                _deduplicate_equity_variants(cur, ticker, year, report_type, fs_div)
                 try:
                     _check_bs_integrity(cur, ticker, year, report_type, fs_div)
                     _check_frmtrm_consistency(cur, ticker, year, report_type, fs_div)
