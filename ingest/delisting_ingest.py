@@ -5,11 +5,14 @@
     python -m ingest.delisting_ingest
 """
 import logging
+from datetime import date
 
 import FinanceDataReader as fdr
 
 from ingest.connection import db_conn
 from ingest.price_ingest import collect_price_and_turnover
+
+BACKTEST_START = date(2014, 1, 1)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 log = logging.getLogger(__name__)
@@ -84,8 +87,10 @@ def ingest_delisting_prices() -> None:
 
     log.info(f'상장폐지 가격 수집 대상: {len(rows)}개')
     for ticker, listed_date, delisted_date in rows:
-        start = listed_date.strftime('%Y%m%d')
+        start = max(listed_date, BACKTEST_START).strftime('%Y%m%d')
         end   = delisted_date.strftime('%Y%m%d')
+        if start > end:
+            continue
         try:
             collect_price_and_turnover(ticker, start=start, end=end)
         except Exception as e:
