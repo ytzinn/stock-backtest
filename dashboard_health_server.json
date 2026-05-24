@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-05-08T19:11:52+00:00",
+  "generated_at": "2026-05-24T06:24:24+00:00",
   "overall_status": "FAIL",
-  "summary": "Overall FAIL; findings: FAIL=1, UNKNOWN=8.",
+  "summary": "Overall FAIL; findings: FAIL=4, UNKNOWN=1, WARN=4.",
   "environment": {
     "run_env": "server",
     "project_root": "/opt/stock-backtest",
@@ -9,53 +9,62 @@
   },
   "sections": {
     "db": {
-      "status": "UNKNOWN",
-      "checks": []
+      "status": "OK",
+      "checks": [
+        {
+          "severity": "OK",
+          "area": "db",
+          "title": "DB connectivity/schema checks",
+          "evidence": {
+            "row_counts": 12
+          }
+        }
+      ]
     },
     "ingest": {
       "status": "FAIL",
       "checks": [
         {
-          "severity": "FAIL",
+          "severity": "OK",
           "area": "ingest",
           "title": "DART ingest error ratio",
           "evidence": {
-            "pct": 14.72,
-            "total": 2127
+            "pct": 0.04,
+            "total": 2855
           }
         },
         {
-          "severity": "OK",
+          "severity": "FAIL",
           "area": "ingest",
           "title": "DART ingest pending ratio",
           "evidence": {
-            "pct": 0.0,
-            "total": 2127
+            "pct": 56.74,
+            "total": 2855
           }
         }
       ]
     },
     "data_integrity": {
-      "status": "OK",
+      "status": "WARN",
       "checks": [
         {
-          "severity": "OK",
+          "severity": "WARN",
           "area": "data_integrity",
           "title": "price_history freshness",
           "evidence": {
-            "latest_date": "2026-05-07",
-            "lag_days": 1,
-            "ticker_count": 2668
+            "latest_date": "2026-05-22",
+            "lag_days": 2,
+            "ticker_count": 2662
           }
         },
         {
-          "severity": "OK",
+          "severity": "WARN",
           "area": "data_integrity",
           "title": "market_cap_history freshness",
           "evidence": {
-            "latest_date": "2026-05-07",
-            "lag_days": 1,
-            "ticker_count": 2668
+            "latest_date": "2026-05-22",
+            "lag_days": 2,
+            "ticker_count": 2665
           }
         },
         {
@@ -64,8 +73,8 @@
           "title": "PIT fallback rate",
           "evidence": {
             "fallback_cnt": 0,
-            "total_cnt": 168,
-            "fallback_pct": 0.0
+            "total_cnt": 0,
+            "fallback_pct": null
           }
         },
         {
@@ -86,89 +95,89 @@
           }
         },
         {
-          "severity": "OK",
+          "severity": "WARN",
           "area": "data_integrity",
           "title": "market_cap_without_stocks",
           "evidence": {
             "check_id": "market_cap_without_stocks",
-            "cnt": 0
+            "cnt": 116818
           }
         },
         {
-          "severity": "OK",
+          "severity": "WARN",
           "area": "data_integrity",
           "title": "price_history_without_stocks",
           "evidence": {
             "check_id": "price_history_without_stocks",
-            "cnt": 0
+            "cnt": 1237798
           }
         }
       ]
     },
     "logs": {
-      "status": "UNKNOWN",
+      "status": "FAIL",
       "checks": [
         {
-          "severity": "UNKNOWN",
+          "severity": "OK",
           "area": "logs",
           "title": "dart.log",
           "evidence": {
-            "hit_count": null,
-            "error": "File does not exist"
+            "hit_count": 0,
+            "error": null
           }
         },
         {
-          "severity": "UNKNOWN",
+          "severity": "FAIL",
           "area": "logs",
           "title": "dart_retry.log",
           "evidence": {
-            "hit_count": null,
-            "error": "File does not exist"
+            "hit_count": 346,
+            "error": null
           }
         },
         {
-          "severity": "UNKNOWN",
+          "severity": "FAIL",
           "area": "logs",
           "title": "price.log",
           "evidence": {
-            "hit_count": null,
-            "error": "File does not exist"
+            "hit_count": 107,
+            "error": null
           }
         },
         {
-          "severity": "UNKNOWN",
+          "severity": "FAIL",
           "area": "logs",
           "title": "market_cap.log",
           "evidence": {
-            "hit_count": null,
-            "error": "File does not exist"
+            "hit_count": 202,
+            "error": null
           }
         },
         {
-          "severity": "UNKNOWN",
+          "severity": "OK",
           "area": "logs",
           "title": "pit.log",
           "evidence": {
-            "hit_count": null,
-            "error": "File does not exist"
+            "hit_count": 0,
+            "error": null
           }
         },
         {
-          "severity": "UNKNOWN",
+          "severity": "OK",
           "area": "logs",
           "title": "dq_gate.log",
           "evidence": {
-            "hit_count": null,
-            "error": "File does not exist"
+            "hit_count": 0,
+            "error": null
           }
         },
         {
-          "severity": "UNKNOWN",
+          "severity": "OK",
           "area": "logs",
           "title": "healthcheck.log",
           "evidence": {
-            "hit_count": null,
-            "error": "File does not exist"
+            "hit_count": 0,
+            "error": null
           }
         }
       ]
@@ -181,7 +190,7 @@
           "area": "system",
           "title": "Disk usage",
           "evidence": {
-            "used_pct": 2.0
+            "used_pct": 3.0
           }
         },
         {
@@ -221,80 +230,82 @@
     {
       "severity": "FAIL",
       "area": "ingest",
-      "title": "DART ingest error ratio",
+      "title": "DART ingest pending ratio",
       "evidence": {
-        "pct": 14.72,
-        "total": 2127
+        "pct": 56.74,
+        "total": 2855
       },
       "suggested_next_check": "Inspect ingest_status errors and recent DART logs."
     },
     {
-      "severity": "UNKNOWN",
-      "area": "logs",
-      "title": "dart.log",
+      "severity": "WARN",
+      "area": "data_integrity",
+      "title": "price_history freshness",
       "evidence": {
-        "hit_count": null,
-        "error": "File does not exist"
+        "latest_date": "2026-05-22",
+        "lag_days": 2,
+        "ticker_count": 2662
       },
-      "suggested_next_check": "Open Logs tab and inspect extracted context."
+      "suggested_next_check": "Inspect price_history ingest log and latest coverage."
     },
     {
-      "severity": "UNKNOWN",
+      "severity": "WARN",
+      "area": "data_integrity",
+      "title": "market_cap_history freshness",
+      "evidence": {
+        "latest_date": "2026-05-22",
+        "lag_days": 2,
+        "ticker_count": 2665
+      },
+      "suggested_next_check": "Inspect market_cap_history ingest log and latest coverage."
+    },
+    {
+      "severity": "WARN",
+      "area": "data_integrity",
+      "title": "market_cap_without_stocks",
+      "evidence": {
+        "check_id": "market_cap_without_stocks",
+        "cnt": 116818
+      },
+      "suggested_next_check": "Inspect source table ticker coverage and stocks master load."
+    },
+    {
+      "severity": "WARN",
+      "area": "data_integrity",
+      "title": "price_history_without_stocks",
+      "evidence": {
+        "check_id": "price_history_without_stocks",
+        "cnt": 1237798
+      },
+      "suggested_next_check": "Inspect source table ticker coverage and stocks master load."
+    },
+    {
+      "severity": "FAIL",
       "area": "logs",
       "title": "dart_retry.log",
       "evidence": {
-        "hit_count": null,
-        "error": "File does not exist"
+        "hit_count": 346,
+        "error": null
       },
       "suggested_next_check": "Open Logs tab and inspect extracted context."
     },
     {
-      "severity": "UNKNOWN",
+      "severity": "FAIL",
       "area": "logs",
       "title": "price.log",
       "evidence": {
-        "hit_count": null,
-        "error": "File does not exist"
+        "hit_count": 107,
+        "error": null
       },
       "suggested_next_check": "Open Logs tab and inspect extracted context."
     },
     {
-      "severity": "UNKNOWN",
+      "severity": "FAIL",
       "area": "logs",
       "title": "market_cap.log",
       "evidence": {
-        "hit_count": null,
-        "error": "File does not exist"
-      },
-      "suggested_next_check": "Open Logs tab and inspect extracted context."
-    },
-    {
-      "severity": "UNKNOWN",
-      "area": "logs",
-      "title": "pit.log",
-      "evidence": {
-        "hit_count": null,
-        "error": "File does not exist"
-      },
-      "suggested_next_check": "Open Logs tab and inspect extracted context."
-    },
-    {
-      "severity": "UNKNOWN",
-      "area": "logs",
-      "title": "dq_gate.log",
-      "evidence": {
-        "hit_count": null,
-        "error": "File does not exist"
-      },
-      "suggested_next_check": "Open Logs tab and inspect extracted context."
-    },
-    {
-      "severity": "UNKNOWN",
-      "area": "logs",
-      "title": "healthcheck.log",
-      "evidence": {
-        "hit_count": null,
-        "error": "File does not exist"
+        "hit_count": 202,
+        "error": null
       },
       "suggested_next_check": "Open Logs tab and inspect extracted context."
     },
@@ -319,27 +330,27 @@
           },
           {
             "tbl": "disclosures",
-            "rows": 35363
+            "rows": 20258
           },
           {
             "tbl": "financials",
-            "rows": 184999
+            "rows": 344219
           },
           {
             "tbl": "financials_pit",
-            "rows": 168
+            "rows": 0
           },
           {
             "tbl": "ingest_status",
-            "rows": 2127
+            "rows": 3264
           },
           {
             "tbl": "market_cap_history",
-            "rows": 6388858
+            "rows": 7165470
           },
           {
             "tbl": "price_history",
-            "rows": 8602618
+            "rows": 8633493
           },
           {
             "tbl": "rim_input_status",
@@ -351,7 +362,7 @@
           },
           {
             "tbl": "stocks",
-            "rows": 6882
+            "rows": 3264
           },
           {
             "tbl": "universe_gate_pit",
@@ -364,277 +375,278 @@
         ],
         "ingest_progress": [
           {
-            "done": 1814,
-            "error": 313,
-            "pending": 0,
-            "total": 2127
+            "done": 1234,
+            "error": 1,
+            "pending": 1620,
+            "missing_status": 0,
+            "total": 2855
           }
         ],
         "ingest_status_summary": [
           {
+            "status": "pending",
+            "count": 2029,
+            "latest": "2026-05-23T18:14:35.321358+00:00",
+            "total_calls": 67
+          },
+          {
             "status": "done",
-            "count": 1814,
-            "latest": "2026-05-08T19:11:38.576229+00:00",
-            "total_calls": 1814
+            "count": 1234,
+            "latest": "2026-05-23T18:56:56.837630+00:00",
+            "total_calls": 3396
           },
           {
             "status": "error",
-            "count": 313,
-            "latest": "2026-05-08T01:03:51.229265+00:00",
+            "count": 1,
+            "latest": "2026-05-23T05:13:25.470273+00:00",
             "total_calls": 0
           }
         ],
         "ingest_errors": [
           {
-            "ticker": "086900",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:03:51.229265+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64cb65d0 state=finished raised RuntimeError>]"
+            "ticker": "010050",
+            "status": "pending",
+            "last_attempt": "2026-05-23T18:14:35.321358+00:00",
+            "error_msg": "H1-only batch: FY 미수집 — 전체 재수집 필요"
           },
           {
-            "ticker": "086890",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:03:43.078225+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64cb5e50 state=finished raised RuntimeError>]"
+            "ticker": "003940",
+            "status": "pending",
+            "last_attempt": "2026-05-23T18:07:43.376551+00:00",
+            "error_msg": "H1-only batch: FY 미수집 — 전체 재수집 필요"
           },
           {
-            "ticker": "086820",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:03:34.919153+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64cb56d0 state=finished raised RuntimeError>]"
+            "ticker": "003450",
+            "status": "pending",
+            "last_attempt": "2026-05-23T18:06:56.155072+00:00",
+            "error_msg": "H1-only batch: FY 미수집 — 전체 재수집 필요"
           },
           {
-            "ticker": "086790",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:03:26.755376+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64cb4f50 state=finished raised RuntimeError>]"
+            "ticker": "002900",
+            "status": "pending",
+            "last_attempt": "2026-05-23T18:06:06.669677+00:00",
+            "error_msg": "H1-only batch: FY 미수집 — 전체 재수집 필요"
           },
           {
-            "ticker": "086710",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:03:18.584778+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64cb47d0 state=finished raised RuntimeError>]"
+            "ticker": "002550",
+            "status": "pending",
+            "last_attempt": "2026-05-23T18:05:29.841553+00:00",
+            "error_msg": "H1-only batch: FY 미수집 — 전체 재수집 필요"
           },
           {
-            "ticker": "086670",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:03:10.392318+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64c2c5d0 state=finished raised RuntimeError>]"
+            "ticker": "000830",
+            "status": "pending",
+            "last_attempt": "2026-05-23T18:02:41.075395+00:00",
+            "error_msg": "H1-only batch: FY 미수집 — 전체 재수집 필요"
           },
           {
-            "ticker": "086520",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:03:02.226848+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64c2c350 state=finished raised RuntimeError>]"
+            "ticker": "000030",
+            "status": "pending",
+            "last_attempt": "2026-05-23T18:01:22.165225+00:00",
+            "error_msg": "H1-only batch: FY 미수집 — 전체 재수집 필요"
           },
           {
-            "ticker": "086460",
+            "ticker": "068760",
             "status": "error",
-            "last_attempt": "2026-05-08T01:02:54.081493+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64c2d650 state=finished raised RuntimeError>]"
+            "last_attempt": "2026-05-23T05:13:25.470273+00:00",
+            "error_msg": "DART 일일 쿼터 초과 (020)"
           },
           {
-            "ticker": "086450",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:02:45.624814+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64c2de50 state=finished raised RuntimeError>]"
+            "ticker": "068060",
+            "status": "pending",
+            "last_attempt": "2026-05-23T05:13:05.449047+00:00",
+            "error_msg": "H1-only batch: FY 미수집 — 전체 재수집 필요"
           },
           {
-            "ticker": "086390",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:02:35.962186+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64c2e1d0 state=finished raised RuntimeError>]"
+            "ticker": "067390",
+            "status": "pending",
+            "last_attempt": "2026-05-23T05:12:09.038694+00:00",
+            "error_msg": null
           },
           {
-            "ticker": "086280",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:02:27.804611+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64c2e950 state=finished raised RuntimeError>]"
+            "ticker": "066350",
+            "status": "pending",
+            "last_attempt": "2026-05-23T05:09:57.462747+00:00",
+            "error_msg": "H1-only batch: FY 미수집 — 전체 재수집 필요"
           },
           {
-            "ticker": "086200",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:02:19.597810+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64c2f0d0 state=finished raised RuntimeError>]"
+            "ticker": "065180",
+            "status": "pending",
+            "last_attempt": "2026-05-23T05:07:55.902089+00:00",
+            "error_msg": "H1-only batch: FY 미수집 — 전체 재수집 필요"
           },
           {
-            "ticker": "086080",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:02:11.459066+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64c2f850 state=finished raised RuntimeError>]"
+            "ticker": "060590",
+            "status": "pending",
+            "last_attempt": "2026-05-23T05:04:38.241094+00:00",
+            "error_msg": null
           },
           {
-            "ticker": "086060",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:02:03.307340+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64c2e350 state=finished raised RuntimeError>]"
+            "ticker": "053870",
+            "status": "pending",
+            "last_attempt": "2026-05-23T04:57:52.175388+00:00",
+            "error_msg": "H1-only batch: FY 미수집 — 전체 재수집 필요"
           },
           {
-            "ticker": "086040",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:01:55.166657+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64be9fd0 state=finished raised RuntimeError>]"
+            "ticker": "053330",
+            "status": "pending",
+            "last_attempt": "2026-05-23T04:56:53.715308+00:00",
+            "error_msg": "H1-only batch: FY 미수집 — 전체 재수집 필요"
           },
           {
-            "ticker": "085980",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:01:47.025403+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64beabd0 state=finished raised RuntimeError>]"
+            "ticker": "052300",
+            "status": "pending",
+            "last_attempt": "2026-05-23T04:54:35.252930+00:00",
+            "error_msg": null
           },
           {
-            "ticker": "085910",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:01:38.877772+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64beaa50 state=finished raised RuntimeError>]"
+            "ticker": "049430",
+            "status": "pending",
+            "last_attempt": "2026-05-23T04:50:55.847557+00:00",
+            "error_msg": null
           },
           {
-            "ticker": "085810",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:01:30.750180+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64bea9d0 state=finished raised RuntimeError>]"
+            "ticker": "047820",
+            "status": "pending",
+            "last_attempt": "2026-05-23T04:49:19.942466+00:00",
+            "error_msg": null
           },
           {
-            "ticker": "085680",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:01:22.550146+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64bea250 state=finished raised RuntimeError>]"
+            "ticker": "046970",
+            "status": "pending",
+            "last_attempt": "2026-05-23T04:48:26.649564+00:00",
+            "error_msg": null
           },
           {
-            "ticker": "085670",
-            "status": "error",
-            "last_attempt": "2026-05-08T01:01:14.405878+00:00",
-            "error_msg": "RetryError[<Future at 0x7fdc64be9950 state=finished raised RuntimeError>]"
+            "ticker": "042040",
+            "status": "pending",
+            "last_attempt": "2026-05-23T04:42:52.464306+00:00",
+            "error_msg": null
           }
         ],
         "price_freshness": [
           {
-            "latest_date": "2026-05-07",
-            "ticker_count": 2668
+            "latest_date": "2026-05-22",
+            "ticker_count": 2662
           }
         ],
         "market_cap_freshness": [
           {
-            "latest_date": "2026-05-07",
-            "ticker_count": 2668
+            "latest_date": "2026-05-22",
+            "ticker_count": 2665
           }
         ],
         "recent_price_coverage": [
           {
-            "date": "2026-05-07",
-            "ticker_count": 2668
+            "date": "2026-05-22",
+            "ticker_count": 2662
           },
           {
-            "date": "2026-05-06",
-            "ticker_count": 2669
+            "date": "2026-05-21",
+            "ticker_count": 2663
           },
           {
-            "date": "2026-05-04",
-            "ticker_count": 2669
+            "date": "2026-05-20",
+            "ticker_count": 2663
           },
           {
-            "date": "2026-04-30",
-            "ticker_count": 2670
+            "date": "2026-05-19",
+            "ticker_count": 2663
           },
           {
-            "date": "2026-04-29",
-            "ticker_count": 2670
+            "date": "2026-05-18",
+            "ticker_count": 2663
           },
           {
-            "date": "2026-04-28",
-            "ticker_count": 2669
+            "date": "2026-05-15",
+            "ticker_count": 2663
           },
           {
-            "date": "2026-04-27",
-            "ticker_count": 2669
+            "date": "2026-05-14",
+            "ticker_count": 2663
           },
           {
-            "date": "2026-04-24",
-            "ticker_count": 2669
+            "date": "2026-05-13",
+            "ticker_count": 2663
           },
           {
-            "date": "2026-04-23",
-            "ticker_count": 2669
+            "date": "2026-05-12",
+            "ticker_count": 2663
           },
           {
-            "date": "2026-04-22",
-            "ticker_count": 2669
+            "date": "2026-05-11",
+            "ticker_count": 2663
           }
         ],
         "recent_market_cap_coverage": [
           {
-            "date": "2026-05-07",
-            "ticker_count": 2668
+            "date": "2026-05-22",
+            "ticker_count": 2665
           },
           {
-            "date": "2026-05-06",
-            "ticker_count": 2668
+            "date": "2026-05-21",
+            "ticker_count": 2666
           },
           {
-            "date": "2026-05-04",
-            "ticker_count": 2668
+            "date": "2026-05-20",
+            "ticker_count": 2666
           },
           {
-            "date": "2026-04-30",
-            "ticker_count": 2668
+            "date": "2026-05-19",
+            "ticker_count": 2666
           },
           {
-            "date": "2026-04-29",
-            "ticker_count": 2668
+            "date": "2026-05-18",
+            "ticker_count": 2666
           },
           {
-            "date": "2026-04-28",
-            "ticker_count": 2667
+            "date": "2026-05-15",
+            "ticker_count": 2666
           },
           {
-            "date": "2026-04-27",
-            "ticker_count": 2667
+            "date": "2026-05-14",
+            "ticker_count": 2666
           },
           {
-            "date": "2026-04-24",
-            "ticker_count": 2667
+            "date": "2026-05-13",
+            "ticker_count": 2666
           },
           {
-            "date": "2026-04-23",
-            "ticker_count": 2667
+            "date": "2026-05-12",
+            "ticker_count": 2666
           },
           {
-            "date": "2026-04-22",
-            "ticker_count": 2667
+            "date": "2026-05-11",
+            "ticker_count": 2666
           }
         ],
         "dq_gate_summary": [],
         "dq_gate_top_rejects": [],
+        "dq_gate_top_flags": [],
         "validation_summary": [],
         "validation_top_tickers": [],
         "pit_fallback_rate": [
           {
             "fallback_cnt": 0,
-            "total_cnt": 168,
-            "fallback_pct": 0.0
+            "total_cnt": 0,
+            "fallback_pct": null
           }
         ],
         "pit_available_from_anomalies": [],
         "stocks_stats": [
           {
-            "market": "KONEX",
-            "total": 116,
-            "active": 116,
-            "financial": 0,
-            "excluded": 0
-          },
-          {
             "market": "KOSDAQ",
-            "total": 3703,
-            "active": 3627,
+            "total": 2171,
+            "active": 1942,
             "financial": 9,
-            "excluded": 76
+            "excluded": 229
           },
           {
             "market": "KOSPI",
-            "total": 3063,
-            "active": 3037,
+            "total": 1093,
+            "active": 1063,
             "financial": 44,
-            "excluded": 26
+            "excluded": 30
           }
         ],
         "orphan_checks": [
@@ -644,11 +656,11 @@
           },
           {
             "check_id": "market_cap_without_stocks",
-            "cnt": 0
+            "cnt": 116818
           },
           {
             "check_id": "price_history_without_stocks",
-            "cnt": 0
+            "cnt": 1237798
           }
         ],
         "backtest_runs": []
@@ -659,51 +671,90 @@
       {
         "name": "dart.log",
         "path": "/var/log/backtest/dart.log",
-        "status": "UNKNOWN",
-        "findings": [],
-        "error": "File does not exist"
+        "status": "OK",
+        "hit_count": 0,
+        "findings": []
       },
       {
         "name": "dart_retry.log",
         "path": "/var/log/backtest/dart_retry.log",
-        "status": "UNKNOWN",
-        "findings": [],
-        "error": "File does not exist"
+        "status": "FAIL",
+        "hit_count": 346,
+        "findings": [
+          {
+            "line": "2026-05-23 05:13:25,330 ERROR [469/2050] 068290 쿼터 초과 — 배치 중단",
+            "context": "2026-05-23 05:13:24,850 WARNING FRMTRM_MISMATCH 068290 2023 FY OFS 매출총이익: frmtrm=21,716,305,026 vs 2022/FY=25,213,847,179 (차이 13.9%)\n2026-05-23 05:13:25,115 INFO 068760 fs_div=OFS\n2026-05-23 05:13:25,330 ERROR [469/2050] 068290 쿼터 초과 — 배치 중단\n2026-05-23 05:13:25,461 ERROR [506/2084] 068760 쿼터 초과 — 배치 중단\n2026-05-23 05:13:25,513 ERROR [32/1611] 068400 쿼터 초과 — 배치 중단"
+          },
+          {
+            "line": "2026-05-23 05:13:25,461 ERROR [506/2084] 068760 쿼터 초과 — 배치 중단",
+            "context": "2026-05-23 05:13:25,115 INFO 068760 fs_div=OFS\n2026-05-23 05:13:25,330 ERROR [469/2050] 068290 쿼터 초과 — 배치 중단\n2026-05-23 05:13:25,461 ERROR [506/2084] 068760 쿼터 초과 — 배치 중단\n2026-05-23 05:13:25,513 ERROR [32/1611] 068400 쿼터 초과 — 배치 중단"
+          },
+          {
+            "line": "2026-05-23 05:13:25,513 ERROR [32/1611] 068400 쿼터 초과 — 배치 중단",
+            "context": "2026-05-23 05:13:25,330 ERROR [469/2050] 068290 쿼터 초과 — 배치 중단\n2026-05-23 05:13:25,461 ERROR [506/2084] 068760 쿼터 초과 — 배치 중단\n2026-05-23 05:13:25,513 ERROR [32/1611] 068400 쿼터 초과 — 배치 중단"
+          }
+        ]
       },
       {
         "name": "price.log",
         "path": "/var/log/backtest/price.log",
-        "status": "UNKNOWN",
-        "findings": [],
-        "error": "File does not exist"
+        "status": "FAIL",
+        "hit_count": 107,
+        "findings": [
+          {
+            "line": "2026-05-23 04:42:56,751 WARNING 047820 pykrx 조회 실패: Python integer 2220262819 out of bounds for int32",
+            "context": "2026-05-23 04:42:05,675 INFO   진행: 1000/3005  038540 (3000행)\n2026-05-23 04:42:46,911 INFO   진행: 1100/3005  045890 (1959행)\n2026-05-23 04:42:56,751 WARNING 047820 pykrx 조회 실패: Python integer 2220262819 out of bounds for int32\n2026-05-23 04:43:30,198 INFO   진행: 1200/3005  053160 (3000행)\n2026-05-23 04:44:11,285 INFO   진행: 1300/3005  061040 (3000행)"
+          },
+          {
+            "line": "2026-05-23 04:47:01,193 WARNING 097780 pykrx 조회 실패: Python integer 2457724675 out of bounds for int32",
+            "context": "2026-05-23 04:46:11,405 INFO   진행: 1600/3005  088280 (618행)\n2026-05-23 04:46:52,280 INFO   진행: 1700/3005  095700 (3000행)\n2026-05-23 04:47:01,193 WARNING 097780 pykrx 조회 실패: Python integer 2457724675 out of bounds for int32\n2026-05-23 04:47:35,369 INFO   진행: 1800/3005  106190 (3000행)\n2026-05-23 04:48:15,174 INFO   진행: 1900/3005  123840 (3000행)"
+          },
+          {
+            "line": "2026-05-23 04:48:51,822 WARNING 145210 pykrx 조회 실패: Python integer 4503150615 out of bounds for int32",
+            "context": "2026-05-23 04:47:35,369 INFO   진행: 1800/3005  106190 (3000행)\n2026-05-23 04:48:15,174 INFO   진행: 1900/3005  123840 (3000행)\n2026-05-23 04:48:51,822 WARNING 145210 pykrx 조회 실패: Python integer 4503150615 out of bounds for int32\n2026-05-23 04:48:51,822 INFO   진행: 2000/3005  145210 (0행)\n2026-05-23 04:49:28,073 INFO   진행: 2100/3005  185750 (3000행)"
+          }
+        ]
       },
       {
         "name": "market_cap.log",
         "path": "/var/log/backtest/market_cap.log",
-        "status": "UNKNOWN",
-        "findings": [],
-        "error": "File does not exist"
+        "status": "FAIL",
+        "hit_count": 202,
+        "findings": [
+          {
+            "line": "2026-05-12 10:36:01,237 WARNING HKG04487 FDR 조회 실패: 404 Client Error: Not Found for url: https://query2.finance.yahoo.com/v8/finance/chart/HKG04487?period1=1388534400&period2=1778544000&interval=1d&includeAdjustedClose=true",
+            "context": "2026-05-12 10:36:00,684 WARNING CYM16019 FDR 조회 실패: 404 Client Error: Not Found for url: https://query2.finance.yahoo.com/v8/finance/chart/CYM16019?period1=1388534400&period2=1778544000&interval=1d&includeAdjustedClose=true\n2026-05-12 10:36:00,915 WARNING HKG04024 FDR 조회 실패: 404 Client Error: Not Found for url: https://query2.finance.yahoo.com/v8/finance/chart/HKG04024?period1=1388534400&period2=1778544000&interval=1d&includeAdjustedClose=true\n2026-05-12 10:36:01,237 WARNING HKG04487 FDR 조회 실패: 404 Client Error: Not Found for url: https://query2.finance.yahoo.com/v8/finance/chart/HKG04487?period1=1388534400&period2=1778544000&interval=1d&includeAdjustedClose=true\n2026-05-12 10:36:01,461 WARNING HKG19019 FDR 조회 실패: 404 Client Error: Not Found for url: https://query2.finance.yahoo.com/v8/finance/chart/HKG19019?period1=1388534400&period2=1778544000&interval=1d&includeAdjustedClose=true\n2026-05-12 10:36:01,727 WARNING USA1401F FDR 조회 실패: 404 Client Error: Not Found for url: https://query2.finance.yahoo.com/v8/finance/chart/USA1401F?period1=1388534400&period2=1778544000&interval=1d&includeAdjustedClose=true"
+          },
+          {
+            "line": "2026-05-12 10:36:01,461 WARNING HKG19019 FDR 조회 실패: 404 Client Error: Not Found for url: https://query2.finance.yahoo.com/v8/finance/chart/HKG19019?period1=1388534400&period2=1778544000&interval=1d&includeAdjustedClose=true",
+            "context": "2026-05-12 10:36:00,915 WARNING HKG04024 FDR 조회 실패: 404 Client Error: Not Found for url: https://query2.finance.yahoo.com/v8/finance/chart/HKG04024?period1=1388534400&period2=1778544000&interval=1d&includeAdjustedClose=true\n2026-05-12 10:36:01,237 WARNING HKG04487 FDR 조회 실패: 404 Client Error: Not Found for url: https://query2.finance.yahoo.com/v8/finance/chart/HKG04487?period1=1388534400&period2=1778544000&interval=1d&includeAdjustedClose=true\n2026-05-12 10:36:01,461 WARNING HKG19019 FDR 조회 실패: 404 Client Error: Not Found for url: https://query2.finance.yahoo.com/v8/finance/chart/HKG19019?period1=1388534400&period2=1778544000&interval=1d&includeAdjustedClose=true\n2026-05-12 10:36:01,727 WARNING USA1401F FDR 조회 실패: 404 Client Error: Not Found for url: https://query2.finance.yahoo.com/v8/finance/chart/USA1401F?period1=1388534400&period2=1778544000&interval=1d&includeAdjustedClose=true\n2026-05-12 10:36:01,729 INFO 상장폐지 종목 보완 완료: 성공=0, 건너뜀=163"
+          },
+          {
+            "line": "2026-05-12 10:36:01,727 WARNING USA1401F FDR 조회 실패: 404 Client Error: Not Found for url: https://query2.finance.yahoo.com/v8/finance/chart/USA1401F?period1=1388534400&period2=1778544000&interval=1d&includeAdjustedClose=true",
+            "context": "2026-05-12 10:36:01,237 WARNING HKG04487 FDR 조회 실패: 404 Client Error: Not Found for url: https://query2.finance.yahoo.com/v8/finance/chart/HKG04487?period1=1388534400&period2=1778544000&interval=1d&includeAdjustedClose=true\n2026-05-12 10:36:01,461 WARNING HKG19019 FDR 조회 실패: 404 Client Error: Not Found for url: https://query2.finance.yahoo.com/v8/finance/chart/HKG19019?period1=1388534400&period2=1778544000&interval=1d&includeAdjustedClose=true\n2026-05-12 10:36:01,727 WARNING USA1401F FDR 조회 실패: 404 Client Error: Not Found for url: https://query2.finance.yahoo.com/v8/finance/chart/USA1401F?period1=1388534400&period2=1778544000&interval=1d&includeAdjustedClose=true\n2026-05-12 10:36:01,729 INFO 상장폐지 종목 보완 완료: 성공=0, 건너뜀=163\n2026-05-17 14:30:01,884 INFO FDR에서 상장주식수 로드 중..."
+          }
+        ]
       },
       {
         "name": "pit.log",
         "path": "/var/log/backtest/pit.log",
-        "status": "UNKNOWN",
-        "findings": [],
-        "error": "File does not exist"
+        "status": "OK",
+        "hit_count": 0,
+        "findings": []
       },
       {
         "name": "dq_gate.log",
         "path": "/var/log/backtest/dq_gate.log",
-        "status": "UNKNOWN",
-        "findings": [],
-        "error": "File does not exist"
+        "status": "OK",
+        "hit_count": 0,
+        "findings": []
       },
       {
         "name": "healthcheck.log",
         "path": "/var/log/backtest/healthcheck.log",
-        "status": "UNKNOWN",
-        "findings": [],
-        "error": "File does not exist"
+        "status": "OK",
+        "hit_count": 0,
+        "findings": []
       }
     ],
     "system": {
@@ -736,9 +787,9 @@
           "/"
         ],
         "returncode": 0,
-        "stdout": "Filesystem                         Size  Used Avail Use% Mounted on\n/dev/mapper/ubuntu--vg-ubuntu--lv  914G   17G  859G   2% /",
+        "stdout": "Filesystem                         Size  Used Avail Use% Mounted on\n/dev/mapper/ubuntu--vg-ubuntu--lv  914G   20G  856G   3% /",
         "stderr": "",
-        "used_pct": 2.0
+        "used_pct": 3.0
       },
       "git": {
         "commit": {
@@ -760,7 +811,7 @@
             "--short"
           ],
           "returncode": 0,
-          "stdout": "M ingest/connection.py\n M ingest/delisting_ingest.py\n M requirements.txt\n?? dashboard/",
+          "stdout": "?? data/",
           "stderr": ""
         }
       },
@@ -768,44 +819,58 @@
         {
           "name": "dart.log",
           "path": "/var/log/backtest/dart.log",
-          "status": "UNKNOWN",
-          "error": "missing"
+          "status": "OK",
+          "size_bytes": 6842950,
+          "modified_at": "2026-05-23T18:57:21.911376+00:00",
+          "age_seconds": 41222
         },
         {
           "name": "dart_retry.log",
           "path": "/var/log/backtest/dart_retry.log",
-          "status": "UNKNOWN",
-          "error": "missing"
+          "status": "OK",
+          "size_bytes": 3575807,
+          "modified_at": "2026-05-23T05:13:25.513021+00:00",
+          "age_seconds": 90658
         },
         {
           "name": "price.log",
           "path": "/var/log/backtest/price.log",
-          "status": "UNKNOWN",
-          "error": "missing"
+          "status": "OK",
+          "size_bytes": 55058,
+          "modified_at": "2026-05-23T04:53:08.781967+00:00",
+          "age_seconds": 91875
         },
         {
           "name": "market_cap.log",
           "path": "/var/log/backtest/market_cap.log",
-          "status": "UNKNOWN",
-          "error": "missing"
+          "status": "OK",
+          "size_bytes": 55554,
+          "modified_at": "2026-05-23T04:52:26.258911+00:00",
+          "age_seconds": 91918
         },
         {
           "name": "pit.log",
           "path": "/var/log/backtest/pit.log",
-          "status": "UNKNOWN",
-          "error": "missing"
+          "status": "OK",
+          "size_bytes": 389,
+          "modified_at": "2026-05-11T12:28:10.574778+00:00",
+          "age_seconds": 1101373
         },
         {
           "name": "dq_gate.log",
           "path": "/var/log/backtest/dq_gate.log",
-          "status": "UNKNOWN",
-          "error": "missing"
+          "status": "OK",
+          "size_bytes": 3950,
+          "modified_at": "2026-05-12T14:04:02.975904+00:00",
+          "age_seconds": 1009221
         },
         {
           "name": "healthcheck.log",
           "path": "/var/log/backtest/healthcheck.log",
-          "status": "UNKNOWN",
-          "error": "missing"
+          "status": "OK",
+          "size_bytes": 0,
+          "modified_at": "2026-05-09T06:21:29.966608+00:00",
+          "age_seconds": 1296174
         }
       ]
     }
