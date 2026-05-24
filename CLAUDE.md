@@ -73,9 +73,22 @@ pykrx는 KRX 2024 웹 리뉴얼 이후 다수 함수가 불작동한다. 아래 
 
 **DART API**
 - 일일 한도: 10,000콜, stock-analysis `dart-watcher`와 API 키 공유 중
-- 새 키 발급 전까지 cron을 KST 00:05(쿼터 리셋 직후)에 실행 (`5 15 * * *` UTC)
 - 에러 status `020` = 쿼터 초과 → `QuotaExceededError` 즉시 발생, retry 없이 배치 중단
 - `fnlttSinglAcnt.json`(주요계정) 사용 금지 → CF 계정 제외됨. 반드시 `fnlttSinglAcntAll.json` 사용
+
+## DB 스키마
+
+### financials 테이블 컬럼
+```
+id, ticker, corp_code, year, report_type, fs_div, account_nm, amount, frmtrm_amount
+```
+- `year`: 회계연도 (int), `report_type`: 'FY'/'H1', `fs_div`: 'CFS'/'OFS'
+- `bsns_year`, `reprt_code`, `period_div` 같은 컬럼은 존재하지 않음 — 헷갈리지 말 것
+
+### account_nm suffix 규칙 (`_N`)
+- `지배기업소유주지분_1`, `비지배지분_1` 등 `_숫자` suffix는 **당기/전기 구분이 아님**
+- DART 응답에서 동일 account_nm이 중복 출현할 때 붙이는 **이름 충돌 fallback** (첫 번째=no suffix, 두 번째=`_1`, ...)
+- `자본총계` 없이 `지배기업소유주지분_1`만 있다면 → DART API가 해당 연도에 `자본총계` 행을 반환하지 않은 것 (DART 데이터 한계, 코드 버그 아님)
 
 ## 서버 명령 실행 패턴
 
@@ -85,6 +98,6 @@ pykrx는 KRX 2024 웹 리뉴얼 이후 다수 함수가 불작동한다. 아래 
   패턴: `$script=@'...'@ | Out-File "$env:TEMP\t.py"` → `scp -i ... t.py :/tmp/t.py` → `ssh ... "venv/bin/python /tmp/t.py"`
 - **백그라운드 모듈**: `nohup python -m X` 단독 실행 시 ModuleNotFoundError.
   패턴: `ssh -i "..." user@host "cd /opt/stock-backtest && nohup venv/bin/python -m ingest.X >> /opt/stock-backtest/logs/X.log 2>&1 &"` (double quotes, 절대경로 필수)
-- **현황 확인 순서**: ① 로컬 `dashboard_health_server.json` → ② SSH `dashboard/status/health.json` → ③ psycopg2 직접 쿼리. 신규 스크립트 작성은 마지막 수단.
+- **현황 확인 순서**: ① `GET http://172.30.1.96:8502/health` (JSON) → ② SSH `dashboard/status/health.json` → ③ psycopg2 직접 쿼리. 신규 스크립트 작성은 마지막 수단.
 
 
