@@ -30,21 +30,52 @@
 > stock-backtest의 `dart_ingest`는 **KST 00:05 (쿼터 리셋 직후)** 에 실행해야 최대 쿼터를 확보할 수 있다.
 > 근본 해결책: 별도 API 키 발급 또는 dart-watcher 폴링 간격 확대.
 
-**수집 실행 환경 (Ubuntu 서버 cron — 2026-05-09 실제 설정):**
+> ⚠️ **DART API 전환 (2026-05-12)**: `fnlttSinglAcnt.json`(주요계정)은 현금흐름(CF) 계정을 제외함 → `adj_roe = (0.5×NI + 0.5×CFO) / equity` 계산 불가.
+> 반드시 `fnlttSinglAcntAll.json`(전체계정) 사용. 기존 주요계정으로 수집된 종목은 `ingest/supplement_cf.py`로 CF만 보완 수집.
+> `fnlttSinglAcnt`(주요계정) 사용 금지 — CLAUDE.md 참조.
 
-| 작업 | 스케줄 | 명령 |
-|------|--------|------|
-| DART 재무·공시 수집 | **매일 KST 00:05** (쿼터 리셋 직후) | `/opt/stock-backtest/venv/bin/python -m ingest.dart_ingest --skip-if-done >> /opt/stock-backtest/logs/dart_ingest.log 2>&1` |
-| pykrx OHLCV + 펀더멘털 | 평일 KST 19:00 | `/opt/stock-backtest/venv/bin/python -m ingest.price_ingest` |
-| DB 백업 | 매주 일요일 KST 10:00 | `scripts/backup_db.sh` |
+**수집 실행 환경 (Ubuntu 서버 cron — 2026-05-21 기준 설정):**
+
+| 작업 | cron (UTC) | KST | 명령 |
+|------|-----------|-----|------|
+| DART 재무·공시 수집 | `5 15 * * *` | 00:05 (쿼터 리셋 직후) | `/opt/stock-backtest/venv/bin/python -m ingest.dart_ingest --skip-if-done >> /opt/stock-backtest/logs/dart_ingest.log 2>&1` |
+| pykrx OHLCV | `0 14 * * *` | 23:00 | `/opt/stock-backtest/venv/bin/python -m ingest.price_ingest >> /opt/stock-backtest/logs/price_ingest.log 2>&1` |
+| 시가총액 수집 | `30 14 * * *` | 23:30 | `/opt/stock-backtest/venv/bin/python -m ingest.market_cap_ingest >> /opt/stock-backtest/logs/market_cap_ingest.log 2>&1` |
+| DB 백업 | `0 1 * * 0` | 일요일 10:00 | `scripts/backup_db.sh` |
+
+> ⚠️ **2026-05-21 수정 이력**: 초기 DART cron이 `0 13 * * *` UTC(KST 22:00)로 잘못 설정되어 쿼터 리셋(KST 00:00) 이전 실행 → 쿼터 초과 빈번 발생. `5 15 * * *` UTC(KST 00:05)로 수정.
 
 > **venv 절대경로 필수**: cron 환경에서 PATH가 제한되므로 `python3` 직접 호출 금지.
 > 올바른 방식: `/opt/stock-backtest/venv/bin/python -m ingest.dart_ingest`
 > 잘못된 방식: `python3 -m ingest.dart_ingest` (시스템 Python을 가리킴)
 
-pykrx(KRX OHLCV/PER/PBR)는 Ubuntu 서버의 국내 IP에서 직접 실행한다.
+pykrx(KRX OHLCV)는 Ubuntu 서버의 국내 IP에서 직접 실행한다.
 stock-analysis에서 Railway(해외 IP) 차단으로 로컬 PC에서만 실행하던 제약이 해소된다.
 (단, KRX IP 정책에 따라 첫 실행 시 차단 여부를 반드시 확인할 것)
+
+## 3-1-1. CF 보완 수집 (`ingest/supplement_cf.py`)
+
+`fnlttSinglAcnt`(주요계정)으로 수집된 기존 종목에 CF 계정이 없어 `adj_roe` 계산이 불가능한 경우를 보완하기 위한 모듈.
+
+```python
+# ingest/supplement_cf.py
+
+def run_supplement_cf(max_tickers: int = 300) -> None:
+    """
+    financials 테이블에 CF 계정(영업활동현금흐름 등)이 없는 종목을 대상으로
+    fnlttSinglAcntAll.json으로 CF 계정만 추가 수집.
+
+    최적화 포인트:
+    - 기존 financials의 fs_div(CFS/OFS) 사전 조회 → fallback API 호출 제거
+    - 공시목록(get_disclosures) 완전 스킵 → 13콜/종목 절약
+    - 콜 수: 13년 × (FY+H1) × 1 fs_div = 26콜/종목 (ingest_company 65콜 대비 60% 절감)
+    - max_tickers=300 → 7,800콜/일 (10,000 한도 대비 2,200 여유)
+    - QuotaExceededError: DART status 020 즉시 감지, retry 없이 배치 중단
+    """
+```
+
+> **cron 등록 여부**: supplement_cf는 1회성 보완 수집으로 cron에 등록하지 않는다.
+> `python -m ingest.supplement_cf` 수동 실행. CF 수집 완료 후 pit_loader 재실행 필요.
 
 ## 3-2. 생존편향 해소 — 상장폐지 종목 수집
 
@@ -69,7 +100,7 @@ def collect_delisting_universe() -> list[dict]:
     result = []
     for _, row in df.iterrows():
         result.append({
-            'ticker':        row.get('Code', ''),
+            'ticker':        row.get('Symbol', ''),   # FDR KRX-DELISTING 컬럼명: Symbol (Code 아님)
             'corp_name':     row.get('Name', ''),
             'market':        row.get('Market', ''),
             'listed_date':   row.get('ListingDate'),
@@ -206,26 +237,29 @@ def update_financial_flag() -> None:
 
 def collect_price_and_turnover(ticker: str, start: str = '20140101', end: str = None) -> int:
     """
-    pykrx get_market_ohlcv_by_date(adjusted=True)로 일별 OHLCV 수집 → price_history upsert.
+    fdr.DataReader(ticker, start, end)로 일별 OHLCV 수집 → price_history upsert.
 
-    adjusted=True: open/high/low/close 전체가 동일 수정 계수 적용 (스케일 일치 보장).
-    adj_close = close (동일 값; 스키마 일관성 유지).
-    turnover: volume × close 근사값.
+    FDR Naver Finance 라우트 기준 수정주가 반환 (adj_close = Close 컬럼).
+    turnover: Volume × Close 근사값.
     수익률 계산 및 모멘텀 MA는 adj_close 기준.
+
+    ⚠️ 2026-05: pykrx get_market_ohlcv_by_date()는 adjusted=True/False 모두 빈 DataFrame 반환.
+    fdr.DataReader()로 대체.
     """
-    from pykrx import stock as krx
-    df = krx.get_market_ohlcv_by_date(start, end or _today(), ticker, adjusted=True)
-    # 컬럼: 시가, 고가, 저가, 종가, 거래량, 등락률
+    import FinanceDataReader as fdr
+    df = fdr.DataReader(ticker, start, end or _today())
+    # 컬럼: Open, High, Low, Close, Volume, Change
     for idx, row in df.iterrows():
-        close     = float(row.get('종가', 0)) or None
-        volume    = int(row.get('거래량', 0)) or None
+        close     = float(row.get('Close', 0)) or None
+        volume    = int(row.get('Volume', 0)) or None
         adj_close = close
         turnover  = (volume * close) if (volume and close) else None
         is_suspended = volume is None
 ```
 
-> **2026-05 확인**: pykrx `get_market_ohlcv_by_date(adjusted=True)` 정상 작동.
-> `adjusted=False`는 빈 DataFrame 반환 (미수정 주가 취득 불가).
+> **2026-05 확인 수정**: pykrx `get_market_ohlcv_by_date(adjusted=True/False)` 모두 빈 DataFrame 반환.
+> `fdr.DataReader(ticker, start, end)` (Naver Finance 라우트)로 대체. 컬럼: Open, High, Low, Close, Volume, Change.
+> `adj_close = Close` (Naver 수정주가 기준, 배당 미반영).
 
 **배당 처리 확정**: 수익률 계산에서 배당 제외. 벤치마크(KOSPI)도 동일하게 배당 미반영으로 통일.
 성과 보고 시 한계 명시: *"배당 미반영, 수정주가(액면분할·무상증자 조정) 기준 수익률"*
@@ -270,6 +304,10 @@ def collect_market_cap(ticker: str, shares: int, start: str = '20140101', end: s
 > 과거 주식수 데이터 소스 부재(pykrx 불작동, FDR 현재 상장만 제공)로 현재 해결 불가.
 > **백테스트 영향**: 상폐 종목에 대해 시총 기반 유니버스 필터 적용 불가 →
 > `universe_gate_pit`에서 상폐 종목 시총 조건을 별도 처리하거나 시총 필터를 면제해야 함.
+>
+> **보완 수집 (`supplement_delisted`, 2026-05 추가)**: `fdr.StockListing('KRX-DELISTING')`의
+> `ListingShares` 컬럼(2015년 이후 100% 커버) × FDR 종가 → 상폐 종목 `market_cap_history` 보완.
+> `market_cap_history` 행이 없는 상폐 종목에만 적용. 주식수 변경 이력 미반영 한계는 동일.
 
 ## 3-6. 리츠·스팩 사전 제외
 
@@ -300,6 +338,7 @@ CREATE TABLE IF NOT EXISTS stocks (
     market          TEXT,
     sector          TEXT,
     sector_name     TEXT,
+    acc_mt          INTEGER,    -- 결산월 (DART company.json acc_mt 필드). validator.py V04 frmtrm 교차검증에 사용
     is_financial    BOOLEAN     DEFAULT FALSE,
     is_excluded     BOOLEAN     DEFAULT FALSE,
     exclude_reason  TEXT,
@@ -327,14 +366,15 @@ CREATE TABLE IF NOT EXISTS stock_listing_events (
 
 -- 3. 재무제표 원시 수치
 CREATE TABLE IF NOT EXISTS financials (
-    id          SERIAL  PRIMARY KEY,
-    ticker      TEXT    NOT NULL REFERENCES stocks(ticker),
-    corp_code   TEXT    NOT NULL,
-    year        INTEGER NOT NULL,
-    report_type TEXT    NOT NULL,   -- 'FY' | 'H1' | 'Q1' | 'Q3'
-    fs_div      TEXT    NOT NULL,   -- 'CFS' | 'OFS'
-    account_nm  TEXT    NOT NULL,
-    amount      NUMERIC,
+    id              SERIAL  PRIMARY KEY,
+    ticker          TEXT    NOT NULL REFERENCES stocks(ticker),
+    corp_code       TEXT    NOT NULL,
+    year            INTEGER NOT NULL,
+    report_type     TEXT    NOT NULL,   -- 'FY' | 'H1' | 'Q1' | 'Q3'
+    fs_div          TEXT    NOT NULL,   -- 'CFS' | 'OFS'
+    account_nm      TEXT    NOT NULL,
+    amount          NUMERIC,
+    frmtrm_amount   NUMERIC,            -- 전기/전반기 금액 (V04 frmtrm 교차검증용)
     UNIQUE (ticker, year, report_type, fs_div, account_nm)
 );
 
@@ -513,6 +553,20 @@ def resolve_available_from(ticker: str, year: int, report_type: str) -> date:
     return FALLBACK[report_type]
 ```
 
+**지배기업소유주지분 fallback (pit_loader, 2026-05-24 확정)**:
+
+DART 원본에 `지배기업소유주지분` 없는 종목(전수 파싱 후 147종목 확인)에 대해
+`financials` 테이블에 역산값 삽입 금지 (원본/파생 혼재로 디버깅 난이도 상승).
+pit_loader에서 파생값으로 처리:
+- `지배 IS NULL AND 비지배 IS NOT NULL` → `자본총계 - 비지배지분` 사용
+- `비지배도 없음 (OFS 종목)` → `자본총계`를 지배로 사용
+
+`_N` suffix 중복 행 정리: DART 동일 account_nm 중복 시 fallback으로 부여되는 suffix.
+`자본 = 지배_X + 비지배_Y` 성립하는 쌍만 유지, 나머지(None 값·진짜 중복) 삭제.
+2026-05-24 기준 264행 삭제 완료. 미해결 4건(000020 동화약품 2019~2022, 지배 완전 누락)은 보존.
+
+---
+
 ## 5-1-1. Cross-batch 일관성 보장
 
 DART 수집이 14일 이상 분산되면 종목별 수집 시점이 다르다. 이로 인해 같은 리밸런싱 기준일에
@@ -539,14 +593,26 @@ CHECKS = [
      'action': 'FLAG', 'escalate': 'REJECT'},    # 1~5% → FLAG, >5% → REJECT
     {'id': 'V02', 'desc': '영업이익 <= 매출액 (금융업 제외, CFS)', 'action': 'FLAG'},
     {'id': 'V03', 'desc': '|NI - CFO| > 자본총계 30% (CFS)',       'action': 'FLAG'},
-    {'id': 'V04', 'desc': '매출액 전년비 ±500% 이상 (FY)',          'action': 'FLAG'},
-    {'id': 'V05', 'desc': '자본총계 전년비 ±300% 이상 (FY)',        'action': 'FLAG'},
-    {'id': 'V06', 'desc': '자본총계 < 0 (CFS)',                    'action': 'REJECT'},
-    {'id': 'V07', 'desc': '자산총계 < 0 (CFS)',                    'action': 'REJECT'},
-    {'id': 'V08', 'desc': '핵심 계정 2개 이상 누락 (FY)',           'action': 'REJECT'},
-    {'id': 'V09', 'desc': 'FY 재무데이터 연속 2년 이상 누락',        'action': 'REJECT'},
+    {'id': 'V04', 'desc': 'frmtrm 교차검증 — 당기 frmtrm vs 전기 amount 불일치 >10% (WARN)',
+                                                                   'action': 'WARN'},
+    # V04 설계 (2026-05-16 확정):
+    #   acc_mt ≤ 6(1~6월 결산): H1 bsns_year=N frmtrm 기준 = FY 동년(N)
+    #   acc_mt ≥ 7 또는 NULL  : H1 bsns_year=N frmtrm 기준 = FY 전년(N-1) (표준)
+    #   IS/CF 계정             : 항상 전년 H1(N-1, H1) 비교 (누계 개념)
+    #   정정보고서로 설명되는 불일치 자동 skip. 잔여 불일치는 모두 WARN (REJECT 아님).
+    {'id': 'V05', 'desc': '매출액 전년비 ±500% 이상 (FY)',          'action': 'FLAG'},
+    {'id': 'V06', 'desc': '자본총계 전년비 ±300% 이상 (FY)',        'action': 'FLAG'},
+    {'id': 'V07', 'desc': '자본총계 < 0 (CFS)',                    'action': 'REJECT'},
+    {'id': 'V08', 'desc': '자산총계 < 0 (CFS)',                    'action': 'REJECT'},
+    {'id': 'V09', 'desc': '핵심 계정 2개 이상 누락 (FY)',           'action': 'REJECT'},
+    {'id': 'V10', 'desc': 'FY 재무데이터 연속 2년 이상 누락',        'action': 'REJECT'},
 ]
 ```
+
+> **V04 frmtrm 체크 구현 노트 (2026-05-16)**:
+> `stocks.acc_mt` 조회 후 `_check_frmtrm(ticker, year, report_type, acc_mt)` 호출.
+> false positive 확인 케이스: 018700 바른손(결산월 변경), 018500 동원금속(fscl_month=3), 021820(fscl_month=6).
+> `acc_mt` 필드는 DART `company.json`의 `acc_mt` (구 `fscl_month` 오독 수정 완료).
 
 ## 5-3. Data Quality Gate (`ingest/dq_gate.py`)
 
@@ -607,6 +673,11 @@ WHERE s.is_excluded = FALSE
 | P05 | 최근 2년 CB/BW 3건 이상 | `dilution_risk` | RIM 희석 조정 참고 |
 | P06 | 영업이익 변동성 > 30% | `high_op_volatility` | CYCLICAL 분류 가중치 참고 |
 | P07 | 스팩 탐지 의심 | `spac_suspect` | 결과 해석 시 참고 |
+| P08 | CFO 계정 누락 | `cfo_missing` | supplement_cf 수집 완료 후 R10(REJECT)으로 격상 검토 |
+
+> **P08 임시 조치 (2026-05-12)**: CFO가 DQ Gate 핵심 계정 집합(`{매출액, 영업이익, 자본총계}`)에
+> 포함되지 않아 CF 없이도 PASS 판정되는 설계 결함 발견. supplement_cf 수집 완료 전까지
+> REJECT 대신 `P08:cfo_missing` 경고 플래그로 기록. CF 수집 완료 후 R10으로 격상 검토.
 
 ---
 

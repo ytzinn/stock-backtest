@@ -24,10 +24,14 @@
 - pykrx adj_close와 FinanceDataReader adj_close를 동일 기간 비교, 괴리율 1% 초과 종목 기록
 - 검증 실패 시: FDR을 기본 소스로 전환하거나 수작업 보정 방안 결정 후 Phase 0B 진행
 
+> ✅ **2026-05 완료**: 삼성전자 2020 액면분할 전후 수익률 연속성 확인. FDR DataReader 기준 adj_close 채택.
+
 **[DATA-2] DART 계정명 매핑 게이팅** ← v4.4 추가
 - 샘플 30개 종목 기준 핵심 3개 계정(매출액, 영업이익, 자본총계) 매핑 실패율 측정
 - **게이팅 기준**: 실패율 20% 초과 시 → `account_mapping` 테이블 완성 후 Phase 0B 진행
 - 실패율 20% 이하: Phase 0B에서 300종목 기준으로 재측정 후 전종목 수집 결정
+
+> ✅ **2026-05 완료**: 핵심 3계정 매핑 실패율 **0.0%** (게이팅 기준 20% 이하 통과).
 
 **[DATA-3] β=1.0 고정 편향 정량화** ← v4.4 추가
 - 샘플 종목의 실제 β 범위 측정 (pykrx 또는 수동 회귀)
@@ -63,6 +67,22 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
   - fallback 비율이 높으면 공시일 수집 실패 가능성 (수집 정상이면 10% 이하 예상)
 - 비율과 함께 fallback 종목 목록 출력 → 수동 확인으로 룩어헤드 위험 평가
 
+> ✅ **2026-05 완료**: fallback_used 비율 **1.3%** (게이팅 기준 20% 이하 통과).
+
+---
+
+---
+
+## Phase 0A 완료 체크 (2026-05 기준)
+
+| 항목 | 결과 | 판정 |
+|------|------|------|
+| DATA-1 adj_close 연속성 | 삼성전자 2020 액면분할 정상 확인 | ✅ PASS |
+| DATA-2 계정 매핑 실패율 | 0.0% | ✅ PASS (기준 20% 이하) |
+| DATA-4 fallback_used 비율 | 1.3% | ✅ PASS (기준 20% 이하) |
+| supplement_cf 수집 완료 | 진행 중 (2026-05-21 기준 done=1,814 / error=313) | ⚠️ 진행 중 |
+| pit_loader 재실행 | supplement_cf 완료 후 대기 | ⬜ 대기 중 |
+
 ---
 
 ## Phase 0B — 중규모 수집
@@ -97,9 +117,9 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 **목표**: 룩어헤드 없는 PIT 구조 + 자동 유니버스 필터
 
 **검증 체크리스트**:
-- [ ] `available_from`이 실제 공시일보다 이전 없음 (10건 수동 확인)
+- [x] `available_from`이 실제 공시일보다 이전 없음 (10건 수동 확인) — **2026-05 완료**
 - [ ] R06~R08이 Hard Filter로 올바르게 이동됐는지 확인 (DQ Gate에서 제거)
-- [ ] `universe_gate_pit` PASS 종목 수 전체의 60% 이상
+- [x] `universe_gate_pit` PASS 종목 수 전체의 60% 이상 — **2026-05 확인: 99.3%**
 - [ ] 자본잠식(R02), V01 오류(R09) 해당 연도 REJECT 확인
 - [ ] 동일 종목이 과거 REJECT 연도 이후 PASS로 복귀 가능한지 확인 (시점별 판정 동작 검증)
 
@@ -108,6 +128,9 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 ## Phase 2 — RIM 단일 모델 백테스트 ← **핵심 실행 단계**
 
 **목표**: 4단계 필터 + RIM 단일 모델 + Ablation Test
+
+> **현재 상태 (2026-05-21)**: Phase 2 코드 완료. supplement_cf 수집 + pit_loader 재실행 완료 후 백테스트 실행 예정.
+> 다음 순서: ① DART error 313개 재수집 → ② pit_loader → ③ dq_gate → ④ sanity_check → ⑤ D_rim_only 첫 실행.
 
 **작업** (v4.8 모듈화 구조):
 1. `backtest/interfaces.py` — UniverseFilter, ValuationModel Protocol 정의
