@@ -4,9 +4,13 @@ Phase별 파이프라인 조립은 backtest/configs/ 에서 관리한다.
 """
 from __future__ import annotations
 
+import logging
 from datetime import date
 
 from backtest.interfaces import UniverseFilter, ValuationModel
+from backtest.portfolio import MIN_PORTFOLIO_STOCKS
+
+log = logging.getLogger(__name__)
 
 
 class BacktestPipeline:
@@ -64,6 +68,9 @@ class BacktestPipeline:
         """
         valuation_model로 적정가 계산 → 밸류에이션 필터 → upside% 내림차순 정렬.
 
+        RIM 컷 후 MIN_PORTFOLIO_STOCKS 미달 시 고평가 종목을 upside 순으로 보완.
+        (FV 계산 불가 종목은 어떤 경우에도 제외)
+
         반환 리스트 원소: {
             'ticker': str,
             'upside_pct': float,
@@ -74,7 +81,9 @@ class BacktestPipeline:
         """
         from backtest.data_access import get_shares_outstanding, get_close_price
 
-        result = []
+        passed   = []  # RIM 컷 통과
+        rejected = []  # RIM 컷 탈락 (고평가)
+
         for ticker in universe:
             pit0   = pit_series.get(ticker, [{}])[0]
             shares = get_shares_outstanding(conn, ticker, rebalance_date)
@@ -85,17 +94,27 @@ class BacktestPipeline:
                 continue
 
             upside = (fv / price - 1) * 100
-
-            # 고평가 제외: 현재가 > 적정가 × (1 + rim_threshold)
-            if price > fv * (1 + self.rim_threshold):
-                continue
-
-            result.append({
+            item = {
                 'ticker':     ticker,
                 'upside_pct': upside,
                 'model':      self.model.name,
                 'fair_value': fv,
                 'price':      price,
-            })
+            }
 
-        return sorted(result, key=lambda x: x['upside_pct'], reverse=True)
+            if price <= fv * (1 + self.rim_threshold):
+                passed.append(item)
+            else:
+                rejected.append(item)
+
+        # RIM 컷 통과 종목이 최소 기준 미달 → 고평가 종목 중 upside 상위부터 보완
+        if len(passed) < MIN_PORTFOLIO_STOCKS and rejected:
+            need = MIN_PORTFOLIO_STOCKS - len(passed)
+            supplement = sorted(rejected, key=lambda x: x['upside_pct'], reverse=True)[:need]
+            log.info(
+                f'[{rebalance_date}] RIM 컷 통과 {len(passed)}개 < 최소 {MIN_PORTFOLIO_STOCKS}개 '
+                f'→ 고평가 보완 {len(supplement)}개 추가'
+            )
+            passed.extend(supplement)
+
+        return sorted(passed, key=lambda x: x['upside_pct'], reverse=True)
