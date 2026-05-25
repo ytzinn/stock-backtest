@@ -54,7 +54,7 @@ class _RandomSelectPipeline(BacktestPipeline):
         self._seed = seed
 
     def score_and_rank(self, universe, rebalance_date, pit_series, conn) -> list[dict]:
-        rng = random.Random((self._seed, rebalance_date.isoformat()))
+        rng = random.Random(f"{self._seed}:{rebalance_date.isoformat()}")
         shuffled = list(universe)
         rng.shuffle(shuffled)
         return [
