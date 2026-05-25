@@ -366,21 +366,34 @@ with tab_period:
         st.subheader("구간별 Alpha (전략 − KOSPI)")
         alpha_fig = go.Figure()
 
+        single = len(selected_tags) == 1
         for tag in selected_tags:
             df = filtered(tag)
             if df.empty:
                 continue
             df["alpha"] = (df["period_return"] - df["kospi_return"]) * 100
-            colors = (["#22c55e" if v >= 0 else "#ef4444" for v in df["alpha"]]
-                      if len(selected_tags) == 1 else TAG_COLORS.get(tag, None))
+            if single:
+                colors = ["#22c55e" if v >= 0 else "#ef4444" for v in df["alpha"]]
+            else:
+                colors = TAG_COLORS.get(tag, None)
             alpha_fig.add_trace(go.Bar(
                 x=df["rebalance_date"].dt.strftime("%Y-%m"),
                 y=df["alpha"],
                 name=TAG_LABELS.get(tag, tag),
                 marker_color=colors,
+                showlegend=not single,
                 hovertemplate="%{x}<br>Alpha: %{y:.1f}%<extra>"
                               + TAG_LABELS.get(tag, tag) + "</extra>",
             ))
+
+        # 단일 시나리오일 때: 색상 의미를 legend에 표시
+        if single:
+            for name, color in [("양수 Alpha (초과수익)", "#22c55e"),
+                                 ("음수 Alpha (미달)", "#ef4444")]:
+                alpha_fig.add_trace(go.Bar(
+                    x=[None], y=[None], name=name,
+                    marker_color=color, showlegend=True,
+                ))
 
         # KOSDAQ Alpha 라인 (KOSDAQ − KOSPI)
         if not df_b_f.empty and "kosdaq_return" in df_b_f.columns:
