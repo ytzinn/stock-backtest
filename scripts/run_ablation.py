@@ -30,6 +30,7 @@ from backtest.ablation import (
 )
 from backtest.configs.rebalance_dates import REBALANCE_DATES
 from backtest.engine import BacktestEngine
+from backtest.metrics import compute_metrics
 
 logging.basicConfig(
     level=logging.INFO,
@@ -60,15 +61,28 @@ def _run_one(args: tuple) -> dict:
     }
 
 
-def run_deterministic(tag: str, config: dict, rebalance_dates: list[date]) -> dict:
-    """단일 실행 (D/E/F/G). 결과를 dict로 반환."""
+def run_deterministic(tag: str, config: dict, rebalance_dates: list[date]) -> tuple[dict, list[dict]]:
+    """단일 실행 (D/E/F/G). (metrics_dict, period_results) 반환."""
     log.info(f'[{tag}] 실행 시작')
-    result = _run_one((tag, config, None, rebalance_dates))
+    pipeline = build_ablation_pipeline(tag, config, seed=None)
+    engine   = BacktestEngine(pipeline)
+    result   = engine.run(rebalance_dates, run_name=tag, ablation_tag=tag)
+    m        = result['metrics']
+    metrics  = {
+        'seed':           None,
+        'cagr':           m['cagr'],
+        'alpha':          m['alpha'],
+        'sharpe':         m['sharpe'],
+        'mdd':            m['mdd'],
+        'robustness':     m['robustness'],
+        'benchmark_cagr': m['benchmark_cagr'],
+        'n_periods':      m['n_periods'],
+    }
     log.info(
-        f'[{tag}] CAGR={result["cagr"]:.1%} Alpha={result["alpha"]:.1%} '
-        f'MDD={result["mdd"]:.1%} Sharpe={result["sharpe"]:.2f}'
+        f'[{tag}] CAGR={m["cagr"]:.1%} Alpha={m["alpha"]:.1%} '
+        f'MDD={m["mdd"]:.1%} Sharpe={m["sharpe"]:.2f}'
     )
-    return result
+    return metrics, result['period_results']
 
 
 def run_random_distribution(
@@ -101,6 +115,35 @@ def save_deterministic(tag: str, result: dict) -> None:
         json.dumps({'tag': tag, 'run_at': datetime.now().isoformat(), **result}, indent=2),
         encoding='utf-8',
     )
+    log.info(f'  → {path}')
+
+
+def save_periods(tag: str, period_results: list[dict]) -> None:
+    """구간별 수익률 및 필터 통과 수를 CSV로 저장."""
+    import csv
+    FILTER_KEYS = ['HardFilter', 'StabilityFilter', 'FactorScreener', 'MomentumFilter']
+    path = OUT_DIR / f'{tag}_periods.csv'
+    with path.open('w', newline='', encoding='utf-8') as f:
+        w = csv.writer(f)
+        w.writerow([
+            'rebalance_date', 'next_date', 'period_return', 'kospi_return',
+            'n_gate', 'n_stocks',
+            'hard_passed', 'stability_passed', 'screener_passed', 'momentum_passed',
+        ])
+        for r in period_results:
+            stats = r.get('universe_stats', {})
+            w.writerow([
+                r['rebalance_date'].isoformat(),
+                r['next_date'].isoformat(),
+                r['period_return'],
+                r['kospi_return'],
+                r.get('n_gate', ''),
+                r['n_stocks'],
+                stats.get('HardFilter',      {}).get('passed', ''),
+                stats.get('StabilityFilter', {}).get('passed', ''),
+                stats.get('FactorScreener',  {}).get('passed', ''),
+                stats.get('MomentumFilter',  {}).get('passed', ''),
+            ])
     log.info(f'  → {path}')
 
 
@@ -189,8 +232,9 @@ def main() -> None:
                 'n_repeats':    n,
             }
         else:
-            result = run_deterministic(tag, config, rebalance_dates)
+            result, period_results = run_deterministic(tag, config, rebalance_dates)
             save_deterministic(tag, result)
+            save_periods(tag, period_results)
             det_results[tag] = result
 
     summary = make_summary(det_results, dist_stats)

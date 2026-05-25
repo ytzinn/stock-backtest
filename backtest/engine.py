@@ -97,6 +97,7 @@ class BacktestEngine:
                     'portfolio':      portfolio,
                     'period_return':  period_return,
                     'kospi_return':   kospi_return,
+                    'n_gate':         len(gate_passed),
                     'n_stocks':       len(portfolio),
                     'universe_stats': stats,
                 })
