@@ -137,8 +137,12 @@ def load_gate_passed_tickers(conn, rebalance_date: date) -> list[str]:
 
     조건:
       1. stocks.is_excluded = FALSE
-      2. universe_gate_pit.status = 'PASS' (해당 시점 최신 FY 기준)
-      3. stock_listing_events 기준 실제 상장 중
+      2. universe_gate_pit.status = 'PASS' (rebalance_date 기준 최신 FY)
+      3. rebalance_date 이전에 상장폐지된 종목 제외 (stock_listing_events 기준)
+
+    상장 여부 확인은 HardFilter R07(is_delisted_at)에서 재확인한다.
+    stock_listing_events.listed_date가 전체 NULL인 수집 한계로 인해
+    상장 중 종목 조인 대신 상장폐지 확정 종목만 제외하는 방식 채택.
     """
     with conn.cursor() as cur:
         cur.execute(
@@ -162,15 +166,15 @@ def load_gate_passed_tickers(conn, rebalance_date: date) -> list[str]:
             FROM stocks s
             JOIN gate_pass gp ON s.ticker = gp.ticker
             WHERE s.is_excluded = FALSE
-              AND EXISTS (
+              AND NOT EXISTS (
                 SELECT 1 FROM stock_listing_events sle
                 WHERE sle.ticker = s.ticker
-                  AND sle.listed_date <= %s
-                  AND (sle.delisted_date IS NULL OR sle.delisted_date > %s)
+                  AND sle.delisted_date IS NOT NULL
+                  AND sle.delisted_date <= %s
               )
             ORDER BY s.ticker
             """,
-            (rebalance_date, rebalance_date, rebalance_date),
+            (rebalance_date, rebalance_date),
         )
         return [row[0] for row in cur.fetchall()]
 
