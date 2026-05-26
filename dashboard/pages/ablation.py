@@ -100,12 +100,157 @@ else:
 
 tab_overview, tab_period, tab_dist = st.tabs(["시나리오 비교", "구간별 분석", "랜덤 분포"])
 
+# ── 필터·시나리오 설명 상수 ────────────────────────────────────────────────────
+
+FILTER_DESCRIPTIONS = [
+    {
+        "icon": "🔒",
+        "name": "Hard Filter",
+        "subtitle": "유동성 · 상장기간 필터",
+        "body": (
+            "백테스트에 참여할 수 있는 최소 자격을 검사합니다. "
+            "일 평균 거래대금 1억 원 미만이거나 상장 6개월 미만인 종목은 제외합니다. "
+            "거래량이 너무 적으면 실제 매매 시 가격이 크게 움직이거나(슬리피지) "
+            "원하는 가격에 사고팔기 어렵기 때문에 현실적인 백테스트를 위해 필수입니다."
+        ),
+    },
+    {
+        "icon": "🏦",
+        "name": "Stability Filter",
+        "subtitle": "재무안정성 필터",
+        "body": (
+            "기업의 재무 건전성을 검증합니다. "
+            "부채비율, 영업이익 지속성, 현금흐름 등 여러 재무 항목을 복합 채점해 "
+            "이익이 꾸준하고 과도한 부채가 없는 기업만 통과시킵니다. "
+            "재무가 불안정한 기업은 주가 하락 위험이 높고 "
+            "RIM 모델의 적정가 추정도 부정확해지기 때문에 사전에 걸러냅니다."
+        ),
+    },
+    {
+        "icon": "🔍",
+        "name": "Factor Screener",
+        "subtitle": "팩터 스크리닝",
+        "body": (
+            "여러 재무 지표를 조합한 복합 점수로 상위 20% 종목을 선별합니다. "
+            "사용 팩터: 매출 YoY 성장률(1/6), 영업이익 YoY 성장률(1/6), "
+            "GPA—자산 대비 매출총이익(1/3), PBR 역수—저PBR 선호(1/3). "
+            "성장성과 수익성이 높으면서도 저평가된 종목을 중점적으로 찾습니다."
+        ),
+    },
+    {
+        "icon": "📈",
+        "name": "Momentum Filter",
+        "subtitle": "모멘텀 필터",
+        "body": (
+            "현재 주가의 '방향성'을 확인합니다. "
+            "주가가 20일·60일 이동평균선 위에 있고, 최근 20거래일 동안 추세가 상승 방향인 "
+            "종목만 통과합니다. '좋은 기업이라도 지금 하락 중이면 사지 않는다'는 원칙으로, "
+            "저가 매수 함정(Value Trap)을 피하고 가격이 실제로 움직이기 시작한 종목에 진입합니다."
+        ),
+    },
+    {
+        "icon": "💡",
+        "name": "RIM 적정가 모델",
+        "subtitle": "잔여이익모델 (Residual Income Model)",
+        "body": (
+            "기업의 이론적 적정 주가를 계산합니다. "
+            "주주자본(Book Value)에서 출발해 앞으로 창출할 초과이익(ROE − 자본비용)을 "
+            "더해 적정가를 산출합니다. 현재가가 적정가를 5% 이상 초과한 '고평가' 종목은 제외하고, "
+            "남은 종목을 상승여력(적정가/현재가 − 1) 순으로 정렬해 상위 20개를 편입합니다."
+        ),
+    },
+]
+
+SCENARIO_TABLE = [
+    # (label, hard, stability, screener, momentum, rim, selection)
+    ("A  랜덤 (필터 없음)",            "—", "—", "—", "—", "—", "무작위 20개"),
+    ("B  Hard + 랜덤",               "✓", "—", "—", "—", "—", "무작위 20개"),
+    ("C  Hard + Stability + 랜덤",   "✓", "✓", "—", "—", "—", "무작위 20개"),
+    ("D  Hard + Stability + RIM",   "✓", "✓", "—", "—", "✓", "RIM 상승여력순"),
+    ("E  D + 팩터스크리닝",            "✓", "✓", "✓", "—", "✓", "RIM 상승여력순"),
+    ("F  D + 모멘텀",                 "✓", "✓", "—", "✓", "✓", "RIM 상승여력순"),
+    ("G  전체 (E + F)",               "✓", "✓", "✓", "✓", "✓", "RIM 상승여력순"),
+]
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 탭 1 — 시나리오 비교
 # ══════════════════════════════════════════════════════════════════════════════
 
 with tab_overview:
+
+    # ── 시나리오·필터 설명 ────────────────────────────────────────────────────
+    with st.expander("📖 시나리오 및 필터 설명 — 처음 보시는 분은 여기를 펼쳐보세요", expanded=False):
+
+        st.markdown(
+            "**Ablation Test**란 필터를 하나씩 추가해 가며 "
+            "각 구성 요소가 수익률에 얼마나 기여하는지 측정하는 실험입니다. "
+            "A(아무 필터 없는 랜덤 매매)에서 시작해 G(모든 필터 적용)까지 "
+            "단계별로 성과를 비교합니다."
+        )
+
+        st.markdown("#### 필터 레이어 설명")
+        for i in range(0, len(FILTER_DESCRIPTIONS), 2):
+            cols = st.columns(2)
+            for j, col in enumerate(cols):
+                if i + j >= len(FILTER_DESCRIPTIONS):
+                    break
+                fd = FILTER_DESCRIPTIONS[i + j]
+                col.markdown(
+                    f"<div style='background:#f8fafc;border:1px solid #e2e8f0;"
+                    f"border-radius:10px;padding:14px 16px;height:100%'>"
+                    f"<div style='font-size:1.4rem;margin-bottom:4px'>{fd['icon']} "
+                    f"<strong>{fd['name']}</strong></div>"
+                    f"<div style='font-size:0.8rem;color:#64748b;margin-bottom:8px'>"
+                    f"{fd['subtitle']}</div>"
+                    f"<div style='font-size:0.85rem;color:#374151;line-height:1.6'>"
+                    f"{fd['body']}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+            st.write("")
+
+        # RIM 설명은 마지막 카드 (혼자 남는 경우 처리)
+        if len(FILTER_DESCRIPTIONS) % 2 == 1:
+            pass  # 위 루프에서 이미 처리됨
+
+        st.markdown("#### 시나리오 구성 (A → G)")
+        st.markdown(
+            "A~C는 **랜덤 피킹** 기준선 (필터 통과 후 무작위 20개 선택, 500회 반복)이고 "
+            "D~G는 **RIM 모델 기반** 결정적 실행입니다. "
+            "C→D 성과 차이가 RIM 모델 자체의 유효성을 보여줍니다."
+        )
+
+        sc_df = pd.DataFrame(
+            SCENARIO_TABLE,
+            columns=["시나리오", "Hard Filter", "Stability Filter",
+                     "Factor Screener", "Momentum Filter", "RIM 모델", "종목 선택 방식"],
+        )
+
+        def _color_cell(val: str) -> str:
+            if val == "✓":
+                return "background-color:#dcfce7;color:#166534;font-weight:bold;text-align:center"
+            if val == "—":
+                return "background-color:#f1f5f9;color:#94a3b8;text-align:center"
+            return ""
+
+        st.dataframe(
+            sc_df.style.applymap(
+                _color_cell,
+                subset=["Hard Filter", "Stability Filter",
+                        "Factor Screener", "Momentum Filter", "RIM 모델"],
+            ),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.markdown(
+            "<div style='font-size:0.82rem;color:#6b7280;margin-top:8px'>"
+            "✓ 활성 &nbsp;|&nbsp; — 비활성 &nbsp;|&nbsp; "
+            "A/B/C: 500회 반복 실행 후 분포로 표현 &nbsp;|&nbsp; D~G: 단일 결정적 실행"
+            "</div>",
+            unsafe_allow_html=True,
+        )
 
     st.subheader("레이어별 기여도 판정")
     cols = st.columns(len(judgements) or 1)
