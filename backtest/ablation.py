@@ -35,6 +35,8 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'use_momentum': True,  'use_rim_filter': True},
     'G_full':              {'use_hard': True,  'use_stability': True,  'use_screener': True,
                             'use_momentum': True,  'use_rim_filter': True},
+    'H_no_stability':      {'use_hard': True,  'use_stability': False, 'use_screener': True,
+                            'use_momentum': True,  'use_rim_filter': True},
 }
 
 RANDOM_TAGS    = frozenset({'A_random', 'B_hard_random', 'C_stability_random'})

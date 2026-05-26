@@ -18,7 +18,7 @@ from dashboard.config import PROJECT_ROOT
 
 ABLATION_DIR = PROJECT_ROOT / "experiments" / "ablation"
 
-DET_TAGS  = ["D_rim_only", "E_screener_rim", "F_momentum_rim", "G_full"]
+DET_TAGS  = ["D_rim_only", "E_screener_rim", "F_momentum_rim", "G_full", "H_no_stability"]
 RAND_TAGS = ["A_random", "B_hard_random", "C_stability_random"]
 ALL_TAGS  = RAND_TAGS + DET_TAGS
 
@@ -30,6 +30,7 @@ TAG_LABELS = {
     "E_screener_rim":     "E  D + 팩터스크리닝",
     "F_momentum_rim":     "F  D + 모멘텀",
     "G_full":             "G  전체 (E + F)",
+    "H_no_stability":     "H  G − Stability",
 }
 
 TAG_COLORS = {
@@ -37,6 +38,7 @@ TAG_COLORS = {
     "E_screener_rim": "#f59e0b",
     "F_momentum_rim": "#10b981",
     "G_full":         "#8b5cf6",
+    "H_no_stability": "#06b6d4",
 }
 
 st.set_page_config(page_title="Ablation 분석", layout="wide", page_icon="📊")
@@ -47,7 +49,19 @@ st.set_page_config(page_title="Ablation 분석", layout="wide", page_icon="📊"
 @st.cache_data(ttl=60)
 def load_summary() -> dict:
     p = ABLATION_DIR / "summary.json"
-    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+    summary = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+    if "scenarios" not in summary:
+        summary["scenarios"] = {}
+    # summary.json에 없는 태그는 개별 {tag}.json으로 보완
+    for tag in DET_TAGS:
+        if tag not in summary["scenarios"]:
+            jp = ABLATION_DIR / f"{tag}.json"
+            if jp.exists():
+                d = json.loads(jp.read_text(encoding="utf-8"))
+                summary["scenarios"][tag] = {
+                    k: v for k, v in d.items() if k not in ("tag", "run_at", "seed")
+                }
+    return summary
 
 
 @st.cache_data(ttl=60)
@@ -117,13 +131,16 @@ FILTER_DESCRIPTIONS = [
     {
         "icon": "🏦",
         "name": "Stability Filter",
-        "subtitle": "재무안정성 필터",
+        "subtitle": "재무안정성 필터 — 하드 룰 6개 (하나라도 해당하면 탈락)",
         "body": (
-            "기업의 재무 건전성을 검증합니다. "
-            "부채비율, 영업이익 지속성, 현금흐름 등 여러 재무 항목을 복합 채점해 "
-            "이익이 꾸준하고 과도한 부채가 없는 기업만 통과시킵니다. "
-            "재무가 불안정한 기업은 주가 하락 위험이 높고 "
-            "RIM 모델의 적정가 추정도 부정확해지기 때문에 사전에 걸러냅니다."
+            "6개 룰 중 하나라도 해당하면 탈락합니다.<br>"
+            "<b>R1</b> 부채비율 &gt; 200%<br>"
+            "<b>R2</b> 차입금비율 &gt; 150% — 단, 최근 3FY 단조 감소 + 10%p 이상 개선 중이면 예외<br>"
+            "<b>R3</b> 최근 3FY 중 매출 YoY &minus;5% 이하 2회 이상<br>"
+            "<b>R4</b> 영업현금흐름 2년 연속 음수<br>"
+            "<b>R5</b> 영업CF &lt; 0 이면서 재무CF &gt; 0 (차입으로 운영)<br>"
+            "<b>R6</b> adjROE &lt; 요구수익률 — 순이익·영업CF 혼합 ROE(Dechow 1994)가 "
+            "자본비용에 못 미치면 RIM 적정가가 장부가를 밑도는 가치 파괴 구간"
         ),
     },
     {
@@ -170,6 +187,7 @@ SCENARIO_TABLE = [
     ("E  D + 팩터스크리닝",            "✓", "✓", "✓", "—", "✓", "RIM 상승여력순"),
     ("F  D + 모멘텀",                 "✓", "✓", "—", "✓", "✓", "RIM 상승여력순"),
     ("G  전체 (E + F)",               "✓", "✓", "✓", "✓", "✓", "RIM 상승여력순"),
+    ("H  G − Stability",             "✓", "—", "✓", "✓", "✓", "RIM 상승여력순"),
 ]
 
 
