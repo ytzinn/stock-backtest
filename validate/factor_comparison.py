@@ -89,7 +89,7 @@ def factor_top20(tickers, rebal_date, pit_series, conn):
 
 def load_stock_names(conn):
     with conn.cursor() as cur:
-        cur.execute("SELECT ticker, name FROM stocks")
+        cur.execute("SELECT ticker, corp_name FROM stocks")
         return {r[0]: r[1] for r in cur.fetchall()}
 
 
