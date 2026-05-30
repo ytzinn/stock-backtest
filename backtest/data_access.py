@@ -131,35 +131,37 @@ def is_delisted_at(conn, ticker: str, as_of: date) -> bool:
 
 # ── PIT 데이터 ──────────────────────────────────────────────────────────────────
 
-def load_gate_passed_tickers(conn, rebalance_date: date) -> list[str]:
+def load_gate_passed_tickers(
+    conn,
+    rebalance_date: date,
+    report_type: str = 'FY',
+) -> list[str]:
     """
     리밸런싱 기준일에 투자 가능한 종목 목록.
 
     조건:
       1. stocks.is_excluded = FALSE
-      2. universe_gate_pit.status = 'PASS' (rebalance_date 기준 최신 FY)
+      2. universe_gate_pit.status = 'PASS' (rebalance_date 기준 최신 report_type)
       3. rebalance_date 이전에 상장폐지된 종목 제외 (stock_listing_events 기준)
 
-    상장 여부 확인은 HardFilter R07(is_delisted_at)에서 재확인한다.
-    stock_listing_events.listed_date가 전체 NULL인 수집 한계로 인해
-    상장 중 종목 조인 대신 상장폐지 확정 종목만 제외하는 방식 채택.
+    report_type: 'FY' (4월 리밸런싱) 또는 'H1' (8월 리밸런싱)
     """
     with conn.cursor() as cur:
         cur.execute(
             """
-            WITH latest_fy AS (
+            WITH latest_report AS (
                 SELECT DISTINCT ON (ticker) ticker, year, report_type
                 FROM financials_pit
-                WHERE available_from <= %s AND report_type = 'FY'
+                WHERE available_from <= %s AND report_type = %s
                 ORDER BY ticker, year DESC
             ),
             gate_pass AS (
-                SELECT lf.ticker
-                FROM latest_fy lf
+                SELECT lr.ticker
+                FROM latest_report lr
                 JOIN universe_gate_pit ugp
-                  ON lf.ticker = ugp.ticker
-                 AND lf.year = ugp.year
-                 AND lf.report_type = ugp.report_type
+                  ON lr.ticker = ugp.ticker
+                 AND lr.year = ugp.year
+                 AND lr.report_type = ugp.report_type
                 WHERE ugp.status = 'PASS'
             )
             SELECT s.ticker
@@ -174,7 +176,7 @@ def load_gate_passed_tickers(conn, rebalance_date: date) -> list[str]:
               )
             ORDER BY s.ticker
             """,
-            (rebalance_date, rebalance_date),
+            (rebalance_date, report_type, rebalance_date),
         )
         return [row[0] for row in cur.fetchall()]
 
@@ -183,14 +185,15 @@ def load_pit_series(
     conn,
     rebalance_date: date,
     n_years: int = 3,
+    report_type: str = 'FY',
 ) -> dict[str, list[dict]]:
     """
     universe_gate_pit PASS 종목 전체에 대해 rebalance_date 기준
-    최신 n_years 개 FY PIT 데이터를 로드.
+    최신 n_years 개 PIT 데이터를 로드.
 
-    반환: {ticker: [FY현재dict, FY(t-1)dict, FY(t-2)dict]}
+    반환: {ticker: [현재dict, t-1dict, t-2dict]}
       - available_from <= rebalance_date 조건 (룩어헤드 방지)
-      - FY(연간) 보고서만 사용 (report_type='FY')
+      - report_type: 'FY' (4월 리밸런싱) 또는 'H1' (8월 리밸런싱)
       - CFS(연결) 우선, OFS(별도) fallback
       - 각 dict는 {account_nm: amount} flat dict
       - 연도가 부족한 종목은 리스트 길이가 짧아짐
@@ -198,18 +201,17 @@ def load_pit_series(
     with conn.cursor() as cur:
         cur.execute(
             """
-            WITH fy_avail AS (
-                -- 각 (ticker, year)별 가장 이른 available_from (공시 완료 기준)
+            WITH avail AS (
                 SELECT DISTINCT ON (ticker, year)
                     ticker, year, report_type
                 FROM financials_pit
-                WHERE available_from <= %s AND report_type = 'FY'
+                WHERE available_from <= %s AND report_type = %s
                 ORDER BY ticker, year DESC, available_from ASC
             ),
             top_n AS (
                 SELECT ticker, year, report_type,
                        ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY year DESC) AS rn
-                FROM fy_avail
+                FROM avail
             ),
             selected AS (
                 SELECT ticker, year, report_type FROM top_n WHERE rn <= %s
@@ -231,7 +233,7 @@ def load_pit_series(
             WHERE div_rank = 1
             ORDER BY ticker, year DESC, account_nm
             """,
-            (rebalance_date, n_years, rebalance_date),
+            (rebalance_date, report_type, n_years, rebalance_date),
         )
         rows = cur.fetchall()
 
