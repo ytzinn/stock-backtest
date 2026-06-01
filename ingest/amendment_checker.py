@@ -3,7 +3,9 @@
 
 정정공시(report_nm LIKE '%정정%')가 있는 종목 또는 fallback_used=TRUE 종목을
 DART API에서 재수집해 financials 테이블을 최신화한다.
-financials_pit 재빌드는 하지 않는다 — pit_loader.py(ASC→MAX 변경) 배포 후
+
+v7: 재수집 전 기존 amount를 original_amount에 보전 (정정 전 원본값 유지).
+financials_pit 재빌드는 하지 않는다 — pit_loader.py(resolve_dates 변경) 배포 후
 Step D에서 전종목 일괄 재빌드한다.
 
 실행:
@@ -86,6 +88,8 @@ def refetch_financials(
 ) -> int:
     """
     DART API에서 단일 (ticker, year, report_type)를 재수집해 financials upsert.
+
+    v7: 재수집 전 기존 amount → original_amount 보전 (original_amount IS NULL 행만).
     반환: 저장된 행 수 (0이면 DART에 데이터 없음).
     """
     reprt_code = REPRT_CODE[report_type]
@@ -96,6 +100,22 @@ def refetch_financials(
 
     with db_conn() as conn:
         cur = conn.cursor()
+
+        # 1. 기존 amount를 original_amount로 보전 (최초 1회만 — IS NULL 조건)
+        cur.execute(
+            """
+            UPDATE financials
+            SET original_amount = amount
+            WHERE ticker = %s AND year = %s AND report_type = %s
+              AND fs_div = %s AND original_amount IS NULL
+            """,
+            (ticker, year, report_type, fs_div),
+        )
+        saved = cur.rowcount
+        if saved:
+            log.debug(f'{ticker} {year} {report_type} {fs_div}: original_amount {saved}개 보전')
+
+        # 2. DART 정정값으로 amount 갱신
         n = _upsert_financials(cur, ticker, corp_code, year, report_type, fs_div, items)
         _deduplicate_equity_variants(cur, ticker, year, report_type, fs_div)
         log.info(f'{ticker} {year} {report_type} {fs_div}: {n}개 upsert 완료')
