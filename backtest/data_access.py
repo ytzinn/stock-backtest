@@ -6,10 +6,19 @@
 """
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from datetime import date
 
 import pandas as pd
+
+log = logging.getLogger(__name__)
+
+# TTM 계산 대상 계정 (IS + CF: 기간 누적값)
+_IS_CF_ACCOUNTS = frozenset({
+    '매출액', '매출총이익', '영업이익', '당기순이익',
+    '영업활동현금흐름', '투자활동현금흐름', '재무활동현금흐름', '배당금지급',
+})
 
 
 # ── 가격 / 거래대금 ─────────────────────────────────────────────────────────────
@@ -218,7 +227,14 @@ def load_pit_series(
             ),
             -- CFS 우선, OFS fallback (동일 account_nm에서 CFS 선택)
             prioritized AS (
-                SELECT f.ticker, f.year, f.account_nm, f.amount,
+                SELECT f.ticker, f.year, f.account_nm,
+                       CASE
+                           WHEN f.amendment_from IS NOT NULL AND f.amendment_from <= %s
+                           THEN f.amount           -- 정정 공개됨 → 정정값
+                           WHEN f.original_amount IS NOT NULL
+                           THEN f.original_amount  -- 정정 미공개 → 원본값
+                           ELSE f.amount           -- 정정 없음
+                       END AS effective_amount,
                        ROW_NUMBER() OVER (
                            PARTITION BY f.ticker, f.year, f.account_nm
                            ORDER BY CASE f.fs_div WHEN 'CFS' THEN 1 ELSE 2 END
@@ -228,12 +244,12 @@ def load_pit_series(
                   ON f.ticker = s.ticker AND f.year = s.year AND f.report_type = s.report_type
                 WHERE f.available_from <= %s
             )
-            SELECT ticker, year, account_nm, amount
+            SELECT ticker, year, account_nm, effective_amount
             FROM prioritized
             WHERE div_rank = 1
             ORDER BY ticker, year DESC, account_nm
             """,
-            (rebalance_date, report_type, n_years, rebalance_date),
+            (rebalance_date, report_type, n_years, rebalance_date, rebalance_date),
         )
         rows = cur.fetchall()
 
@@ -248,4 +264,68 @@ def load_pit_series(
         sorted_years = sorted(year_dict.keys(), reverse=True)[:n_years]
         result[ticker] = [year_dict[yr] for yr in sorted_years]
 
+    return result
+
+
+def load_pit_series_ttm(
+    conn,
+    rebalance_date: date,
+    report_type: str = 'FY',
+) -> dict[str, list[dict]]:
+    """
+    TTM(Trailing Twelve Months) 적용 PIT 시계열 로드.
+
+    FY 리밸런싱(4월): load_pit_series(n_years=3) 그대로 반환.
+    H1 리밸런싱(8월): TTM = FY_prev − H1_prev + H1_curr 공식 적용.
+      반환 리스트: [ttm_curr, ttm_prev, ttm_pp] — 3개 (stability_filter series[2] 사용)
+      BS 계정(자산·부채·자본)은 H1_curr 그대로 사용.
+    """
+    if report_type == 'FY':
+        return load_pit_series(conn, rebalance_date, n_years=3, report_type='FY')
+
+    # H1: TTM 3개 생성하려면 h1 4개, fy 3개 필요
+    h1_series = load_pit_series(conn, rebalance_date, n_years=4, report_type='H1')
+    fy_series = load_pit_series(conn, rebalance_date, n_years=3, report_type='FY')
+
+    result: dict[str, list[dict]] = {}
+    for ticker, h1_list in h1_series.items():
+        h1c   = h1_list[0] if len(h1_list) > 0 else {}
+        h1p   = h1_list[1] if len(h1_list) > 1 else {}
+        h1pp  = h1_list[2] if len(h1_list) > 2 else {}
+        h1ppp = h1_list[3] if len(h1_list) > 3 else {}
+        fy    = fy_series.get(ticker, [])
+        fyp   = fy[0] if len(fy) > 0 else {}
+        fypp  = fy[1] if len(fy) > 1 else {}
+        fyppp = fy[2] if len(fy) > 2 else {}
+
+        result[ticker] = [
+            _make_ttm(fyp,   h1c,  h1p,   ticker),
+            _make_ttm(fypp,  h1p,  h1pp,  ticker),
+            _make_ttm(fyppp, h1pp, h1ppp, ticker),
+        ]
+
+    return result
+
+
+def _make_ttm(fy_d: dict, h1_curr: dict, h1_prev: dict, ticker: str) -> dict:
+    """
+    TTM = FY_prev − H1_prev + H1_curr (IS/CF 계정만).
+    BS 계정은 h1_curr 그대로.
+    FY 없으면 H1×2 fallback.
+    """
+    result = dict(h1_curr)
+    for acct in _IS_CF_ACCOUNTS:
+        fy_val  = fy_d.get(acct)
+        h1c_val = h1_curr.get(acct)
+        h1p_val = h1_prev.get(acct)
+        if fy_val is not None:
+            if h1c_val is not None and h1p_val is not None:
+                result[acct] = fy_val - h1p_val + h1c_val
+            else:
+                result.pop(acct, None)
+        elif h1c_val is not None:
+            log.debug('%s %s: FY 없어 H1×2 fallback', ticker, acct)
+            result[acct] = h1c_val * 2
+        else:
+            result.pop(acct, None)
     return result

@@ -11,15 +11,15 @@ from datetime import date
 sys.path.insert(0, '/opt/stock-backtest')
 
 from backtest.configs.rebalance_dates import REBALANCE_DATES
-from backtest.data_access import get_market_cap, load_gate_passed_tickers, load_pit_series
+from backtest.data_access import get_market_cap, load_gate_passed_tickers, load_pit_series_ttm
 from ingest.connection import get_connection
 
 WEIGHTS = {'rev_yoy': 1/6, 'op_yoy': 1/6, 'gpa': 1/3, 'inv_pbr': 1/3}
 
 
 def _report_type(rebal_date: date) -> str:
-    """8월 이후 리밸런싱 → H1 반기보고서, 나머지 → FY 연간보고서."""
-    return 'H1' if rebal_date.month >= 7 else 'FY'
+    """8월 리밸런싱 → H1 반기보고서, 나머지 → FY 연간보고서."""
+    return 'H1' if rebal_date.month == 8 else 'FY'
 
 PERIOD_MAP = {
     date(2015, 4, 3):  '2015-03', date(2015, 8, 19): '2015-08',
@@ -125,7 +125,7 @@ def main():
 
             rtype = _report_type(rebal_date)
             gate = load_gate_passed_tickers(conn, rebal_date, report_type=rtype)
-            pit  = load_pit_series(conn, rebal_date, n_years=3, report_type=rtype)
+            pit  = load_pit_series_ttm(conn, rebal_date, report_type=rtype)
             univ = [t for t in gate if t in pit and pit[t]]
 
             top20, scores = factor_top20(univ, rebal_date, pit, conn)

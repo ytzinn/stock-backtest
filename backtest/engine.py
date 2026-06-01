@@ -3,7 +3,7 @@
 
 실행 흐름 (각 리밸런싱 구간):
   1. load_gate_passed_tickers → DQ Gate PASS + 실제 상장 종목
-  2. load_pit_series          → 최신 3 FY PIT 데이터
+  2. load_pit_series_ttm      → TTM 기반 PIT 데이터 (4월=FY 3개, 8월=TTM 3개)
   3. pipeline.build_universe  → 4단계 필터 적용
   4. pipeline.score_and_rank  → RIM 적정가 계산 + 밸류에이션 필터
   5. build_portfolio          → 동일가중 포트폴리오
@@ -20,7 +20,7 @@ import pandas as pd
 from backtest.data_access import (
     get_close_price,
     load_gate_passed_tickers,
-    load_pit_series,
+    load_pit_series_ttm,
 )
 from backtest.metrics import compute_metrics
 from backtest.pipeline import BacktestPipeline
@@ -30,6 +30,11 @@ from ingest.connection import get_connection
 log = logging.getLogger(__name__)
 
 DELISTING_HAIRCUT = 0.70  # 상장폐지 청산 시 마지막 가격 × 70%
+
+
+def _report_type(d: date) -> str:
+    """8월 리밸런싱 → H1 반기보고서, 나머지 → FY 연간보고서."""
+    return 'H1' if d.month == 8 else 'FY'
 
 
 class BacktestEngine:
@@ -63,8 +68,9 @@ class BacktestEngine:
                 log.info(f'[{i+1}/{len(rebalance_dates)}] rebal_date={rebal_date}')
 
                 # 1-2. 데이터 로드
-                gate_passed = load_gate_passed_tickers(conn, rebal_date)
-                pit_series  = load_pit_series(conn, rebal_date, n_years=3)
+                rtype       = _report_type(rebal_date)
+                gate_passed = load_gate_passed_tickers(conn, rebal_date, report_type=rtype)
+                pit_series  = load_pit_series_ttm(conn, rebal_date, report_type=rtype)
 
                 # 3. 유니버스 구성
                 universe_result = self.pipeline.build_universe(
