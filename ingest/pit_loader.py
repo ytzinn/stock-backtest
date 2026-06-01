@@ -24,29 +24,30 @@ FALLBACK_OFFSET = {
 }
 
 
-def resolve_available_from(cur, ticker: str, year: int,
-                            report_type: str) -> tuple[date, bool]:
+def resolve_dates(cur, ticker: str, year: int,
+                  report_type: str) -> tuple[date, 'date | None', bool]:
     """
-    실제 DART 공시 접수일(rcept_dt) 우선.
-    없으면 법정 마감일+5일 fallback.
-    반환: (available_from, fallback_used)
+    원본 공시일, 정정 공시일, fallback 여부 반환.
+      available_from  = MIN(rcept_dt) — 데이터 최초 공개일 (룩어헤드 기준)
+      amendment_from  = MAX(rcept_dt) if MAX > MIN else None — 정정 공개일
+      fallback_used   = True if disclosures 없어 법정마감+5일 사용
     """
     cur.execute(
         """
-        SELECT rcept_dt FROM disclosures
+        SELECT MIN(rcept_dt), MAX(rcept_dt) FROM disclosures
         WHERE ticker = %s AND year = %s AND report_type = %s
-        ORDER BY rcept_dt ASC
-        LIMIT 1
         """,
         (ticker, year, report_type),
     )
     row = cur.fetchone()
     if row and row[0]:
-        return row[0], False
+        min_dt, max_dt = row
+        amendment_from = max_dt if max_dt > min_dt else None
+        return min_dt, amendment_from, False
 
     yr_off, mo, day = FALLBACK_OFFSET[report_type]
     fb_date = date(year + yr_off, mo, day)
-    return fb_date, True
+    return fb_date, None, True
 
 
 def build_financials_pit(ticker: str | None = None) -> None:
@@ -80,7 +81,7 @@ def build_financials_pit(ticker: str | None = None) -> None:
         saved = 0
 
         for tkr, corp_code, year, report_type, fs_div in groups:
-            avail, fallback = resolve_available_from(cur2, tkr, year, report_type)
+            avail, amend_from, fallback = resolve_dates(cur2, tkr, year, report_type)
 
             # rcept_no 첫 번째 값 (source 추적용)
             cur2.execute(
@@ -94,10 +95,10 @@ def build_financials_pit(ticker: str | None = None) -> None:
             rcept_row = cur2.fetchone()
             rcept_no  = rcept_row[0] if rcept_row else None
 
-            # 해당 그룹의 계정 목록 조회
+            # 해당 그룹의 계정 목록 조회 (original_amount 포함)
             cur2.execute(
                 """
-                SELECT account_nm, amount FROM financials
+                SELECT account_nm, amount, original_amount FROM financials
                 WHERE ticker = %s AND year = %s AND report_type = %s AND fs_div = %s
                 """,
                 (tkr, year, report_type, fs_div),
@@ -108,20 +109,24 @@ def build_financials_pit(ticker: str | None = None) -> None:
 
             pit_rows = [
                 (tkr, corp_code, year, report_type, fs_div,
-                 account_nm, amount, avail, rcept_no, fallback)
-                for account_nm, amount in accounts
+                 account_nm, amount, original_amount,
+                 avail, amend_from, rcept_no, fallback)
+                for account_nm, amount, original_amount in accounts
             ]
             cur2.executemany(
                 """
                 INSERT INTO financials_pit
                     (ticker, corp_code, year, report_type, fs_div,
-                     account_nm, amount, available_from,
+                     account_nm, amount, original_amount,
+                     available_from, amendment_from,
                      source_rcept_no, fallback_used)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 ON CONFLICT (ticker, year, report_type, fs_div, account_nm)
                 DO UPDATE SET
                     amount          = EXCLUDED.amount,
+                    original_amount = EXCLUDED.original_amount,
                     available_from  = EXCLUDED.available_from,
+                    amendment_from  = EXCLUDED.amendment_from,
                     source_rcept_no = EXCLUDED.source_rcept_no,
                     fallback_used   = EXCLUDED.fallback_used
                 """,
