@@ -80,8 +80,8 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 | DATA-1 adj_close 연속성 | 삼성전자 2020 액면분할 정상 확인 | ✅ PASS |
 | DATA-2 계정 매핑 실패율 | 0.0% | ✅ PASS (기준 20% 이하) |
 | DATA-4 fallback_used 비율 | 1.3% | ✅ PASS (기준 20% 이하) |
-| supplement_cf 수집 완료 | 진행 중 (2026-05-21 기준 done=1,814 / error=313) | ⚠️ 진행 중 |
-| pit_loader 재실행 | supplement_cf 완료 후 대기 | ⬜ 대기 중 |
+| supplement_cf 수집 완료 | **완료** (2026-05-25 기준) | ✅ PASS |
+| pit_loader 재실행 | CF 수집 완료 → **즉시 실행 필요** | ⬜ 다음 단계 |
 
 ---
 
@@ -116,12 +116,18 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 
 **목표**: 룩어헤드 없는 PIT 구조 + 자동 유니버스 필터
 
+> **현재 상태 (2026-05-25)**: supplement_cf 수집 완료. pit_loader 재실행 → dq_gate 재실행 → 체크리스트 검증 순서로 진행.
+
+**선행 작업 (Phase 0A → Phase 1 연결)**:
+- [x] `pit_loader` 재실행 — CF 데이터 반영된 `financials_pit` 재구성 — **2026-05-25 완료** (343,524 → 643,482행, CF 계정 반영)
+- [x] `dq_gate` 재실행 — **2026-05-25 완료** (PASS 41,500건 / REJECT 754건. R04 핵심계정누락 601건, R02 자본잠식 150건, R09 대차대조표오차 2건)
+
 **검증 체크리스트**:
 - [x] `available_from`이 실제 공시일보다 이전 없음 (10건 수동 확인) — **2026-05 완료**
-- [ ] R06~R08이 Hard Filter로 올바르게 이동됐는지 확인 (DQ Gate에서 제거)
-- [x] `universe_gate_pit` PASS 종목 수 전체의 60% 이상 — **2026-05 확인: 99.3%**
-- [ ] 자본잠식(R02), V01 오류(R09) 해당 연도 REJECT 확인
-- [ ] 동일 종목이 과거 REJECT 연도 이후 PASS로 복귀 가능한지 확인 (시점별 판정 동작 검증)
+- [x] R06~R08이 Hard Filter로 올바르게 이동됐는지 확인 (DQ Gate에서 제거) — **2026-05-25 확인**: dq_gate.py에 R06~R08 없음. R07(상장폐지) hard_filter.py 구현 완료. R06(감사의견)·R08(관리종목)은 DB 미수집으로 미구현, Phase 3 예정
+- [x] `universe_gate_pit` PASS 종목 수 전체의 60% 이상 — **2026-05-25 재확인: 2,783 / 2,808개 = 99.1%**
+- [x] 자본잠식(R02), V01 오류(R09) 해당 연도 REJECT 확인 — **2026-05-25 확인: R02 154건, R09 2건**
+- [x] 동일 종목이 과거 REJECT 연도 이후 PASS로 복귀 가능한지 확인 (시점별 판정 동작 검증) — **2026-05-25 확인: 193개 종목에서 복귀 동작 확인**
 
 ---
 
@@ -129,8 +135,8 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 
 **목표**: 4단계 필터 + RIM 단일 모델 + Ablation Test
 
-> **현재 상태 (2026-05-21)**: Phase 2 코드 완료. supplement_cf 수집 + pit_loader 재실행 완료 후 백테스트 실행 예정.
-> 다음 순서: ① DART error 313개 재수집 → ② pit_loader → ③ dq_gate → ④ sanity_check → ⑤ D_rim_only 첫 실행.
+> **현재 상태 (2026-05-25)**: Phase 2 코드 완료. 데이터 수집 전체 완료. Phase 1 체크리스트 통과 후 백테스트 실행 예정.
+> 다음 순서: ① pit_loader 재실행 → ② dq_gate 재실행 → ③ Phase 1 체크리스트 검증 → ④ rebalance_dates.py 생성 → ⑤ D_rim_only 첫 실행.
 
 **작업** (v4.8 모듈화 구조):
 1. `backtest/interfaces.py` — UniverseFilter, ValuationModel Protocol 정의

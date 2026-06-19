@@ -41,3 +41,12 @@ Thumbs.db
 .claude/
 dashboard_health_server_current.json
 \[현황 공유\]*
+
+# validate 임시 이미지 (docx 추출물)
+validate/docx_images/
+validate/docx_images_2x/
+validate/docx_images_tmp/
+validate/docx_crops/
+validate/docx_crops_right/
+validate/check.txt
+*.docx

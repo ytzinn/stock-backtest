@@ -92,6 +92,7 @@ id, ticker, corp_code, year, report_type, fs_div, account_nm, amount, frmtrm_amo
 
 ## 서버 명령 실행 패턴
 
+- **서버 SSH/SCP 명령은 반드시 PowerShell 툴로만 실행.** Bash 툴은 `$env:USERPROFILE` 구문을 인식 못 해 SSH 키 경로가 깨지고 `Host key verification failed`로 항상 실패한다.
 - **SSH**: 항상 `-i "$env:USERPROFILE\.ssh\id_ed25519"` 포함. 생략 시 인증 실패.
 - **psql 금지**: 서버 호스트 PATH에 psql 없음(Docker 내부 전용). DB 조회는 psycopg2 스크립트로.
 - **멀티라인 Python**: PowerShell→SSH 직접 전달 시 따옴표 3중 충돌로 항상 실패.
