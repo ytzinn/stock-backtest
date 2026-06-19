@@ -162,12 +162,34 @@ def download_xbrl(dart: DartAPI, rcept_no: str, reprt_code: str) -> Optional[byt
     return resp.content
 
 
-def inspect_xbrl_zip(zip_bytes: bytes) -> dict[str, list[tuple[str, str, str]]]:
+def _split_tag(tag: str) -> tuple[str, str]:
+    """'{namespace}localname' → (namespace, localname)."""
+    if tag.startswith('{'):
+        ns, local = tag[1:].split('}', 1)
+        return ns, local
+    return '', tag
+
+
+def parse_xbrl_zip(zip_bytes: bytes) -> dict[tuple[str, str, str], float]:
     """
-    ZIP 내부 구조 출력 + 네임스페이스/태그명 추출.
-    반환: {파일명: [(namespace, local_name, text), ...]}
+    XBRL ZIP에서 재무값 추출.
+
+    XBRL 구조:
+    - <context id="..."> 요소: 기간(period)과 엔티티(CFS/OFS) 정의
+    - 실제 재무값 요소: contextRef 속성으로 context를 참조
+
+    반환: {(account_label, fs_div, period_type): amount}
+      - account_label: XBRL 로컬명 (예: 'Revenue', 'OperatingIncome')
+      - fs_div: 'CFS' or 'OFS'
+      - period_type: 'current' or 'prior' (당기/전기)
     """
-    result = {}
+    CONSOLIDATED_MEMBER = 'ConsolidatedMember'
+    SEPARATE_MEMBER     = 'SeparateMember'
+    # ConsolidatedAndSeparateFinancialStatementsAxis의 dimension을 보고 CFS/OFS 판단
+    FS_DIMENSION = 'ConsolidatedAndSeparateFinancialStatementsAxis'
+
+    result: dict[tuple[str, str, str], float] = {}
+
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
         filenames = zf.namelist()
         print(f"\n  ZIP 내부 파일 목록 ({len(filenames)}개):")
@@ -175,49 +197,191 @@ def inspect_xbrl_zip(zip_bytes: bytes) -> dict[str, list[tuple[str, str, str]]]:
             size = zf.getinfo(name).file_size
             print(f"    {name}  ({size:,} bytes)")
 
-        for name in filenames:
-            if not name.endswith('.xbrl'):
-                continue
-            print(f"\n  --- {name} 파싱 ---")
-            try:
-                xml_bytes = zf.read(name)
-                root = ET.fromstring(xml_bytes)
-            except ET.ParseError as e:
-                print(f"    XML 파싱 실패: {e}")
-                continue
+        xbrl_files = [n for n in filenames if n.endswith('.xbrl')]
+        if not xbrl_files:
+            print("  .xbrl 파일 없음")
+            return result
 
-            # 네임스페이스 수집
-            ns_set: set[str] = set()
-            entries: list[tuple[str, str, str]] = []
-            for elem in root.iter():
-                tag = elem.tag
-                if tag.startswith('{'):
-                    ns, local = tag[1:].split('}', 1)
-                    ns_set.add(ns)
-                else:
-                    ns, local = '', tag
-                if elem.text and elem.text.strip():
-                    entries.append((ns, local, elem.text.strip()))
+        xbrl_name = xbrl_files[0]
+        print(f"\n  --- {xbrl_name} 파싱 ---")
+        try:
+            xml_bytes = zf.read(xbrl_name)
+            root = ET.fromstring(xml_bytes)
+        except ET.ParseError as e:
+            print(f"  XML 파싱 실패: {e}")
+            return result
 
-            print(f"    네임스페이스 ({len(ns_set)}개):")
-            for ns in sorted(ns_set):
-                print(f"      {ns}")
+    # Step 1: context 맵 구성 — {context_id: {fs_div, period_type, start, end}}
+    # context_id → {'fs_div': 'CFS'|'OFS'|None, 'period_type': 'current'|'prior'|'instant'}
+    contexts: dict[str, dict] = {}
 
-            print(f"\n    값 있는 element ({len(entries)}개) — 앞 40개:")
-            for ns, local, text in entries[:40]:
-                ns_short = ns.split('/')[-1] if ns else ''
-                print(f"      [{ns_short}] {local} = {text}")
+    # 모든 context 요소 찾기
+    for elem in root.iter():
+        _, local = _split_tag(elem.tag)
+        if local != 'context':
+            continue
+        ctx_id = elem.get('id', '')
+        if not ctx_id:
+            continue
 
-            result[name] = entries
+        fs_div = None
+        period_type = None
+        start_date = end_date = instant = None
+
+        for child in elem.iter():
+            _, child_local = _split_tag(child.tag)
+            if child_local == 'explicitMember':
+                dim = child.get('dimension', '')
+                val = (child.text or '').strip()
+                if FS_DIMENSION in dim:
+                    if CONSOLIDATED_MEMBER in val:
+                        fs_div = 'CFS'
+                    elif SEPARATE_MEMBER in val:
+                        fs_div = 'OFS'
+            elif child_local == 'startDate':
+                start_date = (child.text or '').strip()
+            elif child_local == 'endDate':
+                end_date = (child.text or '').strip()
+            elif child_local == 'instant':
+                instant = (child.text or '').strip()
+
+        # period_type 판단: 가장 긴 endDate(또는 instant)가 당기, 그 외 전기
+        if instant:
+            period_type = 'instant'
+            period_date = instant
+        elif end_date:
+            period_type = 'duration'
+            period_date = end_date
+        else:
+            period_date = ''
+
+        contexts[ctx_id] = {
+            'fs_div':      fs_div,
+            'period_type': period_type,
+            'period_date': period_date,
+            'start':       start_date,
+            'end':         end_date,
+            'instant':     instant,
+        }
+
+    if not contexts:
+        print("  context 요소 없음 — XBRL 구조 예상과 다름")
+        return result
+
+    # 당기/전기 날짜 분류: period_date 중 최대값 = 당기
+    all_dates = sorted({c['period_date'] for c in contexts.values() if c.get('period_date')}, reverse=True)
+    if len(all_dates) >= 2:
+        current_date = all_dates[0]   # 가장 늦은 날짜 = 당기
+        prior_date   = all_dates[1]   # 그 다음 = 전기
+    elif len(all_dates) == 1:
+        current_date = all_dates[0]
+        prior_date   = None
+    else:
+        current_date = prior_date = None
+
+    print(f"  당기 기준일: {current_date}  /  전기 기준일: {prior_date}")
+    print(f"  context 수: {len(contexts)}")
+
+    # context별 당기/전기 분류
+    def resolve_period(ctx: dict) -> str:
+        pd = ctx.get('period_date', '')
+        if pd == current_date:
+            return 'current'
+        elif pd == prior_date:
+            return 'prior'
+        return 'other'
+
+    # Step 2: 재무값 elements 추출 (contextRef 속성 있는 것)
+    ns_set: set[str] = set()
+    extracted: list[tuple[str, str, str, float]] = []  # (local_name, fs_div, period, amount)
+
+    for elem in root.iter():
+        ctx_ref = elem.get('contextRef')
+        if ctx_ref is None:
+            continue  # 데이터 요소가 아님 (context, unit 등)
+        ns, local = _split_tag(elem.tag)
+        if not elem.text or not elem.text.strip():
+            continue
+        try:
+            amount = float(elem.text.strip())
+        except ValueError:
+            continue
+
+        ns_set.add(ns)
+        ctx = contexts.get(ctx_ref, {})
+        fs_div_ctx = ctx.get('fs_div')
+        period     = resolve_period(ctx)
+
+        if fs_div_ctx and period in ('current', 'prior'):
+            key = (local, fs_div_ctx, period)
+            # 같은 key 충돌 시 절댓값 큰 쪽 우선 (더 상위 합계 계정일 가능성)
+            if key not in result or abs(amount) > abs(result.get(key, 0)):
+                result[key] = amount
+            extracted.append((local, fs_div_ctx, period, amount))
+
+    print(f"  사용된 네임스페이스 ({len(ns_set)}개):")
+    for ns in sorted(ns_set):
+        ns_short = ns.rstrip('/').split('/')[-1]
+        print(f"    [{ns_short}] {ns}")
+
+    # 추출값 샘플 출력
+    # 당기 CFS 위주로 정렬해서 출력
+    cfs_current = [(l, p, v) for l, fs, p, v in extracted if fs == 'CFS' and p == 'current']
+    ofs_current = [(l, p, v) for l, fs, p, v in extracted if fs == 'OFS' and p == 'current']
+    print(f"\n  당기 CFS 값 ({len(cfs_current)}개) — 앞 25개:")
+    for local, _, val in sorted(cfs_current, key=lambda x: abs(x[2]), reverse=True)[:25]:
+        print(f"    {local:50s} = {val:>20,.0f}")
+    if ofs_current:
+        print(f"\n  당기 OFS 값 ({len(ofs_current)}개) — 앞 10개:")
+        for local, _, val in sorted(ofs_current, key=lambda x: abs(x[2]), reverse=True)[:10]:
+            print(f"    {local:50s} = {val:>20,.0f}")
 
     return result
 
 
+def inspect_xbrl_zip(zip_bytes: bytes) -> dict[str, list[tuple[str, str, str]]]:
+    """레거시 호환용 래퍼 — parse_xbrl_zip()으로 대체됨. compare_with_db에 전달할 형식으로 변환."""
+    values = parse_xbrl_zip(zip_bytes)
+    # {filename: [(ns, local, text), ...]} 형식으로 변환
+    entries = [(ns, local, str(v)) for (local, ns, period), v in values.items() if period == 'current']
+    return {'parsed': entries}
+
+
 # ── DB 값과 비교 ────────────────────────────────────────────────────────────────
 
+# XBRL 로컬명 → 표준 account_nm (매핑 후보, PoC에서 실태 확인용)
+# fnlttXbrl.xml의 IFRS taxonomy 태그명 기반 (실제 PoC 실행 후 보완 필요)
+_XBRL_CANDIDATE_MAP: dict[str, str] = {
+    # ifrs-full taxonomy
+    'Revenue':                        '매출액',
+    'RevenueFromContractsWithCustomers': '매출액',
+    'GrossProfit':                    '매출총이익',
+    'ProfitLossFromOperatingActivities': '영업이익',
+    'OperatingIncomeLoss':            '영업이익',
+    'ProfitLoss':                     '당기순이익',
+    'Assets':                         '자산총계',
+    'Liabilities':                    '부채총계',
+    'Equity':                         '자본총계',
+    'CurrentAssets':                  '유동자산',
+    'CurrentLiabilities':             '유동부채',
+    'CashFlowsFromUsedInOperatingActivities': '영업활동현금흐름',
+    'CashFlowsFromUsedInInvestingActivities': '투자활동현금흐름',
+    'CashFlowsFromUsedInFinancingActivities': '재무활동현금흐름',
+    'EquityAttributableToOwnersOfParent': '지배기업소유주지분',
+    'DividendsPaid':                  '배당금지급',
+    # dart taxonomy (dart:* prefix)
+    'OperatingIncome':                '영업이익',
+    'NetIncome':                      '당기순이익',
+    'TotalAssets':                    '자산총계',
+    'TotalLiabilities':               '부채총계',
+    'TotalEquity':                    '자본총계',
+    'CashFlowsFromOperatingActivities': '영업활동현금흐름',
+}
+
+
 def compare_with_db(cur, ticker: str, year: int, report_type: str,
-                    xbrl_entries: dict[str, list]) -> None:
-    """XBRL에서 추출한 값과 현재 DB amount를 비교. 같으면 경고."""
+                    xbrl_values: dict[tuple[str, str, str], float]) -> None:
+    """XBRL 파싱값과 현재 DB amount를 계정명 매핑 기반으로 비교. 같으면 경고."""
     cur.execute(
         """
         SELECT account_nm, fs_div, amount, frmtrm_amount, original_amount
@@ -233,44 +397,49 @@ def compare_with_db(cur, ticker: str, year: int, report_type: str,
         print(f"\n⚠️  DB에 {ticker} {year} {report_type} 데이터 없음")
         return
 
-    print(f"\n=== DB 값 ({ticker} {year} {report_type}) ===")
-    print(f"{'fs_div':>6} {'account_nm':>20} {'DB amount':>16} {'original_amount':>16}")
-    for (fs_div, acct), (amt, frmtrm, orig) in sorted(db_rows.items()):
-        orig_str = f"{orig:,.0f}" if orig is not None else "NULL"
-        amt_str  = f"{amt:,.0f}"  if amt  is not None else "NULL"
-        print(f"{fs_div:>6} {acct:>20} {amt_str:>16} {orig_str:>16}")
+    print(f"\n=== DB vs XBRL 비교 ({ticker} {year} {report_type}) ===")
+    print(f"{'fs':>4} {'account_nm':>24} {'DB amount':>18} {'XBRL current':>18} {'diff%':>7} {'match?':>7}")
 
-    # XBRL에서 숫자값 추출 시도 (단순 비교용)
-    all_xbrl_vals: list[tuple[str, str, float]] = []
-    for filename, entries in xbrl_entries.items():
-        for ns, local, text in entries:
-            try:
-                val = float(text.replace(',', ''))
-                all_xbrl_vals.append((local, ns, val))
-            except ValueError:
-                pass
+    xbrl_by_std: dict[tuple[str, str], float] = {}
+    for (xbrl_local, fs_div, period), val in xbrl_values.items():
+        std_name = _XBRL_CANDIDATE_MAP.get(xbrl_local)
+        if std_name and period == 'current':
+            key = (fs_div, std_name)
+            if key not in xbrl_by_std or abs(val) > abs(xbrl_by_std[key]):
+                xbrl_by_std[key] = val
 
-    if not all_xbrl_vals:
-        print("\n  XBRL에서 숫자값 추출 실패")
-        return
+    match_count = same_as_db = 0
+    for (fs_div, acct), (db_amt, frmtrm, orig) in sorted(db_rows.items()):
+        xbrl_val = xbrl_by_std.get((fs_div, acct))
+        db_str  = f"{float(db_amt):>18,.0f}" if db_amt is not None else f"{'NULL':>18}"
+        xbrl_str = f"{xbrl_val:>18,.0f}" if xbrl_val is not None else f"{'(없음)':>18}"
+        if db_amt is not None and xbrl_val is not None:
+            diff_pct = abs(float(db_amt) - xbrl_val) / max(abs(float(db_amt)), 1) * 100
+            diff_str = f"{diff_pct:>7.1f}"
+            if diff_pct < 0.01:
+                match = "같음 ⚠️"
+                same_as_db += 1
+            else:
+                match = "다름 ✅"
+                match_count += 1
+        else:
+            diff_str = f"{'—':>7}"
+            match = f"{'(매핑없음)':>7}"
+        print(f"{fs_div:>4} {acct:>24} {db_str} {xbrl_str} {diff_str} {match}")
 
-    print(f"\n  XBRL 숫자값 ({len(all_xbrl_vals)}개) — 앞 20개:")
-    for local, ns, val in all_xbrl_vals[:20]:
-        print(f"    {local:40s} = {val:>18,.0f}")
-
-    # 핵심 검증: DB amount와 일치하는 XBRL 값이 있으면 경고
-    db_amounts = {amt for _, (amt, _, _) in db_rows.items() if amt is not None}
-    xbrl_amounts = {v for _, _, v in all_xbrl_vals}
-    overlap = db_amounts & xbrl_amounts
-    print(f"\n핵심 검증:")
-    if overlap:
-        print(f"  ⚠️  DB amount와 XBRL 값이 일치하는 항목 {len(overlap)}개 발견")
-        print(f"     → DART가 원본 rcept_no에도 정정 후 값을 내려줄 가능성 있음")
-        print(f"     → 정정이 실제로 없었던 케이스이거나, 접근법 전제 재검토 필요")
-        for v in sorted(overlap)[:5]:
-            print(f"     {v:,.0f}")
-    else:
-        print(f"  ✅  DB amount와 XBRL 값 불일치 — 원본 rcept_no가 정정 전 값을 반환함")
+    print(f"\n핵심 검증 결과:")
+    if match_count > 0:
+        print(f"  ✅  XBRL값이 DB amount와 다른 계정: {match_count}개")
+        print(f"     → 원본 rcept_no가 정정 전 값을 반환함 (접근법 전제 유효)")
+    if same_as_db > 0:
+        print(f"  ⚠️  XBRL값이 DB amount와 같은 계정: {same_as_db}개")
+        print(f"     → 이 계정들은 정정이 없었거나, 원본에도 정정값이 반영됐을 수 있음")
+    if match_count == 0 and same_as_db == 0:
+        print(f"  ⚠️  XBRL→표준 계정명 매핑 실패 — _XBRL_CANDIDATE_MAP 보완 필요")
+        print(f"  XBRL 로컬명 전체 목록:")
+        for (local, fs_div, period), val in xbrl_values.items():
+            if period == 'current':
+                print(f"    [{fs_div}] {local} = {val:,.0f}")
 
 
 # ── 구형 케이스 스캔 ────────────────────────────────────────────────────────────
@@ -367,12 +536,12 @@ def main():
             return
 
         print(f"  ZIP 크기: {len(xbrl_bytes):,} bytes")
-        xbrl_entries = inspect_xbrl_zip(xbrl_bytes)
+        xbrl_values = parse_xbrl_zip(xbrl_bytes)
 
-        if not xbrl_entries:
-            print("  .xbrl 파일 없음 — 이 보고서는 XBRL 미제공")
+        if not xbrl_values:
+            print("  재무값 추출 실패 — .xbrl 파일 없거나 파싱 오류")
         else:
-            compare_with_db(cur, ticker, year, report_type, xbrl_entries)
+            compare_with_db(cur, ticker, year, report_type, xbrl_values)
 
 
 if __name__ == '__main__':
