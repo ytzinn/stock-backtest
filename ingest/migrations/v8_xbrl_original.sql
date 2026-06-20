@@ -19,10 +19,9 @@ ALTER TABLE financials_pit
 ALTER TABLE disclosures
     ADD COLUMN IF NOT EXISTS is_amendment BOOLEAN DEFAULT FALSE;
 
--- 기존 rows 역산: report_nm에 '정정' 포함 여부
+-- 기존 rows 역산: DEFAULT FALSE로 추가됐으므로 IS NULL 조건 없이 전체 업데이트
 UPDATE disclosures
-SET is_amendment = (report_nm LIKE '%정정%')
-WHERE is_amendment IS NULL;
+SET is_amendment = (report_nm LIKE '%정정%');
 
 -- 인덱스: amendment_from 기반 필터링 성능
 CREATE INDEX IF NOT EXISTS idx_financials_pit_amendment_from
