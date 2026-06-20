@@ -450,19 +450,17 @@ def scan_old_coverage(dart: DartAPI, cur, sample_size: int = 5) -> None:
     """
     print("\n=== [구형 커버리지] FY2015~2016 XBRL 제공 여부 ===")
 
-    cur.execute(
-        """
-        SELECT DISTINCT d.ticker, d.year, d.report_type,
+    # f-string: LIMIT에 정수 직접 삽입, SQL에 psycopg2 %s 파라미터 없음
+    cur.execute(f"""
+        SELECT d.ticker, d.year, d.report_type,
                MIN(d.rcept_no) FILTER (WHERE d.report_nm NOT LIKE '%정정%') AS orig_rcept
         FROM disclosures d
         WHERE d.year BETWEEN 2014 AND 2016
           AND d.report_type = 'FY'
         GROUP BY d.ticker, d.year, d.report_type
         HAVING COUNT(*) FILTER (WHERE d.report_nm NOT LIKE '%정정%') > 0
-        LIMIT %s
-        """,
-        (sample_size,),
-    )
+        LIMIT {int(sample_size)}
+    """)
     rows = cur.fetchall()
     if not rows:
         print("  2014~2016 공시 없음 (DB에 해당 연도 데이터 미수집 가능성)")
