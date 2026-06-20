@@ -116,7 +116,10 @@ def find_targets(cur, has_is_amendment: bool) -> list[tuple[str, int, str]]:
 
 
 def get_original_rcept_no(cur, ticker: str, year: int, report_type: str) -> Optional[str]:
-    """해당 (ticker, year, report_type)의 원본(비정정) rcept_no 중 가장 이른 것 반환."""
+    """
+    해당 (ticker, year, report_type)의 원본(비정정) rcept_no 중 가장 이른 것 반환.
+    기한연장신고서는 재무제표 없는 공시이므로 제외.
+    """
     cur.execute("""
         SELECT rcept_no, report_nm
         FROM disclosures
@@ -124,7 +127,8 @@ def get_original_rcept_no(cur, ticker: str, year: int, report_type: str) -> Opti
         ORDER BY rcept_dt ASC
     """, (ticker, year, report_type))
     for rcept_no, report_nm in cur.fetchall():
-        if '정정' not in (report_nm or ''):
+        nm = report_nm or ''
+        if '정정' not in nm and '연장신고서' not in nm:
             return rcept_no
     return None
 
@@ -168,6 +172,11 @@ def download_xbrl(session: requests.Session, api_key: str,
 
     if not resp.content:
         log.debug(f'download_xbrl {rcept_no}: 빈 응답')
+        return None
+
+    # ZIP magic bytes 확인 (PK\x03\x04) — PDF/HTML 응답 필터링
+    if resp.content[:4] != b'PK\x03\x04':
+        log.debug(f'download_xbrl {rcept_no}: ZIP 아님 (XBRL 미제공 구형 공시)')
         return None
 
     return resp.content
