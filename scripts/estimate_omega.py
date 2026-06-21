@@ -62,9 +62,9 @@ def _load_panel(conn) -> pd.DataFrame:
 
 
 def estimate_omega(winsorize_pct: float = 0.01) -> tuple[float, tuple[float, float], int]:
-    from ingest.connection import get_conn
+    from ingest.connection import get_connection
 
-    with get_conn() as conn:
+    with get_connection() as conn:
         df = _load_panel(conn)
 
     df = df[df['equity'].notna() & (df['equity'] > 0)].copy()
