@@ -28,22 +28,30 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'use_momentum': False, 'use_rim_filter': False, 'random_n': 20},
     'C_stability_random':  {'use_hard': True,  'use_stability': True,  'use_screener': False,
                             'use_momentum': False, 'use_rim_filter': False, 'random_n': 20},
+    'C_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': False, 'use_rim_filter': False, 'random_n': 20,
+                            'stability_r6': False},
     'D_rim_only':          {'use_hard': True,  'use_stability': True,  'use_screener': False,
                             'use_momentum': False, 'use_rim_filter': True},
-    'E_screener_rim':      {'use_hard': True,  'use_stability': True,  'use_screener': True,
-                            'use_momentum': False, 'use_rim_filter': True},
-    'F_momentum_rim':      {'use_hard': True,  'use_stability': True,  'use_screener': False,
-                            'use_momentum': True,  'use_rim_filter': True},
-    'G_full':              {'use_hard': True,  'use_stability': True,  'use_screener': True,
-                            'use_momentum': True,  'use_rim_filter': True},
-    'H_no_stability':      {'use_hard': True,  'use_stability': False, 'use_screener': True,
-                            'use_momentum': True,  'use_rim_filter': True},
-    # DesignBug-2: R6 제거 ablation — R6 효과와 RIM 효과 분리
     'D_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': False,
                             'use_momentum': False, 'use_rim_filter': True,  'stability_r6': False},
+    'E_screener_rim':      {'use_hard': True,  'use_stability': True,  'use_screener': True,
+                            'use_momentum': False, 'use_rim_filter': True},
+    'E_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': True,
+                            'use_momentum': False, 'use_rim_filter': True,  'stability_r6': False},
+    'F_momentum_rim':      {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': True},
+    'F_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': True,  'stability_r6': False},
+    'G_full':              {'use_hard': True,  'use_stability': True,  'use_screener': True,
+                            'use_momentum': True,  'use_rim_filter': True},
+    'G_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': True,
+                            'use_momentum': True,  'use_rim_filter': True,  'stability_r6': False},
+    'H_no_stability':      {'use_hard': True,  'use_stability': False, 'use_screener': True,
+                            'use_momentum': True,  'use_rim_filter': True},
 }
 
-RANDOM_TAGS    = frozenset({'A_random', 'B_hard_random', 'C_stability_random'})
+RANDOM_TAGS    = frozenset({'A_random', 'B_hard_random', 'C_stability_random', 'C_no_r6'})
 RANDOM_REPEATS = 500
 
 
