@@ -50,16 +50,21 @@ def _run_one(args: tuple) -> dict:
     result   = engine.run(rebalance_dates, run_name=tag, ablation_tag=tag)
     m        = result['metrics']
     return {
-        'seed':           seed,
-        'cagr':           m['cagr'],
-        'alpha':          m['alpha'],
-        'alpha_kosdaq':   m.get('alpha_kosdaq', 0.0),
-        'sharpe':         m['sharpe'],
-        'mdd':            m['mdd'],
-        'robustness':     m['robustness'],
-        'benchmark_cagr': m['benchmark_cagr'],
-        'kosdaq_cagr':    m.get('kosdaq_cagr', 0.0),
-        'n_periods':      m['n_periods'],
+        'seed':               seed,
+        'cagr':               m['cagr'],
+        'net_cagr':           m.get('net_cagr', 0.0),
+        'alpha':              m['alpha'],
+        'alpha_kosdaq':       m.get('alpha_kosdaq', 0.0),
+        'sharpe':             m['sharpe'],
+        'net_sharpe':         m.get('net_sharpe', 0.0),
+        'mdd':                m['mdd'],
+        'robustness':         m['robustness'],
+        'benchmark_cagr':     m['benchmark_cagr'],
+        'kosdaq_cagr':        m.get('kosdaq_cagr', 0.0),
+        'avg_turnover':       m.get('avg_turnover', 0.0),
+        'cagr_optimistic':    m.get('cagr_optimistic', 0.0),
+        'cagr_conservative':  m.get('cagr_conservative', 0.0),
+        'n_periods':          m['n_periods'],
     }
 
 
@@ -71,21 +76,27 @@ def run_deterministic(tag: str, config: dict, rebalance_dates: list[date]) -> tu
     result   = engine.run(rebalance_dates, run_name=tag, ablation_tag=tag)
     m        = result['metrics']
     metrics  = {
-        'seed':           None,
-        'cagr':           m['cagr'],
-        'alpha':          m['alpha'],
-        'alpha_kosdaq':   m.get('alpha_kosdaq', 0.0),
-        'sharpe':         m['sharpe'],
-        'mdd':            m['mdd'],
-        'robustness':     m['robustness'],
-        'benchmark_cagr': m['benchmark_cagr'],
-        'kosdaq_cagr':    m.get('kosdaq_cagr', 0.0),
-        'n_periods':      m['n_periods'],
+        'seed':               None,
+        'cagr':               m['cagr'],
+        'net_cagr':           m.get('net_cagr', 0.0),
+        'alpha':              m['alpha'],
+        'alpha_kosdaq':       m.get('alpha_kosdaq', 0.0),
+        'sharpe':             m['sharpe'],
+        'net_sharpe':         m.get('net_sharpe', 0.0),
+        'mdd':                m['mdd'],
+        'robustness':         m['robustness'],
+        'benchmark_cagr':     m['benchmark_cagr'],
+        'kosdaq_cagr':        m.get('kosdaq_cagr', 0.0),
+        'avg_turnover':       m.get('avg_turnover', 0.0),
+        'cagr_optimistic':    m.get('cagr_optimistic', 0.0),
+        'cagr_conservative':  m.get('cagr_conservative', 0.0),
+        'n_periods':          m['n_periods'],
     }
     log.info(
-        f'[{tag}] CAGR={m["cagr"]:.1%} '
-        f'Alpha(KOSPI)={m["alpha"]:.1%} Alpha(KOSDAQ)={m.get("alpha_kosdaq", 0):.1%} '
-        f'MDD={m["mdd"]:.1%} Sharpe={m["sharpe"]:.2f}'
+        f'[{tag}] CAGR={m["cagr"]:.1%} (net={m.get("net_cagr", 0):.1%}) '
+        f'[상폐: 낙관={m.get("cagr_optimistic", 0):.1%} 보수={m.get("cagr_conservative", 0):.1%}] '
+        f'Alpha(KS)={m["alpha"]:.1%} Alpha(KQ)={m.get("alpha_kosdaq", 0):.1%} '
+        f'Turnover={m.get("avg_turnover", 0):.0%} MDD={m["mdd"]:.1%}'
     )
     return metrics, result['period_results']
 
@@ -131,7 +142,9 @@ def save_periods(tag: str, period_results: list[dict]) -> None:
     with path.open('w', newline='', encoding='utf-8') as f:
         w = csv.writer(f)
         w.writerow([
-            'rebalance_date', 'next_date', 'period_return', 'kospi_return', 'kosdaq_return',
+            'rebalance_date', 'next_date',
+            'period_return', 'net_return', 'turnover', 'transaction_cost',
+            'kospi_return', 'kosdaq_return',
             'n_gate', 'n_stocks',
             'hard_passed', 'stability_passed', 'screener_passed', 'momentum_passed',
         ])
@@ -141,6 +154,9 @@ def save_periods(tag: str, period_results: list[dict]) -> None:
                 r['rebalance_date'].isoformat(),
                 r['next_date'].isoformat(),
                 r['period_return'],
+                r.get('net_return', ''),
+                r.get('turnover', ''),
+                r.get('transaction_cost', ''),
                 r['kospi_return'],
                 r.get('kosdaq_return', ''),
                 r.get('n_gate', ''),
@@ -156,7 +172,12 @@ def save_periods(tag: str, period_results: list[dict]) -> None:
 def save_distribution(tag: str, results: list[dict]) -> None:
     import csv
     path = OUT_DIR / f'{tag}_dist.csv'
-    fields = ['seed', 'cagr', 'alpha', 'alpha_kosdaq', 'sharpe', 'mdd', 'robustness', 'benchmark_cagr', 'kosdaq_cagr', 'n_periods']
+    fields = [
+        'seed', 'cagr', 'net_cagr', 'alpha', 'alpha_kosdaq',
+        'sharpe', 'net_sharpe', 'mdd', 'robustness',
+        'benchmark_cagr', 'kosdaq_cagr', 'avg_turnover',
+        'cagr_optimistic', 'cagr_conservative', 'n_periods',
+    ]
     with path.open('w', newline='', encoding='utf-8') as f:
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
