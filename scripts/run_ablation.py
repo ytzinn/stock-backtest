@@ -53,10 +53,12 @@ def _run_one(args: tuple) -> dict:
         'seed':           seed,
         'cagr':           m['cagr'],
         'alpha':          m['alpha'],
+        'alpha_kosdaq':   m.get('alpha_kosdaq', 0.0),
         'sharpe':         m['sharpe'],
         'mdd':            m['mdd'],
         'robustness':     m['robustness'],
         'benchmark_cagr': m['benchmark_cagr'],
+        'kosdaq_cagr':    m.get('kosdaq_cagr', 0.0),
         'n_periods':      m['n_periods'],
     }
 
@@ -72,14 +74,17 @@ def run_deterministic(tag: str, config: dict, rebalance_dates: list[date]) -> tu
         'seed':           None,
         'cagr':           m['cagr'],
         'alpha':          m['alpha'],
+        'alpha_kosdaq':   m.get('alpha_kosdaq', 0.0),
         'sharpe':         m['sharpe'],
         'mdd':            m['mdd'],
         'robustness':     m['robustness'],
         'benchmark_cagr': m['benchmark_cagr'],
+        'kosdaq_cagr':    m.get('kosdaq_cagr', 0.0),
         'n_periods':      m['n_periods'],
     }
     log.info(
-        f'[{tag}] CAGR={m["cagr"]:.1%} Alpha={m["alpha"]:.1%} '
+        f'[{tag}] CAGR={m["cagr"]:.1%} '
+        f'Alpha(KOSPI)={m["alpha"]:.1%} Alpha(KOSDAQ)={m.get("alpha_kosdaq", 0):.1%} '
         f'MDD={m["mdd"]:.1%} Sharpe={m["sharpe"]:.2f}'
     )
     return metrics, result['period_results']
@@ -126,7 +131,7 @@ def save_periods(tag: str, period_results: list[dict]) -> None:
     with path.open('w', newline='', encoding='utf-8') as f:
         w = csv.writer(f)
         w.writerow([
-            'rebalance_date', 'next_date', 'period_return', 'kospi_return',
+            'rebalance_date', 'next_date', 'period_return', 'kospi_return', 'kosdaq_return',
             'n_gate', 'n_stocks',
             'hard_passed', 'stability_passed', 'screener_passed', 'momentum_passed',
         ])
@@ -137,6 +142,7 @@ def save_periods(tag: str, period_results: list[dict]) -> None:
                 r['next_date'].isoformat(),
                 r['period_return'],
                 r['kospi_return'],
+                r.get('kosdaq_return', ''),
                 r.get('n_gate', ''),
                 r['n_stocks'],
                 stats.get('HardFilter',      {}).get('passed', ''),
@@ -150,7 +156,7 @@ def save_periods(tag: str, period_results: list[dict]) -> None:
 def save_distribution(tag: str, results: list[dict]) -> None:
     import csv
     path = OUT_DIR / f'{tag}_dist.csv'
-    fields = ['seed', 'cagr', 'alpha', 'sharpe', 'mdd', 'robustness', 'benchmark_cagr', 'n_periods']
+    fields = ['seed', 'cagr', 'alpha', 'alpha_kosdaq', 'sharpe', 'mdd', 'robustness', 'benchmark_cagr', 'kosdaq_cagr', 'n_periods']
     with path.open('w', newline='', encoding='utf-8') as f:
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
@@ -163,7 +169,10 @@ def make_summary(det_results: dict[str, dict], dist_stats: dict[str, dict]) -> d
     summary: dict = {'generated_at': datetime.now().isoformat(), 'scenarios': {}}
 
     for tag, r in det_results.items():
-        summary['scenarios'][tag] = {k: round(v, 6) for k, v in r.items() if k != 'seed'}
+        summary['scenarios'][tag] = {
+            k: round(v, 6) for k, v in r.items()
+            if k != 'seed' and isinstance(v, (int, float))
+        }
 
     for tag, s in dist_stats.items():
         summary['scenarios'][tag] = s
@@ -176,11 +185,19 @@ def make_summary(det_results: dict[str, dict], dist_stats: dict[str, dict]) -> d
             return v['cagr']
         return v.get('median_cagr', 0.0)
 
+    def p95(t: str) -> float:
+        return s.get(t, {}).get('p95_cagr', 0.0)
+
     judgements = {}
     if 'C_stability_random' in s and 'B_hard_random' in s:
-        judgements['C>B (재무안정성 기여)'] = cagr('C_stability_random') > cagr('B_hard_random')
+        judgements['C>B (재무안정성 기여, p95 기준)'] = cagr('C_stability_random') > p95('B_hard_random')
     if 'D_rim_only' in s and 'C_stability_random' in s:
-        judgements['D>C (RIM 유효성)'] = cagr('D_rim_only') > cagr('C_stability_random')
+        # SPEC_05 §11: D CAGR이 C_stability_random p95 이상이어야 RIM 통계적으로 유효
+        c_p95 = p95('C_stability_random')
+        d_cagr = cagr('D_rim_only')
+        judgements['D>C_p95 (RIM 유효성, SPEC_05 §11)'] = d_cagr >= c_p95
+        judgements['_D_cagr']  = round(d_cagr, 6)
+        judgements['_C_p95']   = round(c_p95, 6)
     if 'E_screener_rim' in s and 'D_rim_only' in s:
         judgements['E>D (팩터 스크리닝 기여)'] = cagr('E_screener_rim') > cagr('D_rim_only')
     if 'F_momentum_rim' in s and 'D_rim_only' in s:

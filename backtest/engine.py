@@ -97,12 +97,15 @@ class BacktestEngine:
                 period_return = _calc_period_return(conn, portfolio, rebal_date, next_date)
                 kospi_return  = _calc_kospi_return(rebal_date, next_date)
 
+                kosdaq_return = _calc_kosdaq_return(rebal_date, next_date)
+
                 period_results.append({
                     'rebalance_date': rebal_date,
                     'next_date':      next_date,
                     'portfolio':      portfolio,
                     'period_return':  period_return,
                     'kospi_return':   kospi_return,
+                    'kosdaq_return':  kosdaq_return,
                     'n_gate':         len(gate_passed),
                     'n_stocks':       len(portfolio),
                     'universe_stats': stats,
@@ -122,10 +125,18 @@ class BacktestEngine:
             kospi_returns,
             index=strat_ret.index,
         )
+        kosdaq_ret = pd.Series(
+            [r['kosdaq_return'] for r in period_results],
+            index=strat_ret.index,
+        )
         metrics = compute_metrics(strat_ret, bench_ret)
+        kosdaq_cagr = compute_metrics(strat_ret, kosdaq_ret)['benchmark_cagr']
+        metrics['kosdaq_cagr']    = kosdaq_cagr
+        metrics['alpha_kosdaq']   = metrics['cagr'] - kosdaq_cagr
         log.info(
             f'백테스트 완료: CAGR={metrics["cagr"]:.1%} '
-            f'Alpha={metrics["alpha"]:.1%} '
+            f'Alpha(KOSPI)={metrics["alpha"]:.1%} '
+            f'Alpha(KOSDAQ)={metrics["alpha_kosdaq"]:.1%} '
             f'MDD={metrics["mdd"]:.1%} '
             f'Sharpe={metrics["sharpe"]:.2f}'
         )
@@ -177,6 +188,25 @@ def _last_known_price(conn, ticker: str, before_date: date) -> float:
     from backtest.data_access import get_adj_close_range
     prices = get_adj_close_range(conn, ticker, before_date, lookback=1)
     return float(prices.iloc[-1]) if not prices.empty else 0.0
+
+
+def _calc_kosdaq_return(start_date: date, end_date: date) -> float:
+    """
+    KOSDAQ 구간 수익률. FDR 'KQ11' 사용 (Naver Finance/KRX 기반).
+    실패 시 0 반환.
+    """
+    import FinanceDataReader as fdr
+    try:
+        df = fdr.DataReader('KQ11', str(start_date), str(end_date))
+        if df is None or df.empty or len(df) < 2:
+            return 0.0
+        close = df['Close'].dropna()
+        if len(close) < 2:
+            return 0.0
+        return float(close.iloc[-1] / close.iloc[0] - 1)
+    except Exception as e:
+        log.warning(f'KOSDAQ 수익률 조회 실패 ({start_date}~{end_date}): {e}')
+        return 0.0
 
 
 def _calc_kospi_return(start_date: date, end_date: date) -> float:
