@@ -27,12 +27,12 @@ log = logging.getLogger(__name__)
 
 OUT_DIR = Path('experiments/ablation')
 START_DATE = date(2016, 4, 5)   # 유효 시작 (처음 2구간 제외)
-END_DATE   = date(2025, 8, 20)  # 2025-08 이후 구간 제외
+END_DATE   = date(2026, 4, 3)   # 마지막 유효 리밸런싱일
 
 
 def get_stock_names(conn) -> dict[str, str]:
     cur = conn.cursor()
-    cur.execute("SELECT ticker, name FROM stocks")
+    cur.execute("SELECT ticker, corp_name FROM stocks")
     return {r[0]: r[1] for r in cur.fetchall()}
 
 
