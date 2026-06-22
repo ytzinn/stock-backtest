@@ -45,7 +45,8 @@ def extract_portfolio_periods(tag: str, config: dict) -> list[dict]:
     dates = [d for d in REBALANCE_DATES if START_DATE <= d <= END_DATE]
 
     for i, rebal_date in enumerate(dates):
-        next_date = REBALANCE_DATES[REBALANCE_DATES.index(rebal_date) + 1]
+        idx = REBALANCE_DATES.index(rebal_date)
+        next_date = REBALANCE_DATES[idx + 1] if idx + 1 < len(REBALANCE_DATES) else date.today()
         rtype     = _report_type(rebal_date)
 
         gate_passed = load_gate_passed_tickers(conn, rebal_date, report_type=rtype)
