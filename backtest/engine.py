@@ -17,19 +17,20 @@ from datetime import date
 
 import pandas as pd
 
+from backtest.configs.constants import COST_BUY, COST_SELL, MIN_STOCKS_WARN
 from backtest.data_access import (
     get_close_price,
     load_gate_passed_tickers,
     load_pit_series_ttm,
 )
-from backtest.metrics import compute_metrics
+from backtest.metrics import compute_cagr, compute_metrics, compute_sharpe
 from backtest.pipeline import BacktestPipeline
 from backtest.portfolio import build_portfolio
 from ingest.connection import get_connection
 
 log = logging.getLogger(__name__)
 
-DELISTING_HAIRCUT = 0.70  # 상장폐지 청산 시 마지막 가격 × 70%
+DELISTING_HAIRCUT = 0.70  # 상장폐지 청산 시 마지막 가격 × 70% (기준 시나리오)
 
 
 def _report_type(d: date) -> str:
@@ -59,8 +60,9 @@ class BacktestEngine:
         """
         conn = get_connection()
         try:
-            period_results  = []
-            kospi_returns   = []
+            period_results: list[dict]       = []
+            kospi_returns:  list[float]       = []
+            prev_portfolio: dict[str, float]  = {}
 
             for i, rebal_date in enumerate(rebalance_dates):
                 next_date = rebalance_dates[i + 1] if i + 1 < len(rebalance_dates) else date.today()
@@ -81,10 +83,7 @@ class BacktestEngine:
 
                 log.info(
                     f'  gate={len(gate_passed)} '
-                    + ' '.join(
-                        f'{k}={v["passed"]}'
-                        for k, v in stats.items()
-                    )
+                    + ' '.join(f'{k}={v["passed"]}' for k, v in stats.items())
                 )
 
                 # 4. 종목 랭킹
@@ -93,41 +92,76 @@ class BacktestEngine:
                 # 5. 포트폴리오 구성
                 portfolio = build_portfolio(candidates, n_stocks=self.pipeline.n_stocks)
 
-                # 6. 구간 수익률 계산
-                period_return = _calc_period_return(conn, portfolio, rebal_date, next_date)
+                # 최소 편입 종목 수 경고 (DesignBug-3)
+                if 0 < len(portfolio) < MIN_STOCKS_WARN:
+                    log.warning(
+                        f'  [최소종목미달] {rebal_date}: {len(portfolio)}종목 < {MIN_STOCKS_WARN}'
+                    )
+
+                # 6. 구간 수익률 계산 — 상폐 3종 조정값 포함 (Gap-3)
+                gross_ret, opt_adj, cons_adj = _calc_period_return(
+                    conn, portfolio, rebal_date, next_date
+                )
                 kospi_return  = _calc_kospi_return(rebal_date, next_date)
+                kosdaq_return = _calc_kosdaq_return(rebal_date, next_date)
+
+                # 거래비용 계산 (Gap-4·6)
+                turnover = _calc_turnover(prev_portfolio, portfolio)
+                tc       = turnover * (COST_SELL + COST_BUY)
+                net_ret  = gross_ret - tc
 
                 period_results.append({
-                    'rebalance_date': rebal_date,
-                    'next_date':      next_date,
-                    'portfolio':      portfolio,
-                    'period_return':  period_return,
-                    'kospi_return':   kospi_return,
-                    'n_gate':         len(gate_passed),
-                    'n_stocks':       len(portfolio),
-                    'universe_stats': stats,
+                    'rebalance_date':     rebal_date,
+                    'next_date':          next_date,
+                    'portfolio':          portfolio,
+                    'period_return':      gross_ret,
+                    'net_return':         net_ret,
+                    'turnover':           turnover,
+                    'transaction_cost':   tc,
+                    'delisting_opt_adj':  opt_adj,
+                    'delisting_cons_adj': cons_adj,
+                    'kospi_return':       kospi_return,
+                    'kosdaq_return':      kosdaq_return,
+                    'n_gate':             len(gate_passed),
+                    'n_stocks':           len(portfolio),
+                    'universe_stats':     stats,
                 })
 
                 kospi_returns.append(kospi_return)
+                prev_portfolio = portfolio
 
         finally:
             conn.close()
 
         # 7. 성과 측정
-        strat_ret = pd.Series(
-            [r['period_return'] for r in period_results],
-            index=pd.DatetimeIndex([r['rebalance_date'] for r in period_results]),
+        idx        = pd.DatetimeIndex([r['rebalance_date'] for r in period_results])
+        strat_ret  = pd.Series([r['period_return']      for r in period_results], index=idx)
+        net_ret_s  = pd.Series([r['net_return']         for r in period_results], index=idx)
+        opt_ret_s  = pd.Series(
+            [r['period_return'] + r['delisting_opt_adj']  for r in period_results], index=idx
         )
-        bench_ret = pd.Series(
-            kospi_returns,
-            index=strat_ret.index,
+        cons_ret_s = pd.Series(
+            [r['period_return'] + r['delisting_cons_adj'] for r in period_results], index=idx
         )
+        bench_ret  = pd.Series(kospi_returns, index=idx)
+        kosdaq_ret = pd.Series([r['kosdaq_return'] for r in period_results], index=idx)
+
         metrics = compute_metrics(strat_ret, bench_ret)
+        kosdaq_cagr = compute_metrics(strat_ret, kosdaq_ret)['benchmark_cagr']
+        metrics['kosdaq_cagr']       = kosdaq_cagr
+        metrics['alpha_kosdaq']      = metrics['cagr'] - kosdaq_cagr
+        metrics['net_cagr']          = compute_cagr(net_ret_s)
+        metrics['net_sharpe']        = compute_sharpe(net_ret_s)
+        metrics['cagr_optimistic']   = compute_cagr(opt_ret_s)
+        metrics['cagr_conservative'] = compute_cagr(cons_ret_s)
+        metrics['avg_turnover']      = float(
+            sum(r['turnover'] for r in period_results) / max(len(period_results), 1)
+        )
         log.info(
-            f'백테스트 완료: CAGR={metrics["cagr"]:.1%} '
-            f'Alpha={metrics["alpha"]:.1%} '
-            f'MDD={metrics["mdd"]:.1%} '
-            f'Sharpe={metrics["sharpe"]:.2f}'
+            f'백테스트 완료: CAGR={metrics["cagr"]:.1%} (net={metrics["net_cagr"]:.1%}) '
+            f'Alpha(KOSPI)={metrics["alpha"]:.1%} Alpha(KOSDAQ)={metrics["alpha_kosdaq"]:.1%} '
+            f'MDD={metrics["mdd"]:.1%} Sharpe={metrics["sharpe"]:.2f} '
+            f'Turnover(avg)={metrics["avg_turnover"]:.0%}'
         )
 
         return {
@@ -138,38 +172,61 @@ class BacktestEngine:
         }
 
 
+def _calc_turnover(prev: dict[str, float], curr: dict[str, float]) -> float:
+    """
+    단방향 회전율 (0~1). 매도된 종목의 비중 합계.
+    첫 구간(prev 빈 경우)은 1.0 (전액 신규 매수).
+    """
+    if not prev or not curr:
+        return 1.0 if not prev and curr else 0.0
+    n = max(len(prev), len(curr), 1)
+    sold = len(set(prev) - set(curr))
+    return sold / n
+
+
 def _calc_period_return(
     conn,
     portfolio:    dict[str, float],
     start_date:   date,
     end_date:     date,
-) -> float:
+) -> tuple[float, float, float]:
     """
-    포트폴리오 구간 수익률. 동일가중 평균.
-    상장폐지 종목: 마지막 거래가 × DELISTING_HAIRCUT 적용.
+    포트폴리오 구간 수익률 (기준/낙관/보수 조정값). 동일가중 평균.
+
+    반환: (gross_return, opt_adj, cons_adj)
+      gross_return : 기준 수익률 (상폐 × DELISTING_HAIRCUT=0.70)
+      opt_adj      : 낙관 조정 (+, 상폐 haircut 없앨 경우 추가 수익)
+      cons_adj     : 보수 조정 (-, 상폐 전액 손실 가정 시 추가 손실)
     """
     if not portfolio:
-        return 0.0
+        return 0.0, 0.0, 0.0
 
+    n = len(portfolio)
     stock_returns = []
-    for ticker, weight in portfolio.items():
+    opt_adj  = 0.0
+    cons_adj = 0.0
+
+    for ticker in portfolio:
         price_start = get_close_price(conn, ticker, start_date)
         price_end   = get_close_price(conn, ticker, end_date)
 
         if price_start is None or price_start <= 0:
+            n -= 1
             continue
 
         if price_end is None:
-            # 상장폐지 처리: 마지막 가격 × 70% 청산
-            price_end = _last_known_price(conn, ticker, end_date) * DELISTING_HAIRCUT
+            last = _last_known_price(conn, ticker, end_date)
+            price_end = last * DELISTING_HAIRCUT
+            w = 1.0 / max(n, 1)
+            opt_adj  += w * last * (1.0 - DELISTING_HAIRCUT) / price_start
+            cons_adj -= w * last * DELISTING_HAIRCUT / price_start
 
-        ret = (price_end / price_start) - 1
-        stock_returns.append(ret)
+        stock_returns.append(price_end / price_start - 1)
 
     if not stock_returns:
-        return 0.0
+        return 0.0, 0.0, 0.0
 
-    return sum(stock_returns) / len(stock_returns)
+    return sum(stock_returns) / len(stock_returns), opt_adj, cons_adj
 
 
 def _last_known_price(conn, ticker: str, before_date: date) -> float:
@@ -177,6 +234,25 @@ def _last_known_price(conn, ticker: str, before_date: date) -> float:
     from backtest.data_access import get_adj_close_range
     prices = get_adj_close_range(conn, ticker, before_date, lookback=1)
     return float(prices.iloc[-1]) if not prices.empty else 0.0
+
+
+def _calc_kosdaq_return(start_date: date, end_date: date) -> float:
+    """
+    KOSDAQ 구간 수익률. FDR 'KQ11' 사용 (Naver Finance/KRX 기반).
+    실패 시 0 반환.
+    """
+    import FinanceDataReader as fdr
+    try:
+        df = fdr.DataReader('KQ11', str(start_date), str(end_date))
+        if df is None or df.empty or len(df) < 2:
+            return 0.0
+        close = df['Close'].dropna()
+        if len(close) < 2:
+            return 0.0
+        return float(close.iloc[-1] / close.iloc[0] - 1)
+    except Exception as e:
+        log.warning(f'KOSDAQ 수익률 조회 실패 ({start_date}~{end_date}): {e}')
+        return 0.0
 
 
 def _calc_kospi_return(start_date: date, end_date: date) -> float:

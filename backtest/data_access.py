@@ -23,8 +23,13 @@ _IS_CF_ACCOUNTS = frozenset({
 
 # ── 가격 / 거래대금 ─────────────────────────────────────────────────────────────
 
-def get_avg_turnover(conn, ticker: str, as_of: date, window: int = 20) -> float:
-    """최근 window 영업일 평균 거래대금(KRW). 데이터 없거나 is_suspended이면 0으로 처리."""
+def get_avg_turnover(conn, ticker: str, as_of: date, window: int = 20,
+                     max_lookback_days: int = 90) -> float:
+    """최근 window 영업일 평균 거래대금(KRW). 데이터 없거나 is_suspended이면 0으로 처리.
+
+    max_lookback_days: 이 기간(캘린더 일) 밖의 데이터는 사용하지 않는다.
+    거래정지 후 오래된 거래량이 현재 유동성인 것처럼 계산되는 것을 방지.
+    """
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -33,16 +38,41 @@ def get_avg_turnover(conn, ticker: str, as_of: date, window: int = 20) -> float:
                 SELECT turnover
                 FROM price_history
                 WHERE ticker = %s AND date <= %s
+                  AND date >= %s - INTERVAL '1 day' * %s
                   AND is_suspended = FALSE
                   AND turnover IS NOT NULL
                 ORDER BY date DESC
                 LIMIT %s
             ) sub
             """,
-            (ticker, as_of, window),
+            (ticker, as_of, as_of, max_lookback_days, window),
         )
         row = cur.fetchone()
     return float(row[0]) if row and row[0] is not None else 0.0
+
+
+def has_recent_trade(conn, ticker: str, as_of: date, window: int = 5) -> bool:
+    """최근 window 영업일(KRX 거래일 기준) 중 거래가 한 건이라도 있으면 True.
+
+    price_history에서 as_of 이전 최근 window 거래일을 조회해 is_suspended=FALSE인
+    날이 하나라도 있는지 확인한다. 없으면 거래정지 상태로 간주.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT COUNT(*) FROM (
+                SELECT is_suspended
+                FROM price_history
+                WHERE ticker = %s AND date <= %s AND adj_close IS NOT NULL
+                ORDER BY date DESC
+                LIMIT %s
+            ) sub
+            WHERE is_suspended = FALSE
+            """,
+            (ticker, as_of, window),
+        )
+        row = cur.fetchone()
+    return (row[0] > 0) if row else False
 
 
 def get_adj_close_range(conn, ticker: str, as_of: date, lookback: int) -> pd.Series:

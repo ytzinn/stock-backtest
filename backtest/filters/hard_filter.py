@@ -6,7 +6,7 @@ R06(감사의견), R08(관리종목)은 DB 데이터 미수집 → 미구현 (Ph
 """
 from datetime import date
 
-from backtest.data_access import get_avg_turnover, get_listed_date, is_delisted_at
+from backtest.data_access import get_avg_turnover, get_listed_date, has_recent_trade, is_delisted_at
 
 
 class HardFilter:
@@ -54,7 +54,11 @@ def _hard_filter(
 ) -> tuple[bool, str]:
     """True = 통과. 반환: (pass_flag, reason)"""
 
-    # 거래유동성: 최근 20 영업일 일평균 거래대금
+    # 직전 5 영업일 중 거래 0건 → 거래정지 상태로 간주, 편입 불가
+    if not has_recent_trade(conn, ticker, rebalance_date, window=5):
+        return False, '5일 이상 거래정지'
+
+    # 거래유동성: 최근 20 영업일 일평균 거래대금 (최대 90일 이내 데이터만 사용)
     if get_avg_turnover(conn, ticker, rebalance_date, 20) < min_turnover:
         return False, '거래대금 부족'
 

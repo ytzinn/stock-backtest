@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import random
 
+from backtest.configs.constants        import OMEGA
 from backtest.filters.factor_screener  import FactorScreener
 from backtest.filters.hard_filter      import HardFilter
 from backtest.filters.momentum_filter  import MomentumFilter
@@ -27,19 +28,30 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'use_momentum': False, 'use_rim_filter': False, 'random_n': 20},
     'C_stability_random':  {'use_hard': True,  'use_stability': True,  'use_screener': False,
                             'use_momentum': False, 'use_rim_filter': False, 'random_n': 20},
+    'C_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': False, 'use_rim_filter': False, 'random_n': 20,
+                            'stability_r6': False},
     'D_rim_only':          {'use_hard': True,  'use_stability': True,  'use_screener': False,
                             'use_momentum': False, 'use_rim_filter': True},
+    'D_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': False, 'use_rim_filter': True,  'stability_r6': False},
     'E_screener_rim':      {'use_hard': True,  'use_stability': True,  'use_screener': True,
                             'use_momentum': False, 'use_rim_filter': True},
+    'E_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': True,
+                            'use_momentum': False, 'use_rim_filter': True,  'stability_r6': False},
     'F_momentum_rim':      {'use_hard': True,  'use_stability': True,  'use_screener': False,
                             'use_momentum': True,  'use_rim_filter': True},
+    'F_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': True,  'stability_r6': False},
     'G_full':              {'use_hard': True,  'use_stability': True,  'use_screener': True,
                             'use_momentum': True,  'use_rim_filter': True},
+    'G_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': True,
+                            'use_momentum': True,  'use_rim_filter': True,  'stability_r6': False},
     'H_no_stability':      {'use_hard': True,  'use_stability': False, 'use_screener': True,
                             'use_momentum': True,  'use_rim_filter': True},
 }
 
-RANDOM_TAGS    = frozenset({'A_random', 'B_hard_random', 'C_stability_random'})
+RANDOM_TAGS    = frozenset({'A_random', 'B_hard_random', 'C_stability_random', 'C_no_r6'})
 RANDOM_REPEATS = 500
 
 
@@ -71,6 +83,7 @@ def build_ablation_pipeline(
     config:        dict,
     seed:          int | None = None,
     beta_adj:      float = 0.0,
+    omega:         float = OMEGA,
     rim_threshold: float = 0.05,
     top_pct:       float = 0.20,
     n_stocks:      int   = 20,
@@ -81,7 +94,8 @@ def build_ablation_pipeline(
     if config.get('use_hard', False):
         filters.append(HardFilter(min_turnover=100_000_000, min_listed_months=6))
     if config.get('use_stability', False):
-        filters.append(StabilityFilter(r2_exception=True))
+        use_r6 = config.get('stability_r6', True)
+        filters.append(StabilityFilter(r2_exception=True, use_r6=use_r6))
     if config.get('use_screener', False):
         filters.append(FactorScreener(
             weights={'rev_yoy': 1/6, 'op_yoy': 1/6, 'gpa': 1/3, 'inv_pbr': 1/3},
@@ -101,7 +115,7 @@ def build_ablation_pipeline(
 
     return BacktestPipeline(
         filters=filters,
-        valuation_model=RIMModel(beta_adj=beta_adj),
+        valuation_model=RIMModel(beta_adj=beta_adj, omega=omega),
         rim_threshold=rim_threshold,
         n_stocks=n_stocks,
     )

@@ -12,8 +12,9 @@ from backtest.configs.constants import RF, RK  # noqa: F401
 class StabilityFilter:
     """UniverseFilter Protocol 구현체. 생성자로 파라미터 주입."""
 
-    def __init__(self, r2_exception: bool = True):
+    def __init__(self, r2_exception: bool = True, use_r6: bool = True):
         self.r2_exception = r2_exception
+        self.use_r6       = use_r6
 
     def apply(
         self,
@@ -29,7 +30,7 @@ class StabilityFilter:
             pit1    = series[1] if len(series) > 1 else None
             pit2    = series[2] if len(series) > 2 else None
             ok, reasons = _financial_stability_filter(
-                t, rebalance_date, pit0, pit1, pit2, self.r2_exception
+                t, rebalance_date, pit0, pit1, pit2, self.r2_exception, self.use_r6
             )
             if ok:
                 passed.append(t)
@@ -45,6 +46,7 @@ def _financial_stability_filter(
     pit_prev:      dict | None,
     pit_2y_ago:    dict | None,
     r2_exception:  bool = True,
+    use_r6:        bool = True,
 ) -> tuple[bool, list[str]]:
     """
     True = 통과. 반환: (pass_flag, fail_reasons)
@@ -122,7 +124,7 @@ def _financial_stability_filter(
     equity_rim = (pit_data.get('지배기업소유주지분')
                   or pit_data.get('지배기업소유주지분_1')
                   or equity)
-    if ni is not None and cfo_cur is not None and equity_rim > 0:
+    if use_r6 and ni is not None and cfo_cur is not None and equity_rim > 0:
         adj_roe = (0.5 * ni + 0.5 * cfo_cur) / equity_rim
         r       = RF + 1.0 * (RK - RF)   # β=1.0 고정 (Phase 2)
         if adj_roe < r:
