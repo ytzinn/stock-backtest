@@ -3,8 +3,8 @@
 > **관련 파일**: `backtest/metrics.py`, `backtest/tuner.py`, `backtest/reports.py`
 > **선행 조건**: SPEC_04 완료 (엔진 단일 실행 성공 확인)
 > **Claude Code 지시**:
->   1. Ablation Test 7개 시나리오(A_random~G_full)를 반드시 구현하라.
->      A/B/C는 500회 반복 실행 + 전략 percentile 계산.
+>   1. Ablation Test 13개 시나리오(A_random~H_no_stability)를 반드시 구현하라.
+>      A/B/C/C_no_r6는 500회 반복 실행 + 전략 percentile 계산.
 >   2. Random benchmark 500회는 `multiprocessing`으로 병렬 실행하라.
 >   3. Walk-forward W6/W7은 Final Holdout이다. 튜닝 완료 후 1회만 열람하라.
 >      코드 수준에서 W6/W7 결과를 튜닝 루프에서 참조하지 않도록 막아라.
@@ -14,22 +14,41 @@
 
 # 11. Ablation Test (Phase 2 필수 실행)
 
-Phase 2에서 각 레이어의 독립적 Alpha 기여도를 분해하기 위해 7개 시나리오를 비교한다.
+Phase 2에서 각 레이어의 독립적 Alpha 기여도를 분해하기 위해 13개 시나리오를 비교한다.
 레이어를 하나씩 추가하는 누적 구조로 설계해 원인 분리를 명확히 한다.
+`_no_r6` 변형은 R6(adjROE < r) 필터 없이 실행 → R6의 독립 기여도 측정.
 
 **설계 원칙**: Hard Filter와 재무안정성 필터의 기여도를 독립적으로 측정하기 위해
 두 레이어를 별도 시나리오로 분리한다. "Hard Filter만 통과한 랜덤"과 "Hard + Stability 통과한 랜덤"을
 각각 두어야 재무안정성 필터 자체가 Alpha에 기여하는지 확인할 수 있다.
 
-| 태그 | Hard Filter | 재무안정성 | 팩터 스크리닝 | 모멘텀 | RIM 필터 | 비고 |
-|------|------------|----------|-------------|--------|---------|------|
+| 태그 | Hard Filter | 재무안정성(R6포함) | 팩터 스크리닝 | 모멘텀 | RIM 필터 | 비고 |
+|------|------------|-----------------|-------------|--------|---------|------|
 | A_random | ❌ | ❌ | ❌ | ❌ | ❌ | 전체 DQ PASS 종목 랜덤 |
 | B_hard_random | ✅ | ❌ | ❌ | ❌ | 랜덤 N개 | Hard Filter 통과 종목 랜덤 |
-| C_stability_random | ✅ | ✅ | ❌ | ❌ | 랜덤 N개 | Hard + Stability 통과 종목 랜덤 |
+| C_stability_random | ✅ | ✅ | ❌ | ❌ | 랜덤 N개 | Hard + Stability(R6포함) 통과 랜덤 |
+| C_no_r6 | ✅ | ✅ (R6 제외) | ❌ | ❌ | 랜덤 N개 | R6 없는 랜덤 벤치마크 |
 | D_rim_only | ✅ | ✅ | ❌ | ❌ | ✅ | RIM 단독 효과 측정 |
+| D_no_r6 | ✅ | ✅ (R6 제외) | ❌ | ❌ | ✅ | R6 기여도 측정 |
 | E_screener_rim | ✅ | ✅ | ✅ | ❌ | ✅ | 팩터 스크리닝 기여도 측정 |
+| E_no_r6 | ✅ | ✅ (R6 제외) | ✅ | ❌ | ✅ | 팩터×R6 교호작용 |
 | F_momentum_rim | ✅ | ✅ | ❌ | ✅ | ✅ | 모멘텀 기여도 측정 |
-| G_full | ✅ | ✅ | ✅ | ✅ | ✅ | 전체 조합 (현재 설계) |
+| F_no_r6 | ✅ | ✅ (R6 제외) | ❌ | ✅ | ✅ | 모멘텀×R6 교호작용 |
+| G_full | ✅ | ✅ | ✅ | ✅ | ✅ | 전체 조합 |
+| G_no_r6 | ✅ | ✅ (R6 제외) | ✅ | ✅ | ✅ | 전체 조합 R6 제외 |
+| H_no_stability | ✅ | ❌ | ✅ | ✅ | ✅ | 재무안정성 필터 전체 제거 |
+
+**Phase 2 Ablation 완료 결과 (2026-06-21):**
+
+| 시나리오 | CAGR (순) | Alpha(KS) | Sharpe | MDD | 판정 |
+|---------|---------|-----------|--------|-----|------|
+| C_stability_random | 5.83%(중앙) / p95=10.91% | — | — | — | 벤치마크 |
+| D_rim_only | 11.47% (10.55%) | -2.34% | 0.429 | -32.78% | ✅ D>C_p95 |
+| E_screener_rim | 5.29% (4.39%) | -8.52% | 0.210 | -35.26% | ❌ E<D |
+| **F_momentum_rim** | **14.09% (13.02%)** | +0.28% | **0.518** | **-28.06%** | ✅ F>D |
+| G_full | 8.07% (7.02%) | -5.74% | 0.314 | -26.34% | ❌ G<D |
+| H_no_stability | 9.45% (8.37%) | -4.36% | 0.335 | -40.63% | MDD↑ |
+| KOSPI 벤치마크 | 13.81% | — | — | — | |
 
 **Random benchmark 실행 방식 (A/B/C 공통):**
 단일 시드 1회 실행은 통계적 의미가 없으므로, 랜덤 시나리오는 500회 반복 실행하여
@@ -55,7 +74,7 @@ ABLATION_CONFIGS = {
                             'use_momentum': True,  'use_rim_filter': True},
 }
 
-RANDOM_TAGS    = {'A_random', 'B_hard_random', 'C_stability_random'}
+RANDOM_TAGS    = frozenset({'A_random', 'B_hard_random', 'C_stability_random', 'C_no_r6'})
 RANDOM_REPEATS = 500   # 랜덤 시나리오 반복 횟수
 
 for tag, config in ABLATION_CONFIGS.items():
@@ -79,14 +98,22 @@ def report_strategy_percentile(strategy_cagr: float, random_tag: str) -> float:
 ```
 
 **Ablation Test 판정 기준:**
-- C > B: 재무안정성 필터 자체가 Alpha에 기여함 (단순 종목 축소 이상의 효과 존재)
-- D > C: RIM이 랜덤 대비 Alpha를 냄 → RIM 유효성 확인 (핵심 관문)
+- C > B (p95 기준): 재무안정성 필터 자체가 Alpha에 기여함 (단순 종목 축소 이상의 효과 존재)
+- D > C_p95: RIM이 랜덤 대비 Alpha를 냄 → RIM 유효성 확인 (**핵심 관문**)
 - E > D: 팩터 스크리닝이 추가 Alpha를 냄 → 스크리닝 유지 확정
 - F > D: 모멘텀이 추가 Alpha를 냄 → 모멘텀 유지 확정
 - G ≈ E 또는 G ≈ F: 팩터 스크리닝과 모멘텀 중 하나가 중복 → 제거 검토
-- G, E, F 모두 C와 큰 차이 없으면: 전략 구조 재검토 필요
+- D_no_r6 - D: R6 필터가 성과를 저해하는지 확인 (낮아야 R6 유효)
+- H_no_stability MDD: 재무안정성 필터의 위험 관리 효과 (H MDD > F MDD이면 유효)
 - **D의 CAGR이 C_stability_random 95th percentile 미만이면 RIM 효과 통계적으로 불충분**
 - ablation_tag는 `backtest_runs` 테이블에 기록되어 run 간 비교 가능
+
+**Phase 2 판정 결과 (2026-06-21):**
+- ✅ D(11.47%) > C_p95(10.91%): RIM 통계적 유효
+- ✅ F(14.09%) > D(11.47%): 모멘텀 유효
+- ❌ E(5.29%) < D(11.47%): 팩터 스크리닝 성과 저해 → Phase 3 가중치 재조정 후 재검증
+- ❌ C_median(5.83%) < B_p95(11.34%): 재무안정성 Alpha 기여 미미 (단, MDD 관리 기여)
+- H MDD(-40.63%) >> F MDD(-28.06%): 재무안정성 필터 리스크 관리 효과 확인
 
 ---
 

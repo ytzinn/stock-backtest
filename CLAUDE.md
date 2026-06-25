@@ -39,25 +39,28 @@ Phase 0A 게이팅 통과 전 Phase 1 코드 작성 금지.
 ## 주요 상수
 ```python
 RF, RK = 0.0263, 0.0873  # backtest/configs/constants.py (rim.py, stability_filter.py가 import)
+OMEGA  = 0.62             # 초과이익 지속성. V/B = 1 + (adjROE-r)/(1+r-OMEGA)
+VB_CAP = 5.0              # V/B 상한 새니티 캡. FV = equity × clamp(V/B, 0, VB_CAP)
 ```
 
-## 알려진 API 한계 및 대체 수단
+## 현재 데이터 소스 및 API 한계
 
-pykrx는 KRX 2024 웹 리뉴얼 이후 다수 함수가 불작동한다. 아래 목록 외 pykrx 함수를 새로 사용할 경우 반드시 빈 응답 여부를 확인한다.
+**현재 사용 중인 pykrx 함수 (작동 확인, 2026-06):**
+- `get_market_ohlcv_by_date(start, end, ticker, adjusted=True)` → 일별 OHLCV (`price_ingest`)
+- `get_market_ohlcv(start, end, ticker)` → 시가총액 계산용 (`market_cap_ingest`)
+
+**pykrx 불작동 함수 (사용 금지, KRX 2024 리뉴얼 이후):**
 
 | 불작동 함수 | 증상 | 현재 대체 수단 |
 |------------|------|--------------|
-| `get_market_ohlcv_by_date()` | 빈 DataFrame | `fdr.DataReader(ticker, start, end)` |
-| `get_market_cap_by_date()` | 빈 DataFrame | `fdr.StockListing('KRX')` 현재 주식수 × 종가 근사 (상폐 종목 미적용) |
-| `get_market_ticker_list()` | 빈 응답 | **KRX Open API** `stk_bydd_trd`/`ksq_bydd_trd` (연도별 정확한 스냅샷 가능) |
-| `get_market_sector_classifications()` | 빈 응답 | 최근 5거래일 retry → 실패 시 DB 수동 UPDATE |
+| `get_market_cap_by_date()` | 빈 DataFrame | pykrx `get_market_ohlcv()` × 주식수 근사 |
+| `get_market_ticker_list()` | 빈 응답 | **KRX Open API** `stk_bydd_trd`/`ksq_bydd_trd` (연도별 정확한 스냅샷) |
+| `get_market_sector_classifications()` | 빈 응답 | DB 수동 UPDATE |
+| `get_index_ohlcv_by_date()` | KeyError('지수명') | `price_history` DISTINCT date |
 
-**FDR 한계**
-- `adj_close`: FDR은 단일 종가만 제공 → `adj_close = close`로 처리 (Naver 기준 수정주가 포함됨)
-- `turnover`: `volume × close` 근사값 (실제 거래대금 아님)
-- `market_cap`: 현재 주식수 기준 추정 (유상증자·감자 이력 미반영)
-- 상폐 종목 주식수: `fdr.StockListing('KRX')` 현재 상장 목록만 제공 → `fdr.StockListing('KRX-DELISTING')`의 `ListingShares` 컬럼으로 보완 (`supplement_delisted()`)
-- KOSPI 지수: `fdr.DataReader('KS11')` 사용 (Naver Finance 라우트). `'KRX/INDEX/KOSPI'`는 Yahoo fallback → 500 에러
+**FDR 사용처 (일별 OHLCV는 pykrx 사용, FDR 아님)**
+- 상폐 종목 주식수: `fdr.StockListing('KRX-DELISTING')` `ListingShares` 컬럼 (`supplement_delisted()`)
+- KOSPI 벤치마크 지수: `fdr.DataReader('KS11')` (Naver Finance 라우트). `'KRX/INDEX/KOSPI'`는 Yahoo fallback → 500 에러
 
 **KRX Open API** (`data-dbg.krx.co.kr`)
 - **엔드포인트**: `https://data-dbg.krx.co.kr/svc/apis/sto/{api_id}`

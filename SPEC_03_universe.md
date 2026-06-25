@@ -48,7 +48,7 @@ v4.3에서 Universe 구성은 다음 4단계를 순서대로 적용한다.
 > DB 조회 헬퍼는 모두 `backtest/data_access.py`에서 import한다.
 
 ```python
-# backtest/filters/hard_filter.py
+# backtest/filters/hard_filter.py  (v5.0 — 거래정지 5일 검사 추가)
 # HardFilter.apply() 내부에서 호출되는 단일 종목 로직:
     ticker: str,
     rebalance_date: date,
@@ -61,30 +61,31 @@ v4.3에서 Universe 구성은 다음 4단계를 순서대로 적용한다.
     True = 통과, False = 제외.
     반환: (pass_flag, reason)
     """
-    # 거래유동성
-    if get_avg_turnover(ticker, rebalance_date, 20) < min_turnover:
+    # 직전 5 영업일 중 거래 0건 → 거래정지 상태로 간주, 편입 불가
+    # 근거: 거래정지 종목이 감자 후 재개 시 수백% 허위 수익 발생 (제일바이오 사례)
+    if not has_recent_trade(conn, ticker, rebalance_date, window=5):
+        return False, '5일 이상 거래정지'
+
+    # 거래유동성: 최근 20 영업일 일평균 거래대금 (최대 90일 이내 데이터만)
+    # max_lookback_days=90: 2년 이상 전 거래량이 현재 유동성인 것처럼 계산되는 것 방지
+    if get_avg_turnover(conn, ticker, rebalance_date, 20, max_lookback_days=90) < min_turnover:
         return False, '거래대금 부족'
 
     # 상장기간
-    ld = get_listed_date(ticker)
+    ld = get_listed_date(conn, ticker)
     if ld and (rebalance_date - ld).days < min_listed_months * 30:
         return False, '상장 6개월 미만'
 
     # PIT 데이터 존재
-    if not has_pit_fy_data(ticker, rebalance_date):
+    if not pit_series_for_ticker:
         return False, 'PIT FY 데이터 없음'
 
-    # R06: 감사의견 비적정·한정 (시점 기준)
-    if has_adverse_audit_opinion(ticker, rebalance_date):
-        return False, '감사의견 비적정·한정'
-
     # R07: 상장폐지 사유 이력 (시점 기준)
-    if is_delisted_at(ticker, rebalance_date):
+    if is_delisted_at(conn, ticker, rebalance_date):
         return False, '상장폐지'
 
-    # R08: 관리종목 지정 (시점 기준)
-    if is_under_admin_at(ticker, rebalance_date):
-        return False, '관리종목'
+    # R06: 감사의견 비적정·한정 — DB 미수집, Phase 3 이후 추가 예정
+    # R08: 관리종목 지정 — DB 미수집, Phase 3 이후 추가 예정
 
     return True, ''
 ```
@@ -632,65 +633,71 @@ PHASE2_PIPELINE = BacktestPipeline(
 
 ---
 
-## 6-7. data_access.py — DB 조회 헬퍼 (v4.8 신규)
+## 6-7. data_access.py — DB 조회 헬퍼 (v5.0 구현 완료)
 
 모든 필터와 파이프라인에서 공통으로 사용하는 DB 조회 함수를 한 파일에 집중한다.
 커넥션은 엔진 레벨에서 열어 인자로 전달(`conn` 주입 패턴). `ingest/connection.py`의 팩토리 재사용.
 
+**v5.0 추가 함수:**
+- `has_recent_trade(conn, ticker, as_of, window=5)`: 최근 5 영업일 내 실제 거래 여부
+- `get_avg_turnover(conn, ticker, as_of, window=20, max_lookback_days=90)`: 90일 내 데이터만 사용
+- `load_pit_series_ttm(conn, rebalance_date, report_type)`: H1 TTM 계산 포함
+
 ```python
-# backtest/data_access.py
-from ingest.connection import get_conn   # 팩토리 재사용 (DB 포트 5433)
-import pandas as pd
+# backtest/data_access.py (구현 완료 상태)
 
 # ── 가격 / 거래대금 ─────────────────────────────────────────────────────────
-def get_avg_turnover(conn, ticker: str, date, window: int = 20) -> float:
-    """최근 window 영업일 평균 거래대금(원). 데이터 없으면 0 반환."""
-    ...
+def get_avg_turnover(conn, ticker: str, as_of: date, window: int = 20,
+                     max_lookback_days: int = 90) -> float:
+    """최근 window 영업일 평균 거래대금(원). max_lookback_days 이내 데이터만 사용."""
 
-def get_adj_close_range(conn, ticker: str, date, lookback: int) -> pd.Series:
-    """date 이전 lookback 영업일 adj_close 시계열. 데이터 없으면 빈 Series."""
-    ...
+def has_recent_trade(conn, ticker: str, as_of: date, window: int = 5) -> bool:
+    """최근 window 영업일 중 거래(is_suspended=FALSE)가 하나라도 있으면 True."""
 
-def get_close_price(conn, ticker: str, date) -> float | None:
-    """date 기준 종가(adj_close). 없으면 None."""
-    ...
+def get_adj_close_range(conn, ticker: str, as_of: date, lookback: int) -> pd.Series:
+    """as_of 이전 lookback 영업일 adj_close 시계열 (오름차순). 없으면 빈 Series."""
+
+def get_close_price(conn, ticker: str, as_of: date) -> float | None:
+    """as_of 기준 가장 가까운 adj_close. 없으면 None."""
 
 # ── 시가총액 / 주식수 ────────────────────────────────────────────────────────
-def get_market_cap(conn, ticker: str, date) -> float | None:
-    """date 기준 가장 가까운 시가총액(원). 없으면 None."""
-    ...
+def get_market_cap(conn, ticker: str, as_of: date) -> float | None:
+    """as_of 기준 가장 가까운 시가총액(KRW). 없으면 None."""
 
-def get_shares_outstanding(conn, ticker: str, date) -> int | None:
-    """date 기준 가장 가까운 상장주식수. 없으면 None."""
-    ...
+def get_shares_outstanding(conn, ticker: str, as_of: date) -> int | None:
+    """as_of 기준 가장 가까운 상장주식수. 없으면 None."""
+
+# ── 종목 메타 ───────────────────────────────────────────────────────────────
+def get_listed_date(conn, ticker: str) -> date | None:
+    """stocks.listed_date 반환. 없으면 None."""
+
+def is_delisted_at(conn, ticker: str, as_of: date) -> bool:
+    """as_of 시점에 상장폐지 여부. stock_listing_events 기준."""
 
 # ── PIT 데이터 ──────────────────────────────────────────────────────────────
-def load_pit_series(
-    conn,
-    rebalance_date,
-    n_years: int = 3,
-) -> dict[str, list[dict]]:
+def load_gate_passed_tickers(conn, rebalance_date: date,
+                              report_type: str = 'FY') -> list[str]:
+    """리밸런싱 기준일 투자 가능 종목 (is_excluded=FALSE + PASS + 상장 중)."""
+
+def load_pit_series(conn, rebalance_date: date, n_years: int = 3,
+                    report_type: str = 'FY') -> dict[str, list[dict]]:
     """
-    universe_gate_pit PASS 종목 전체에 대해 rebalance_date 기준
-    최신 n_years 개 FY PIT 데이터를 로드.
+    universe_gate_pit PASS 종목 전체에 대해 rebalance_date 기준 최신 n_years 개 PIT 로드.
 
     반환: {ticker: [FY현재dict, FY(t-1)dict, FY(t-2)dict]}
-      - available_from <= rebalance_date 조건 필수 (룩어헤드 방지)
-      - 각 원소는 {account_nm: amount, ...} flat dict (피벗된 형태)
-      - 연도가 부족한 종목은 리스트 길이가 짧아짐 (len 1 또는 2)
+      - available_from <= rebalance_date 조건 (룩어헤드 방지)
+      - XBRL 정정 반영: amendment_from <= rebalance_date이면 정정값, 미공개면 original_amount
+      - CFS 우선, OFS fallback
     """
-    ...
 
-def load_gate_passed_tickers(conn, rebalance_date) -> list[str]:
+def load_pit_series_ttm(conn, rebalance_date: date,
+                         report_type: str = 'FY') -> dict[str, list[dict]]:
     """
-    리밸런싱 기준일에 투자 가능한 종목 목록.
-
-    조건:
-      1. stocks.is_excluded = FALSE
-      2. universe_gate_pit.status = 'PASS' (해당 시점 FY)
-      3. stock_listing_events 기준 실제 상장 중 (listed_date <= date < delisted_date)
+    TTM(Trailing Twelve Months) 적용 PIT 시계열.
+    FY 리밸런싱(4월): load_pit_series() 그대로 반환.
+    H1 리밸런싱(8월): TTM = FY_prev − H1_prev + H1_curr (IS/CF 계정만, BS는 H1_curr 그대로).
+    반환: [ttm_curr, ttm_prev, ttm_pp] 3개.
     """
-    ...
 ```
 
 ---

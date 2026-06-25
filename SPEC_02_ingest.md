@@ -2,8 +2,9 @@
 
 > **관련 파일**: `ingest/schema.sql`, `ingest/dart_ingest.py`, `ingest/price_ingest.py`,
 >   `ingest/market_cap_ingest.py`, `ingest/delisting_ingest.py`,
->   `ingest/universe_loader.py`, `ingest/pit_loader.py`,
->   `ingest/validator.py`, `ingest/dq_gate.py`
+>   `ingest/universe_loader.py`, `ingest/krx_listing_ingest.py`,
+>   `ingest/pit_loader.py`, `ingest/validator.py`, `ingest/dq_gate.py`,
+>   `ingest/amendment_checker.py`, `ingest/xbrl_historical_ingest.py`, `ingest/xbrl_mapper.py`
 > **선행 조건**: SPEC_01 완료 (Docker PostgreSQL 가동 확인)
 > **Claude Code 지시**:
 >   1. schema.sql을 먼저 작성하고 `psql`로 적용 확인 후 수집 코드를 작성하라.
@@ -53,7 +54,7 @@ pykrx(KRX OHLCV)는 Ubuntu 서버의 국내 IP에서 직접 실행한다.
 stock-analysis에서 Railway(해외 IP) 차단으로 로컬 PC에서만 실행하던 제약이 해소된다.
 (단, KRX IP 정책에 따라 첫 실행 시 차단 여부를 반드시 확인할 것)
 
-## 3-1-1. CF 보완 수집 (`ingest/supplement_cf.py`)
+## 3-1-1. CF 보완 수집 (`ingest/supplement_cf.py`) ✅ 2026-05 완료 (1회성)
 
 `fnlttSinglAcnt`(주요계정)으로 수집된 기존 종목에 CF 계정이 없어 `adj_roe` 계산이 불가능한 경우를 보완하기 위한 모듈.
 
@@ -76,6 +77,33 @@ def run_supplement_cf(max_tickers: int = 300) -> None:
 
 > **cron 등록 여부**: supplement_cf는 1회성 보완 수집으로 cron에 등록하지 않는다.
 > `python -m ingest.supplement_cf` 수동 실행. CF 수집 완료 후 pit_loader 재실행 필요.
+
+## 3-1-2. XBRL 정정 공시 추적 (v5.0 신규)
+
+DART에서 정정 공시가 발생하면 `financials_pit` 테이블의 과거 값을 소급 수정하지 않고,
+PIT 원칙을 유지하면서 정정 사실만 추적한다.
+
+**추가된 컬럼 (`financials_pit`):**
+- `original_amount`: 최초 공시값 (정정 전 원본)
+- `amendment_from`: 정정 공시 접수일 (이 날짜 이후부터 수정값 사용)
+
+**PIT 적용 로직 (`load_pit_series`):**
+```python
+CASE
+    WHEN f.amendment_from IS NOT NULL AND f.amendment_from <= rebalance_date
+    THEN f.amount           -- 정정 공개됨 → 수정값 사용
+    WHEN f.original_amount IS NOT NULL
+    THEN f.original_amount  -- 정정 미공개 시점 → 원본값 사용 (PIT 보존)
+    ELSE f.amount           -- 정정 없음
+END AS effective_amount
+```
+
+**관련 모듈:**
+- `ingest/amendment_checker.py`: DART 정정 공시 감지 → `financials_pit.amendment_from` 업데이트
+- `ingest/xbrl_historical_ingest.py`: XBRL 과거 재무 수집 (정정 이력 포함)
+- `ingest/xbrl_mapper.py`: XBRL 계정명 ↔ 표준계정명 매핑
+
+---
 
 ## 3-2. 생존편향 해소 — 상장폐지 종목 수집
 
@@ -378,7 +406,7 @@ CREATE TABLE IF NOT EXISTS financials (
     UNIQUE (ticker, year, report_type, fs_div, account_nm)
 );
 
--- 4. Point-in-Time 재무 데이터
+-- 4. Point-in-Time 재무 데이터  ← v5.0: original_amount, amendment_from 추가
 CREATE TABLE IF NOT EXISTS financials_pit (
     id              SERIAL  PRIMARY KEY,
     ticker          TEXT    NOT NULL REFERENCES stocks(ticker),
@@ -387,12 +415,16 @@ CREATE TABLE IF NOT EXISTS financials_pit (
     report_type     TEXT    NOT NULL,
     fs_div          TEXT    NOT NULL,
     account_nm      TEXT    NOT NULL,
-    amount          NUMERIC,
+    amount          NUMERIC,               -- 최신값 (정정 후면 정정값, 아니면 최초값)
+    original_amount NUMERIC,               -- 최초 공시값 (정정 발생 시 보존)
+    amendment_from  DATE,                  -- 정정 공시 접수일 (NULL이면 정정 없음)
     available_from  DATE    NOT NULL,
     source_rcept_no TEXT,
-    fallback_used   BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE: 법정마감+5일 fallback 사용 (실제 공시일 없음)
+    fallback_used   BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE: 법정마감+5일 fallback 사용
     UNIQUE (ticker, year, report_type, fs_div, account_nm, available_from)
 );
+-- PIT 조회 규칙: amendment_from <= rebalance_date이면 amount(수정값) 사용,
+--               original_amount IS NOT NULL이면 원본값 사용, 그 외 amount 사용.
 
 -- 5. 공시 목록 (available_from 결정용 + DQ Gate R06~R08)
 CREATE TABLE IF NOT EXISTS disclosures (
@@ -462,7 +494,7 @@ CREATE TABLE IF NOT EXISTS backtest_runs (
     params            JSONB,
     fitness           NUMERIC,
     metrics           JSONB,
-    ablation_tag      TEXT,       -- 'A_random' | 'B_hard_random' | 'C_stability_random' | 'D_rim_only' | 'E_screener_rim' | 'F_momentum_rim' | 'G_full'
+    ablation_tag      TEXT,       -- 13개 시나리오: A_random | B_hard_random | C_stability_random | C_no_r6 | D_rim_only | D_no_r6 | E_screener_rim | E_no_r6 | F_momentum_rim | F_no_r6 | G_full | G_no_r6 | H_no_stability
     -- ── 재현성 컬럼 (v4.7 추가) ─────────────────────────────────────────────
     git_commit        TEXT,       -- git rev-parse HEAD (실험 당시 코드 상태)
     param_hash        TEXT,       -- md5(json.dumps(params, sort_keys=True)) — 중복 실험 탐지

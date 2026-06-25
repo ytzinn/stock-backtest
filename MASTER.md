@@ -1,8 +1,9 @@
 # stock-backtest — MASTER 설계서
 
-> **설계서 버전**: v4.9
+> **설계서 버전**: v5.0
 > **프로젝트 저장소**: `stock-backtest/`
 > **기준 문서**: 멀티모델_백테스트_머신_설계서_v4.8.md
+> **Phase 2 완료**: 2026-06-21 (13개 시나리오 Ablation Test 완료)
 
 ---
 
@@ -64,7 +65,7 @@ universe_gate_pit(PASS) + financials_pit + price_history
     ├─ 모멘텀 필터           (MA20/MA60 이중 조건)
     └─ RIM 밸류에이션 필터   (현재가 > RIM적정가 × 1.05 제외)         ← v4.3 신규
     ▼
-포트폴리오 구성 → 성과 측정 → Ablation Test (A~G, 랜덤 시나리오 500회)
+포트폴리오 구성 → 성과 측정 → Ablation Test (13개 시나리오, 랜덤 500회)
 
 [Phase 3 — 기업 분류기 + 팩터 가중치 튜닝]
     ← Phase 2 결과 기반으로 실행
@@ -76,22 +77,22 @@ universe_gate_pit(PASS) + financials_pit + price_history
     ← Phase 4 OOS Alpha 확인 후 결정
 ```
 
-### pykrx API 제약 (2026-05 확인)
+### 현재 사용 중인 데이터 소스 (2026-06 확인)
 
-KRX 2024 웹사이트 리뉴얼로 OTP 엔드포인트(`/cgi-bin/service/otp.cmd`)가 404 반환.
-아래 함수들은 **빈 응답** 또는 오류를 반환하므로 대체 로직 적용:
+| 데이터 종류 | 소스 | 모듈 |
+|------------|------|------|
+| 일별 OHLCV (수정주가·거래량) | pykrx `get_market_ohlcv_by_date(adjusted=True)` | `ingest/price_ingest.py` |
+| 시가총액 | pykrx `get_market_ohlcv()` × 상장주식수 | `ingest/market_cap_ingest.py` |
+| 연도별 상장 종목 스냅샷 | KRX Open API `stk_bydd_trd`/`ksq_bydd_trd` | `ingest/krx_listing_ingest.py` |
+| 재무 데이터 (FY·H1) | DART `fnlttSinglAcntAll.json` | `ingest/dart_ingest.py` |
+| 영업일 캘린더 | `price_history` DISTINCT date (삼성전자 기준) | `backtest/configs/rebalance_dates.py` |
+| 금융업 섹터 분류 | 수동 DB UPDATE | `stocks.is_financial` |
 
-| 함수 | 상태 | 대체 |
-|------|------|------|
-| `get_market_ohlcv(start, end, ticker)` | ✅ 작동 | — (market_cap_ingest에서 사용) |
-| `get_market_ohlcv_by_date(start, end, ticker)` | ❌ 빈 응답 | `fdr.DataReader(ticker, start, end)` (price_ingest) |
-| `get_market_cap_by_date(start, end, ticker)` | ❌ 빈 응답 | FDR shares × 종가 근사. 상폐 종목은 `supplement_delisted()` 보완 |
-| `get_market_sector_classifications(date)` | ❌ 빈 응답 | `is_financial` 수동 DB UPDATE |
-| `get_market_ticker_list(date)` | ❌ 빈 응답 | **KRX Open API** `stk_bydd_trd`/`ksq_bydd_trd` (연도별 정확한 스냅샷) |
-| `get_index_ohlcv_by_date(start, end, ticker)` | ❌ KeyError('지수명') | `price_history` DISTINCT date 조회 (영업일 캘린더 대용) |
-
-한계: 현재 상장 종목 시가총액은 FDR 현재 상장주식수 × 종가 근사 (주식수 변경 이력 미반영).
-상폐 종목은 `fdr.StockListing('KRX-DELISTING')` `ListingShares` 컬럼으로 보완 (2015년 이후 100% 커버).
+**pykrx 불작동 함수 (사용 금지, KRX 2024 리뉴얼 이후):**
+- `get_market_cap_by_date()` → 빈 DataFrame
+- `get_market_ticker_list()` → 빈 응답 (KRX Open API로 대체)
+- `get_market_sector_classifications()` → 빈 응답
+- `get_index_ohlcv_by_date()` → KeyError('지수명')
 
 ---
 
@@ -109,15 +110,16 @@ KRX 2024 웹사이트 리뉴얼로 OTP 엔드포인트(`/cgi-bin/service/otp.cmd
 | r (요구수익률, β=1.0 고정) | **8.73%** | r = RF + 1.0 × (RK − RF) = RK |
 | β | 1.0 고정 (Phase 2~4) | get_beta() 미구현. Phase 3 이후 rolling β 도입 검토 |
 | adjROE 방식 | Dechow(1994) Method C, λ=0.5 | adjROE = (0.5×NI + 0.5×CFO) / equity. equity = **지배기업소유주지분** 우선, 없으면 자본총계 fallback. CFS에서 비지배지분 제외하여 지배주주 기준 적정가 산출. |
-| dividend_status missing 처리 | payout=0 가정 (낙관적 편향 허용) | KOSDAQ 소형주 누락 다수 → 제외 시 소형주 편향 |
+| ω (초과이익 지속성) | **0.62** | Dechow(1994) 실증값. 구 산식의 g·payout 대체. V/B = 1 + (adjROE − r) / (1 + r − ω) |
+| VB_CAP | **5.0** | V/B 상한 새니티 캡. FV = equity × clamp(V/B, 0, 5.0). 극단적 고ROE 종목 FV 폭발 방지 |
 
 코드 내 선언 위치: `backtest/models/rim.py`, `backtest/filters/stability_filter.py`
 ```python
 RF, RK = 0.0263, 0.0873   # 두 파일에서 동일 값 유지
 ```
 
-- **성장률 상한**: `g = max(0, min(adjROE × (1−payout), r × 0.9))`. 상한 `r × 0.9`는 분모 `(1+r−g)` 발산 방지 수학적 안전장치. 튜닝 제외, 고정값.
-- **FV 음수 방어**: `fv_total ≤ 0`이면 `None` 반환. R6 필터로 대부분 선제 제거되지만, PIT 데이터와 재무안정성 필터 타이밍 불일치(리밸런싱 시점 vs FY 시점)로 FV 음수 발생 가능 → 방어적 처리. 실제 발생 확인으로 추가됨.
+- **FV 산출**: `FV = equity × clamp(V/B, 0, 5.0)`. ω=0.62 고정(Dechow 1994 실증값), VB_CAP=5.0(새니티 캡). 구 산식(g·payout 기반)은 분자에 ×g가 붙어 ROE 민감도가 PBR 대비 ~20배 낮은 병리가 있었음 → 2026-06-21 산식 교체.
+- **FV 음수 방어**: clamp 하한 0으로 처리. equity 자체가 음수인 경우(자본잠식) R6 필터에서 선제 제거.
 
 ## 3-2. 리밸런싱 날짜
 
@@ -227,68 +229,114 @@ stock-backtest/      ← 백테스트 전용 저장소
 ## 1-2. 디렉토리 구조
 
 ```text
-korean-stock-backtest/
+stock-backtest/                   # 실제 서버 경로: /opt/stock-backtest/
 │
 ├─ .env
 ├─ .gitignore
-├─ requirements.txt               # 주요 패키지 버전 고정 필수
-│                                 # 예: pykrx==1.0.47, FinanceDataReader==0.9.50
-│                                 #     optuna==3.6.1, pandas==2.2.2, psycopg2-binary==2.9.9
+├─ requirements.txt
 ├─ docker-compose.yml             # Ubuntu 서버 PostgreSQL (포트 5433)
 ├─ CLAUDE.md
 │
 ├─ scripts/
-│   ├─ start.sh                   # Docker + 서비스 일괄 시작
-│   ├─ stop.sh                    # 일괄 종료
-│   ├─ backup_db.sh               # DB 백업 (cron에서 호출)
-│   └─ run_batch.sh               # 전체 배치 수집 래퍼 (cron에서 호출)
+│   ├─ generate_rebalance_dates.py  # 리밸런싱 날짜 1회 생성 후 하드코딩
+│   ├─ run_ablation.py              # 13개 시나리오 전체 실행
+│   ├─ export_portfolios.py         # 기간별 편입 종목·가격 추출
+│   ├─ fix_h1_disclosures.py        # H1 공시 누락 보정 (1회성)
+│   ├─ estimate_omega.py            # Ohlson ω 파라미터 추정
+│   ├─ run_omega_sensitivity.py     # ω 민감도 분석
+│   └─ rebuild_stocks_from_krx.py   # stocks 테이블 재구성
 │
 ├─ ingest/
 │   ├─ schema.sql
 │   ├─ connection.py
-│   ├─ universe_loader.py         # KRX 현재 + 상장폐지 종목 목록
+│   ├─ logging_config.py
+│   ├─ universe_loader.py
+│   ├─ krx_listing_ingest.py        # KRX Open API 상장 스냅샷 (연도별)
 │   ├─ dart_ingest.py
-│   ├─ price_ingest.py            # OHLCV + adj_close + is_suspended
-│   ├─ market_cap_ingest.py       # 시가총액·상장주식수 (pykrx)
-│   ├─ delisting_ingest.py        # FDR KRX-DELISTING 상장폐지 이력
-│   ├─ pit_loader.py
+│   ├─ price_ingest.py              # FDR DataReader → adj_close + is_suspended
+│   ├─ market_cap_ingest.py
+│   ├─ delisting_ingest.py
+│   ├─ pit_loader.py                # financials_pit 생성 (XBRL 정정 반영)
 │   ├─ validator.py
-│   └─ dq_gate.py
+│   ├─ dq_gate.py
+│   ├─ amendment_checker.py         # DART 정정 공시 → financials_pit.amendment_from
+│   ├─ xbrl_historical_ingest.py    # XBRL 과거 재무 수집 (정정 이력 포함)
+│   ├─ xbrl_mapper.py               # XBRL 계정명 ↔ 표준명 매핑
+│   ├─ xbrl_poc.py                  # XBRL 개발용 POC
+│   ├─ healthcheck.py
+│   ├─ check_status.py
+│   ├─ quick_status.py
+│   └─ migrations/
+│       └─ apply.py                 # DB 마이그레이션 순차 적용
 │
 ├─ backtest/
-│   ├─ interfaces.py              # [v4.8] Protocol 정의: UniverseFilter, ValuationModel
-│   ├─ data_access.py             # [v4.8] DB 조회 헬퍼 (ingest/connection.py 재사용)
-│   ├─ pipeline.py                # [v4.8] BacktestPipeline 조립 클래스
-│   ├─ engine.py                  # 리밸런싱 루프, 수익률 계산
-│   ├─ filters/                   # [v4.8] 유니버스 필터 구현체
-│   │   ├─ hard_filter.py         # (기존 universe.py → 이동)
-│   │   ├─ stability_filter.py    # (기존 universe.py → 이동)
-│   │   ├─ factor_screener.py     # (기존 screener.py → 이동)
-│   │   └─ momentum_filter.py     # (기존 universe.py → 이동)
-│   ├─ models/                    # [v4.8] 적정가 모델 구현체
-│   │   ├─ rim.py                 # RIMModel (기존 models.py → 이동)
-│   │   └─ _skeleton.py           # Phase 5 멀티모델 skeleton (EV/Sales, FCFF 등)
-│   ├─ configs/                   # [v4.8] Phase별 파이프라인 조립
-│   │   ├─ rebalance_dates.py     # 21개 리밸런싱 날짜 하드코딩 (재현성 보장)
-│   │   ├─ phase2_rim.py          # Phase 2 기본 파이프라인
-│   │   └─ phase5_multimodel.py   # Phase 5 멀티모델 파이프라인 (미래)
-│   ├─ classifier.py              # Phase 3 이후 활성화 (현재 skeleton)
-│   ├─ scorer.py                  # 저평가 랭킹 + 밸류에이션 필터
-│   ├─ portfolio.py
+│   ├─ interfaces.py                # UniverseFilter, ValuationModel Protocol
+│   ├─ data_access.py               # DB 조회 헬퍼 (conn 주입, has_recent_trade 포함)
+│   ├─ pipeline.py                  # BacktestPipeline 조립 클래스
+│   ├─ engine.py                    # 리밸런싱 루프, 수익률 계산
 │   ├─ metrics.py
-│   ├─ tuner.py
-│   └─ reports.py
+│   ├─ portfolio.py
+│   ├─ ablation.py                  # 13개 시나리오 정의 + _RandomSelectPipeline
+│   ├─ filters/
+│   │   ├─ hard_filter.py           # 5일 거래정지 검사 + 90일 거래대금 lookback
+│   │   ├─ stability_filter.py      # R1~R6 하드 룰 (use_r6 플래그)
+│   │   ├─ factor_screener.py       # 4팩터 상위 20%
+│   │   └─ momentum_filter.py       # MA20/MA60 이중 조건
+│   ├─ models/
+│   │   └─ rim.py                   # RIMModel (Dechow 1994 adjROE, Gordon growth)
+│   └─ configs/
+│       ├─ constants.py             # RF=0.0263, RK=0.0873, OMEGA=0.62
+│       ├─ rebalance_dates.py       # 21개 날짜 하드코딩 (2015~2026, 재현성)
+│       └─ phase2_rim.py            # Phase 2 파이프라인 조립
+│
+├─ dashboard/
+│   ├─ app.py                       # Streamlit 대시보드 (포트 8502)
+│   ├─ server.py
+│   ├─ health.py
+│   ├─ queries.py
+│   ├─ logs.py
+│   ├─ config.py
+│   ├─ system_checks.py
+│   ├─ sanitize.py
+│   └─ pages/
+│       └─ ablation.py
+│
+├─ validate/
+│   └─ factor_comparison.py
 │
 └─ experiments/
-    ├─ runs/
-    ├─ dq_gate_result.csv
-    ├─ ablation/                  # Ablation Test 결과
-    ├─ sensitivity/
-    └─ reports/
+    ├─ ablation/                    # 13개 시나리오 결과 (JSON/CSV)
+    └─ (기타 실험 결과)
 ```
 
 ---
 
+
+---
+
+## Phase 2 Ablation Test 결과 요약 (2026-06-21 기준)
+
+| 시나리오 | CAGR (순) | Alpha vs KOSPI | Sharpe | MDD | 비고 |
+|---------|---------|-------------|--------|-----|------|
+| **A_random** | — | — | — | — | 랜덤 500회 분포만 |
+| **B_hard_random** | 3.82% (중앙) | — | — | — | p95=11.34% |
+| **C_stability_random** | 5.83% (중앙) | — | — | — | p95=10.91% |
+| **D_rim_only** | 11.47% (10.55%) | -2.34% | 0.429 | -32.78% | RIM 단독 |
+| **E_screener_rim** | 5.29% (4.39%) | -8.52% | 0.210 | -35.26% | 팩터 스크리닝 효과 없음 |
+| **F_momentum_rim** | **14.09%** (13.02%) | +0.28% | **0.518** | **-28.06%** | **최적 조합** |
+| **G_full** | 8.07% (7.02%) | -5.74% | 0.314 | -26.34% | 팩터 스크리닝이 성과 저해 |
+| **H_no_stability** | 9.45% (8.37%) | -4.36% | 0.335 | -40.63% | 재무안정성 필터 제거 시 MDD 급등 |
+| KOSPI 벤치마크 | 13.81% | — | — | — | 배당 미반영 |
+
+**판정 결과:**
+- ✅ D > C_p95 (RIM 유효성): D(11.47%) > C_p95(10.91%) → RIM은 랜덤 대비 통계적으로 유효
+- ✅ F > D (모멘텀 기여): F(14.09%) > D(11.47%) → 모멘텀 필터 유지
+- ❌ C > B_p95 (재무안정성 기여): C_median(5.83%) < B_p95(11.34%) → 재무안정성 자체 Alpha는 미미
+- ❌ E > D (팩터 스크리닝 기여): E(5.29%) < D(11.47%) → 팩터 스크리닝 제거 검토 필요
+
+**Phase 3 방향**: Hard + Stability + Momentum + RIM 구조(F 기반) 유지. 팩터 스크리닝은 Phase 3에서 가중치 재조정 후 재검증. 재무안정성 필터(R6 포함)는 MDD 관리에 기여 확인(H vs F MDD 비교).
+
+> ⚠️ `D_no_r6`(41.47%), `F_no_r6`(32.96%) 이상 수치는 거래정지 종목(제일바이오 052670) 감자 데이터 오염으로 발생한 아티팩트. `has_recent_trade(window=5)` 픽스 적용 후 재실행 필요.
 
 ---
 
@@ -306,6 +354,7 @@ korean-stock-backtest/
 > **v4.8**: 모듈화 설계 도입. `backtest/` 하위 `filters/` · `models/` · `configs/` 디렉토리 분리. `interfaces.py` Protocol 정의(UniverseFilter, ValuationModel). `build_universe()` → `BacktestPipeline` 클래스로 교체. `RIMModel` 클래스화. Phase별 파이프라인 조립을 `configs/`에서 관리.
 > **v4.9** (인터뷰 반영): ① `UniverseFilter.apply()` 시그니처 `pit_prev` 제거 → `pit_series: dict[str, list[dict]]`([0]=현재, [1]=t-1, [2]=t-2) 통일. ② `backtest/data_access.py` 신규 — DB 조회 헬퍼 집중, `ingest/connection.py` 재사용, `conn` 주입 패턴. ③ 필터 클래스: 생성자 파라미터 주입 + `apply()` 메서드 구조 확정. ④ FactorScreener 가중치 키 영어 통일(`rev_yoy, op_yoy, gpa, inv_pbr`). ⑤ `beta_adj` 파라미터 정의 명시 (r 오프셋, β=1.0 유지). ⑥ `configs/rebalance_dates.py` 생성 스크립트 추가. ⑦ Phase 2 튜닝 파라미터 테이블 §3-7 신규.
 > **v4.9 추가** (심층 인터뷰 반영): ⑧ `g` 상한 `r×0.9` 수학적 안전장치 명시(§3-1). ⑨ `fv_total ≤ 0` 방어 처리 추가 — 실제 발생 확인, R6 이후 PIT 타이밍 불일치 케이스. ⑩ 리밸런싱 날짜 영업일 계산: pykrx 불가 → `price_history` DISTINCT date(삼성전자 기준) 대체. ⑪ `dividend_status` 로컬 변수 제거, `logging.debug` 유지 — Phase 4 민감도용 DB 원본 활용. ⑫ 업종 집중 상한 25%: `stocks.sector` 데이터 미정비로 Phase 2 고정, Phase 3 이후 검토.
+> **v5.0** (Phase 2 완료, 2026-06-21): ① Ablation Test 13개 시나리오 완료 (no_r6 변형 6개 + H_no_stability 추가). ② `has_recent_trade(window=5)` Hard Filter에 추가 — 거래정지 5일 이상 종목 선제 제외 (제일바이오 감자 아티팩트 근본 차단). ③ `get_avg_turnover(max_lookback_days=90)` — 90일 초과 과거 거래량 사용 방지. ④ XBRL 파이프라인 추가: `xbrl_historical_ingest.py`, `xbrl_mapper.py`, `amendment_checker.py` — `financials_pit` 정정 공시 추적(`original_amount`, `amendment_from`). ⑤ `load_pit_series_ttm()` H1 TTM 계산 추가. ⑥ `dashboard/` 추가 (Streamlit, 포트 8502). ⑦ 디렉토리 구조 실제 서버 파일 기준으로 업데이트. ⑧ Phase 2 결과: F_momentum_rim 최적(CAGR 14.09%, Sharpe 0.518, MDD -28.06%). 팩터 스크리닝 성과 저해 확인 — Phase 3 재검증 예정.
 >
 > **핵심 변경 철학**: "모든 모델 산식 먼저 → 구현" 순서 대신 "RIM + 모멘텀으로 Baseline 먼저 → 결과 보고 확장" 순서로 전환.
 > 멀티모델(EV/Sales, Peer PER, NAV, FCFF 등) 산식 확정은 Phase 2 Ablation Test 결과 이후로 이동.

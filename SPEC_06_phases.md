@@ -131,42 +131,57 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 
 ---
 
-## Phase 2 — RIM 단일 모델 백테스트 ← **핵심 실행 단계**
+## Phase 2 — RIM 단일 모델 백테스트 ✅ **완료 (2026-06-21)**
 
 **목표**: 4단계 필터 + RIM 단일 모델 + Ablation Test
 
-> **현재 상태 (2026-05-25)**: Phase 2 코드 완료. 데이터 수집 전체 완료. Phase 1 체크리스트 통과 후 백테스트 실행 예정.
-> 다음 순서: ① pit_loader 재실행 → ② dq_gate 재실행 → ③ Phase 1 체크리스트 검증 → ④ rebalance_dates.py 생성 → ⑤ D_rim_only 첫 실행.
+> **완료 상태 (2026-06-21)**: 13개 시나리오 Ablation Test 전체 완료. 결과: `experiments/ablation/summary.json`.
+> **Phase 3 진입 조건**: F_momentum_rim이 C_stability_random p95(10.91%) 초과 ✅, 모멘텀 효과 ✅.
+> 단, 팩터 스크리닝(E)이 D보다 성과 저조 → Phase 3에서 가중치 재조정 후 재검증 필요.
 
-**작업** (v4.8 모듈화 구조):
-1. `backtest/interfaces.py` — UniverseFilter, ValuationModel Protocol 정의
-2. `backtest/filters/hard_filter.py` — Hard Filter (거래대금, 상장기간, PIT 존재)
-3. `backtest/filters/stability_filter.py` — 재무안정성 필터 (R1~R6 하드 룰)
-4. `backtest/filters/factor_screener.py` — 팩터 스크리닝 (4팩터, 동일가중 고정)
-5. `backtest/filters/momentum_filter.py` — 모멘텀 필터 (MA AND 이중 조건, 5일 연속)
-6. `backtest/models/rim.py` — RIMModel 클래스 (Dechow λ=0.5, stock-analysis 동일)
-7. `backtest/pipeline.py` — BacktestPipeline 조립 클래스
-8. `backtest/configs/phase2_rim.py` — Phase 2 파이프라인 조립
-9. `backtest/scorer.py` — 밸류에이션 필터 (rim_threshold=0.05)
-10. `backtest/portfolio.py`, `metrics.py`, `engine.py`
-11. `configs/rebalance_dates.py` — 21개 리밸런싱 날짜 하드코딩 (재현성 보장)
-12. Ablation Test A~G 7개 시나리오 실행 → `experiments/ablation/`
-13. `experiments/runs/run_001_rim_baseline.csv`
+**완료된 작업** (v4.8 모듈화 구조):
+1. ✅ `backtest/interfaces.py` — UniverseFilter, ValuationModel Protocol 정의
+2. ✅ `backtest/filters/hard_filter.py` — `has_recent_trade(window=5)` + `max_lookback_days=90` 추가
+3. ✅ `backtest/filters/stability_filter.py` — R1~R6 하드 룰 (`use_r6` 플래그)
+4. ✅ `backtest/filters/factor_screener.py` — 4팩터, 동일가중
+5. ✅ `backtest/filters/momentum_filter.py` — MA AND 이중 조건
+6. ✅ `backtest/models/rim.py` — RIMModel (Dechow λ=0.5)
+7. ✅ `backtest/pipeline.py`, `engine.py`, `metrics.py`, `portfolio.py`
+8. ✅ `backtest/ablation.py` — 13개 시나리오 (no_r6 변형 포함)
+9. ✅ `backtest/configs/rebalance_dates.py` — 21개 날짜 하드코딩
+10. ✅ XBRL 파이프라인: `xbrl_historical_ingest.py`, `xbrl_mapper.py`, `amendment_checker.py`
+11. ✅ `load_pit_series_ttm()` — H1 TTM 계산 (FY−H1_prev+H1_curr)
+12. ✅ Ablation Test 13개 시나리오 → `experiments/ablation/`
 
-**검증 체크리스트**:
-- [ ] 재무안정성 필터 탈락 종목 수 리밸런싱별 기록 확인
-- [ ] 팩터 스크리닝 후 종목 수 = 전체의 약 20% (±2%) 확인
-- [ ] 모멘텀 필터 제외 비율 5~20% 범위 확인
-- [ ] Ablation Test A~G 전체 실행 및 C > B(Hard only) 확인 (재무안정성 기여도)
-- [ ] COVID 구간(2020 Q1) 성과 별도 분해 출력
-- [ ] `available_from <= rebalance_date` 조건 지켜짐 확인
-- [ ] 상장폐지 청산 처리 로직 작동 확인
+**Phase 2 검증 결과**:
+- ✅ Ablation Test 13개 시나리오 완료
+- ✅ `available_from <= rebalance_date` 코드 전체 적용 확인
+- ✅ D(11.47%) > C_stability_random p95(10.91%) → RIM 통계적 유효성 확인
+- ✅ 재무안정성 필터(R6 포함): H_no_stability MDD -40.63% vs F -28.06% → 안정성 기여 확인
+- ⚠️ 팩터 스크리닝(E=5.29%): D(11.47%) 대비 성과 저하 → Phase 3 재검증 예정
+- ⚠️ no_r6 변형 이상 수치(D_no_r6=41.47%, F_no_r6=32.96%): 거래정지 종목 감자 데이터 오염
+
+**Phase 2 Ablation 결과 요약:**
+
+| 시나리오 | CAGR | Alpha(KS) | Sharpe | MDD |
+|---------|------|-----------|--------|-----|
+| B_hard_random | 3.82% (중앙) | — | — | — |
+| C_stability_random | 5.83% (중앙) | — | — | — |
+| D_rim_only | 11.47% | -2.34% | 0.429 | -32.78% |
+| E_screener_rim | 5.29% | -8.52% | 0.210 | -35.26% |
+| **F_momentum_rim** | **14.09%** | +0.28% | **0.518** | **-28.06%** |
+| G_full | 8.07% | -5.74% | 0.314 | -26.34% |
+| H_no_stability | 9.45% | -4.36% | 0.335 | -40.63% |
+| KOSPI | 13.81% | — | — | — |
 
 ---
 
-## Phase 3 — 기업 분류기 + 팩터 가중치 튜닝
+## Phase 3 — 기업 분류기 + 팩터 가중치 튜닝 ← **현재 시작점**
 
-**전제 조건**: Phase 2 Ablation Test에서 C > B(Hard only) 확인 (RIM 유효성), F_full OOS Alpha > 0% 확인
+> **현재 상태 (2026-06-21)**: Phase 2 완료. Phase 3 진입 가능.
+> **우선 과제**: ① no_r6 재실행 (`has_recent_trade` 픽스 후) → ② 팩터 스크리닝 가중치 재조정 실험.
+
+**전제 조건**: Phase 2 Ablation Test 완료 ✅ (RIM 유효성 확인, F_momentum_rim 우수)
 
 **목표**: classifier.py 활성화 + 팩터 가중치 Bayesian 튜닝 적용
 

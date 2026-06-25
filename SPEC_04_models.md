@@ -1,13 +1,13 @@
 # SPEC_04 — 적정가 모델 & 분류기 & 포트폴리오 & 백테스트 엔진
 
-> **관련 파일**: `backtest/models/rim.py`, `backtest/models/_skeleton.py`,
->   `backtest/classifier.py`, `backtest/portfolio.py`, `backtest/engine.py`
+> **관련 파일**: `backtest/models/rim.py`, `backtest/portfolio.py`, `backtest/engine.py`,
+>   `backtest/ablation.py`, `backtest/metrics.py`
 > **선행 조건**: SPEC_03 완료 (BacktestPipeline 동작 확인)
+> **Phase 2 완료 (2026-06-21)**: 13개 Ablation 시나리오 전체 실행. 결과: MASTER.md §Phase 2 결과.
 > **Claude Code 지시**:
 >   1. `RIMModel`은 `ValuationModel` Protocol을 반드시 준수하라 (SPEC_03 interfaces.py 참조).
->   2. `classifier.py`는 Phase 2에서 skeleton만 작성하라. 함수 본체는 `raise NotImplementedError`.
->   3. 엔진 루프는 Phase 2 버전(분류기 미적용)으로 작성하라.
->      Phase 3 분류기 도입 시 엔진 루프를 수정하지 않아도 되도록 설계하라.
+>   2. Phase 3: `classifier.py` 활성화. Phase 2에서는 모든 종목에 RIM 동일 적용.
+>   3. 엔진 루프는 Phase 2 버전(분류기 미적용)으로 구현됨. Phase 3 분류기 도입 시 최소 수정으로 교체 가능.
 >   4. 상장폐지 청산은 반드시 3개 시나리오(낙관/기준/보수)를 병렬 실행하라.
 
 > **v4.9 변경사항 (SPEC_03과 연동):**
@@ -313,11 +313,11 @@ for i, rebalance_date in enumerate(rebalance_dates):
         record_performance(portfolio, rebalance_date, next_date)
 ```
 
-**`load_pit_series()` 설계 (`backtest/data_access.py`):**
+**`load_pit_series_ttm()` 설계 (`backtest/data_access.py`, v5.0 구현):**
+- FY 리밸런싱(4월): `load_pit_series(n_years=3)` 그대로 반환
+- H1 리밸런싱(8월): TTM = FY_prev − H1_prev + H1_curr (IS/CF 계정만, BS는 H1_curr)
 - 반환 타입: `dict[str, list[dict]]` — `{ticker: [pit_t0, pit_t1, pit_t2]}`
-- `pit_t0`: `available_from <= rebalance_date`인 최신 FY
-- `pit_t1`: t0보다 1년 전 FY, `pit_t2`: 2년 전 FY
-- 리스트 길이가 3 미만인 종목도 허용 (데이터 부족 시 `StabilityFilter`에서 트렌드 판단 스킵)
+- XBRL 정정 반영: `amendment_from <= rebalance_date`이면 정정값, 미공개면 `original_amount`
 - `conn` 주입 패턴: 커넥션을 외부에서 받아 함수 내부에서 처리 (테스트 가능성 확보)
 
 ---
