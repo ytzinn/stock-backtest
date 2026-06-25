@@ -320,15 +320,16 @@ with tab_overview:
         fig = go.Figure()
         for r in cagr_rows:
             if r["rand"]:
-                color, line = "#94a3b8", dict(width=0)
+                color, opacity, line = "#94a3b8", 1.0, dict(width=0)
             elif r["no_r6"]:
-                color = TAG_COLORS.get(r["tag"], "#93c5fd")
-                line  = dict(color="#374151", width=1.5, dash="dot")
+                color   = TAG_COLORS.get(r["tag"], "#93c5fd")
+                opacity = 0.55
+                line    = dict(color="#374151", width=1.5)
             else:
-                color, line = TAG_COLORS.get(r["tag"], "#3b82f6"), dict(width=0)
+                color, opacity, line = TAG_COLORS.get(r["tag"], "#3b82f6"), 1.0, dict(width=0)
             fig.add_trace(go.Bar(
                 x=[r["cagr"]], y=[r["label"]], orientation="h",
-                marker_color=color, marker_line=line,
+                marker_color=color, marker_opacity=opacity, marker_line=line,
                 text=f"{r['cagr']:.1f}%", textposition="outside",
                 name=r["label"], showlegend=False,
                 hovertemplate=f"{r['label']}<br>CAGR: {r['cagr']:.2f}%<extra></extra>",
