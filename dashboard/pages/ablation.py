@@ -391,7 +391,7 @@ with tab_overview:
 # ══════════════════════════════════════════════════════════════════════════════
 
 with tab_period:
-    available = [t for t in DET_TAGS if not load_periods(t).empty]
+    available = [t for t in DET_TAGS + NO_R6_TAGS if not load_periods(t).empty]
 
     if not available:
         st.info("구간별 데이터(`*_periods.csv`)가 없습니다. 서버에서 `--det-only`로 재실행하면 생성됩니다.")
