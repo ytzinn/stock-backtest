@@ -296,23 +296,39 @@ with tab_overview:
 
     st.divider()
 
-    st.subheader("CAGR 사다리 (A → G)")
+    st.subheader("CAGR 사다리 (A → G, R6 제외 변형 포함)")
     cagr_rows = []
-    for tag in ALL_TAGS:
+    # 표시 순서: 랜덤 기준선 → 결정론적(D/E/F/G 바로 뒤에 no_r6 삽입) → H
+    _det_order = []
+    for tag in DET_TAGS:
+        _det_order.append(tag)
+        no_r6 = tag.replace("_rim_only","_no_r6").replace("_screener_rim","_no_r6") \
+                   .replace("_momentum_rim","_no_r6").replace("_full","_no_r6")
+        if no_r6 in NO_R6_TAGS:
+            _det_order.append(no_r6)
+    _display_order = RAND_TAGS + _det_order
+    for tag in _display_order:
         s    = scenarios.get(tag, {})
         cagr = s.get("cagr") or s.get("median_cagr")
         if cagr is not None:
             cagr_rows.append({"tag": tag, "label": TAG_LABELS.get(tag, tag),
-                               "cagr": cagr * 100, "rand": tag in RAND_TAGS})
+                               "cagr": cagr * 100, "rand": tag in RAND_TAGS,
+                               "no_r6": tag in NO_R6_TAGS})
 
     if cagr_rows:
         benchmark = scenarios.get("D_rim_only", {}).get("benchmark_cagr", 0) * 100
         fig = go.Figure()
         for r in cagr_rows:
-            color = "#94a3b8" if r["rand"] else TAG_COLORS.get(r["tag"], "#3b82f6")
+            if r["rand"]:
+                color, line = "#94a3b8", dict(width=0)
+            elif r["no_r6"]:
+                color = TAG_COLORS.get(r["tag"], "#93c5fd")
+                line  = dict(color="#374151", width=1.5, dash="dot")
+            else:
+                color, line = TAG_COLORS.get(r["tag"], "#3b82f6"), dict(width=0)
             fig.add_trace(go.Bar(
                 x=[r["cagr"]], y=[r["label"]], orientation="h",
-                marker_color=color,
+                marker_color=color, marker_line=line,
                 text=f"{r['cagr']:.1f}%", textposition="outside",
                 name=r["label"], showlegend=False,
                 hovertemplate=f"{r['label']}<br>CAGR: {r['cagr']:.2f}%<extra></extra>",
@@ -321,7 +337,7 @@ with tab_overview:
                       annotation_text=f"KOSPI {benchmark:.1f}%",
                       annotation_position="top right", annotation_font_color="red")
         fig.update_layout(
-            height=380, xaxis_title="CAGR (%)",
+            height=max(380, len(cagr_rows) * 32), xaxis_title="CAGR (%)",
             yaxis={"categoryorder": "array",
                    "categoryarray": [r["label"] for r in reversed(cagr_rows)]},
             margin=dict(l=10, r=80, t=10, b=30), plot_bgcolor="white",
