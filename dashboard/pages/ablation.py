@@ -18,26 +18,36 @@ from dashboard.config import PROJECT_ROOT
 
 ABLATION_DIR = PROJECT_ROOT / "experiments" / "ablation"
 
-DET_TAGS  = ["D_rim_only", "E_screener_rim", "F_momentum_rim", "G_full", "H_no_stability"]
-RAND_TAGS = ["A_random", "B_hard_random", "C_stability_random"]
-ALL_TAGS  = RAND_TAGS + DET_TAGS
+DET_TAGS    = ["D_rim_only", "E_screener_rim", "F_momentum_rim", "G_full", "H_no_stability"]
+NO_R6_TAGS  = ["D_no_r6", "E_no_r6", "F_no_r6", "G_no_r6"]
+RAND_TAGS   = ["A_random", "B_hard_random", "C_stability_random", "C_no_r6"]
+ALL_TAGS    = RAND_TAGS + DET_TAGS
 
 TAG_LABELS = {
     "A_random":           "A  랜덤 (필터 없음)",
     "B_hard_random":      "B  Hard + 랜덤",
     "C_stability_random": "C  Hard + Stability + 랜덤",
+    "C_no_r6":            "C′ Hard + Stability(−R6) + 랜덤",
     "D_rim_only":         "D  Hard + Stability + RIM",
+    "D_no_r6":            "D′ RIM (R6 제외)",
     "E_screener_rim":     "E  D + 팩터스크리닝",
+    "E_no_r6":            "E′ E (R6 제외)",
     "F_momentum_rim":     "F  D + 모멘텀",
+    "F_no_r6":            "F′ F (R6 제외)",
     "G_full":             "G  전체 (E + F)",
+    "G_no_r6":            "G′ 전체 (R6 제외)",
     "H_no_stability":     "H  G − Stability",
 }
 
 TAG_COLORS = {
     "D_rim_only":     "#3b82f6",
+    "D_no_r6":        "#93c5fd",
     "E_screener_rim": "#f59e0b",
+    "E_no_r6":        "#fcd34d",
     "F_momentum_rim": "#10b981",
+    "F_no_r6":        "#6ee7b7",
     "G_full":         "#8b5cf6",
+    "G_no_r6":        "#c4b5fd",
     "H_no_stability": "#06b6d4",
 }
 
@@ -335,6 +345,28 @@ with tab_overview:
                           else f"n={s.get('n_repeats', '—')}회",
         })
     st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
+
+    # ── R6 필터 민감도 ────────────────────────────────────────────────────────
+    r6_pairs = [("D_rim_only", "D_no_r6"), ("E_screener_rim", "E_no_r6"),
+                ("F_momentum_rim", "F_no_r6"), ("G_full", "G_no_r6")]
+    r6_avail = [(a, b) for a, b in r6_pairs
+                if a in scenarios and b in scenarios]
+    if r6_avail:
+        st.divider()
+        st.subheader("R6 필터 민감도 (adjROE < r 기준 탈락 On/Off)")
+        st.caption("R6 제외 시 CAGR 변화. R6가 수익을 제한하면 제외 시 상승, 노이즈를 제거하면 하락.")
+        r6_rows = []
+        for tag_on, tag_off in r6_avail:
+            s_on  = scenarios[tag_on]
+            s_off = scenarios[tag_off]
+            diff  = (s_off["cagr"] - s_on["cagr"]) * 100
+            r6_rows.append({
+                "시나리오":       TAG_LABELS.get(tag_on, tag_on),
+                "R6 포함 CAGR":  f"{s_on['cagr'] * 100:.1f}%",
+                "R6 제외 CAGR":  f"{s_off['cagr'] * 100:.1f}%",
+                "차이 (제외−포함)": f"{diff:+.1f}%p",
+            })
+        st.dataframe(pd.DataFrame(r6_rows), use_container_width=True, hide_index=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
