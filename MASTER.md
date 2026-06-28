@@ -128,9 +128,11 @@ RF, RK = 0.0263, 0.0873   # 두 파일에서 동일 값 유지
 | 상반기 (FY 사업보고서 활용) | 3월 31일 | 3/31 + **3 영업일** |
 | 하반기 (H1 반기보고서 활용) | 8월 14일 | 8/14 + **3 영업일** |
 
-- 백테스트 구간: 2015년 상반기 ~ 2026년 상반기 (**21개 구간**)
+- 백테스트 구간: 2015년 상반기 ~ 2026년 상반기 (**23개 리밸런싱 날짜**)
+  - **TTM 제약**: 2015-04-03·2015-08-19 두 날짜는 FY2014/H1_2014 PIT 데이터 미충족으로 유니버스 0개 (빈 구간, 0% 수익).
+  - **유효 포트폴리오 구간: 21개** (2016-04-05 ~ 2026-04-03). CAGR·Robustness 등 성과지표 산출 기준.
 - 영업일 계산: `price_history` DISTINCT date (대표 KOSPI 종목 기준, 삼성전자 005930). pykrx `get_index_ohlcv_by_date('KOSPI')`는 KRX 리뉴얼 후 KeyError 반환으로 사용 불가.
-- 21개 날짜는 사전 계산 후 `configs/rebalance_dates.py`에 하드코딩 (재현성 보장). 생성 스크립트: `scripts/generate_rebalance_dates.py`
+- 23개 날짜는 사전 계산 후 `configs/rebalance_dates.py`에 하드코딩 (재현성 보장). 생성 스크립트: `scripts/generate_rebalance_dates.py`
 
 ## 3-3. 포트폴리오 구성
 
@@ -149,7 +151,7 @@ RF, RK = 0.0263, 0.0873   # 두 파일에서 동일 값 유지
 | 지표 | 정의 |
 |------|------|
 | **알파** | 전략 CAGR − KOSPI CAGR (단순 차이, 배당 미반영 동일 조건) |
-| Robustness | 21개 리밸런싱 구간 중 KOSPI 대비 Alpha 양수 비율 |
+| Robustness | **21개 유효 구간** (TTM 미충족 2015-04·08 2구간 제외) 중 KOSPI 대비 Alpha 양수 비율 |
 | 벤치마크 3종 | KOSPI / KOSDAQ / 유니버스 랜덤 (C_stability_random 500회 중앙값) |
 | 수익률 기준 | adj_close 수정주가. 배당 미반영. 벤치마크도 동일 조건. |
 
@@ -286,7 +288,7 @@ stock-backtest/                   # 실제 서버 경로: /opt/stock-backtest/
 │   │   └─ rim.py                   # RIMModel (Dechow 1994 adjROE, Gordon growth)
 │   └─ configs/
 │       ├─ constants.py             # RF=0.0263, RK=0.0873, OMEGA=0.62
-│       ├─ rebalance_dates.py       # 21개 날짜 하드코딩 (2015~2026, 재현성)
+│       ├─ rebalance_dates.py       # 23개 날짜 하드코딩 (2015~2026; 2015-04·08 TTM 미충족 빈 구간, 유효 21개)
 │       └─ phase2_rim.py            # Phase 2 파이프라인 조립
 │
 ├─ dashboard/

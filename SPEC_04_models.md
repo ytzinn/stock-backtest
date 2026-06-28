@@ -14,7 +14,7 @@
 >   - `UniverseFilter.apply()` 시그니처: `pit_series: dict[str, list[dict]]` 통일 (`[0]`=현재, `[1]`=t-1, `[2]`=t-2). `HardFilter`·`MomentumFilter`는 `[0]`만 사용, `StabilityFilter`는 `[0][1][2]` 모두 활용.
 >   - `RIMModel.__init__(beta_adj: float = 0.0)` 추가: r 오프셋 파라미터 (§7-1 참조).
 >   - `fv_total ≤ 0` 방어 처리 추가 (§7-1 참조).
->   - `configs/rebalance_dates.py` 신규: 21개 날짜 하드코딩. `price_history` DISTINCT date(대표 KOSPI 종목 기준)로 생성.
+>   - `configs/rebalance_dates.py` 신규: 23개 날짜 하드코딩 (2015-04·08 TTM 미충족 빈 구간 포함, 유효 21개). `price_history` DISTINCT date(대표 KOSPI 종목 기준)로 생성.
 >   - `backtest/data_access.py` 신규: DB 조회 헬퍼 집중 (`get_adj_close_range`, `get_shares_outstanding`, `get_market_cap` 등). 필터마다 직접 DB 접속 대체.
 
 ---
@@ -223,8 +223,10 @@ def total_cost(market: str, side: str) -> float:
 
 - 상반기: 사업보고서 법정 마감(3월 31일) + 3 영업일
 - 하반기: 반기보고서 법정 마감(8월 14일) + 3 영업일
-- 백테스트 구간: 2015년 상반기 ~ 2026년 상반기 (21개 구간)
-- **재현성 보장**: 21개 날짜는 `configs/rebalance_dates.py`에 하드코딩. 매 실행마다 동일 결과 보장.
+- 백테스트 구간: 2015년 상반기 ~ 2026년 상반기 (**23개 날짜**)
+  - **TTM 제약**: 2015-04-03·2015-08-19 두 날짜는 FY2014/H1_2014 PIT 미충족 → 유니버스 0개 (빈 구간).
+  - **유효 포트폴리오 구간: 21개** (2016-04-05 ~ 2026-04-03).
+- **재현성 보장**: 23개 날짜는 `configs/rebalance_dates.py`에 하드코딩. 매 실행마다 동일 결과 보장.
 
 **생성 방법 (v4.9)**: pykrx `get_index_ohlcv_by_date('KOSPI')`는 KRX 리뉴얼 이후 KeyError 반환.
 대신 `price_history` DISTINCT date를 영업일 캘린더로 사용 (대표 KOSPI 종목 기준, 예: 삼성전자 005930).
@@ -270,6 +272,9 @@ for yr in range(2015, 2027):
     if yr < 2026:
         REBALANCE_DATES.append(nth_trading_day_after(date(yr, 8, 14), 3))
 REBALANCE_DATES.sort()
+# 총 23개 생성됨 (2015-04~2026-04).
+# 2015-04-03·2015-08-19는 TTM PIT 미충족으로 실행 시 gate=0 (빈 구간).
+# 유효 포트폴리오 구간: 21개 (2016-04-05 ~ 2026-04-03).
 ```
 
 ```python
@@ -277,7 +282,8 @@ REBALANCE_DATES.sort()
 from datetime import date
 
 REBALANCE_DATES = [
-    # 2015~2026 상반기, 21개 구간 (생성 스크립트로 1회 계산 후 고정)
+    # 2015~2026 상반기, 23개 날짜 (생성 스크립트로 1회 계산 후 고정)
+    # ※ 2015-04-03·2015-08-19는 TTM 미충족 빈 구간. 유효 21개는 2016-04-05~2026-04-03.
     # 예: date(2015, 4, 3), date(2015, 8, 19), ...
     # 실제 날짜는 scripts/generate_rebalance_dates.py 실행 결과 사용
 ]

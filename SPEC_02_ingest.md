@@ -162,7 +162,7 @@ def collect_delisting_price_history(ticker: str, listed_date, delisted_date):
 
 ## 3-3. 과거 시점 상장 종목 목록
 
-리밸런싱 기준일(21개)마다 당시 실제 상장 종목만 유니버스에 포함하기 위해 과거 시점 종목 목록을 수집한다.
+리밸런싱 기준일(총 23개, 유효 21개)마다 당시 실제 상장 종목만 유니버스에 포함하기 위해 과거 시점 종목 목록을 수집한다.
 
 ```python
 # ingest/universe_loader.py

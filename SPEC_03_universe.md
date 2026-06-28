@@ -704,8 +704,9 @@ def load_pit_series_ttm(conn, rebalance_date: date,
 
 ## 6-8. configs/rebalance_dates.py — 리밸런싱 날짜 생성 (v4.8)
 
-Phase 2 시작 시 아래 스크립트를 서버에서 **1회** 실행해 21개 날짜를 계산하고,
+Phase 2 시작 시 아래 스크립트를 서버에서 **1회** 실행해 23개 날짜를 계산하고,
 그 결과를 `configs/rebalance_dates.py`에 하드코딩한다 (재현성 보장).
+(2015-04·2015-08 두 날짜 포함, TTM 미충족으로 실행 시 gate=0. 유효 구간은 21개.)
 
 ```python
 # scripts/generate_rebalance_dates.py  ← Phase 2 시작 시 1회 실행
@@ -742,7 +743,8 @@ print([d.isoformat() for d in dates])
 from datetime import date
 
 REBALANCE_DATES = [
-    # 2015~2026 (21개 구간) — scripts/generate_rebalance_dates.py 실행 후 채움
+    # 2015~2026 (23개 날짜) — scripts/generate_rebalance_dates.py 실행 후 채움
+    # 2015-04·08은 TTM 미충족 빈 구간. 유효 21개는 2016-04-05 ~ 2026-04-03.
     # date(2015, 4, X), date(2015, 8, X), ...
 ]
 ```

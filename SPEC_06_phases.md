@@ -148,7 +148,7 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 6. ✅ `backtest/models/rim.py` — RIMModel (Dechow λ=0.5)
 7. ✅ `backtest/pipeline.py`, `engine.py`, `metrics.py`, `portfolio.py`
 8. ✅ `backtest/ablation.py` — 13개 시나리오 (no_r6 변형 포함)
-9. ✅ `backtest/configs/rebalance_dates.py` — 21개 날짜 하드코딩
+9. ✅ `backtest/configs/rebalance_dates.py` — 23개 날짜 하드코딩 (2015-04·08 TTM 미충족 빈 구간 포함, 유효 21개)
 10. ✅ XBRL 파이프라인: `xbrl_historical_ingest.py`, `xbrl_mapper.py`, `amendment_checker.py`
 11. ✅ `load_pit_series_ttm()` — H1 TTM 계산 (FY−H1_prev+H1_curr)
 12. ✅ Ablation Test 13개 시나리오 → `experiments/ablation/`
