@@ -91,6 +91,49 @@ def load_rand_dist(tag: str) -> pd.DataFrame:
     return pd.read_csv(p) if p.exists() else pd.DataFrame()
 
 
+@st.cache_data(ttl=60)
+def compute_metrics_from_csv(tag: str, periods_per_year: int = 2) -> dict:
+    """period CSV에서 n_gate>0 유효 구간 기준 성과 지표 직접 계산 (21구간 기준)."""
+    import numpy as np
+    df = load_periods(tag)
+    if df.empty or "period_return" not in df.columns:
+        return {}
+    if "n_gate" in df.columns:
+        df = df[df["n_gate"] > 0].reset_index(drop=True)
+    if len(df) < 2:
+        return {}
+
+    RF_PER_PERIOD = 0.0263 / periods_per_year
+    ret   = df["period_return"].to_numpy()
+    n     = len(ret)
+    years = n / periods_per_year
+    cagr  = float(np.prod(1 + ret) ** (1 / years) - 1)
+
+    bench_cagr = alpha = robustness = None
+    if "kospi_return" in df.columns:
+        bench      = df["kospi_return"].to_numpy()
+        bench_cagr = float(np.prod(1 + bench) ** (1 / years) - 1)
+        alpha      = cagr - bench_cagr
+        robustness = float(((ret - bench) > 0).mean())
+
+    nav  = pd.Series(np.cumprod(1 + ret))
+    mdd  = float((nav / nav.cummax() - 1).min())
+
+    excess = ret - RF_PER_PERIOD
+    sharpe = float(excess.mean() / excess.std() * (periods_per_year ** 0.5)) if excess.std() > 0 else 0.0
+
+    net_cagr = None
+    if "net_return" in df.columns:
+        net_cagr = float(np.prod(1 + df["net_return"].to_numpy()) ** (1 / years) - 1)
+
+    out: dict = {"cagr": cagr, "mdd": mdd, "sharpe": sharpe, "n_periods": n}
+    if bench_cagr  is not None: out["benchmark_cagr"] = bench_cagr
+    if alpha       is not None: out["alpha"]          = alpha
+    if robustness  is not None: out["robustness"]     = robustness
+    if net_cagr    is not None: out["net_cagr"]       = net_cagr
+    return out
+
+
 @st.cache_data(ttl=3600)
 def fetch_index_returns(period_list: tuple, index_code: str) -> dict[str, float]:
     """(start_str, end_str) 튜플 목록 → {start_str: 구간수익률}. FDR 사용."""
@@ -206,6 +249,18 @@ SCENARIO_TABLE = [
 # ══════════════════════════════════════════════════════════════════════════════
 
 with tab_overview:
+    # DET/NO_R6 시나리오: period CSV → 21구간 기준 지표 직접 계산
+    # RAND 시나리오: summary.json 유지 (500회 분포 데이터)
+    csv_metrics: dict[str, dict] = {
+        tag: compute_metrics_from_csv(tag)
+        for tag in DET_TAGS + NO_R6_TAGS
+    }
+    # 표시용 시나리오 dict: det/no_r6는 CSV 계산값 우선, 없으면 summary.json 폴백
+    display_scenarios: dict[str, dict] = dict(scenarios)
+    for tag, m in csv_metrics.items():
+        if m:
+            display_scenarios[tag] = m
+    csv_bench_cagr = (csv_metrics.get("D_rim_only") or {}).get("benchmark_cagr")
 
     # ── 시나리오·필터 설명 ────────────────────────────────────────────────────
     with st.expander("📖 시나리오 및 필터 설명 — 처음 보시는 분은 여기를 펼쳐보세요", expanded=False):
@@ -281,8 +336,29 @@ with tab_overview:
         )
 
     st.subheader("레이어별 기여도 판정")
-    cols = st.columns(len(judgements) or 1)
-    for col, (key, val) in zip(cols, judgements.items()):
+    st.caption("21구간 기준 CSV 직접 계산값으로 재산출")
+    # CSV 계산값으로 판정 재계산
+    _d  = (display_scenarios.get("D_rim_only",      {}).get("cagr") or 0)
+    _e  = (display_scenarios.get("E_screener_rim",  {}).get("cagr") or 0)
+    _f  = (display_scenarios.get("F_momentum_rim",  {}).get("cagr") or 0)
+    _g  = (display_scenarios.get("G_full",          {}).get("cagr") or 0)
+    _cp95 = None
+    _bp95 = None
+    for _rt in RAND_TAGS:
+        _rd = load_rand_dist(_rt)
+        if not _rd.empty and "cagr" in _rd.columns:
+            if _rt == "C_stability_random": _cp95 = _rd["cagr"].quantile(0.95)
+            if _rt == "B_hard_random":      _bp95 = _rd["cagr"].quantile(0.95)
+    _csv_judgements = {
+        "C > B (안정성 기여, p95)": bool(_cp95 and _bp95 and _cp95 > _bp95),
+        "D > C_p95 (RIM 유효성)":   bool(_cp95 and _d > _cp95),
+        "E > D (팩터스크리닝)":      bool(_e > _d),
+        "F > D (모멘텀 기여)":       bool(_f > _d),
+        "G > D (전체 기여)":         bool(_g > _d),
+    }
+    _live_judgements = _csv_judgements if any(csv_metrics.values()) else judgements
+    cols = st.columns(len(_live_judgements) or 1)
+    for col, (key, val) in zip(cols, _live_judgements.items()):
         icon = "✅" if val else "❌"
         bg   = "#dcfce7" if val else "#fee2e2"
         col.markdown(
@@ -297,6 +373,7 @@ with tab_overview:
     st.divider()
 
     st.subheader("CAGR 사다리 (A → G, R6 제외 변형 포함)")
+    st.caption("D~H·R6변형: period CSV 21구간 기준 실시간 계산 | A/B/C 랜덤: ablation 실행 시 기록된 분포 중앙값")
     cagr_rows = []
     # 표시 순서: 랜덤 기준선 → 결정론적(D/E/F/G 바로 뒤에 no_r6 삽입) → H
     _det_order = []
@@ -308,7 +385,7 @@ with tab_overview:
             _det_order.append(no_r6)
     _display_order = RAND_TAGS + _det_order
     for tag in _display_order:
-        s    = scenarios.get(tag, {})
+        s    = display_scenarios.get(tag, {})
         cagr = s.get("cagr") or s.get("median_cagr")
         if cagr is not None:
             cagr_rows.append({"tag": tag, "label": TAG_LABELS.get(tag, tag),
@@ -316,7 +393,8 @@ with tab_overview:
                                "no_r6": tag in NO_R6_TAGS})
 
     if cagr_rows:
-        benchmark = scenarios.get("D_rim_only", {}).get("benchmark_cagr", 0) * 100
+        benchmark = (csv_bench_cagr or
+                     scenarios.get("D_rim_only", {}).get("benchmark_cagr", 0)) * 100
         fig = go.Figure()
         for r in cagr_rows:
             if r["rand"]:
@@ -346,10 +424,10 @@ with tab_overview:
         st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("전체 시나리오 지표")
-    st.caption("※ CAGR·Alpha는 ablation 재실행 후 21구간 기준으로 자동 업데이트됩니다.")
+    st.caption("D~H: period CSV 21구간 기준 직접 계산 | A/B/C: summary.json 집계값")
     table_rows = []
     for tag in ALL_TAGS:
-        s = scenarios.get(tag, {})
+        s = display_scenarios.get(tag, {})
         if not s:
             continue
         cagr = s.get("cagr") or s.get("median_cagr", 0)
@@ -368,15 +446,15 @@ with tab_overview:
     r6_pairs = [("D_rim_only", "D_no_r6"), ("E_screener_rim", "E_no_r6"),
                 ("F_momentum_rim", "F_no_r6"), ("G_full", "G_no_r6")]
     r6_avail = [(a, b) for a, b in r6_pairs
-                if a in scenarios and b in scenarios]
+                if a in display_scenarios and b in display_scenarios]
     if r6_avail:
         st.divider()
         st.subheader("R6 필터 민감도 (adjROE < r 기준 탈락 On/Off)")
-        st.caption("R6 제외 시 CAGR 변화. R6가 수익을 제한하면 제외 시 상승, 노이즈를 제거하면 하락.")
+        st.caption("R6 제외 시 CAGR 변화 (21구간 기준). R6가 수익을 제한하면 제외 시 상승, 노이즈를 제거하면 하락.")
         r6_rows = []
         for tag_on, tag_off in r6_avail:
-            s_on  = scenarios[tag_on]
-            s_off = scenarios[tag_off]
+            s_on  = display_scenarios[tag_on]
+            s_off = display_scenarios[tag_off]
             diff  = (s_off["cagr"] - s_on["cagr"]) * 100
             r6_rows.append({
                 "시나리오":       TAG_LABELS.get(tag_on, tag_on),
