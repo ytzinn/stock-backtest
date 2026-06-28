@@ -346,6 +346,7 @@ with tab_overview:
         st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("전체 시나리오 지표")
+    st.caption("※ CAGR·Alpha는 ablation 재실행 후 21구간 기준으로 자동 업데이트됩니다.")
     table_rows = []
     for tag in ALL_TAGS:
         s = scenarios.get(tag, {})
@@ -391,6 +392,7 @@ with tab_overview:
 # ══════════════════════════════════════════════════════════════════════════════
 
 with tab_period:
+    st.caption("분석 기준: 유효 **21개 구간** (2016-04-05 ~ 2026-04-03) — TTM 미충족 2015-04·08 2구간 제외, 전략·벤치마크 동일 적용")
     available = [t for t in DET_TAGS + NO_R6_TAGS if not load_periods(t).empty]
 
     if not available:
@@ -407,6 +409,9 @@ with tab_period:
             format_func=lambda t: TAG_LABELS.get(t, t),
         )
     base_df   = load_periods("D_rim_only")
+    # TTM 미충족 빈 구간(n_gate=0) 제외 → 유효 21개 구간 기준
+    if "n_gate" in base_df.columns:
+        base_df = base_df[base_df["n_gate"] > 0].copy()
     all_dates = sorted(base_df["rebalance_date"].dt.date.tolist())
     with ctrl2:
         date_range = st.select_slider("분석 구간", options=all_dates,
@@ -421,6 +426,8 @@ with tab_period:
 
     def filtered(tag: str) -> pd.DataFrame:
         df = load_periods(tag)
+        if "n_gate" in df.columns:
+            df = df[df["n_gate"] > 0]
         return (df[(df["rebalance_date"] >= start_dt) & (df["rebalance_date"] <= end_dt)]
                 .sort_values("rebalance_date").copy())
 
@@ -666,10 +673,13 @@ with tab_period:
             df = filtered(tag).copy()
             if df.empty:
                 continue
-            df = df.merge(
-                bench_filtered()[["rebalance_date", "kosdaq_return"]],
-                on="rebalance_date", how="left",
-            )
+            # period_results CSV에 kosdaq_return이 이미 있으면 merge 불필요
+            # (merge 시 _x/_y rename으로 KeyError 발생 방지)
+            if "kosdaq_return" not in df.columns:
+                df = df.merge(
+                    bench_filtered()[["rebalance_date", "kosdaq_return"]],
+                    on="rebalance_date", how="left",
+                )
             df["전략수익률"]   = (df["period_return"] * 100).round(2).astype(str) + "%"
             df["KOSPI"]       = (df["kospi_return"]   * 100).round(2).astype(str) + "%"
             df["KOSDAQ"]      = (df["kosdaq_return"]  * 100).round(2).astype(str) + "%"
