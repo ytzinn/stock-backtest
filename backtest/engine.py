@@ -134,17 +134,27 @@ class BacktestEngine:
             conn.close()
 
         # 7. 성과 측정
-        idx        = pd.DatetimeIndex([r['rebalance_date'] for r in period_results])
-        strat_ret  = pd.Series([r['period_return']      for r in period_results], index=idx)
-        net_ret_s  = pd.Series([r['net_return']         for r in period_results], index=idx)
+        # TTM 미충족으로 gate=0인 빈 구간(2015-04, 2015-08)을 성과 지표에서 제외.
+        # 벤치마크(KOSPI/KOSDAQ)도 동일 구간 기준으로 적용 → 공정 비교 보장.
+        # period_results 자체는 전체(빈 구간 포함)를 유지해 구간 상세 리포트에 표시.
+        active = [r for r in period_results if r['n_gate'] > 0]
+        if len(active) < len(period_results):
+            log.info(
+                f'  [TTM 미충족] {len(period_results) - len(active)}개 빈 구간 제외 → '
+                f'유효 {len(active)}개 구간 기준으로 성과 측정'
+            )
+
+        idx        = pd.DatetimeIndex([r['rebalance_date'] for r in active])
+        strat_ret  = pd.Series([r['period_return']      for r in active], index=idx)
+        net_ret_s  = pd.Series([r['net_return']         for r in active], index=idx)
         opt_ret_s  = pd.Series(
-            [r['period_return'] + r['delisting_opt_adj']  for r in period_results], index=idx
+            [r['period_return'] + r['delisting_opt_adj']  for r in active], index=idx
         )
         cons_ret_s = pd.Series(
-            [r['period_return'] + r['delisting_cons_adj'] for r in period_results], index=idx
+            [r['period_return'] + r['delisting_cons_adj'] for r in active], index=idx
         )
-        bench_ret  = pd.Series(kospi_returns, index=idx)
-        kosdaq_ret = pd.Series([r['kosdaq_return'] for r in period_results], index=idx)
+        bench_ret  = pd.Series([r['kospi_return']  for r in active], index=idx)
+        kosdaq_ret = pd.Series([r['kosdaq_return'] for r in active], index=idx)
 
         metrics = compute_metrics(strat_ret, bench_ret)
         kosdaq_cagr = compute_metrics(strat_ret, kosdaq_ret)['benchmark_cagr']
@@ -155,7 +165,7 @@ class BacktestEngine:
         metrics['cagr_optimistic']   = compute_cagr(opt_ret_s)
         metrics['cagr_conservative'] = compute_cagr(cons_ret_s)
         metrics['avg_turnover']      = float(
-            sum(r['turnover'] for r in period_results) / max(len(period_results), 1)
+            sum(r['turnover'] for r in active) / max(len(active), 1)
         )
         log.info(
             f'백테스트 완료: CAGR={metrics["cagr"]:.1%} (net={metrics["net_cagr"]:.1%}) '
