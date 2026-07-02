@@ -228,3 +228,21 @@ CREATE TABLE IF NOT EXISTS krx_listing_snapshots (
 
 CREATE INDEX IF NOT EXISTS idx_krx_listing_snapshots_ticker
     ON krx_listing_snapshots (ticker);
+
+-- 16. KRX API 날짜별 전종목 스냅샷 (LIST_SHRS·MKTCAP 원천)
+-- 수집: python -m ingest.krx_daily_ingest
+-- 용도: market_cap_history 대체 후보 + 감자·증자 이벤트 탐지
+CREATE TABLE IF NOT EXISTS krx_daily_snapshot (
+    ticker      CHAR(6)  NOT NULL,
+    date        DATE     NOT NULL,
+    market      TEXT,             -- 'KOSPI' | 'KOSDAQ'
+    shares      BIGINT,           -- LIST_SHRS (상장주식수)
+    market_cap  NUMERIC,          -- MKTCAP (KRX 공식 시총, 원)
+    close_price INTEGER,          -- TDD_CLSPRC (종가)
+    PRIMARY KEY (ticker, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_krx_daily_snapshot_date
+    ON krx_daily_snapshot (date);
+CREATE INDEX IF NOT EXISTS idx_krx_daily_snapshot_ticker
+    ON krx_daily_snapshot (ticker, date);
