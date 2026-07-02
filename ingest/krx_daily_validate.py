@@ -75,7 +75,7 @@ def validate_market_cap(ticker: str | None = None, threshold_pct: float = 20.0) 
           AND ABS(k.market_cap - m.market_cap)
               / NULLIF(m.market_cap, 0) > %(thresh)s / 100.0
           {where}
-        ORDER BY ABS(diff_pct) DESC NULLS LAST
+        ORDER BY 5 DESC NULLS LAST
         LIMIT 200
     """
     params = {'thresh': threshold_pct}
