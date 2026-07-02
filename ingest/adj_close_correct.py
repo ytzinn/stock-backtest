@@ -40,6 +40,15 @@ CONTINUITY_OK_TOL    = 0.15   # continuity_ratio가 1 근방(±15%)이면 이미
 MIN_SHARES_DEVIATION = 0.10   # 주식수 비율이 최소 이 정도는 벗어나야 후보로 간주 (작은 무상증자 포함)
 CORRECTED_BAND       = 0.05   # 보정 적용 후 연속성이 1 ± 이 값 이내여야 확정 (상한가 우연일치 등 오탐 배제)
 
+# 2026-07-02 세션: threshold=10%/±5% 통계 후보 6건을 DART list.json 공시로
+# 개별 교차검증한 결과. 통계만으로는 오탐(122800 CB전환, 314130 CB전환+유상증자)이
+# 섞여 있어 DART 공시 확인된 4건만 화이트리스트로 확정.
+#   001290 상상인증권 2018-02-20  주요사항보고서(감자결정) (rcept 20180131)
+#   002380 KCC        2020-01-21  증권발행실적보고서(합병등) — 케이씨씨글라스 인적분할 (rcept 20200102)
+#   005950 이수화학    2023-05-31  증권신고서(분할) (rcept 20230320)
+#   043590 웰킵스하이텍 2024-01-19  주요사항보고서(감자결정)+감자완료 (rcept 20231219~20240116)
+CONFIRMED_TICKERS = {'001290', '002380', '005950', '043590'}
+
 
 def _surrounding_prices(ticker: str, event_date) -> tuple | None:
     """이벤트 직전 마지막 거래일 / 직후 첫 거래일의 close·adj_close 조회."""
@@ -114,9 +123,22 @@ def detect_corrections(threshold_pct: float = 15.0, ticker: str | None = None) -
     return pd.DataFrame(rows).sort_values(['ticker', 'event_date']) if rows else pd.DataFrame()
 
 
-def apply_corrections(events: pd.DataFrame) -> None:
-    """needs_correction=True 인 이벤트만, 최신순으로 역순 적용."""
+def apply_corrections(events: pd.DataFrame, confirmed_only: bool = True) -> None:
+    """needs_correction=True 인 이벤트 중, DART로 확정된 종목만 적용.
+
+    confirmed_only=True(기본)면 CONFIRMED_TICKERS 화이트리스트 밖의 이벤트는
+    통계상 needs_correction=True여도 스킵한다 — DART 미확인 상태로 프로덕션
+    가격 데이터를 건드리지 않기 위한 안전장치.
+    """
     targets = events[events['needs_correction']].copy()
+    if confirmed_only:
+        unconfirmed = targets[~targets['ticker'].isin(CONFIRMED_TICKERS)]
+        if not unconfirmed.empty:
+            log.warning(
+                f'DART 미확인으로 스킵: {len(unconfirmed)}건 '
+                f'({sorted(unconfirmed["ticker"].unique())})'
+            )
+        targets = targets[targets['ticker'].isin(CONFIRMED_TICKERS)]
     if targets.empty:
         log.info('보정 대상 없음')
         return
