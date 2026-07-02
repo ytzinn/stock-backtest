@@ -29,7 +29,7 @@ def _query(sql: str, params=None) -> pd.DataFrame:
 
 def validate_close(ticker: str | None = None, sample: int = 0) -> pd.DataFrame:
     """V1: krx_daily_snapshot.close_price vs price_history.close."""
-    where = "WHERE k.ticker = %(t)s" if ticker else ""
+    and_ticker = "AND k.ticker = %(t)s" if ticker else ""
     limit = f"LIMIT {sample}" if sample else ""
     sql = f"""
         SELECT k.ticker, k.date,
@@ -38,20 +38,8 @@ def validate_close(ticker: str | None = None, sample: int = 0) -> pd.DataFrame:
                k.close_price - p.close AS diff
         FROM krx_daily_snapshot k
         JOIN price_history p USING (ticker, date)
-        {where}
-        HAVING k.close_price IS DISTINCT FROM p.close::int
-        {limit}
-    """
-    # HAVING without GROUP BY doesn't work — use WHERE
-    sql = f"""
-        SELECT k.ticker, k.date,
-               k.close_price          AS krx_close,
-               p.close                AS ph_close,
-               k.close_price - p.close AS diff
-        FROM krx_daily_snapshot k
-        JOIN price_history p USING (ticker, date)
-        {where}
         WHERE k.close_price IS DISTINCT FROM p.close::integer
+        {and_ticker}
         ORDER BY ABS(k.close_price - p.close::integer) DESC NULLS LAST
         {limit}
     """
