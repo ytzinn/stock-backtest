@@ -36,7 +36,9 @@ from ingest.logging_config import configure_logging
 configure_logging('adj_close_correct.log')
 log = logging.getLogger(__name__)
 
-CONTINUITY_OK_TOL = 0.15   # continuity_ratio가 1 근방(±15%)이면 이미 정상으로 판정
+CONTINUITY_OK_TOL    = 0.15   # continuity_ratio가 1 근방(±15%)이면 이미 정상으로 판정
+MIN_SHARES_DEVIATION = 0.10   # 주식수 비율이 최소 이 정도는 벗어나야 후보로 간주 (작은 무상증자 포함)
+CORRECTED_BAND       = 0.05   # 보정 적용 후 연속성이 1 ± 이 값 이내여야 확정 (상한가 우연일치 등 오탐 배제)
 
 
 def _surrounding_prices(ticker: str, event_date) -> tuple | None:
@@ -83,7 +85,16 @@ def detect_corrections(threshold_pct: float = 15.0, ticker: str | None = None) -
 
         shares_ratio     = float(c['shares_today']) / float(c['shares_prev'])
         continuity_ratio = float(curr_adj) / float(prev_adj)
-        needs_correction = abs(continuity_ratio - 1.0) > CONTINUITY_OK_TOL
+        continuity_after = continuity_ratio * shares_ratio
+
+        # 실제 기업행위(감자·분할·무상증자)로 볼만큼 주식수 변동이 크고,
+        # 현재 연속성은 깨져 있는데(>tol), shares_ratio로 나누면 1 근방으로
+        # 회복되는 경우만 "미반영"으로 확정 — 우연한 주가 변동과 구분.
+        needs_correction = (
+            abs(shares_ratio - 1.0) >= MIN_SHARES_DEVIATION
+            and abs(continuity_ratio - 1.0) > CONTINUITY_OK_TOL
+            and abs(continuity_after - 1.0) <= CORRECTED_BAND
+        )
 
         rows.append({
             'ticker':           c['ticker'],
