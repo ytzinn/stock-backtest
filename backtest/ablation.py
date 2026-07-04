@@ -35,6 +35,9 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'use_momentum': False, 'use_rim_filter': True},
     'D_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': False,
                             'use_momentum': False, 'use_rim_filter': True,  'stability_r6': False},
+    'D_pbr_only':          {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': False, 'use_rim_filter': False, 'stability_r6': False,
+                            'rank_mode': 'pbr'},
     'E_screener_rim':      {'use_hard': True,  'use_stability': True,  'use_screener': True,
                             'use_momentum': False, 'use_rim_filter': True},
     'E_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': True,
@@ -78,6 +81,47 @@ class _RandomSelectPipeline(BacktestPipeline):
         ]
 
 
+class _PBRRankPipeline(BacktestPipeline):
+    """
+    필터 통과 종목을 1/PBR(inv_pbr) 내림차순으로 랭킹해 상위 N개 선택.
+
+    STEP 3 신호분리용 대조군 — D_no_r6(RIM 업사이드 랭킹)와 필터 구성을 동일하게 두고
+    랭킹 기준만 "RIM V/B" → "순수 1/PBR"로 바꿔, RIM 알파가 사실상 저PBR 재포장인지
+    확인한다. equity 정의는 factor_screener._compute_factors의 inv_pbr과 동일하게
+    자본총계 기준(비교 가능성 우선, RIM의 지배주주지분 우선순위와는 다름).
+    """
+
+    def __init__(self, filters: list, n_stocks: int = 20):
+        super().__init__(filters=filters, valuation_model=RIMModel(), n_stocks=n_stocks)
+
+    def score_and_rank(self, universe, rebalance_date, pit_series, conn) -> list[dict]:
+        from backtest.data_access import get_market_cap, get_close_price
+
+        scored = []
+        for ticker in universe:
+            pit0   = pit_series.get(ticker, [{}])[0]
+            equity = pit0.get('자본총계')
+            mktcap = get_market_cap(conn, ticker, rebalance_date)
+            price  = get_close_price(conn, ticker, rebalance_date)
+
+            if not equity or equity <= 0 or not mktcap or mktcap <= 0 or price is None:
+                continue
+
+            pbr = mktcap / equity
+            if pbr <= 0:
+                continue
+
+            scored.append({
+                'ticker':     ticker,
+                'upside_pct': 1.0 / pbr,   # inv_pbr 스코어(랭킹용, 업사이드 % 아님)
+                'model':      'PBR_ONLY',
+                'fair_value': None,
+                'price':      price,
+            })
+
+        return sorted(scored, key=lambda x: x['upside_pct'], reverse=True)
+
+
 def build_ablation_pipeline(
     tag:           str,
     config:        dict,
@@ -105,6 +149,9 @@ def build_ablation_pipeline(
         filters.append(MomentumFilter(
             ma_short=20, ma_long=60, confirm_days=5, slope_lookback=20,
         ))
+
+    if config.get('rank_mode') == 'pbr':
+        return _PBRRankPipeline(filters=filters, n_stocks=n_stocks)
 
     if not config.get('use_rim_filter', True):
         return _RandomSelectPipeline(

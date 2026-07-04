@@ -225,6 +225,13 @@ def make_summary(det_results: dict[str, dict], dist_stats: dict[str, dict]) -> d
         judgements['F>D (모멘텀 기여)'] = cagr('F_momentum_rim') > cagr('D_rim_only')
     if 'G_full' in s and 'D_rim_only' in s:
         judgements['G>D (전체 필터 기여)'] = cagr('G_full') > cagr('D_rim_only')
+    if 'D_no_r6' in s and 'D_pbr_only' in s:
+        # STEP 3 신호분리: 동일 필터(R1~R5, R6 제외) 하에서 RIM 랭킹 vs 순수 1/PBR 랭킹 비교
+        judgements['D_no_r6>D_pbr_only (RIM 고유 신호, 1/PBR 재포장 아님)'] = (
+            cagr('D_no_r6') > cagr('D_pbr_only')
+        )
+        judgements['_D_no_r6_cagr']   = round(cagr('D_no_r6'), 6)
+        judgements['_D_pbr_only_cagr'] = round(cagr('D_pbr_only'), 6)
 
     summary['judgements'] = judgements
     return summary
