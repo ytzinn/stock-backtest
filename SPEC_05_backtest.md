@@ -30,6 +30,7 @@ Phase 2에서 각 레이어의 독립적 Alpha 기여도를 분해하기 위해 
 | C_no_r6 | ✅ | ✅ (R6 제외) | ❌ | ❌ | 랜덤 N개 | R6 없는 랜덤 벤치마크 |
 | D_rim_only | ✅ | ✅ | ❌ | ❌ | ✅ | RIM 단독 효과 측정 |
 | D_no_r6 | ✅ | ✅ (R6 제외) | ❌ | ❌ | ✅ | R6 기여도 측정 |
+| D_pbr_only | ✅ | ✅ (R6 제외) | ❌ | ❌ | 1/PBR 랭킹 | STEP 3 대조군 — RIM 랭킹 대신 순수 1/PBR 랭킹 (2026-07-05 추가, 핵심 13개 시나리오 외) |
 | E_screener_rim | ✅ | ✅ | ✅ | ❌ | ✅ | 팩터 스크리닝 기여도 측정 |
 | E_no_r6 | ✅ | ✅ (R6 제외) | ✅ | ❌ | ✅ | 팩터×R6 교호작용 |
 | F_momentum_rim | ✅ | ✅ | ❌ | ✅ | ✅ | 모멘텀 기여도 측정 |
@@ -124,6 +125,26 @@ def report_strategy_percentile(strategy_cagr: float, random_tag: str) -> float:
 - R6 착시 해소: 가격보정 전에는 R6 제거 시 수익률이 크게 오르는 것처럼 보였으나(D_no_r6 등), 이는 감자
   대상 부실기업의 미보정 가격이 만든 인위적 고수익이었음이 확인됨 — 상세: DesignBug-2 관련 재검증,
   `experiments/runs/2026.07.02. BACKTEST_RESULTS.md` §3
+
+**STEP 3 신호분리 ablation 결과 (2026-07-05)** — RIM 유효성 판정(D≥C_p95, +0.05%p)이 경계값
+근방이라 이 알파가 RIM 고유 신호인지 R6인지 1/PBR 재포장인지 분리 필요. 기존 시나리오만으로
+R6 효과는 이미 교차검증 가능했고, 1/PBR 비교를 위해 `D_pbr_only`(Hard+Stability R1~R5, RIM 랭킹
+대신 순수 1/PBR 랭킹 — `backtest/ablation.py` `_PBRRankPipeline`) 시나리오를 신규 추가해 실행:
+
+| 비교 | 값 | 해석 |
+|------|-----|------|
+| R6 효과 (랜덤 기준): `C_stability_random`(6.80%) − `C_no_r6`(5.41%) | **+1.39%p** | R6 단독 기여 |
+| R6 효과 (RIM 기준): `D_rim_only`(11.99%) − `D_no_r6`(10.77%) | **+1.22%p** | 위와 독립적으로 일치 → R6 효과 안정적 |
+| RIM 고유 알파 (R6 있음): `D_rim_only`(11.99%) − `C_stability_random`(6.80%) | **+5.19%p** | RIM이 랜덤보다 확실히 우수 (R6와 무관하게) |
+| RIM 고유 알파 (R6 없음): `D_no_r6`(10.77%) − `C_no_r6`(5.41%) | **+5.36%p** | 위와 일치 → RIM 알파가 R6에 의존하지 않음 |
+| **RIM vs 순수 1/PBR**: `D_no_r6`(10.77%) − `D_pbr_only`(8.92%) | **+1.85%p** | ✅ RIM이 1/PBR 재포장이 아님 (Sharpe도 0.396 > 0.321로 RIM 우위) |
+
+**결론**: D>C_p95(+0.05%p)의 얇은 마진과 별개로, RIM은 R6·1/PBR 각각과 분리했을 때도 랜덤 대비
++5%p대의 뚜렷하고 안정적인 알파를 내며, 순수 1/PBR 랭킹보다도 +1.85%p 우위 — RIM이 R6나 저PBR
+효과의 재포장이 아니라 독립적인 신호를 담고 있다는 근거. p95 검정은 랜덤 분포의 엄격한 상위 5%
+구간과 비교하는 것이라 마진이 얇아 보일 뿐, 평균적 비교(중앙값 대비)로는 알파가 명확함 — 두 지표를
+함께 보고하는 것이 한쪽만 보는 것보다 정확한 그림을 준다.
+상세 코드: `backtest/ablation.py`(`D_pbr_only`, `_PBRRankPipeline`), 결과: `experiments/ablation/D_pbr_only.json`.
 
 ---
 
