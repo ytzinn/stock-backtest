@@ -3,7 +3,9 @@
 > **관련 파일**: `backtest/models/rim.py`, `backtest/portfolio.py`, `backtest/engine.py`,
 >   `backtest/ablation.py`, `backtest/metrics.py`
 > **선행 조건**: SPEC_03 완료 (BacktestPipeline 동작 확인)
-> **Phase 2 완료 (2026-06-21)**: 13개 Ablation 시나리오 전체 실행. 결과: MASTER.md §Phase 2 결과.
+> **Phase 2 완료 (2026-06-21) → 가격보정 재실행 (2026-07-02)**: 13개 Ablation 시나리오 전체 실행,
+>   4종목 adj_close 소급보정 후 재실행 완료. 결과: `experiments/runs/2026.07.02. BACKTEST_RESULTS.md`,
+>   MASTER.md §Phase 2 결과.
 > **Claude Code 지시**:
 >   1. `RIMModel`은 `ValuationModel` Protocol을 반드시 준수하라 (SPEC_03 interfaces.py 참조).
 >   2. Phase 3: `classifier.py` 활성화. Phase 2에서는 모든 종목에 RIM 동일 적용.
@@ -23,33 +25,45 @@
 
 ## 7-1. RIM 적정가 계산
 
-v4.2에서 확정된 산식 그대로 유지. `stock-analysis/api/services/fair_value.py`와 동일 로직의 독립 구현.
-v4.8에서 `RIMModel` 클래스로 래핑해 `ValuationModel` Protocol을 준수한다.
+> **2026-06-21 산식 교체**: v4.2~v4.9 시절에는 `stock-analysis/api/services/fair_value.py`의
+> 성장률 할인모형(g·payout 기반)을 그대로 이식했으나, 분모 `(1+r-g)`가 Ohlson(1995) 지속성
+> 닫힌형에서 유래한 항인데 분자에 불필요한 `×g`가 곱해져 있어 `FV ≈ equity`(업사이드 ≈ 1/PBR)로
+> ROE 신호가 사실상 죽어있는 결함이 확인됐다(ROE 2배 시 업사이드 +1.1%p에 불과, PBR 민감도의
+> ~1/20). v5.0에서 Ohlson(1995) 지속성 단일단계형으로 교체. 상세 진단 근거는
+> `2026.06.21. 백테스트_설계검토_및_RIM산식_교체.md` §DesignBug-1 참조.
+> v4.8에서 `RIMModel` 클래스로 래핑해 `ValuationModel` Protocol을 준수한다.
 
 ```python
 # backtest/models/rim.py
 """
-RIM (Residual Income Model) 적정가 모델.
+RIM (Residual Income Model) 적정가 모델 — Ohlson(1995) 지속성 단일단계형.
 
-adjROE = (0.5×NI + 0.5×CFO) / equity — Dechow(1994) Method C, λ=0.5
-g      = adjROE × (1 - payout), clamp [0, r×0.9]
-         ↳ 상한 r×0.9: 분모 (1+r-g) 발산 방지 수학적 안전장치. 고정값, 튜닝 제외.
-FV     = equity + equity × (adjROE - r) × g / (1+r-g)
+adjROE  = (0.5×NI + 0.5×CFO) / equity      Dechow(1994) Method C, λ=0.5
+premium = (adjROE - r) / (1 + r - ω)        ω = 초과이익 지속성 [0,1), 고정 0.62
+V/B     = clamp(1 + premium, 0, VB_CAP)     VB_CAP = 5.0 (새니티 캡)
+FV      = equity × V/B
 FV_per_share = FV / shares
+
+분모 (1+r-ω)는 ω→1에서도 ≈ r(0.087)로 바닥이 막혀 있어 절대 폭발하지 않는다
+(표준 단일단계 성장형 (r-g)는 g→r에서 발산하므로 채택하지 않음 — 비채택 대안 비교는
+메모리 rim_formula_alternatives 참조).
+
+payout/g 개념 자체가 불필요 — KOSDAQ 소형주 배당 데이터 누락 문제가 산식 교체로 자동 해소된다.
 
 equity 우선순위: 지배기업소유주지분 > 자본총계
   CFS(연결)에서 자본총계는 비지배지분을 포함하므로 지배주주 기준 적정가를 산출하려면
   지배기업소유주지분을 먼저 사용한다. OFS(개별) 또는 비지배지분=0인 법인은 동일값.
 
-payout=0 가정: KOSDAQ 소형주 배당 데이터 누락 다수 → 낙관적 편향 허용 (§3-1).
 β=1.0 고정: Phase 2~4. Phase 3 이후 rolling β 도입 검토.
 beta_adj: r 오프셋 [-0.02, +0.02]. β=1.0 고정 유지하면서 r 수준만 미세 조정.
 
-constants: RF, RK — stability_filter.py와 반드시 동일 값 유지.
+constants: RF, RK, OMEGA, VB_CAP — stability_filter.py와 반드시 동일 값 유지 (configs/constants.py 단일 소스).
 """
 from __future__ import annotations
 
-RF, RK = 0.0263, 0.0873   # stock-analysis 기존값 유지
+RF, RK = 0.0263, 0.0873    # stock-analysis 기존값 유지
+OMEGA  = 0.62               # Dechow(1994) 실증값. Phase 3 [0.4, 0.9] 베이지안 튜닝 검토 대상
+VB_CAP = 5.0                 # V/B 상한 새니티 캡
 
 
 class RIMModel:
@@ -57,11 +71,13 @@ class RIMModel:
 
     name = 'RIM'
 
-    def __init__(self, beta_adj: float = 0.0):
+    def __init__(self, beta_adj: float = 0.0, omega: float = OMEGA, vb_cap: float = VB_CAP):
         # beta_adj: r 오프셋 [-0.02, +0.02]. β=1.0 고정 유지하면서 r 수준만 미세 조정.
         # beta_adj < 0 → r 낙관적(할인율 낮음) → 적정가 상승
         # beta_adj > 0 → r 보수적 → 적정가 하락
         self.beta_adj = beta_adj
+        self.omega = omega
+        self.vb_cap = vb_cap
 
     def fair_value(
         self,
@@ -73,19 +89,17 @@ class RIMModel:
         """
         주당 적정가(KRW) 반환. 계산 불가 시 None.
 
-        산식 (stock-analysis fair_value.py 동일):
-          equity = 지배기업소유주지분 (없으면 자본총계 fallback)
-          adjROE = (0.5×NI + 0.5×CFO) / equity   Dechow(1994) Method C
-          g      = adjROE × (1 - payout), clamp [0, r×0.9]
-          FV     = equity + equity × (adjROE - r) × g / (1+r-g)
+        산식 (Ohlson 1995 지속성 단일단계형):
+          equity  = 지배기업소유주지분 (없으면 자본총계 fallback)
+          adjROE  = (0.5×NI + 0.5×CFO) / equity   Dechow(1994) Method C
+          premium = (adjROE - r) / (1 + r - ω)
+          V/B     = clamp(1 + premium, 0, vb_cap)
+          FV      = equity × V/B
           FV_per_share = FV / shares
 
-        배당금지급 missing → payout=0 (낙관적 편향 허용, KOSDAQ 소형주 누락 다수).
         beta_adj: r 오프셋 [-0.02, +0.02]. β=1.0 고정.
         fv_total ≤ 0: None 반환. R6로 대부분 걸러지지만 PIT 타이밍 불일치 방어.
         """
-        import logging
-
         ni     = pit_data.get('당기순이익')
         cfo    = pit_data.get('영업활동현금흐름')
         equity = pit_data.get('지배기업소유주지분') or pit_data.get('자본총계')
@@ -99,24 +113,13 @@ class RIMModel:
 
         adj_roe = (0.5 * ni + 0.5 * cfo) / equity
 
-        # 배당금지급 3분류 처리 (v4.7): confirmed_zero | reported_positive | missing
-        # missing → payout=0 (낙관적 편향). Phase 4 민감도 테스트에서 missing 제외 시나리오 비교.
-        # 제외하지 않는 이유: KOSDAQ 소형주 상당수가 missing → 제외 시 소형주 편향 발생.
-        div_raw = pit_data.get('배당금지급')
-        if div_raw is None:
-            logging.debug(f'[RIM] {ticker} 배당금지급 missing — payout=0 적용')
-            div = 0.0
-        else:
-            div = float(div_raw)
-
-        payout = abs(div) / max(abs(ni), 1) if ni != 0 else 0.0
-        g      = max(0.0, min(adj_roe * (1 - payout), r * 0.9))
-
-        denom = 1 + r - g
+        denom = 1 + r - self.omega
         if abs(denom) < 1e-6:
             return None
 
-        fv_total = equity + equity * (adj_roe - r) * g / denom
+        premium  = (adj_roe - r) / denom
+        vb       = max(0.0, min(1.0 + premium, self.vb_cap))
+        fv_total = equity * vb
         if fv_total <= 0:
             return None   # 방어 처리: R6 후에도 PIT 타이밍 불일치로 발생 가능
 

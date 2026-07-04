@@ -99,14 +99,25 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 
 **대상**: KOSPI/KOSDAQ 전체 + 상장폐지 종목 (FDR KRX-DELISTING)
 
+> **검증 (2026-07-04, 서버 DB 직접 조회)**: 이 체크리스트는 오랫동안 미체크 상태였으나, Phase 1·2가
+> 이미 전종목 기준으로 완료된 것으로 보아 실제로는 실행됐을 것으로 추정되어 뒤늦게 확인함. 결과 두 항목
+> 에서 실제 미충족을 발견 — 아래 체크 상태 참조.
+
 **검증 체크리스트**:
-- [ ] `stocks` 종목 수 2,000개 이상
-- [ ] `stock_listing_events` 상장폐지 종목 포함 확인 (`event_type='delisted'` 건수 확인)
-- [ ] `price_history` `adj_close` 컬럼 정상 수집 확인
-- [ ] `market_cap_history` 2014년부터 수집 확인
-- [ ] `financials` 2014년 데이터 포함 확인
-- [ ] `ingest_status` 수집 완료율 90% 이상
-- [ ] **FDR KRX-DELISTING 완결성 검증** ← v4.4 추가
+- [x] `stocks` 종목 수 2,000개 이상 — **3,264개** (KOSDAQ 2,171 + KOSPI 1,093) ✅ PASS
+- [x] `stock_listing_events` 상장폐지 종목 포함 확인 — `delisted` 4,124건 / `listed` 2,770건 ✅ PASS
+- [x] `price_history` `adj_close` 컬럼 정상 수집 확인 — 2014-01-02~2026-05-22, 3,345종목 ✅ PASS
+- [x] `market_cap_history` 2014년부터 수집 확인 — 2014-01-02~2026-05-22, 3,343종목 ✅ PASS
+- [ ] `financials` 2014년 데이터 포함 확인 — **❌ FAIL**: 실제 `financials.year` 범위는
+      **2015~2025** (2014년 데이터 없음). MASTER §3-2가 "2015-04-03·2015-08-19 두 리밸런싱 날짜가
+      FY2014/H1_2014 PIT 데이터 미충족으로 유니버스 0개"라고 이미 기술한 TTM 제약의 근본 원인이
+      바로 이것 — DART 재무 데이터가 애초에 2014년치를 수집하지 않았음. 별도 조치 불필요(이미
+      21개 유효 구간 기준으로 우회 중)하나, 이 항목 자체는 "통과"로 표기할 수 없어 체크 해제 유지.
+- [ ] `ingest_status` 수집 완료율 90% 이상 — **❌ FAIL**: 87.5% (done 2,855 / total 3,264, pending 409).
+      pending 종목은 `last_attempt=null`(시도 이력 없음)이 다수 — 수집 실패라기보다 미착수로 추정되나
+      원인 미확인. Phase 3 진행 전 pending 409종목 처리 여부 점검 필요.
+- [ ] **FDR KRX-DELISTING 완결성 검증** ← v4.4 추가 — **미검증** (2020~2022년 상장폐지 종목 수를
+      KRX 공식 수치와 비교하는 작업 자체가 아직 수행되지 않음)
   - 2020~2022년 상장폐지 종목 수를 KRX 공식 수치(KIND 공시)와 비교
   - FDR 수집 종목 수 / KRX 공식 수치 < 80%이면 수집 방식 재검토
 
@@ -131,13 +142,18 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 
 ---
 
-## Phase 2 — RIM 단일 모델 백테스트 ✅ **완료 (2026-06-21)**
+## Phase 2 — RIM 단일 모델 백테스트 ✅ **완료 (2026-06-21) → 가격보정 재실행 완료 (2026-07-02)**
 
 **목표**: 4단계 필터 + RIM 단일 모델 + Ablation Test
 
 > **완료 상태 (2026-06-21)**: 13개 시나리오 Ablation Test 전체 완료. 결과: `experiments/ablation/summary.json`.
-> **Phase 3 진입 조건**: F_momentum_rim이 C_stability_random p95(10.91%) 초과 ✅, 모멘텀 효과 ✅.
-> 단, 팩터 스크리닝(E)이 D보다 성과 저조 → Phase 3에서 가중치 재조정 후 재검증 필요.
+> **RIM 산식 교체 (2026-06-21)**: 기존 g·payout 기반 산식이 사실상 1/PBR 필터로 무력화되는 결함이
+> 발견되어 Ohlson(1995) 지속성 단일단계형(ω=0.62)으로 교체. 상세: `2026.06.21. 백테스트_설계검토_및_RIM산식_교체.md`.
+> **가격 소급보정 재실행 (2026-07-02)**: 감자·분할 미반영 4종목 adj_close 소급보정 후 A~H 전체 재실행.
+> 결과: `experiments/runs/2026.07.02. BACKTEST_RESULTS.md`.
+> **Phase 3 진입 조건**: F_momentum_rim이 C_stability_random p95(11.94%) 초과 ✅, 모멘텀 효과 ✅,
+> D_rim_only가 C_p95 근소 초과(11.99% ≥ 11.94%, +0.05%p — 경계값 근방, 06-25 시점엔 미달이었다가
+> 가격보정 후 역전됨) ✅. 단, 팩터 스크리닝(E)이 D보다 성과 저조 → Phase 3에서 가중치 재조정 후 재검증 필요.
 
 **완료된 작업** (v4.8 모듈화 구조):
 1. ✅ `backtest/interfaces.py` — UniverseFilter, ValuationModel Protocol 정의
@@ -153,33 +169,49 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 11. ✅ `load_pit_series_ttm()` — H1 TTM 계산 (FY−H1_prev+H1_curr)
 12. ✅ Ablation Test 13개 시나리오 → `experiments/ablation/`
 
-**Phase 2 검증 결과**:
-- ✅ Ablation Test 13개 시나리오 완료
+**Phase 2 검증 결과 (2026-07-02 가격보정 재실행 기준)**:
+- ✅ Ablation Test 13개 시나리오 완료 (2026-06-21 최초 실행 → 2026-07-02 가격보정 후 전체 재실행)
 - ✅ `available_from <= rebalance_date` 코드 전체 적용 확인
-- ✅ D(11.47%) > C_stability_random p95(10.91%) → RIM 통계적 유효성 확인
-- ✅ 재무안정성 필터(R6 포함): H_no_stability MDD -40.63% vs F -28.06% → 안정성 기여 확인
-- ⚠️ 팩터 스크리닝(E=5.29%): D(11.47%) 대비 성과 저하 → Phase 3 재검증 예정
-- ⚠️ no_r6 변형 이상 수치(D_no_r6=41.47%, F_no_r6=32.96%): 거래정지 종목 감자 데이터 오염
+- ✅ D(11.99%) ≥ C_stability_random p95(11.94%) → RIM 통계적 유효성 확인 (근소 우위 +0.05%p —
+  06-25 시점엔 미달이었다가 가격보정으로 역전. 경계값 근방이라 과신 금지)
+- ✅ 재무안정성 필터(R6 포함): H_no_stability MDD -37.7% vs F -32.6% → 안정성 기여 확인
+- ⚠️ 팩터 스크리닝(E=6.29%): D(11.99%) 대비 성과 저하 → Phase 3 재검증 예정 (변경 없음)
+- ✅ no_r6 이상 수치 해소: 감자 대상 4종목(001290/002380/005950/043590) adj_close 소급보정 완료
+  → D_no_r6/E_no_r6 인위적 고수익 대부분 해소, R6의 실질적 방어 효과가 더 명확해짐
 
-**Phase 2 Ablation 결과 요약:**
+**Ablation 결과 요약 (2026-07-02 최신):**
 
 | 시나리오 | CAGR | Alpha(KS) | Sharpe | MDD |
 |---------|------|-----------|--------|-----|
-| B_hard_random | 3.82% (중앙) | — | — | — |
-| C_stability_random | 5.83% (중앙) | — | — | — |
-| D_rim_only | 11.47% | -2.34% | 0.429 | -32.78% |
-| E_screener_rim | 5.29% | -8.52% | 0.210 | -35.26% |
-| **F_momentum_rim** | **14.09%** | +0.28% | **0.518** | **-28.06%** |
-| G_full | 8.07% | -5.74% | 0.314 | -26.34% |
-| H_no_stability | 9.45% | -4.36% | 0.335 | -40.63% |
-| KOSPI | 13.81% | — | — | — |
+| B_hard_random | 4.68% (중앙) | — | — | — |
+| C_stability_random | 6.80% (중앙) / p95=11.94% | — | — | — |
+| D_rim_only | 11.99% | -1.84% | 0.434 | -33.9% |
+| E_screener_rim | 6.29% | -7.54% | 0.251 | -35.2% |
+| **F_momentum_rim** | **14.63%** | +0.80% | **0.508** | **-32.6%** |
+| G_full | 9.23% | -4.60% | 0.347 | -25.3% |
+| H_no_stability | 11.81% | -2.02% | 0.405 | -37.7% |
+| KOSPI | 13.83% | — | — | — |
+| KOSDAQ | 2.12% | — | — | — |
+
+> 상세: `experiments/runs/2026.07.02. BACKTEST_RESULTS.md`
 
 ---
 
 ## Phase 3 — 기업 분류기 + 팩터 가중치 튜닝 ← **현재 시작점**
 
-> **현재 상태 (2026-06-21)**: Phase 2 완료. Phase 3 진입 가능.
-> **우선 과제**: ① no_r6 재실행 (`has_recent_trade` 픽스 후) → ② 팩터 스크리닝 가중치 재조정 실험.
+> **현재 상태 (2026-07-02)**: Phase 2 완료(06-21) → RIM 산식 교체(06-21) → 가격 소급보정 후
+> Ablation 전체 재실행 완료(07-02, RIM 유효성 판정 ✅ 역전 확인, 근소 우위 +0.05%p) → Phase 3 진입 가능.
+> **우선 과제**: ① 신호분리 ablation (R6 vs RIM vs 1/PBR 독립 기여 분리 — 워크플로우 문서 STEP 3,
+> RIM 유효성 판정이 경계값 근방이라 이 분리 없이는 "RIM 알파"의 실체가 불확실) →
+> ② 팩터 스크리닝 가중치 재조정 실험 (E가 D보다 성과 저조한 원인 규명).
+> 참고 자료: `2026.06.21. 백테스트_검토_및_모델개선_워크플로우.md` (STEP 1~11 전체 체크리스트),
+> `2026.06.21. 백테스트_설계검토_및_RIM산식_교체.md` (RIM 산식 교체 근거).
+
+**미결 항목 (Phase 3 진행 중 확정 필요, 임의로 정하지 않음)**:
+- **최소 편입 종목 수 규칙**: 일부 리밸런싱 구간이 목표 20종목에 크게 못 미침(3~9종목).
+  워크플로우 문서 STEP 7 검증 후 임계값 확정 예정.
+- **벤치마크 우선순위 재배치**: KOSPI 대신 "Hard+Stability 통과 동일가중"을 1차 KPI로 삼자는
+  제안(워크플로우 문서 STEP 5, New-1)이 검토만 된 상태 — 아직 확정 아님.
 
 **전제 조건**: Phase 2 Ablation Test 완료 ✅ (RIM 유효성 확인, F_momentum_rim 우수)
 

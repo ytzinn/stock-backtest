@@ -1,9 +1,9 @@
 # stock-backtest — MASTER 설계서
 
-> **설계서 버전**: v5.0
+> **설계서 버전**: v5.1
 > **프로젝트 저장소**: `stock-backtest/`
 > **기준 문서**: 멀티모델_백테스트_머신_설계서_v4.8.md
-> **Phase 2 완료**: 2026-06-21 (13개 시나리오 Ablation Test 완료)
+> **Phase 2 완료**: 2026-06-21 (13개 시나리오 Ablation Test 완료) → **가격보정 재실행**: 2026-07-02
 
 ---
 
@@ -45,7 +45,7 @@ KRX 현재 상장 종목 + 상장폐지 종목
     ▼
 stocks 테이블 + stock_listing_events 테이블        ← v4.7: 이벤트 이력 구조
     │
-    ├─ dart_ingest.py        →  financials 테이블       (2014년~)
+    ├─ dart_ingest.py        →  financials 테이블       (2015년~, 2014년 미수집 확인 — SPEC_06 Phase 0C)
     │                            disclosures 테이블
     ├─ price_ingest.py       →  price_history 테이블    (adj_close, is_suspended 포함)
     └─ market_cap_ingest.py  →  market_cap_history 테이블
@@ -154,6 +154,11 @@ RF, RK = 0.0263, 0.0873   # 두 파일에서 동일 값 유지
 | Robustness | **21개 유효 구간** (TTM 미충족 2015-04·08 2구간 제외) 중 KOSPI 대비 Alpha 양수 비율 |
 | 벤치마크 3종 | KOSPI / KOSDAQ / 유니버스 랜덤 (C_stability_random 500회 중앙값) |
 | 수익률 기준 | adj_close 수정주가. 배당 미반영. 벤치마크도 동일 조건. |
+
+> **미결 항목 (2026-07-02)**: KOSPI를 1차 벤치마크로 두는 현재 순서 대신 "Hard+Stability 통과
+> 동일가중 유니버스"를 1차 KPI로 재배치하자는 제안이 검토됨 (2026년 KOSPI가 시총 상위 소수 종목
+> 쏠림으로 급등해 동일가중 소형 가치주 전략과 스타일이 안 맞는다는 문제 제기). 아직 확정 아님 —
+> 상세: SPEC_06 Phase 3 미결 항목, `2026.06.21. 백테스트_검토_및_모델개선_워크플로우.md` STEP 5.
 
 ## 3-5. 팩터 스크리닝 초기 가중치
 
@@ -316,29 +321,36 @@ stock-backtest/                   # 실제 서버 경로: /opt/stock-backtest/
 
 ---
 
-## Phase 2 Ablation Test 결과 요약 (2026-06-21 기준)
+## Ablation Test 결과 요약 (2026-07-02 가격보정 재실행 기준)
+
+> 2026-06-21 최초 실행(13개 시나리오) → 같은 날 RIM 산식 교체(g·payout 기반 → Ohlson 지속성형,
+> ω=0.62) → 2026-06-25 재실행 → 감자·분할 미반영 4종목(001290/002380/005950/043590) adj_close
+> 소급보정 후 2026-07-02 전체 재실행. 아래는 최신(07-02) 수치. 상세: `experiments/runs/2026.07.02. BACKTEST_RESULTS.md`
 
 | 시나리오 | CAGR (순) | Alpha vs KOSPI | Sharpe | MDD | 비고 |
 |---------|---------|-------------|--------|-----|------|
 | **A_random** | — | — | — | — | 랜덤 500회 분포만 |
-| **B_hard_random** | 3.82% (중앙) | — | — | — | p95=11.34% |
-| **C_stability_random** | 5.83% (중앙) | — | — | — | p95=10.91% |
-| **D_rim_only** | 11.47% (10.55%) | -2.34% | 0.429 | -32.78% | RIM 단독 |
-| **E_screener_rim** | 5.29% (4.39%) | -8.52% | 0.210 | -35.26% | 팩터 스크리닝 효과 없음 |
-| **F_momentum_rim** | **14.09%** (13.02%) | +0.28% | **0.518** | **-28.06%** | **최적 조합** |
-| **G_full** | 8.07% (7.02%) | -5.74% | 0.314 | -26.34% | 팩터 스크리닝이 성과 저해 |
-| **H_no_stability** | 9.45% (8.37%) | -4.36% | 0.335 | -40.63% | 재무안정성 필터 제거 시 MDD 급등 |
-| KOSPI 벤치마크 | 13.81% | — | — | — | 배당 미반영 |
+| **B_hard_random** | 4.68% (중앙) | — | — | — | p95=12.13% |
+| **C_stability_random** | 6.80% (중앙) | — | — | — | p95=11.94% |
+| **D_rim_only** | 11.99% (10.99%) | -1.84% | 0.434 | -33.9% | RIM 단독 |
+| **E_screener_rim** | 6.29% (5.31%) | -7.54% | 0.251 | -35.2% | 팩터 스크리닝 효과 없음 |
+| **F_momentum_rim** | **14.63%** (13.45%) | +0.80% | **0.508** | **-32.6%** | **최적 조합** |
+| **G_full** | 9.23% (8.08%) | -4.60% | 0.347 | -25.3% | 팩터 스크리닝이 성과 저해 |
+| **H_no_stability** | 11.81% (10.62%) | -2.02% | 0.405 | -37.7% | 재무안정성 필터 제거 시 MDD 급등 |
+| KOSPI 벤치마크 | 13.83% | — | — | — | 배당 미반영 |
+| KOSDAQ 벤치마크 | 2.12% | — | — | — | 배당 미반영 |
 
 **판정 결과:**
-- ✅ D > C_p95 (RIM 유효성): D(11.47%) > C_p95(10.91%) → RIM은 랜덤 대비 통계적으로 유효
-- ✅ F > D (모멘텀 기여): F(14.09%) > D(11.47%) → 모멘텀 필터 유지
-- ❌ C > B_p95 (재무안정성 기여): C_median(5.83%) < B_p95(11.34%) → 재무안정성 자체 Alpha는 미미
-- ❌ E > D (팩터 스크리닝 기여): E(5.29%) < D(11.47%) → 팩터 스크리닝 제거 검토 필요
+- ✅ D ≥ C_p95 (RIM 유효성): D(11.99%) ≥ C_p95(11.94%) → RIM 통계적 유효 **(근소 우위 +0.05%p —
+  06-25 시점엔 미달이었다가 가격보정 후 역전. 경계값 근방이라 과신 금지, Phase 3 신호분리 ablation 필요)**
+- ✅ F > D (모멘텀 기여): F(14.63%) > D(11.99%) → 모멘텀 필터 유지
+- ❌ C > B_p95 (재무안정성 기여): C_median(6.80%) < B_p95(12.13%) → 재무안정성 자체 Alpha는 미미
+- ❌ E > D (팩터 스크리닝 기여): E(6.29%) < D(11.99%) → 팩터 스크리닝 제거 검토 필요
 
 **Phase 3 방향**: Hard + Stability + Momentum + RIM 구조(F 기반) 유지. 팩터 스크리닝은 Phase 3에서 가중치 재조정 후 재검증. 재무안정성 필터(R6 포함)는 MDD 관리에 기여 확인(H vs F MDD 비교).
 
-> ⚠️ `D_no_r6`(41.47%), `F_no_r6`(32.96%) 이상 수치는 거래정지 종목(제일바이오 052670) 감자 데이터 오염으로 발생한 아티팩트. `has_recent_trade(window=5)` 픽스 적용 후 재실행 필요.
+> ✅ (해소) `D_no_r6`·`F_no_r6` 이상 수치는 감자 대상 4종목의 adj_close 미보정이 만든 인위적 고수익이었음이
+> 확인되어 2026-07-02 소급보정 후 재실행으로 해소됨. 상세: SPEC_06 Phase 2 결과, 워크플로우 문서 STEP 9.
 
 ---
 
@@ -357,6 +369,7 @@ stock-backtest/                   # 실제 서버 경로: /opt/stock-backtest/
 > **v4.9** (인터뷰 반영): ① `UniverseFilter.apply()` 시그니처 `pit_prev` 제거 → `pit_series: dict[str, list[dict]]`([0]=현재, [1]=t-1, [2]=t-2) 통일. ② `backtest/data_access.py` 신규 — DB 조회 헬퍼 집중, `ingest/connection.py` 재사용, `conn` 주입 패턴. ③ 필터 클래스: 생성자 파라미터 주입 + `apply()` 메서드 구조 확정. ④ FactorScreener 가중치 키 영어 통일(`rev_yoy, op_yoy, gpa, inv_pbr`). ⑤ `beta_adj` 파라미터 정의 명시 (r 오프셋, β=1.0 유지). ⑥ `configs/rebalance_dates.py` 생성 스크립트 추가. ⑦ Phase 2 튜닝 파라미터 테이블 §3-7 신규.
 > **v4.9 추가** (심층 인터뷰 반영): ⑧ `g` 상한 `r×0.9` 수학적 안전장치 명시(§3-1). ⑨ `fv_total ≤ 0` 방어 처리 추가 — 실제 발생 확인, R6 이후 PIT 타이밍 불일치 케이스. ⑩ 리밸런싱 날짜 영업일 계산: pykrx 불가 → `price_history` DISTINCT date(삼성전자 기준) 대체. ⑪ `dividend_status` 로컬 변수 제거, `logging.debug` 유지 — Phase 4 민감도용 DB 원본 활용. ⑫ 업종 집중 상한 25%: `stocks.sector` 데이터 미정비로 Phase 2 고정, Phase 3 이후 검토.
 > **v5.0** (Phase 2 완료, 2026-06-21): ① Ablation Test 13개 시나리오 완료 (no_r6 변형 6개 + H_no_stability 추가). ② `has_recent_trade(window=5)` Hard Filter에 추가 — 거래정지 5일 이상 종목 선제 제외 (제일바이오 감자 아티팩트 근본 차단). ③ `get_avg_turnover(max_lookback_days=90)` — 90일 초과 과거 거래량 사용 방지. ④ XBRL 파이프라인 추가: `xbrl_historical_ingest.py`, `xbrl_mapper.py`, `amendment_checker.py` — `financials_pit` 정정 공시 추적(`original_amount`, `amendment_from`). ⑤ `load_pit_series_ttm()` H1 TTM 계산 추가. ⑥ `dashboard/` 추가 (Streamlit, 포트 8502). ⑦ 디렉토리 구조 실제 서버 파일 기준으로 업데이트. ⑧ Phase 2 결과: F_momentum_rim 최적(CAGR 14.09%, Sharpe 0.518, MDD -28.06%). 팩터 스크리닝 성과 저해 확인 — Phase 3 재검증 예정.
+> **v5.1** (설계서 정합성 복구, 2026-07-04): ① `SPEC_04_models.md` §7-1이 v5.0에서 MASTER §3-1에만 반영됐던 RIM 산식 교체(Ohlson 지속성형, ω=0.62, VB_CAP=5.0)를 그동안 반영하지 못하고 옛 g·payout 산식을 그대로 담고 있던 것을 확인·동기화. ② 2026-07-02 가격 소급보정(감자·분할 미반영 4종목) 후 Ablation 전체 재실행 결과 반영 — RIM 유효성 판정 역전(❌→✅, D≥C_p95 근소 우위 +0.05%p), R6 착시 효과 해소. ③ 결과 문서(`BACKTEST_RESULTS.md` 4개)·포트폴리오 홀딩스(xlsx 3개)를 `experiments/runs/`로 정리. ④ 미결 항목 2건을 SPEC_05/06·MASTER에 명시: 포트폴리오 최소 편입 종목 수 규칙, 벤치마크 우선순위 재배치(KOSPI vs Hard+Stability 동일가중) — 둘 다 검토만 됐을 뿐 확정 아님.
 >
 > **핵심 변경 철학**: "모든 모델 산식 먼저 → 구현" 순서 대신 "RIM + 모멘텀으로 Baseline 먼저 → 결과 보고 확장" 순서로 전환.
 > 멀티모델(EV/Sales, Peer PER, NAV, FCFF 등) 산식 확정은 Phase 2 Ablation Test 결과 이후로 이동.
