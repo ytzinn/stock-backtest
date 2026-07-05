@@ -20,6 +20,7 @@ import pandas as pd
 from backtest.configs.constants import COST_BUY, COST_SELL, MIN_STOCKS_WARN
 from backtest.data_access import (
     get_close_price,
+    is_delisted_at,
     load_gate_passed_tickers,
     load_pit_series_ttm,
 )
@@ -207,6 +208,11 @@ def _calc_period_return(
       gross_return : 기준 수익률 (상폐 × DELISTING_HAIRCUT=0.70)
       opt_adj      : 낙관 조정 (+, 상폐 haircut 없앨 경우 추가 수익)
       cons_adj     : 보수 조정 (-, 상폐 전액 손실 가정 시 추가 손실)
+
+    상폐 판정은 `is_delisted_at()`(stock_listing_events 기준)으로 한다. `get_close_price()`는
+    `date <= as_of` 최신값을 반환해 상폐로 가격이 끊겨도 절대 None이 되지 않으므로
+    (2026-07-05 확인된 버그 — haircut 분기가 도달 불가능했음), `price_end is None`을
+    트리거로 쓰지 않는다.
     """
     if not portfolio:
         return 0.0, 0.0, 0.0
@@ -218,18 +224,22 @@ def _calc_period_return(
 
     for ticker in portfolio:
         price_start = get_close_price(conn, ticker, start_date)
-        price_end   = get_close_price(conn, ticker, end_date)
 
         if price_start is None or price_start <= 0:
             n -= 1
             continue
 
-        if price_end is None:
+        if is_delisted_at(conn, ticker, end_date):
             last = _last_known_price(conn, ticker, end_date)
             price_end = last * DELISTING_HAIRCUT
             w = 1.0 / max(n, 1)
             opt_adj  += w * last * (1.0 - DELISTING_HAIRCUT) / price_start
             cons_adj -= w * last * DELISTING_HAIRCUT / price_start
+        else:
+            price_end = get_close_price(conn, ticker, end_date)
+            if price_end is None:
+                n -= 1
+                continue
 
         stock_returns.append(price_end / price_start - 1)
 
