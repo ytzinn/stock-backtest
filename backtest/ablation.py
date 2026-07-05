@@ -38,6 +38,9 @@ ABLATION_CONFIGS: dict[str, dict] = {
     'D_pbr_only':          {'use_hard': True,  'use_stability': True,  'use_screener': False,
                             'use_momentum': False, 'use_rim_filter': False, 'stability_r6': False,
                             'rank_mode': 'pbr'},
+    'D_factor_only':       {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': False, 'use_rim_filter': False, 'stability_r6': False,
+                            'rank_mode': 'factor_composite'},
     'E_screener_rim':      {'use_hard': True,  'use_stability': True,  'use_screener': True,
                             'use_momentum': False, 'use_rim_filter': True},
     'E_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': True,
@@ -134,6 +137,43 @@ class _PBRRankPipeline(BacktestPipeline):
         return sorted(scored, key=lambda x: x['upside_pct'], reverse=True)
 
 
+class _FactorCompositeRankPipeline(BacktestPipeline):
+    """
+    필터 통과 종목을 FactorScreener 4팩터 합산 점수(기본 가중치)로 직접 랭킹해 상위 N개 선택.
+    RIM 없이 팩터 컴포지트 자체가 독립 알파 신호로 작동하는지 확인하는 대조군
+    (STEP 3B 후속 — 단일팩터 프리필터+RIM 진단과 달리, 여기서는 RIM을 완전히 배제하고
+    합성 점수만으로 선정해 "위치(프리필터) 문제 vs 구성 자체 문제"를 분리한다).
+    `factor_screener._factor_screening()`을 top_pct=1.0으로 호출해 전체 유니버스를
+    점수 내림차순으로 받은 뒤 그대로 반환한다 (build_portfolio가 상위 n_stocks만 사용).
+    """
+
+    def __init__(self, filters: list, n_stocks: int = 20, weights: dict | None = None):
+        super().__init__(filters=filters, valuation_model=RIMModel(), n_stocks=n_stocks)
+        self.weights = weights or {'rev_yoy': 1 / 6, 'op_yoy': 1 / 6, 'gpa': 1 / 3, 'inv_pbr': 1 / 3}
+
+    def score_and_rank(self, universe, rebalance_date, pit_series, conn) -> list[dict]:
+        from backtest.data_access import get_close_price
+        from backtest.filters.factor_screener import _factor_screening
+
+        ranked_all = _factor_screening(
+            universe, rebalance_date, pit_series, conn, self.weights, top_pct=1.0
+        )
+
+        result = []
+        for ticker in ranked_all:
+            price = get_close_price(conn, ticker, rebalance_date)
+            if price is None or price <= 0:
+                continue
+            result.append({
+                'ticker':     ticker,
+                'upside_pct': 0.0,   # 점수는 _factor_screening 내부 정렬에만 사용, 순서 보존
+                'model':      'FACTOR_COMPOSITE',
+                'fair_value': None,
+                'price':      price,
+            })
+        return result
+
+
 def build_ablation_pipeline(
     tag:           str,
     config:        dict,
@@ -167,6 +207,9 @@ def build_ablation_pipeline(
 
     if config.get('rank_mode') == 'pbr':
         return _PBRRankPipeline(filters=filters, n_stocks=n_stocks)
+
+    if config.get('rank_mode') == 'factor_composite':
+        return _FactorCompositeRankPipeline(filters=filters, n_stocks=n_stocks)
 
     if not config.get('use_rim_filter', True):
         return _RandomSelectPipeline(

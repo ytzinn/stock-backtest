@@ -232,6 +232,17 @@ def make_summary(det_results: dict[str, dict], dist_stats: dict[str, dict]) -> d
         )
         judgements['_D_no_r6_cagr']   = round(cagr('D_no_r6'), 6)
         judgements['_D_pbr_only_cagr'] = round(cagr('D_pbr_only'), 6)
+    if 'D_no_r6' in s and 'D_factor_only' in s:
+        # STEP 3B 후속: FactorScreener 4팩터 합산 점수를 RIM 없이 단독 선정 기준으로 썼을 때
+        # RIM 랭킹(D_no_r6) 대비 얼마나 나쁜지/좋은지 — "위치 문제 vs 구성 자체 문제" 분리
+        judgements['D_no_r6>D_factor_only (팩터 컴포지트 단독 대비 RIM 우위)'] = (
+            cagr('D_no_r6') > cagr('D_factor_only')
+        )
+        judgements['_D_factor_only_cagr'] = round(cagr('D_factor_only'), 6)
+        if 'C_no_r6' in s:
+            judgements['D_factor_only>C_no_r6 (팩터 컴포지트 자체가 랜덤보다 나은가)'] = (
+                cagr('D_factor_only') > cagr('C_no_r6')
+            )
     if 'D_rim_only' in s:
         # FactorScreener 단일팩터 진단: D_rim_only(스크리너 없음) 대비 각 팩터 단독 프리필터+RIM 비교
         d_cagr = cagr('D_rim_only')
