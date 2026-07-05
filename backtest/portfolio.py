@@ -1,15 +1,19 @@
 """
-포트폴리오 구성 — 동일가중(1/N) + 비중 제약.
+포트폴리오 구성 — 동일가중(1/N).
 
 Phase 2 확정값:
-  - 동일가중 (1/N), 종목당 최대 5%
+  - 동일가중 (1/N), 종목당 비중 상한 없음 — 2026-07-05 MAX_STOCK_WEIGHT 폐지
+    (build_portfolio()가 캡을 적용해도 engine._calc_period_return()이 실제로는
+     weight 값을 쓰지 않고 보유 종목 수로 단순평균했기 때문에 캡이 실질적으로
+     무의미했음. n_stocks=20 목표 충족 시엔 1/20=5%로 어차피 캡과 동일했고,
+     드물게 종목 수가 적은 구간에서만 "표시상 5%, 실제 계산은 1/n"로 괴리가
+     있었음 — 코드·실제 동작 불일치 해소를 위해 캡 자체를 제거.)
   - 목표 종목 수: n_stocks (기본 20)
   - 최소 종목 수: MIN_PORTFOLIO_STOCKS (기본 5) — 미달 시 해당 기간 건너뜀 (return=0)
   - 업종 최대 25%, KOSDAQ 최대 60% — 업종/거래소 데이터 미수집으로 Phase 2 미구현
 """
 from __future__ import annotations
 
-MAX_STOCK_WEIGHT   = 0.05  # 종목당 최대 비중 5%
 MIN_PORTFOLIO_STOCKS = 5   # 이 미만이면 포트폴리오 구성 불가로 빈 dict 반환
 
 
@@ -20,7 +24,7 @@ def build_portfolio(
     """
     score_and_rank() 반환값(upside_pct 내림차순 정렬)을 받아 포트폴리오 비중 반환.
 
-    반환: {ticker: weight}  (합이 1.0에 가깝지만 cap 적용 시 미달 가능)
+    반환: {ticker: weight}  (동일가중 1/n, 합계 1.0)
     후보가 MIN_PORTFOLIO_STOCKS 미만이면 빈 dict → engine이 period_return=0으로 처리.
 
     Phase 2 미구현: 업종 상한 25%, KOSDAQ 상한 60%.
@@ -31,8 +35,7 @@ def build_portfolio(
     if n == 0:
         return {}
 
-    raw_weight = 1.0 / n
-    weight = min(raw_weight, MAX_STOCK_WEIGHT)
+    weight = 1.0 / n
 
     return {item['ticker']: weight for item in selected}
 

@@ -232,6 +232,15 @@ def make_summary(det_results: dict[str, dict], dist_stats: dict[str, dict]) -> d
         )
         judgements['_D_no_r6_cagr']   = round(cagr('D_no_r6'), 6)
         judgements['_D_pbr_only_cagr'] = round(cagr('D_pbr_only'), 6)
+    if 'D_rim_only' in s:
+        # FactorScreener 단일팩터 진단: D_rim_only(스크리너 없음) 대비 각 팩터 단독 프리필터+RIM 비교
+        d_cagr = cagr('D_rim_only')
+        for factor_tag in ('E_rev_only', 'E_op_only', 'E_gpa_only', 'E_pbr_only'):
+            if factor_tag in s:
+                judgements[f'{factor_tag}<D_rim_only (해당 팩터 프리필터가 알파를 깎는가)'] = (
+                    cagr(factor_tag) < d_cagr
+                )
+                judgements[f'_{factor_tag}_cagr'] = round(cagr(factor_tag), 6)
 
     summary['judgements'] = judgements
     return summary

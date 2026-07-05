@@ -42,6 +42,18 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'use_momentum': False, 'use_rim_filter': True},
     'E_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': True,
                             'use_momentum': False, 'use_rim_filter': True,  'stability_r6': False},
+    'E_rev_only':          {'use_hard': True,  'use_stability': True,  'use_screener': True,
+                            'use_momentum': False, 'use_rim_filter': True,
+                            'screener_weights': {'rev_yoy': 1.0, 'op_yoy': 0.0, 'gpa': 0.0, 'inv_pbr': 0.0}},
+    'E_op_only':           {'use_hard': True,  'use_stability': True,  'use_screener': True,
+                            'use_momentum': False, 'use_rim_filter': True,
+                            'screener_weights': {'rev_yoy': 0.0, 'op_yoy': 1.0, 'gpa': 0.0, 'inv_pbr': 0.0}},
+    'E_gpa_only':          {'use_hard': True,  'use_stability': True,  'use_screener': True,
+                            'use_momentum': False, 'use_rim_filter': True,
+                            'screener_weights': {'rev_yoy': 0.0, 'op_yoy': 0.0, 'gpa': 1.0, 'inv_pbr': 0.0}},
+    'E_pbr_only':          {'use_hard': True,  'use_stability': True,  'use_screener': True,
+                            'use_momentum': False, 'use_rim_filter': True,
+                            'screener_weights': {'rev_yoy': 0.0, 'op_yoy': 0.0, 'gpa': 0.0, 'inv_pbr': 1.0}},
     'F_momentum_rim':      {'use_hard': True,  'use_stability': True,  'use_screener': False,
                             'use_momentum': True,  'use_rim_filter': True},
     'F_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': False,
@@ -142,7 +154,10 @@ def build_ablation_pipeline(
         filters.append(StabilityFilter(r2_exception=True, use_r6=use_r6))
     if config.get('use_screener', False):
         filters.append(FactorScreener(
-            weights={'rev_yoy': 1/6, 'op_yoy': 1/6, 'gpa': 1/3, 'inv_pbr': 1/3},
+            weights=config.get(
+                'screener_weights',
+                {'rev_yoy': 1/6, 'op_yoy': 1/6, 'gpa': 1/3, 'inv_pbr': 1/3},
+            ),
             top_pct=top_pct,
         ))
     if config.get('use_momentum', False):
