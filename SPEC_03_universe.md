@@ -16,10 +16,10 @@
 
 ---
 
-# 6. Universe 구성 — 4단계 필터 구조
+# 6. Universe 구성 — 3단계 필터 구조
 
-v4.3에서 Universe 구성은 다음 4단계를 순서대로 적용한다.
-단계별로 탈락 종목 수를 기록해 리밸런싱 리포트에 포함한다.
+Universe 구성은 다음 3단계를 순서대로 적용한다. 단계별로 탈락 종목 수를 기록해 리밸런싱
+리포트에 포함한다. (팩터 스크리닝 폐기 경위: MASTER 버전이력 v5.2, SPEC_05 §11)
 
 ```
 [영구제외(stocks.is_excluded=FALSE) + DQ Gate PASS(universe_gate_pit) + 실제 상장(stock_listing_events) 종목]
@@ -30,17 +30,17 @@ v4.3에서 Universe 구성은 다음 4단계를 순서대로 적용한다.
     ▼ Step 2: 재무안정성 필터 (filters/stability_filter.py)    ← v4.3 신규
     │  부채비율, 차입금비율, 회전율, 영업CF 기준
     │
-    ▼ Step 3: 팩터 스크리닝 (filters/factor_screener.py)      ← v4.3 신규
-    │  매출YoY + 영업이익YoY + GP/A + 1/PBR → 상위 20%
-    │
-    ▼ Step 4: 모멘텀 필터 (filters/momentum_filter.py)
+    ▼ Step 3: 모멘텀 필터 (filters/momentum_filter.py)
        MA20/MA60 이중 조건 — 하락 추세 제외
 ```
 
+> **(폐기, 미사용) 팩터 스크리닝** (`filters/factor_screener.py`): 코드는 실험 기록으로 §6-3에
+> 보존되나 현재 채택 파이프라인에는 포함하지 않는다.
+
 ## 6-1. Step 1 — Hard Filter
 
-> **클래스 구조**: `HardFilter`, `StabilityFilter`, `FactorScreener`, `MomentumFilter` 모두
-> 동일한 패턴을 따른다. 생성자(`__init__`)에서 파라미터를 주입받고, `apply(tickers, rebalance_date, pit_series)`
+> **클래스 구조**: `HardFilter`, `StabilityFilter`, `FactorScreener`(폐기, 미사용), `MomentumFilter`
+> 모두 동일한 패턴을 따른다. 생성자(`__init__`)에서 파라미터를 주입받고, `apply(tickers, rebalance_date, pit_series)`
 > 메서드에서 종목별로 내부 로직 함수(`_hard_filter`, `_financial_stability_filter` 등)를 호출해
 > 통과/탈락을 분류한 뒤 `(passed_list, rejected_dict)`를 반환한다.
 >
@@ -288,9 +288,12 @@ def _financial_stability_filter(
 | 재고자산 회전율 | 전년비 -30% 이상 하락 | 참고 플래그 | Phase 3+ |
 | 매출채권 회전율 | 전년비 -30% 이상 하락 | 참고 플래그 | Phase 3+ |
 
-## 6-3. Step 3 — 팩터 스크리닝 (v4.3 신규)
+## 6-3. (폐기) 팩터 스크리닝 (v4.3 신규 → 2026-07-05 폐기)
 
-**목적**: 전체 유니버스에서 펀더멘털 퀄리티 상위 종목을 먼저 선별해 RIM 계산 부하를 줄이고, 스크리닝 자체가 독립 Alpha 인자로 작동하는지 Ablation Test로 검증.
+> **더 이상 채택 파이프라인에 포함되지 않음.** 폐기 근거·단일팩터 진단 결과는 SPEC_05 §11,
+> MASTER 버전이력 v5.2 참조. 아래 코드·설명은 실험 기록으로 보존한다.
+
+**목적(폐기 전)**: 전체 유니버스에서 펀더멘털 퀄리티 상위 종목을 먼저 선별해 RIM 계산 부하를 줄이고, 스크리닝 자체가 독립 Alpha 인자로 작동하는지 Ablation Test로 검증.
 
 ```python
 # backtest/filters/factor_screener.py

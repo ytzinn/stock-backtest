@@ -1,6 +1,6 @@
 # stock-backtest — MASTER 설계서
 
-> **설계서 버전**: v5.1
+> **설계서 버전**: v5.2
 > **프로젝트 저장소**: `stock-backtest/`
 > **기준 문서**: 멀티모델_백테스트_머신_설계서_v4.8.md
 > **Phase 2 완료**: 2026-06-21 (13개 시나리오 Ablation Test 완료) → **가격보정 재실행**: 2026-07-02
@@ -11,8 +11,9 @@
 
 RIM(잔여이익모델) 기반 한국 주식 멀티팩터 백테스트 머신.
 생존편향 없는 전종목(~2,500개 + 상장폐지 ~1,500개) 데이터를 수집하고,
-4단계 필터(Hard → 재무안정성 → 팩터스크리닝 → 모멘텀) + RIM 적정가 기준으로
+**3단계 필터(Hard → 재무안정성 → 모멘텀)** + RIM 적정가 기준으로
 반기 리밸런싱 포트폴리오를 구성해 2015년부터 현재까지 백테스트한다.
+(팩터 스크리닝은 v4.3에서 4단계째로 추가됐으나 2026-07-05 폐기 — §3-5, SPEC_05 §11 STEP 3B 참조)
 
 ---
 
@@ -29,7 +30,7 @@ RIM(잔여이익모델) 기반 한국 주식 멀티팩터 백테스트 머신.
 |------|------|-----------|
 | `SPEC_01_infra.md` | 인프라(Ubuntu/cron/Docker), 디렉토리 구조, 데이터 흐름 | 사전 준비 |
 | `SPEC_02_ingest.md` | 데이터 수집(DART/FDR), DB 공통 스키마, PIT/DQ Gate | Phase 0~1 + 공통 DB |
-| `SPEC_03_universe.md` | Universe 필터 4단계, interfaces, BacktestPipeline, configs | Phase 1~2 |
+| `SPEC_03_universe.md` | Universe 필터 3단계(팩터 스크리닝 2026-07-05 폐기), interfaces, BacktestPipeline, configs | Phase 1~2 |
 | `SPEC_04_models.md` | RIM 모델, 분류기(skeleton), 포트폴리오, 엔진 | Phase 2~3 |
 | `SPEC_05_backtest.md` | Ablation Test, 성과측정, Fitness Function, 튜닝, 과최적화 방지 | Phase 2~4 |
 | `SPEC_06_phases.md` | Phase별 로드맵 + 체크리스트, 산출물 포맷, 향후 확장 메모 | 전체 |
@@ -61,13 +62,13 @@ universe_gate_pit(PASS) + financials_pit + price_history
     │
     ├─ Hard Filter          (거래대금, 상장기간, PIT 존재)
     ├─ 재무안정성 필터       (부채비율, 차입금비율, 회전율, 영업CF)    ← v4.3 신규
-    ├─ 팩터 스크리닝         (매출YoY + 영업이익YoY + GP/A + 1/PBR → 상위 20%)  ← v4.3 신규
+    ├─ (폐기) 팩터 스크리닝  (매출YoY + 영업이익YoY + GP/A + 1/PBR → 상위 20%)  ← v4.3 신규, 2026-07-05 폐기
     ├─ 모멘텀 필터           (MA20/MA60 이중 조건)
     └─ RIM 밸류에이션 필터   (현재가 > RIM적정가 × 1.05 제외)         ← v4.3 신규
     ▼
 포트폴리오 구성 → 성과 측정 → Ablation Test (13개 시나리오, 랜덤 500회)
 
-[Phase 3 — 기업 분류기 + 팩터 가중치 튜닝]
+[Phase 3 — 기업 분류기 + 파라미터 튜닝]  (팩터 가중치 튜닝은 FactorScreener 폐기로 제외)
     ← Phase 2 결과 기반으로 실행
 
 [Phase 4 — Walk-forward 검증 + Fitness Sensitivity]
@@ -160,30 +161,36 @@ RF, RK = 0.0263, 0.0873   # 두 파일에서 동일 값 유지
 > 쏠림으로 급등해 동일가중 소형 가치주 전략과 스타일이 안 맞는다는 문제 제기). 아직 확정 아님 —
 > 상세: SPEC_06 Phase 3 미결 항목, `2026.06.21. 백테스트_검토_및_모델개선_워크플로우.md` STEP 5.
 
-## 3-5. 팩터 스크리닝 초기 가중치
+## 3-5. 팩터 스크리닝 — **폐기 (2026-07-05)**
 
-| 팩터 | 초기 가중치 | Phase 3+ 튜닝 |
+> v4.3에서 4단계째 필터로 추가됐으나, 단일팩터 진단 결과 성장성·수익성 팩터(매출YoY·영업이익YoY·
+> GP/A)가 RIM이 선호하는 저평가 종목을 사전에 걸러내 알파를 구조적으로 훼손함을 확인 —
+> `E_screener_rim`(6.29%) << `D_rim_only`(11.99%), 랠리 구간 제외해도 동일. 1/PBR만 남기는 대안도
+> 검토했으나 이득(+1.54%p)이 작고 RIM 자체와 신호가 중복돼 **전체 폐기 결정**.
+> 상세 근거: SPEC_05 §11 STEP 3B. 코드(`backtest/filters/factor_screener.py`, ablation.py의
+> `E_*`/`G_*` 시나리오)는 삭제하지 않고 실험 기록으로 보존.
+
+아래는 폐기 전 초기 가중치(참고용, 더 이상 사용하지 않음):
+
+| 팩터 | 초기 가중치 | 단일팩터 진단 결과 (D_rim_only 11.99% 대비) |
 |------|-----------|--------------|
-| 매출액 YoY | 1/6 | 대상 |
-| 영업이익 YoY | 1/6 | 대상 |
-| GP/A (Novy-Marx 2013) | 1/3 | 대상 |
-| 1/PBR | 1/3 (= 1 − 나머지 합) | 파생 |
+| 매출액 YoY | 1/6 | 2.69% (-9.30%p) |
+| 영업이익 YoY | 1/6 | 7.56% (-4.43%p) |
+| GP/A (Novy-Marx 2013) | 1/3 | -0.82% (-12.79%p, 최악) |
+| 1/PBR | 1/3 (= 1 − 나머지 합) | 13.53% (+1.54%p, 유일한 개선) |
 
-**Phase 2 설계 원칙**: 팩터 간 상관관계 측정 및 PCA/직교화 필요성 검토는 **Phase 2 Ablation 결과 확인 후** 결정. 상위 20% 기준 매출YoY-영업이익YoY 상관계수 ≥ 0.5 시 가중 구조 재검토.
-
-## 3-7. Phase 2 튜닝 파라미터 (4개)
+## 3-7. Phase 2 튜닝 파라미터 (3개, 2026-07-05 이전엔 4개 — `top_pct` 제거)
 
 | 파라미터 | 초기값 | 튜닝 범위 | 비고 |
 |---------|--------|----------|------|
 | `beta_adj` (r 오프셋) | 0.0 | [-0.02, +0.02] | r = RF + β×(RK-RF) + **beta_adj**. β=1.0 고정 유지, r 수준만 미세 조정 |
 | `rim_threshold` | 0.05 | [-0.10, +0.20] | 밸류에이션 필터 임계값 (현재가 > FV×(1+rim_threshold) 제외) |
-| `top_pct` | 0.20 | [0.10, 0.40] | 팩터 스크리닝 컷오프 비율 |
 | `n_stocks` | 20 | [10, 30] | 포트폴리오 목표 종목 수 |
 
 > `beta_adj`는 종목별 β 차이를 흡수하기 위한 전역 오프셋. β=1.0 고정은 유지.
 > `beta_adj` < 0: r 낙관적(할인율 낮음) → 적정가 상승. `beta_adj` > 0: r 보수적 → 적정가 하락.
 
-**Phase 2 고정값 (튜닝 제외):** 모멘텀 파라미터 4개 / 업종 집중 상한 25%\* / 거래대금 기준 1억원 / 팩터 가중치 (동일가중 고정)
+**Phase 2 고정값 (튜닝 제외):** 모멘텀 파라미터 4개 / 업종 집중 상한 25%\* / 거래대금 기준 1억원
 
 > \* 업종 집중 상한 25%: `stocks.sector` 수동 업데이트 의존으로 데이터 신뢰도 불확실. Phase 2에서는 하드 룰로 유지. Phase 3 이후 sector 데이터 정비 완료 시 Bayesian 튜닝 대상 [15%, 40%] 검토.
 
@@ -287,7 +294,7 @@ stock-backtest/                   # 실제 서버 경로: /opt/stock-backtest/
 │   ├─ filters/
 │   │   ├─ hard_filter.py           # 5일 거래정지 검사 + 90일 거래대금 lookback
 │   │   ├─ stability_filter.py      # R1~R6 하드 룰 (use_r6 플래그)
-│   │   ├─ factor_screener.py       # 4팩터 상위 20%
+│   │   ├─ factor_screener.py       # 4팩터 상위 20% — 2026-07-05 폐기(미채택), ablation 기록용 보존
 │   │   └─ momentum_filter.py       # MA20/MA60 이중 조건
 │   ├─ models/
 │   │   └─ rim.py                   # RIMModel (Dechow 1994 adjROE, Gordon growth)
@@ -370,6 +377,20 @@ stock-backtest/                   # 실제 서버 경로: /opt/stock-backtest/
 > **v4.9 추가** (심층 인터뷰 반영): ⑧ `g` 상한 `r×0.9` 수학적 안전장치 명시(§3-1). ⑨ `fv_total ≤ 0` 방어 처리 추가 — 실제 발생 확인, R6 이후 PIT 타이밍 불일치 케이스. ⑩ 리밸런싱 날짜 영업일 계산: pykrx 불가 → `price_history` DISTINCT date(삼성전자 기준) 대체. ⑪ `dividend_status` 로컬 변수 제거, `logging.debug` 유지 — Phase 4 민감도용 DB 원본 활용. ⑫ 업종 집중 상한 25%: `stocks.sector` 데이터 미정비로 Phase 2 고정, Phase 3 이후 검토.
 > **v5.0** (Phase 2 완료, 2026-06-21): ① Ablation Test 13개 시나리오 완료 (no_r6 변형 6개 + H_no_stability 추가). ② `has_recent_trade(window=5)` Hard Filter에 추가 — 거래정지 5일 이상 종목 선제 제외 (제일바이오 감자 아티팩트 근본 차단). ③ `get_avg_turnover(max_lookback_days=90)` — 90일 초과 과거 거래량 사용 방지. ④ XBRL 파이프라인 추가: `xbrl_historical_ingest.py`, `xbrl_mapper.py`, `amendment_checker.py` — `financials_pit` 정정 공시 추적(`original_amount`, `amendment_from`). ⑤ `load_pit_series_ttm()` H1 TTM 계산 추가. ⑥ `dashboard/` 추가 (Streamlit, 포트 8502). ⑦ 디렉토리 구조 실제 서버 파일 기준으로 업데이트. ⑧ Phase 2 결과: F_momentum_rim 최적(CAGR 14.09%, Sharpe 0.518, MDD -28.06%). 팩터 스크리닝 성과 저해 확인 — Phase 3 재검증 예정.
 > **v5.1** (설계서 정합성 복구, 2026-07-04): ① `SPEC_04_models.md` §7-1이 v5.0에서 MASTER §3-1에만 반영됐던 RIM 산식 교체(Ohlson 지속성형, ω=0.62, VB_CAP=5.0)를 그동안 반영하지 못하고 옛 g·payout 산식을 그대로 담고 있던 것을 확인·동기화. ② 2026-07-02 가격 소급보정(감자·분할 미반영 4종목) 후 Ablation 전체 재실행 결과 반영 — RIM 유효성 판정 역전(❌→✅, D≥C_p95 근소 우위 +0.05%p), R6 착시 효과 해소. ③ 결과 문서(`BACKTEST_RESULTS.md` 4개)·포트폴리오 홀딩스(xlsx 3개)를 `experiments/runs/`로 정리. ④ 미결 항목 2건을 SPEC_05/06·MASTER에 명시: 포트폴리오 최소 편입 종목 수 규칙, 벤치마크 우선순위 재배치(KOSPI vs Hard+Stability 동일가중) — 둘 다 검토만 됐을 뿐 확정 아님.
+> **v5.2** (STEP 3/3B 신호분리 + FactorScreener 폐기, 2026-07-05): ① Phase 0C 체크리스트를 서버 DB
+> 직접 조회로 최초 검증 — `financials` 2014년 데이터 미수집(2015년부터, TTM 제약의 실제 원인) 확인,
+> `ingest_status` 완료율은 표면상 87.5%였으나 재분석 결과 실질 95.0%(스팩·리츠 259개는 의도적
+> 제외 대상이 라벨링만 안 됐을 뿐). ② STEP 3: `D_pbr_only` 시나리오 추가로 RIM 알파가 R6·1/PBR의
+> 재포장이 아닌 독립 신호임을 확인(랜덤 대비 +5.2~5.4%p, R6 유무 무관). ③ STEP 3B: `E_rev_only`/
+> `E_op_only`/`E_gpa_only`/`E_pbr_only` 단일팩터 진단으로 FactorScreener 부진 원인 규명 — 성장성·
+> 수익성 팩터가 RIM 알파를 구조적으로 훼손(최대 -12.79%p), 1/PBR만 유일하게 개선(+1.54%p, KOSPI
+> 랠리 2구간 제외해도 재현). **FactorScreener 전체 폐기 결정** — Universe 필터 4단계→3단계(Hard→
+> Stability→Momentum→RIM). `backtest/configs/phase2_rim.py`가 실제로는 F가 아닌 G_full 구조로
+> 잘못 조립되고 있던 코드 버그도 함께 발견·수정. 코드(`factor_screener.py`, ablation.py의 E_*/G_*)는
+> 삭제하지 않고 실험 기록으로 보존. ④ `MAX_STOCK_WEIGHT`(5% 캡) 폐지 — `_calc_period_return()`이
+> weight를 안 쓰고 보유 종목 수로 단순평균해 캡이 실질적으로 무의미했음. ⑤ 최소 편입 종목수 미결
+> 항목을 실측 데이터로 정정 — 189개 조합 중 5종목 미만은 1건뿐, 워크플로우 문서 인용 수치는 스테일.
+> 상세 근거는 SPEC_05 §11 STEP 3/3B, SPEC_06 Phase 0C·Phase 3 참조.
 >
 > **핵심 변경 철학**: "모든 모델 산식 먼저 → 구현" 순서 대신 "RIM + 모멘텀으로 Baseline 먼저 → 결과 보고 확장" 순서로 전환.
 > 멀티모델(EV/Sales, Peer PER, NAV, FCFF 등) 산식 확정은 Phase 2 Ablation Test 결과 이후로 이동.

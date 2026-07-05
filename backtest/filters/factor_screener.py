@@ -1,11 +1,14 @@
 """
-Step 3 — 팩터 스크리닝 (v4.3 신규).
+팩터 스크리닝 (v4.3 신규 → 2026-07-05 폐기, 미채택).
 
 4개 팩터 합산 점수 기준 상위 top_pct 종목을 선별한다.
 팩터: 매출YoY(rev_yoy) + 영업이익YoY(op_yoy) + GP/A(gpa) + 1/PBR(inv_pbr)
 
 초기 가중치: rev_yoy=1/6, op_yoy=1/6, gpa=1/3, inv_pbr=1/3
-Phase 3+ Bayesian 튜닝 대상 (자유도 3개, 4번째 inv_pbr = 1 - 나머지).
+
+2026-07-05: 단일팩터 진단 결과(SPEC_05 §11 STEP 3B) rev_yoy/op_yoy/gpa 프리필터가 RIM 알파를
+구조적으로 훼손함을 확인해 채택 파이프라인(`backtest/configs/phase2_rim.py`)에서 제거.
+이 클래스는 backtest/ablation.py의 E_*/G_* 시나리오·단일팩터 진단용으로만 남아있다.
 """
 from datetime import date
 

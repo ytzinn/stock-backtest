@@ -99,34 +99,20 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 
 **대상**: KOSPI/KOSDAQ 전체 + 상장폐지 종목 (FDR KRX-DELISTING)
 
-> **검증 (2026-07-04, 서버 DB 직접 조회)**: 이 체크리스트는 오랫동안 미체크 상태였으나, Phase 1·2가
-> 이미 전종목 기준으로 완료된 것으로 보아 실제로는 실행됐을 것으로 추정되어 뒤늦게 확인함. 결과 두 항목
-> 에서 실제 미충족을 발견 — 아래 체크 상태 참조.
+> **검증 (2026-07-04, 서버 DB 직접 조회)**: 오랫동안 미체크였으나 실제로는 실행된 것으로 추정돼
+> 뒤늦게 확인. 상세 근거는 MASTER 버전이력 v5.2 참조.
 
 **검증 체크리스트**:
-- [x] `stocks` 종목 수 2,000개 이상 — **3,264개** (KOSDAQ 2,171 + KOSPI 1,093) ✅ PASS
-- [x] `stock_listing_events` 상장폐지 종목 포함 확인 — `delisted` 4,124건 / `listed` 2,770건 ✅ PASS
-- [x] `price_history` `adj_close` 컬럼 정상 수집 확인 — 2014-01-02~2026-05-22, 3,345종목 ✅ PASS
-- [x] `market_cap_history` 2014년부터 수집 확인 — 2014-01-02~2026-05-22, 3,343종목 ✅ PASS
-- [ ] `financials` 2014년 데이터 포함 확인 — **❌ FAIL**: 실제 `financials.year` 범위는
-      **2015~2025** (2014년 데이터 없음). MASTER §3-2가 "2015-04-03·2015-08-19 두 리밸런싱 날짜가
-      FY2014/H1_2014 PIT 데이터 미충족으로 유니버스 0개"라고 이미 기술한 TTM 제약의 근본 원인이
-      바로 이것 — DART 재무 데이터가 애초에 2014년치를 수집하지 않았음. 별도 조치 불필요(이미
-      21개 유효 구간 기준으로 우회 중)하나, 이 항목 자체는 "통과"로 표기할 수 없어 체크 해제 유지.
-- [x] `ingest_status` 수집 완료율 90% 이상 — **재분석 완료 (2026-07-05, 서버 DB 직접 조회)**.
-      표면상 87.5%(done 2,855 / total 3,264)로 미달처럼 보이나, pending 409개는 성격이 다른 두 그룹:
-      - **259개(스팩 229 + 리츠 30)**: `rebuild_stocks_from_krx.py`가 이름 패턴으로 `is_excluded=TRUE`
-        처리해 `ingest_all()` 대상에서 애초에 제외됨(`WHERE is_excluded=FALSE`) — DART 재무데이터가
-        원래 불필요한 종목. `status='skipped'`로 명시 마킹되지 않고 스키마 기본값(`DEFAULT 'pending'`)에
-        방치된 **라벨링 누락**일 뿐 실질적 수집 공백 아님.
-      - **150개(전량 KOSPI 우선주)**: `삼양홀딩스우`·`두산2우B` 등 우선주 명칭이 모회사 DART 법인명과
-        정확히 매칭되지 않아 `corp_code` 매핑 자체가 실패 — **실제 데이터 공백**. 우선주는 유동성이
-        낮아 Hard Filter에서 어차피 탈락할 가능성이 높아 백테스트 영향은 제한적으로 추정.
-      - 259+150=409 정확히 일치. 제외 대상(259개)을 분모에서 빼면 실질 완료율은 2,855/3,005=95.0%.
-      - 정기 재수집 cron 없음(crontab엔 30분 주기 헬스체크만 존재) — 위 상태는 2026-05-25 이후 정적.
-      - 코드 수정(스팩/리츠 `status='skipped'` 명시 마킹)은 낮은 우선순위로 보류, 필요 시 재검토.
-- [ ] **FDR KRX-DELISTING 완결성 검증** ← v4.4 추가 — **미검증** (2020~2022년 상장폐지 종목 수를
-      KRX 공식 수치와 비교하는 작업 자체가 아직 수행되지 않음)
+- [x] `stocks` 종목 수 2,000개 이상 — 3,264개 ✅ PASS
+- [x] `stock_listing_events` 상장폐지 종목 포함 확인 — delisted 4,124건 ✅ PASS
+- [x] `price_history` `adj_close` 컬럼 정상 수집 확인 — 2014-01-02~2026-05-22 ✅ PASS
+- [x] `market_cap_history` 2014년부터 수집 확인 — 2014-01-02~2026-05-22 ✅ PASS
+- [ ] `financials` 2014년 데이터 포함 확인 — **❌ FAIL**: 실제 범위는 2015~2025 (2014년 없음).
+      MASTER §3-2의 TTM 제약("2015-04·08 유니버스 0개")의 실제 원인. 우회 중이라 조치 불필요.
+- [x] `ingest_status` 수집 완료율 90% 이상 — 표면상 87.5%지만 재분석 결과 실질 95.0%
+      (pending 409 = 스팩·리츠 259개 라벨링 누락 + KOSPI 우선주 150개 corp_code 매핑 실패,
+      영향 제한적). 상세: MASTER 버전이력 v5.2.
+- [ ] **FDR KRX-DELISTING 완결성 검증** ← v4.4 추가 — **미검증**
   - 2020~2022년 상장폐지 종목 수를 KRX 공식 수치(KIND 공시)와 비교
   - FDR 수집 종목 수 / KRX 공식 수치 < 80%이면 수집 방식 재검토
 
@@ -155,20 +141,17 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 
 **목표**: 4단계 필터 + RIM 단일 모델 + Ablation Test
 
-> **완료 상태 (2026-06-21)**: 13개 시나리오 Ablation Test 전체 완료. 결과: `experiments/ablation/summary.json`.
-> **RIM 산식 교체 (2026-06-21)**: 기존 g·payout 기반 산식이 사실상 1/PBR 필터로 무력화되는 결함이
-> 발견되어 Ohlson(1995) 지속성 단일단계형(ω=0.62)으로 교체. 상세: `2026.06.21. 백테스트_설계검토_및_RIM산식_교체.md`.
-> **가격 소급보정 재실행 (2026-07-02)**: 감자·분할 미반영 4종목 adj_close 소급보정 후 A~H 전체 재실행.
-> 결과: `experiments/runs/2026.07.02. BACKTEST_RESULTS.md`.
-> **Phase 3 진입 조건**: F_momentum_rim이 C_stability_random p95(11.94%) 초과 ✅, 모멘텀 효과 ✅,
-> D_rim_only가 C_p95 근소 초과(11.99% ≥ 11.94%, +0.05%p — 경계값 근방, 06-25 시점엔 미달이었다가
-> 가격보정 후 역전됨) ✅. 단, 팩터 스크리닝(E)이 D보다 성과 저조 → Phase 3에서 가중치 재조정 후 재검증 필요.
+> 13개 시나리오 Ablation Test 완료, RIM 산식 교체·가격 소급보정 재실행 완료. 변경 이력·근거는
+> MASTER 버전이력 v5.0·v5.1·v5.2 참조. 결과: `experiments/ablation/summary.json`,
+> `experiments/runs/2026.07.02. BACKTEST_RESULTS.md`.
+> **Phase 3 진입 조건 충족**: F_momentum_rim > C_p95 ✅, 모멘텀 효과 ✅, D_rim_only ≥ C_p95 ✅
+> (근소 우위, 경계값 근방). 팩터 스크리닝(E)은 원인 규명 후 전체 폐기 결정 — 아래 Phase 3 절 참조.
 
 **완료된 작업** (v4.8 모듈화 구조):
 1. ✅ `backtest/interfaces.py` — UniverseFilter, ValuationModel Protocol 정의
 2. ✅ `backtest/filters/hard_filter.py` — `has_recent_trade(window=5)` + `max_lookback_days=90` 추가
 3. ✅ `backtest/filters/stability_filter.py` — R1~R6 하드 룰 (`use_r6` 플래그)
-4. ✅ `backtest/filters/factor_screener.py` — 4팩터, 동일가중
+4. ✅ `backtest/filters/factor_screener.py` — 4팩터, 동일가중 (**폐기** — 채택 파이프라인에서 제거, ablation 기록용으로만 보존)
 5. ✅ `backtest/filters/momentum_filter.py` — MA AND 이중 조건
 6. ✅ `backtest/models/rim.py` — RIMModel (Dechow λ=0.5)
 7. ✅ `backtest/pipeline.py`, `engine.py`, `metrics.py`, `portfolio.py`
@@ -178,15 +161,13 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 11. ✅ `load_pit_series_ttm()` — H1 TTM 계산 (FY−H1_prev+H1_curr)
 12. ✅ Ablation Test 13개 시나리오 → `experiments/ablation/`
 
-**Phase 2 검증 결과 (2026-07-02 가격보정 재실행 기준)**:
-- ✅ Ablation Test 13개 시나리오 완료 (2026-06-21 최초 실행 → 2026-07-02 가격보정 후 전체 재실행)
+**Phase 2 검증 결과 (현재)**:
+- ✅ Ablation Test 13개 시나리오 완료
 - ✅ `available_from <= rebalance_date` 코드 전체 적용 확인
-- ✅ D(11.99%) ≥ C_stability_random p95(11.94%) → RIM 통계적 유효성 확인 (근소 우위 +0.05%p —
-  06-25 시점엔 미달이었다가 가격보정으로 역전. 경계값 근방이라 과신 금지)
+- ✅ D(11.99%) ≥ C_stability_random p95(11.94%) → RIM 통계적 유효성 확인 (근소 우위, 과신 금지)
 - ✅ 재무안정성 필터(R6 포함): H_no_stability MDD -37.7% vs F -32.6% → 안정성 기여 확인
-- ⚠️ 팩터 스크리닝(E=6.29%): D(11.99%) 대비 성과 저하 → Phase 3 재검증 예정 (변경 없음)
-- ✅ no_r6 이상 수치 해소: 감자 대상 4종목(001290/002380/005950/043590) adj_close 소급보정 완료
-  → D_no_r6/E_no_r6 인위적 고수익 대부분 해소, R6의 실질적 방어 효과가 더 명확해짐
+- ✅ 팩터 스크리닝(E=6.29%): 원인 규명 완료 → 전체 폐기 결정 (SPEC_05 §11 참조)
+- ✅ no_r6 이상 수치 해소 (가격 소급보정 완료, R6 실질적 방어 효과 확인)
 
 **Ablation 결과 요약 (2026-07-02 최신):**
 
@@ -206,54 +187,38 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 
 ---
 
-## Phase 3 — 기업 분류기 + 팩터 가중치 튜닝 ← **현재 시작점**
+## Phase 3 — 기업 분류기 + 파라미터 튜닝 ← **현재 시작점**
 
-> **현재 상태 (2026-07-05)**: Phase 2 완료(06-21) → RIM 산식 교체(06-21) → 가격 소급보정 후
-> Ablation 전체 재실행 완료(07-02, RIM 유효성 판정 ✅ 역전 확인, 근소 우위 +0.05%p) →
-> **STEP 3 신호분리 ablation 완료(07-05)** → Phase 3 진입 가능.
-> **STEP 3 결과**: R6 효과는 기존 시나리오(C/C_no_r6, D/D_rim_only/D_no_r6)만으로 이미 교차검증
-> 가능했음(+1.2~1.4%p로 일관). 신규 추가한 `D_pbr_only`(순수 1/PBR 랭킹) 비교 결과 RIM이 1/PBR보다
-> +1.85%p 우수 — RIM 알파(+5.2~5.4%p vs 랜덤)가 R6나 1/PBR의 재포장이 아니라 독립 신호임을 확인.
-> 상세: SPEC_05 §11 "STEP 3 신호분리 ablation 결과".
-> **다음 과제**: 팩터 스크리닝 가중치 재조정 실험 (E가 D보다 성과 저조한 원인 규명).
-> 참고 자료: `2026.06.21. 백테스트_검토_및_모델개선_워크플로우.md` (STEP 1~11 전체 체크리스트),
+> Phase 2 완료 → RIM 산식 교체 → 가격 소급보정 재실행 → STEP 3 신호분리 ablation →
+> STEP 3B FactorScreener 폐기 결정, 순서로 Phase 3 진입 가능 상태. 각 단계 근거·수치는
+> MASTER 버전이력 v5.0~v5.2, SPEC_05 §11(STEP 3/3B) 참조.
+> **다음 과제**: classifier.py 활성화 + Bayesian 튜닝 (팩터 가중치 튜닝은 대상 소멸로 제외).
+> 참고 자료: `2026.06.21. 백테스트_검토_및_모델개선_워크플로우.md` (STEP 1~11 체크리스트),
 > `2026.06.21. 백테스트_설계검토_및_RIM산식_교체.md` (RIM 산식 교체 근거).
 
 **미결 항목 (Phase 3 진행 중 확정 필요, 임의로 정하지 않음)**:
 - **최소 편입 종목 수 규칙**: `backtest/portfolio.py`의 `MIN_PORTFOLIO_STOCKS=5`가 여전히
-  `build_portfolio()`에 실제로 적용되지 않음(코드는 `n==0`일 때만 빈 dict 반환, 5 미만 체크 없음
-  — docstring과 실제 동작 불일치는 남아있음).
-  단, **2026-07-05 실제 데이터(`experiments/runs/2026.07.04. portfolio_holdings.xlsx`) 직접 확인
-  결과 이 불일치가 현재 야기하는 문제는 매우 제한적**: 9개 시나리오 × 21구간 = 189개 조합 중
-  5종목 미만인 경우는 `G_full` 2번째 구간(2016-08-18~2017-04-05) **1건, 4종목**뿐. 워크플로우
-  문서(06-21, 가격보정 이전 데이터 기준)가 인용한 "D#4=5, G#4=3, G#8=8, G#10=9, G#11=5" 등은
-  **스테일 수치 — 최신 데이터로 재검증 필요 없이 이미 해소됨** (가격보정·`has_recent_trade` 픽스
-  이후 재확인 결과 반영). 15종목 미만까지 넓혀도 예외는 2번째 구간(2016-08 유니버스 스냅샷 데이터
-  결손, 기존에 파악된 이슈)과 9번째 구간(2020-04 코로나 급락기, 모멘텀 필터 정상 작동 결과)
-  두 군데로 좁혀지며 둘 다 원인이 이미 파악돼 있음.
-  → 코드 불일치 자체는 남아있으나 시급성은 낮음. STEP 7 임계값 확정은 여전히 미결.
-- **`MAX_STOCK_WEIGHT` 폐지 (2026-07-05, 완료)**: `_calc_period_return()`이 `build_portfolio()`의
-  weight 값을 쓰지 않고 보유 종목 수로 단순평균(1/n)하기 때문에 5% 캡이 실질적으로 무의미했음
-  (n_stocks=20 목표 충족 시 1/20=5%로 캡과 동일, 종목 수 적은 구간에서만 "표시상 5%, 실제 1/n"
-  괴리 존재). 캡을 제거해 코드와 실제 동작을 일치시킴 — `backtest/portfolio.py`, MASTER §3-3,
-  SPEC_04 §9-1 동기화.
+  `build_portfolio()`에 실제로 적용되지 않음(코드는 `n==0`일 때만 빈 dict 반환, docstring과 실제
+  동작 불일치). 실측 확인 결과 189개 조합 중 5종목 미만은 1건뿐이라 시급성은 낮음(상세: MASTER
+  버전이력 v5.2). STEP 7 임계값 확정은 여전히 미결.
 - **벤치마크 우선순위 재배치**: KOSPI 대신 "Hard+Stability 통과 동일가중"을 1차 KPI로 삼자는
   제안(워크플로우 문서 STEP 5, New-1)이 검토만 된 상태 — 아직 확정 아님.
 
 **전제 조건**: Phase 2 Ablation Test 완료 ✅ (RIM 유효성 확인, F_momentum_rim 우수)
 
-**목표**: classifier.py 활성화 + 팩터 가중치 Bayesian 튜닝 적용
+**목표**: classifier.py 활성화 (팩터 가중치 Bayesian 튜닝은 FactorScreener 폐기로 제외 — SPEC_05 §14)
 
 **작업**:
 1. `backtest/classifier.py` 활성화 (v4.2 §7 구현)
 2. `backtest/engine.py` Phase 3 버전 — 분류기 + 분류 이력 연동
-3. 팩터 가중치 4개 Bayesian 튜닝 추가 (Phase 2 고정값 일부 해제 후 총수 관리)
+3. ~~팩터 가중치 4개 Bayesian 튜닝 추가~~ — **제외 (2026-07-05)**: FactorScreener 자체 폐기로
+   튜닝 대상 소멸. Phase 2 튜닝 파라미터는 3개(`beta_adj`, `rim_threshold`, `n_stocks`)로 유지.
 4. `experiments/runs/run_002_classified.csv`
 
 **검증 체크리스트**:
 - [ ] 타입 분포 확인 (특정 타입 70% 이상이면 분류 로직 오류)
 - [ ] STABLE/GROWTH 동시 고점수 종목 없음 확인
-- [ ] 팩터 가중치 튜닝 후 F_full 성과 개선 여부 확인 (튜닝 전 F_full 대비)
+- [ ] classifier 도입 후 F_momentum_rim 대비 성과 개선 여부 확인 (팩터 가중치 튜닝 항목은 삭제됨)
 
 ---
 
@@ -334,7 +299,9 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 # 자동화 불가(룩어헤드 편향 위험)로 현재 스코프 제외.
 # 향후 추가 시 고려할 대안:
 #   1. 섹터 6개월 상대 모멘텀 (해당 섹터 수익률 > KOSPI 수익률이면 가점)
-#      → 팩터 스크리닝 레이어에 5번째 팩터로 추가 가능
+#      → 2026-07-05 FactorScreener 레이어 자체가 폐기됐으므로, 추가한다면 독립 필터 클래스로
+#        신설(MomentumFilter 확장 또는 신규 SectorMomentumFilter)해야 함 — 옛 스크리너 레이어에
+#        얹는 방식은 불가
 #   2. LLM 기반 공시 텍스트 분석 (stock-analysis dart_watcher 연동, 읽기 전용)
 #      → Year 2 계획(§20)과 연계
 # 두 방안 모두 RIM + 모멘텀 baseline 검증 후 추가.
@@ -352,9 +319,10 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 # 현재 스코프 제외. Phase 2 결과에서 해당 패턴 종목이 성과를 저해하면 우선 검토.
 
 # [미채택] PBR×ROE (= ROE/PBR = NI/시가총액 = E/P = PER의 역수)
-# 사실상 PER 역수와 동일. 팩터 스크리닝에 PER 역수를 추가하는 것과 같으므로
-# 현재 4팩터(매출YoY, 영업이익YoY, GP/A, 1/PBR) 구성에서 중복.
-# R6(adjROE < r 제외)가 수익성 하한을 이미 처리하고 있어 추가 불필요.
+# 사실상 PER 역수와 동일. (과거) 팩터 스크리닝에 PER 역수를 추가하는 것과 같아
+# 4팩터(매출YoY, 영업이익YoY, GP/A, 1/PBR) 구성에서 중복이라 판단했었음.
+# 2026-07-05 FactorScreener 자체가 폐기되어 이 논의는 더 이상 유효하지 않으나,
+# R6(adjROE < r 제외)가 수익성 하한을 이미 처리하고 있다는 점은 여전히 유효.
 
 # [향후 검토] 슬리피지 비율 함수 모델링 (Phase 3 이후)
 # 주문금액/일평균거래대금 비율의 함수로 모델링:
@@ -367,12 +335,12 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 # 20. 장기 발전 방향
 
 ## Year 1 (현재)
-- Phase 0~4: RIM + 팩터 스크리닝 + 모멘텀 Baseline 검증 및 확정
+- Phase 0~4: RIM + 모멘텀 Baseline 검증 및 확정 (팩터 스크리닝은 시도 후 2026-07-05 폐기 — SPEC_05 §11 STEP 3B)
 - Phase 5: 멀티모델 확장 (Phase 4 결과에 따라 실행 여부 결정)
 
 ## Year 2
 - ML Classifier (PIT 데이터 1,000종목 × 5년 이상 확보 후)
-- 섹터 모멘텀 팩터 추가 (팩터 스크리닝 레이어 확장)
+- 섹터 모멘텀 팩터 추가 (독립 필터 클래스로 신설 — 옛 FactorScreener 레이어는 폐기되어 재사용 불가)
 - NLP 공시 반영 (`stock-analysis` dart_watcher 연동 — 읽기 전용)
 
 ## Year 3
@@ -445,6 +413,8 @@ Phase N 설계서.md
 # 23. 한 줄 결론
 
 이 시스템의 목적은 복잡한 적정가 계산기가 아니라,
-**한국 상장 전종목 대상으로 팩터 스크리닝 → 재무안정성 검증 → RIM 가치평가 → 모멘텀 확인의
-4단계 필터로 가치 함정을 걸러내며, 시장 대비 더 유리한 종목을 지속 선별하는 설명가능한 투자 의사결정 엔진**이다.
+**한국 상장 전종목 대상으로 재무안정성 검증 → RIM 가치평가 → 모멘텀 확인의
+3단계 필터로 가치 함정을 걸러내며, 시장 대비 더 유리한 종목을 지속 선별하는 설명가능한 투자 의사결정 엔진**이다.
+(팩터 스크리닝은 v4.3에서 4단계째로 시도됐으나 RIM 알파를 구조적으로 훼손함이 확인되어
+2026-07-05 폐기 — SPEC_05 §11 STEP 3B)
 멀티모델 확장은 이 baseline이 유효함을 검증한 후 단계적으로 추가한다.

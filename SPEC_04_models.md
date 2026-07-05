@@ -3,21 +3,17 @@
 > **관련 파일**: `backtest/models/rim.py`, `backtest/portfolio.py`, `backtest/engine.py`,
 >   `backtest/ablation.py`, `backtest/metrics.py`
 > **선행 조건**: SPEC_03 완료 (BacktestPipeline 동작 확인)
-> **Phase 2 완료 (2026-06-21) → 가격보정 재실행 (2026-07-02)**: 13개 Ablation 시나리오 전체 실행,
->   4종목 adj_close 소급보정 후 재실행 완료. 결과: `experiments/runs/2026.07.02. BACKTEST_RESULTS.md`,
->   MASTER.md §Phase 2 결과.
+> **Phase 2 완료.** 최신 Ablation 결과: MASTER.md §Phase 2 결과, `experiments/runs/`.
 > **Claude Code 지시**:
 >   1. `RIMModel`은 `ValuationModel` Protocol을 반드시 준수하라 (SPEC_03 interfaces.py 참조).
 >   2. Phase 3: `classifier.py` 활성화. Phase 2에서는 모든 종목에 RIM 동일 적용.
 >   3. 엔진 루프는 Phase 2 버전(분류기 미적용)으로 구현됨. Phase 3 분류기 도입 시 최소 수정으로 교체 가능.
 >   4. 상장폐지 청산은 반드시 3개 시나리오(낙관/기준/보수)를 병렬 실행하라.
-
-> **v4.9 변경사항 (SPEC_03과 연동):**
->   - `UniverseFilter.apply()` 시그니처: `pit_series: dict[str, list[dict]]` 통일 (`[0]`=현재, `[1]`=t-1, `[2]`=t-2). `HardFilter`·`MomentumFilter`는 `[0]`만 사용, `StabilityFilter`는 `[0][1][2]` 모두 활용.
->   - `RIMModel.__init__(beta_adj: float = 0.0)` 추가: r 오프셋 파라미터 (§7-1 참조).
->   - `fv_total ≤ 0` 방어 처리 추가 (§7-1 참조).
->   - `configs/rebalance_dates.py` 신규: 23개 날짜 하드코딩 (2015-04·08 TTM 미충족 빈 구간 포함, 유효 21개). `price_history` DISTINCT date(대표 KOSPI 종목 기준)로 생성.
->   - `backtest/data_access.py` 신규: DB 조회 헬퍼 집중 (`get_adj_close_range`, `get_shares_outstanding`, `get_market_cap` 등). 필터마다 직접 DB 접속 대체.
+>
+> `UniverseFilter.apply()`의 `pit_series: dict[str, list[dict]]` 인덱스 규칙(`[0]`=현재, `[1]`=t-1,
+> `[2]`=t-2), `RIMModel.__init__(beta_adj)`, `configs/rebalance_dates.py`(23개 날짜, 유효 21개),
+> `backtest/data_access.py`(DB 조회 헬퍼 집중)는 현재 확정된 구조다. 변경 이력은 MASTER 버전이력
+> v4.9 참조.
 
 ---
 
@@ -25,13 +21,9 @@
 
 ## 7-1. RIM 적정가 계산
 
-> **2026-06-21 산식 교체**: v4.2~v4.9 시절에는 `stock-analysis/api/services/fair_value.py`의
-> 성장률 할인모형(g·payout 기반)을 그대로 이식했으나, 분모 `(1+r-g)`가 Ohlson(1995) 지속성
-> 닫힌형에서 유래한 항인데 분자에 불필요한 `×g`가 곱해져 있어 `FV ≈ equity`(업사이드 ≈ 1/PBR)로
-> ROE 신호가 사실상 죽어있는 결함이 확인됐다(ROE 2배 시 업사이드 +1.1%p에 불과, PBR 민감도의
-> ~1/20). v5.0에서 Ohlson(1995) 지속성 단일단계형으로 교체. 상세 진단 근거는
-> `2026.06.21. 백테스트_설계검토_및_RIM산식_교체.md` §DesignBug-1 참조.
-> v4.8에서 `RIMModel` 클래스로 래핑해 `ValuationModel` Protocol을 준수한다.
+RIM 적정가는 Ohlson(1995) 지속성 단일단계형으로 계산한다. `RIMModel` 클래스가 `ValuationModel`
+Protocol을 준수한다. (v4.2~v4.9의 g·payout 기반 구식 산식에서 교체된 이력·근거는 MASTER 버전이력
+v5.0, `2026.06.21. 백테스트_설계검토_및_RIM산식_교체.md` §DesignBug-1 참조.)
 
 ```python
 # backtest/models/rim.py
@@ -181,7 +173,7 @@ Phase 3에서 분류기를 도입하며, 이 파일은 Phase 2 구현 시 skelet
 |------|------|
 | 가중 방식 | 동일가중 (초기 버전) |
 | 종목 수 | 20개 (Bayesian 튜닝 대상: 10~30) |
-| 종목당 최대 비중 | 없음 — 동일가중 1/N (2026-07-05 5% 캡 폐지: `_calc_period_return()`이 weight를 쓰지 않고 보유 종목 수로 단순평균해 캡이 실질적으로 무의미했음, SPEC_06 참조) |
+| 종목당 최대 비중 | 없음 — 동일가중 1/N (폐지 이력: MASTER 버전이력 v5.2) |
 | 업종 최대 비중 | 25% |
 | KOSDAQ 최대 비중 | 60% |
 | AUM 가정 | 5억원 |
