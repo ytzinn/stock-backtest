@@ -12,9 +12,27 @@ from backtest.configs.constants import RF, RK  # noqa: F401
 class StabilityFilter:
     """UniverseFilter Protocol 구현체. 생성자로 파라미터 주입."""
 
-    def __init__(self, r2_exception: bool = True, use_r6: bool = True):
+    _ALL_RULES = frozenset({'R1', 'R2', 'R3', 'R4', 'R5', 'R6'})
+
+    def __init__(
+        self,
+        r2_exception: bool = True,
+        active_rules: set[str] | None = None,
+        use_r6:       bool | None = None,
+    ):
+        """
+        active_rules: 활성화할 규칙 집합 (예: {'R1','R2','R3','R4','R5'} — R6 제외).
+                      None이면 use_r6로 하위 호환 판단.
+        use_r6:       하위 호환 경로. active_rules가 주어지면 무시됨.
+        """
         self.r2_exception = r2_exception
-        self.use_r6       = use_r6
+        if active_rules is not None:
+            self.active_rules = frozenset(active_rules)
+        elif use_r6 is not None:
+            self.active_rules = self._ALL_RULES if use_r6 else (self._ALL_RULES - {'R6'})
+        else:
+            self.active_rules = self._ALL_RULES
+        self.use_r6 = 'R6' in self.active_rules   # 기존 코드 호환용 읽기 속성
 
     def apply(
         self,
@@ -30,7 +48,7 @@ class StabilityFilter:
             pit1    = series[1] if len(series) > 1 else None
             pit2    = series[2] if len(series) > 2 else None
             ok, reasons = _financial_stability_filter(
-                t, rebalance_date, pit0, pit1, pit2, self.r2_exception, self.use_r6
+                t, rebalance_date, pit0, pit1, pit2, self.r2_exception, self.active_rules
             )
             if ok:
                 passed.append(t)
@@ -46,7 +64,7 @@ def _financial_stability_filter(
     pit_prev:      dict | None,
     pit_2y_ago:    dict | None,
     r2_exception:  bool = True,
-    use_r6:        bool = True,
+    active_rules:  frozenset[str] = frozenset({'R1', 'R2', 'R3', 'R4', 'R5', 'R6'}),
 ) -> tuple[bool, list[str]]:
     """
     True = 통과. 반환: (pass_flag, fail_reasons)
@@ -54,6 +72,7 @@ def _financial_stability_filter(
     pit_data:   pit_series[ticker][0] — 최신 FY
     pit_prev:   pit_series[ticker][1] — t-1 FY
     pit_2y_ago: pit_series[ticker][2] — t-2 FY
+    active_rules: 이번 판정에 실제로 적용할 규칙 집합 (leave-one-out 검증용)
     """
     fails = []
 
@@ -64,7 +83,7 @@ def _financial_stability_filter(
 
     # [R1] 부채비율 > 200%
     # 금융업은 DQ Gate에서 is_financial=TRUE로 이미 제거됨.
-    if equity > 0 and (debt / equity) > 2.0:
+    if 'R1' in active_rules and equity > 0 and (debt / equity) > 2.0:
         fails.append('부채비율 > 200%')
 
     # [R2] 차입금비율 > 150%
@@ -81,7 +100,7 @@ def _financial_stability_filter(
         br = sum(pit.get(k, 0) or 0 for k in ['단기차입금', '유동성장기부채', '장기차입금', '사채'])
         return br / eq
 
-    if equity > 0 and (borrowings / equity) > 1.5:
+    if 'R2' in active_rules and equity > 0 and (borrowings / equity) > 1.5:
         trend_ok = False
         if r2_exception:
             available = [p for p in [pit_2y_ago, pit_prev, pit_data] if p is not None]
@@ -95,7 +114,7 @@ def _financial_stability_filter(
 
     # [R3] 매출 역성장 — 최근 3FY 중 2회 이상 YoY < -5%
     rev_series = _revenue_from_pit([pit_2y_ago, pit_prev, pit_data])
-    if len(rev_series) >= 2:
+    if 'R3' in active_rules and len(rev_series) >= 2:
         yoy_list = [
             rev_series[i] / rev_series[i - 1] - 1
             for i in range(1, len(rev_series))
@@ -107,13 +126,13 @@ def _financial_stability_filter(
     # [R4] 영업CF 2년 연속 음수
     cfo_cur  = pit_data.get('영업활동현금흐름')
     cfo_prev = pit_prev.get('영업활동현금흐름') if pit_prev else None
-    if cfo_cur is not None and cfo_prev is not None:
+    if 'R4' in active_rules and cfo_cur is not None and cfo_prev is not None:
         if cfo_cur < 0 and cfo_prev < 0:
             fails.append('영업CF 2년 연속 음수')
 
     # [R5] 영업CF < 0 AND 재무CF > 0 (차입으로 운영)
     fin_cf = pit_data.get('재무활동현금흐름')
-    if cfo_cur is not None and fin_cf is not None:
+    if 'R5' in active_rules and cfo_cur is not None and fin_cf is not None:
         if cfo_cur < 0 and fin_cf > 0:
             fails.append('영업CF(-) + 재무CF(+): 차입 운영')
 
@@ -124,7 +143,7 @@ def _financial_stability_filter(
     equity_rim = (pit_data.get('지배기업소유주지분')
                   or pit_data.get('지배기업소유주지분_1')
                   or equity)
-    if use_r6 and ni is not None and cfo_cur is not None and equity_rim > 0:
+    if 'R6' in active_rules and ni is not None and cfo_cur is not None and equity_rim > 0:
         adj_roe = (0.5 * ni + 0.5 * cfo_cur) / equity_rim
         r       = RF + 1.0 * (RK - RF)   # β=1.0 고정 (Phase 2)
         if adj_roe < r:

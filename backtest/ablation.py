@@ -67,6 +67,32 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'use_momentum': True,  'use_rim_filter': True,  'stability_r6': False},
     'H_no_stability':      {'use_hard': True,  'use_stability': False, 'use_screener': True,
                             'use_momentum': True,  'use_rim_filter': True},
+
+    # ── StabilityFilter 검증 (SPEC_05 부록 A) ──────────────────────────────
+    # H_no_stability는 use_screener=True까지 같이 꺼져 교란됨(F 대비 stability·screener 두 축이
+    # 동시에 다름). F_no_stability_clean/D_no_stability는 채택 파이프라인(screener 없음)에서
+    # stability만 깨끗이 제거한 대조군.
+    'F_no_stability_clean': {'use_hard': True,  'use_stability': False, 'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': True},
+    'D_no_stability':       {'use_hard': True,  'use_stability': False, 'use_screener': False,
+                            'use_momentum': False, 'use_rim_filter': True},
+
+    # R1~R5 leave-one-out (R6은 켠 채로 유지 = D_rim_only와 동일 기준선, 하나씩만 제외)
+    'D_no_r1': {'use_hard': True, 'use_stability': True, 'use_screener': False,
+                'use_momentum': False, 'use_rim_filter': True,
+                'stability_rules': {'R2', 'R3', 'R4', 'R5', 'R6'}},
+    'D_no_r2': {'use_hard': True, 'use_stability': True, 'use_screener': False,
+                'use_momentum': False, 'use_rim_filter': True,
+                'stability_rules': {'R1', 'R3', 'R4', 'R5', 'R6'}},
+    'D_no_r3': {'use_hard': True, 'use_stability': True, 'use_screener': False,
+                'use_momentum': False, 'use_rim_filter': True,
+                'stability_rules': {'R1', 'R2', 'R4', 'R5', 'R6'}},
+    'D_no_r4': {'use_hard': True, 'use_stability': True, 'use_screener': False,
+                'use_momentum': False, 'use_rim_filter': True,
+                'stability_rules': {'R1', 'R2', 'R3', 'R5', 'R6'}},
+    'D_no_r5': {'use_hard': True, 'use_stability': True, 'use_screener': False,
+                'use_momentum': False, 'use_rim_filter': True,
+                'stability_rules': {'R1', 'R2', 'R3', 'R4', 'R6'}},
 }
 
 RANDOM_TAGS    = frozenset({'A_random', 'B_hard_random', 'C_stability_random', 'C_no_r6'})
@@ -190,8 +216,12 @@ def build_ablation_pipeline(
     if config.get('use_hard', False):
         filters.append(HardFilter(min_turnover=100_000_000, min_listed_months=6))
     if config.get('use_stability', False):
-        use_r6 = config.get('stability_r6', True)
-        filters.append(StabilityFilter(r2_exception=True, use_r6=use_r6))
+        rules = config.get('stability_rules')
+        if rules is not None:
+            filters.append(StabilityFilter(r2_exception=True, active_rules=rules))
+        else:
+            use_r6 = config.get('stability_r6', True)
+            filters.append(StabilityFilter(r2_exception=True, use_r6=use_r6))
     if config.get('use_screener', False):
         filters.append(FactorScreener(
             weights=config.get(

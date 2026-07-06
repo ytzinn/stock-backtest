@@ -253,6 +253,29 @@ def make_summary(det_results: dict[str, dict], dist_stats: dict[str, dict]) -> d
                 )
                 judgements[f'_{factor_tag}_cagr'] = round(cagr(factor_tag), 6)
 
+    # StabilityFilter 검증 (SPEC_05 부록 A)
+    if 'D_rim_only' in s and 'D_no_stability' in s:
+        # G-2: RIM 경로 위에서 stability 레이어의 순증 기여 (모멘텀 교란 없음)
+        judgements['D_rim_only>D_no_stability (stability 레이어 기여, RIM 경로)'] = (
+            cagr('D_rim_only') > cagr('D_no_stability')
+        )
+        judgements['_D_no_stability_cagr'] = round(cagr('D_no_stability'), 6)
+    if 'F_momentum_rim' in s and 'F_no_stability_clean' in s:
+        # G-3: 채택 파이프라인(screener 없음)에서 stability 레이어의 순증 기여 — 결정적 관문
+        # H_no_stability는 screener까지 같이 꺼져 교란되므로 이 비교가 깨끗한 대조군
+        judgements['F>F_no_stability_clean (stability 레이어 기여, 채택 파이프라인)'] = (
+            cagr('F_momentum_rim') > cagr('F_no_stability_clean')
+        )
+        judgements['_F_no_stability_clean_cagr'] = round(cagr('F_no_stability_clean'), 6)
+    if 'D_rim_only' in s:
+        # G-4: R1~R5 leave-one-out — D_rim_only(전체 룰 적용) 대비 각 룰 제외 시 하락폭 = 그 룰의 기여
+        d_cagr = cagr('D_rim_only')
+        for i in range(1, 6):
+            rule_tag = f'D_no_r{i}'
+            if rule_tag in s:
+                judgements[f'{rule_tag}<D_rim_only (R{i} 개별 기여)'] = cagr(rule_tag) < d_cagr
+                judgements[f'_{rule_tag}_cagr'] = round(cagr(rule_tag), 6)
+
     summary['judgements'] = judgements
     return summary
 
