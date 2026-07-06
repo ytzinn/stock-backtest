@@ -55,9 +55,12 @@ def _rows_for_tag(tag: str) -> list[list]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--out', default='experiments/portfolio_holdings.xlsx')
+    parser.add_argument('--tags', nargs='+', help='포함할 태그 목록 (기본: 전체 결정론적 시나리오)')
     args = parser.parse_args()
 
     det_tags = [t for t in ABLATION_CONFIGS if t not in RANDOM_TAGS]
+    if args.tags:
+        det_tags = [t for t in det_tags if t in args.tags]
 
     with pd.ExcelWriter(args.out, engine='openpyxl') as writer:
         for tag in det_tags:

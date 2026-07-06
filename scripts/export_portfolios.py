@@ -18,7 +18,12 @@ from pathlib import Path
 
 from backtest.ablation import ABLATION_CONFIGS, RANDOM_TAGS, build_ablation_pipeline
 from backtest.configs.rebalance_dates import REBALANCE_DATES
-from backtest.data_access import get_close_price, load_gate_passed_tickers, load_pit_series_ttm
+from backtest.data_access import (
+    get_close_price,
+    is_delisted_at,
+    load_gate_passed_tickers,
+    load_pit_series_ttm,
+)
 from backtest.engine import DELISTING_HAIRCUT, _last_known_price, _report_type
 from ingest.connection import get_connection
 
@@ -60,13 +65,16 @@ def extract_portfolio_periods(tag: str, config: dict) -> list[dict]:
         holdings = []
         for ticker in portfolio:
             entry = get_close_price(conn, ticker, rebal_date)
-            exit_ = get_close_price(conn, ticker, next_date)
 
-            delisted = False
-            if exit_ is None:
+            # 상폐 판정은 is_delisted_at()(stock_listing_events 기준)으로 한다.
+            # get_close_price()는 date<=as_of 최신값을 반환해 상폐로 가격이 끊겨도
+            # None이 되지 않으므로 exit_ is None을 트리거로 쓰지 않는다 (engine.py와 동일 수정).
+            delisted = is_delisted_at(conn, ticker, next_date)
+            if delisted:
                 last = _last_known_price(conn, ticker, next_date)
                 exit_ = last * DELISTING_HAIRCUT if last else None
-                delisted = True
+            else:
+                exit_ = get_close_price(conn, ticker, next_date)
 
             ret = (exit_ / entry - 1) if (entry and exit_) else None
 
@@ -92,8 +100,15 @@ def extract_portfolio_periods(tag: str, config: dict) -> list[dict]:
 
 
 def main() -> None:
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--tags', nargs='+', help='추출할 태그 목록 (기본: 전체 결정론적 시나리오)')
+    args = parser.parse_args()
+
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     det_tags = [t for t in ABLATION_CONFIGS if t not in RANDOM_TAGS]
+    if args.tags:
+        det_tags = [t for t in det_tags if t in args.tags]
 
     for tag in det_tags:
         config = ABLATION_CONFIGS[tag]
