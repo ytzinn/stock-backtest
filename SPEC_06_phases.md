@@ -161,38 +161,46 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 11. ✅ `load_pit_series_ttm()` — H1 TTM 계산 (FY−H1_prev+H1_curr)
 12. ✅ Ablation Test 13개 시나리오 → `experiments/ablation/`
 
-**Phase 2 검증 결과 (현재)**:
-- ✅ Ablation Test 13개 시나리오 완료
+**Phase 2 검증 결과 (2026-07-06, 상장폐지 haircut 버그 수정 후 재실행 기준)**:
+- ✅ Ablation Test 전체 시나리오 완료
 - ✅ `available_from <= rebalance_date` 코드 전체 적용 확인
-- ✅ D(11.99%) ≥ C_stability_random p95(11.94%) → RIM 통계적 유효성 확인 (근소 우위, 과신 금지)
-- ✅ 재무안정성 필터(R6 포함): H_no_stability MDD -37.7% vs F -32.6% → 안정성 기여 확인
-- ✅ 팩터 스크리닝(E=6.29%): 원인 규명 완료 → 전체 폐기 결정 (SPEC_05 §11 참조)
-- ✅ no_r6 이상 수치 해소 (가격 소급보정 완료, R6 실질적 방어 효과 확인)
+- **❌ D(11.66%) < C_stability_random p95(11.81%) → RIM 통계적 유효성 재역전** (버그 수정 전엔
+  ✅였음, -0.15%p). 단, F_momentum_rim은 여전히 C_p95를 크게 상회 — 상세: MASTER 버전이력 v5.3
+- ✅ 재무안정성 필터(R6 포함): H_no_stability MDD -37.7% vs F -32.6% → 안정성 기여 확인(불변)
+- ✅ 팩터 스크리닝(E=6.29%): 원인 규명 완료 → 전체 폐기 결정, 버그 수정 후에도 결론 불변 (SPEC_05 §11 참조)
+- ✅ 상장폐지 haircut 로직 버그 수정 (`get_close_price` None 미반환 → `is_delisted_at` 명시 판정으로 교체)
 
-**Ablation 결과 요약 (2026-07-02 최신):**
+**Ablation 결과 요약 (2026-07-06, 버그 수정 후 최신):**
 
 | 시나리오 | CAGR | Alpha(KS) | Sharpe | MDD |
 |---------|------|-----------|--------|-----|
-| B_hard_random | 4.68% (중앙) | — | — | — |
-| C_stability_random | 6.80% (중앙) / p95=11.94% | — | — | — |
-| D_rim_only | 11.99% | -1.84% | 0.434 | -33.9% |
-| E_screener_rim | 6.29% | -7.54% | 0.251 | -35.2% |
-| **F_momentum_rim** | **14.63%** | +0.80% | **0.508** | **-32.6%** |
-| G_full | 9.23% | -4.60% | 0.347 | -25.3% |
-| H_no_stability | 11.81% | -2.02% | 0.405 | -37.7% |
-| KOSPI | 13.83% | — | — | — |
-| KOSDAQ | 2.12% | — | — | — |
+| B_hard_random | 4.58% (중앙) | — | — | — |
+| C_stability_random | 6.70% (중앙) / p95=11.81% | — | — | — |
+| D_rim_only | 11.66% | -2.78% | 0.423 | -33.9% |
+| E_screener_rim | 6.29% | -8.15% | 0.251 | -35.2% |
+| **F_momentum_rim** | **14.63%** | +0.20% | **0.508** | **-32.6%** |
+| G_full | 9.10% | -5.34% | 0.342 | -26.2% |
+| H_no_stability | 11.81% | -2.63% | 0.405 | -37.7% |
+| KOSPI | 14.44% | — | — | — |
+| KOSDAQ | 2.13% | — | — | — |
 
-> 상세: `experiments/runs/2026.07.02. BACKTEST_RESULTS.md`
+> 상세: MASTER 버전이력 v5.3. 상폐 종목을 보유하지 않았던 시나리오(F/F_no_r6/H/G_no_r6/E_screener_rim/
+> E_rev_only/D_factor_only)는 버그 수정 전후 값 동일.
 
 ---
 
 ## Phase 3 — 기업 분류기 + 파라미터 튜닝 ← **현재 시작점**
 
 > Phase 2 완료 → RIM 산식 교체 → 가격 소급보정 재실행 → STEP 3 신호분리 ablation →
-> STEP 3B FactorScreener 폐기 결정, 순서로 Phase 3 진입 가능 상태. 각 단계 근거·수치는
-> MASTER 버전이력 v5.0~v5.2, SPEC_05 §11(STEP 3/3B) 참조.
-> **다음 과제**: classifier.py 활성화 + Bayesian 튜닝 (팩터 가중치 튜닝은 대상 소멸로 제외).
+> STEP 3B FactorScreener 폐기 결정 → **상장폐지 haircut 버그 수정 + 전체 재실행(RIM 유효성
+> 판정 재역전)**, 순서로 현재에 이름. 각 단계 근거·수치는 MASTER 버전이력 v5.0~v5.3,
+> SPEC_05 §11(STEP 3/3B) 참조.
+> **RIM 유효성 판정이 다시 ❌로 바뀌었지만 Phase 3 진입 자체는 유지** — 채택 파이프라인인
+> F_momentum_rim은 C_p95를 여전히 크게 상회하고(14.63% vs 11.81%), 신호분리 검증(STEP 3)도
+> RIM이 R6·1/PBR과 독립적으로 랜덤 대비 +5%p대 알파를 낸다는 결론이 버그 수정 후에도 그대로다.
+> D_rim_only 단독의 p95 검정만 재역전된 것 — RIM 자체를 폐기할 근거는 아니라고 판단.
+> **다음 과제**: classifier.py 활성화 + Bayesian 튜닝 (팩터 가중치 튜닝은 대상 소멸로 제외),
+> StabilityFilter R1~R5 개별 leave-one-out 검증(SPEC_05 부록 A).
 > 참고 자료: `2026.06.21. 백테스트_검토_및_모델개선_워크플로우.md` (STEP 1~11 체크리스트),
 > `2026.06.21. 백테스트_설계검토_및_RIM산식_교체.md` (RIM 산식 교체 근거).
 
