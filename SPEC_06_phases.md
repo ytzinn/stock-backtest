@@ -150,7 +150,8 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 **완료된 작업** (v4.8 모듈화 구조):
 1. ✅ `backtest/interfaces.py` — UniverseFilter, ValuationModel Protocol 정의
 2. ✅ `backtest/filters/hard_filter.py` — `has_recent_trade(window=5)` + `max_lookback_days=90` 추가
-3. ✅ `backtest/filters/stability_filter.py` — R1~R6 하드 룰 (`use_r6` 플래그)
+3. ✅ `backtest/filters/stability_filter.py` — R1,R4,R5,R6 하드 룰 (`active_rules` 세트,
+   R2/R3는 **폐기**·코드는 비활성화만 하고 보존 — 2026-07-07)
 4. ✅ `backtest/filters/factor_screener.py` — 4팩터, 동일가중 (**폐기** — 채택 파이프라인에서 제거, ablation 기록용으로만 보존)
 5. ✅ `backtest/filters/momentum_filter.py` — MA AND 이중 조건
 6. ✅ `backtest/models/rim.py` — RIMModel (Dechow λ=0.5)
@@ -192,15 +193,18 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 ## Phase 3 — 기업 분류기 + 파라미터 튜닝 ← **현재 시작점**
 
 > Phase 2 완료 → RIM 산식 교체 → 가격 소급보정 재실행 → STEP 3 신호분리 ablation →
-> STEP 3B FactorScreener 폐기 결정 → **상장폐지 haircut 버그 수정 + 전체 재실행(RIM 유효성
-> 판정 재역전)**, 순서로 현재에 이름. 각 단계 근거·수치는 MASTER 버전이력 v5.0~v5.3,
-> SPEC_05 §11(STEP 3/3B) 참조.
+> STEP 3B FactorScreener 폐기 결정 → 상장폐지 haircut 버그 수정 + 전체 재실행(RIM 유효성
+> 판정 재역전) → **StabilityFilter R1~R5 개별 검증 완료, R2/R3 폐기**, 순서로 현재에 이름.
+> 각 단계 근거·수치는 MASTER 버전이력 v5.0~v5.4, SPEC_05 §11 참조.
 > **RIM 유효성 판정이 다시 ❌로 바뀌었지만 Phase 3 진입 자체는 유지** — 채택 파이프라인인
 > F_momentum_rim은 C_p95를 여전히 크게 상회하고(14.63% vs 11.81%), 신호분리 검증(STEP 3)도
 > RIM이 R6·1/PBR과 독립적으로 랜덤 대비 +5%p대 알파를 낸다는 결론이 버그 수정 후에도 그대로다.
 > D_rim_only 단독의 p95 검정만 재역전된 것 — RIM 자체를 폐기할 근거는 아니라고 판단.
-> **다음 과제**: classifier.py 활성화 + Bayesian 튜닝 (팩터 가중치 튜닝은 대상 소멸로 제외),
-> StabilityFilter R1~R5 개별 leave-one-out 검증(SPEC_05 부록 A).
+> **StabilityFilter 결과**: R2(차입금비율)가 R1(부채비율)과 완전히 중복돼 어떤 조합에서도
+> 결과에 영향을 주지 않음을 확인, R3(매출역성장)는 오히려 역효과로 확인 — 둘 다 폐기하고
+> R1/R4/R5/R6만 유지. 최적 조합(R1+R5+R6만, R4도 제외) CAGR 15.35%로 기존 대비 개선되나
+> R4는 경제적 논리가 유효해 보수적으로 유지 결정.
+> **다음 과제**: classifier.py 활성화 + Bayesian 튜닝 (팩터 가중치 튜닝은 대상 소멸로 제외).
 > 참고 자료: `2026.06.21. 백테스트_검토_및_모델개선_워크플로우.md` (STEP 1~11 체크리스트),
 > `2026.06.21. 백테스트_설계검토_및_RIM산식_교체.md` (RIM 산식 교체 근거).
 

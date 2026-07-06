@@ -1,16 +1,14 @@
 """
-Phase 2 기본 파이프라인 조립 — F_momentum_rim 구조 (채택 파이프라인).
+Phase 2 기본 파이프라인 조립 — 채택 파이프라인.
 
 파이프라인 구성:
-  HardFilter → StabilityFilter → MomentumFilter → RIMModel
+  HardFilter → StabilityFilter(R1,R4,R5,R6만 — R2/R3 제거) → MomentumFilter → RIMModel
 
-2026-07-05: FactorScreener 폐기로 제거. Ablation 결과 D_rim_only(11.99%) > E_screener_rim
-(6.29%)로 스크리닝이 RIM 알파를 구조적으로 훼손함을 확인(SPEC_05 §11 STEP 3B). 이 파일이
-FactorScreener를 포함해 조립하던 이전 버전은 실제로는 G_full 구조였고 F_full(현재는
-F_momentum_rim)로 잘못 라벨링돼 있었음 — 채택된 최적 파이프라인(F_momentum_rim, +14.63% CAGR)
-구조로 교체.
+FactorScreener는 폐기(2026-07-05). StabilityFilter는 R2(차입금비율, R1과 완전 중복 —
+leave-one-out 검증 결과 어떤 조합에서도 결과에 영향 없음 확인)·R3(매출역성장, 역효과로
+확인)를 제거(2026-07-07). 변경 이력·수치 근거는 MASTER.md 버전이력 v5.2~v5.4 참조.
 
-Phase 2 튜닝 파라미터 3개 (MASTER.md §3-7, 2026-07-05 이전엔 4개 — top_pct 제거):
+Phase 2 튜닝 파라미터 3개 (MASTER.md §3-7):
   beta_adj      초기 0.0,  범위 [-0.02, +0.02]
   rim_threshold 초기 0.05, 범위 [-0.10, +0.20]
   n_stocks      초기 20,   범위 [10, 30]
@@ -40,7 +38,7 @@ def build_phase2_pipeline(
                 min_turnover=100_000_000,
                 min_listed_months=6,
             ),
-            StabilityFilter(r2_exception=True),
+            StabilityFilter(active_rules={'R1', 'R4', 'R5', 'R6'}),
             MomentumFilter(
                 ma_short=20,
                 ma_long=60,

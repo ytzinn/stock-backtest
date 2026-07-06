@@ -90,201 +90,26 @@ Universe 구성은 다음 3단계를 순서대로 적용한다. 단계별로 탈
     return True, ''
 ```
 
-## 6-2. Step 2 — 재무안정성 필터 (v4.3 신규)
+## 6-2. Step 2 — 재무안정성 필터
 
 **설계 원칙**: 가치 함정(Value Trap) 중에서도 재무 구조적 위험이 명확한 종목을 선제 제거.
-하드 룰 6개 + 참고 플래그 2개로 구성. 하드 룰은 Bayesian 튜닝 대상에서 제외.
-
-```python
-# backtest/filters/stability_filter.py
-
-RF, RK = 0.0263, 0.0873   # CAPM 상수 — RIM 모델(models/rim.py)과 동일 값 유지
-
-
-class StabilityFilter:
-    """UniverseFilter Protocol 구현체. 생성자로 파라미터 주입."""
-
-    def __init__(self, r2_exception: bool = True):
-        self.r2_exception = r2_exception
-
-    def apply(
-        self,
-        tickers:        list[str],
-        rebalance_date: date,
-        pit_series:     dict[str, list[dict]],
-    ) -> tuple[list[str], dict]:
-        passed, rejected = [], {}
-        for t in tickers:
-            series  = pit_series.get(t, [])
-            pit0    = series[0] if len(series) > 0 else {}
-            pit1    = series[1] if len(series) > 1 else None
-            pit2    = series[2] if len(series) > 2 else None
-            ok, reasons = _financial_stability_filter(t, rebalance_date, pit0, pit1, pit2)
-            if ok:
-                passed.append(t)
-            else:
-                rejected[t] = reasons
-        return passed, rejected
-
-
-def _financial_stability_filter(
-    ticker: str,
-    rebalance_date: date,
-    pit_data: dict,
-    pit_prev: dict | None,
-    pit_2y_ago: dict | None,
-) -> tuple[bool, list[str]]:
-    """
-    True = 통과, False = 제외.
-    반환: (pass_flag, fail_reasons)
-
-    pit_data:    pit_series[ticker][0] — 최신 FY
-    pit_prev:    pit_series[ticker][1] — t-1 FY
-    pit_2y_ago:  pit_series[ticker][2] — t-2 FY
-    """
-    fails = []
-
-    # ── 하드 룰 (Bayesian 튜닝 제외) ──────────────────────────────────────
-
-    # [R1] 부채비율 > 200%
-    # 근거: 한국 제조업 평균 100~120%. 200% 초과는 재무 충격 흡수력 극히 낮음.
-    # 금융업은 DQ Gate에서 is_financial=TRUE로 이미 처리됨.
-    debt   = pit_data.get('부채총계', 0) or 0
-    equity = pit_data.get('자본총계', 1) or 1
-    if equity > 0 and (debt / equity) > 2.0:
-        fails.append('부채비율 > 200%')
-
-    # [R2] 차입금비율 > 150% (단, 3년 단조 감소 + 누적 10%p 이상 개선 시 예외)
-    # 근거: 금융성 부채만 측정. 150% 초과는 차입 의존도 극단적.
-    # 예외 근거: 차입금이 실제로 줄고 있다면 현금흐름으로 부채 상환 중 → 직접 개선 증거.
-    #
-    # 예외 조건 (두 가지 동시 충족):
-    #   1. 최근 3 FY 차입금비율이 단조 감소 (ratio[t-2] > ratio[t-1] > ratio[t])
-    #   2. 3년간 누적 감소폭 >= 10%p (ratio[t-2] - ratio[t] >= 0.10)
-    #      데이터가 2개 FY만 있으면: ratio[t-1] > ratio[t] AND 감소폭 >= 10%p
-    #      데이터가 1개 이하이면: 트렌드 판단 불가 → 예외 없이 제외
-    #
-    # [향후 검토] 감소폭 하한 10%p는 Phase 2 결과 확인 후 Bayesian 튜닝 대상 추가 가능.
-    #             현재는 파라미터 10개 상한 유지를 위해 하드 룰로 고정.
-    borrowings = sum(pit_data.get(k, 0) or 0 for k in
-                     ['단기차입금', '유동성장기부채', '장기차입금', '사채'])
-
-    def _borrow_ratio(pit: dict) -> float | None:
-        eq = pit.get('자본총계', 0) or 0
-        if eq <= 0:
-            return None
-        br = sum(pit.get(k, 0) or 0 for k in
-                 ['단기차입금', '유동성장기부채', '장기차입금', '사채'])
-        return br / eq
-
-    if equity > 0 and (borrowings / equity) > 1.5:
-        # 트렌드 예외 판단
-        br_series = [_borrow_ratio(p) for p in
-                     [d for d in [pit_2y_ago, pit_prev, pit_data] if d is not None]]
-        br_series = [r for r in br_series if r is not None]
-
-        trend_ok = False
-        if len(br_series) >= 2:
-            monotonic = all(br_series[i] > br_series[i+1]
-                            for i in range(len(br_series) - 1))
-            drop_ok   = (br_series[0] - br_series[-1]) >= 0.10   # 누적 10%p 이상 감소
-            trend_ok  = monotonic and drop_ok
-
-        if not trend_ok:
-            fails.append('차입금비율 > 150% (개선 추세 없음)')
-
-    # [R3] 매출 역성장 — 최근 3 FY 중 2회 이상 YoY < -5%
-    # 근거: CYCLICAL 섹터는 Phase 5 이후 별도 모델 적용 예정.
-    #       현 단계에서는 매출 연속성이 RIM 모델 신뢰도와 직결됨.
-    # 1회(-5% 미만) 역성장은 일시적 사업 재편·외부 충격으로 허용.
-    # 2회 이상이면 구조적 매출 훼손으로 판단해 제외.
-    rev_series = get_revenue_series_pit(ticker, rebalance_date, years=3)
-    if len(rev_series) >= 2:
-        yoy_list = [(rev_series[i] / rev_series[i-1]) - 1
-                    for i in range(1, len(rev_series))
-                    if rev_series[i-1] and rev_series[i-1] != 0]
-        if sum(1 for yoy in yoy_list if yoy < -0.05) >= 2:
-            fails.append('최근 3FY 내 매출 -5% 이상 역성장 2회 이상')
-
-    # [R4] 영업CF 2년 연속 음수
-    # 근거: 본업이 2년 연속 현금을 못 씀 → 구조적 수익성 문제.
-    cfo_cur  = pit_data.get('영업활동현금흐름')
-    cfo_prev = pit_prev.get('영업활동현금흐름') if pit_prev else None
-    if cfo_cur is not None and cfo_prev is not None:
-        if cfo_cur < 0 and cfo_prev < 0:
-            fails.append('영업CF 2년 연속 음수')
-
-    # [R5] 영업CF < 0 AND 재무CF > 0 (차입으로 운영)
-    # 근거: 본업이 현금을 못 내면서 차입으로 운영 → 즉각적 위험 신호.
-    fin_cf = pit_data.get('재무활동현금흐름')
-    if cfo_cur is not None and fin_cf is not None:
-        if cfo_cur < 0 and fin_cf > 0:
-            fails.append('영업CF(-) + 재무CF(+): 차입 운영')
-
-    # [R6] adjROE < 종목별 요구수익률 r (RIM 기준 가치 파괴 구간)
-    # 근거: adjROE < r이면 RIM 산식에서 (adjROE - r) < 0 → FV < equity.
-    #       PBR이 낮아 저평가처럼 보이지만 수익성이 자본비용 미달인 가치 함정 선제 제거.
-    #       밸류에이션 필터(현재가 > RIM적정가 × 1.05)는 PBR < 1 케이스를 못 잡으므로 별도 필요.
-    # adjROE 정의: (0.5×NI + 0.5×CFO) / equity — RIM 내부 계산과 동일 기준 (Dechow 1994).
-    #
-    # [β 처리] Phase 2에서는 β=1.0 고정 → r ≈ 6.73%.
-    #   근거: 설계서 어디에도 get_beta() 구현 없음. 기존 stock-analysis도 β를 API
-    #         파라미터로 외부 입력받는 구조로, 자동 수집/계산 로직 미정의.
-    #         소형주 β 추정은 거래량 부족으로 불안정한 경우가 많아 고정값이 오히려 안정적.
-    #   [향후 검토] Phase 3 이후 옵션 비교:
-    #     옵션 A — price_history adj_close로 rolling 52주 KOSPI 회귀 β 직접 계산 (PIT 준수)
-    #     옵션 B — pykrx get_market_fundamental_by_date() β 수집 (로컬 전용, 과거 시계열 부담)
-    #   두 옵션 도입 시 β=1.0 고정 대비 성과 차이를 별도 실험으로 비교 후 채택 여부 결정.
-    # 파라미터 없음 → Phase 2 파라미터 10개 상한 영향 없음.
-    ni_r6 = pit_data.get('당기순이익')
-    if ni_r6 is not None and cfo_cur is not None and equity > 0:
-        adj_roe = (0.5 * ni_r6 + 0.5 * cfo_cur) / equity
-        beta    = 1.0   # Phase 2 고정값. 향후 검토 메모 위 주석 참고.
-        r       = RF + beta * (RK - RF)
-        if adj_roe < r:
-            fails.append(f'adjROE({adj_roe:.1%}) < 요구수익률({r:.1%}): RIM 적정가 < 장부가')
-
-    # ── 참고 플래그 (제외 아닌 감점·기록) ──────────────────────────────────
-
-    flags = []
-
-    # [F1] 재고자산 회전율 전년 대비 30% 이상 하락
-    # 재고 없는 업종(서비스) 자동 스킵
-    rev_cur  = pit_data.get('매출액', 0) or 0
-    inv_cur  = pit_data.get('재고자산')
-    inv_prev = pit_prev.get('재고자산') if pit_prev else None
-    if inv_cur and inv_prev and inv_prev > 0 and rev_cur > 0:
-        inv_prev_rev = (pit_prev.get('매출액', 0) or 0)
-        turnover_cur  = rev_cur  / inv_cur  if inv_cur  > 0 else None
-        turnover_prev = inv_prev_rev / inv_prev if inv_prev > 0 else None
-        if turnover_cur and turnover_prev and turnover_prev > 0:
-            if (turnover_cur - turnover_prev) / turnover_prev < -0.30:
-                flags.append('재고자산회전율 -30% 이상')
-
-    # [F2] 매출채권 회전율 전년 대비 30% 이상 하락
-    ar_cur  = pit_data.get('매출채권')
-    ar_prev = pit_prev.get('매출채권') if pit_prev else None
-    if ar_cur and ar_prev and ar_prev > 0 and rev_cur > 0:
-        ar_prev_rev  = (pit_prev.get('매출액', 0) or 0)
-        ar_turnover_cur  = rev_cur / ar_cur  if ar_cur  > 0 else None
-        ar_turnover_prev = ar_prev_rev / ar_prev if ar_prev > 0 else None
-        if ar_turnover_cur and ar_turnover_prev and ar_turnover_prev > 0:
-            if (ar_turnover_cur - ar_turnover_prev) / ar_turnover_prev < -0.30:
-                flags.append('매출채권회전율 -30% 이상')
-
-    return (len(fails) == 0), fails
-```
+활성 하드 룰 4개(R1,R4,R5,R6) + 참고 플래그 2개. 하드 룰은 Bayesian 튜닝 대상에서 제외.
+R2·R3는 leave-one-out 검증 결과로 폐기됨(아래 요약표, 근거는 MASTER §3-6·버전이력 v5.4,
+SPEC_05 §11 참조). 구현: `backtest/filters/stability_filter.py`
+(`StabilityFilter(active_rules={'R1','R4','R5','R6'})`가 현재 채택 설정,
+`active_rules`로 규칙별 on/off 가능 — 클래스는 `_financial_stability_filter()`가 각 규칙을
+`'RX' in active_rules` 가드로 감싸는 구조).
 
 **재무안정성 필터 기준 요약표:**
 
-| 지표 | 기준 | 분류 | 향후 튜닝 |
-|------|------|------|----------|
-| 부채비율 | > 200% | 하드 룰 (제외) | 아니오 |
-| 차입금비율 | > 150% (단, 3년 단조 감소 + 누적 10%p 이상이면 통과) | 하드 룰 (제외) | 아니오 (감소폭 하한은 향후 검토) |
-| 매출 역성장 | 최근 3FY 중 2회 이상 YoY < -5% | 하드 룰 (제외) | 아니오 |
-| 영업CF | 2년 연속 음수 | 하드 룰 (제외) | 아니오 |
-| 영업CF(-) + 재무CF(+) | 1회 발생 | 하드 룰 (제외) | 아니오 |
-| adjROE vs 요구수익률 | adjROE < r (종목별 β 기반, fallback β=1.0) | 하드 룰 (제외) | 아니오 (파라미터 없음) |
+| 지표 | 기준 | 상태 | 비고 |
+|------|------|------|------|
+| R1 부채비율 | 총부채/자기자본 > 200% | ✅ 활성 | leave-one-out: 제거 시 CAGR·MDD 모두 악화 → 유효 |
+| ~~R2 차입금비율~~ | (단·장기차입금+사채)/자기자본 > 150% (3FY 단조감소+누적10%p 예외) | ❌ 폐기 | R1과 완전 중복 — 어떤 조합에서도 결과 불변 확인 |
+| ~~R3 매출 역성장~~ | 최근 3FY 중 2회 이상 YoY < -5% | ❌ 폐기 | 제거 시 CAGR·MDD 모두 개선 — 역효과 확인 |
+| R4 영업CF | 2년 연속 음수 | ✅ 활성 | 기여 미미하나 경제적 논리는 유효, 유지 |
+| R5 영업CF(-)+재무CF(+) | 차입 운영 1회 발생 | ✅ 활성 | 약하게 유효 |
+| R6 adjROE < r | adjROE < 8.73%(β=1.0) | ✅ 활성 | 가장 큰 기여 (RIM 밸류에이션 가드) |
 | 재고자산 회전율 | 전년비 -30% 이상 하락 | 참고 플래그 | Phase 3+ |
 | 매출채권 회전율 | 전년비 -30% 이상 하락 | 참고 플래그 | Phase 3+ |
 
@@ -594,34 +419,13 @@ class BacktestPipeline:
 
 ## 6-6. configs/ — Phase별 파이프라인 조립 (v4.8 신규)
 
-```python
-# backtest/configs/phase2_rim.py  ← Phase 2 기본 파이프라인
+Phase 2 채택 파이프라인 조립은 `backtest/configs/phase2_rim.py`(`build_phase2_pipeline()`)
+참조 — 코드 중복 대신 소스를 직접 확인할 것. 현재 구성: Hard → Stability(R1,R4,R5,R6) →
+Momentum → RIM (FactorScreener 폐기 반영, 2026-07-05·07-07 변경 이력은 MASTER 버전이력
+v5.2·v5.4 참조).
 
-from backtest.pipeline import BacktestPipeline
-from backtest.filters.hard_filter     import HardFilter
-from backtest.filters.stability_filter import StabilityFilter
-from backtest.filters.factor_screener  import FactorScreener
-from backtest.filters.momentum_filter  import MomentumFilter
-from backtest.models.rim               import RIMModel
-
-PHASE2_PIPELINE = BacktestPipeline(
-    filters=[
-        HardFilter(),
-        StabilityFilter(r2_exception=True),
-        FactorScreener(
-            weights={'rev_yoy': 1/6, 'op_yoy': 1/6, 'gpa': 1/3, 'inv_pbr': 1/3},
-            top_pct=0.20,
-        ),
-        MomentumFilter(ma_short=20, ma_long=60, confirm_days=5, slope_lookback=20),
-    ],
-    valuation_model=RIMModel(),
-    rim_threshold=0.05,
-    n_stocks=20,
-)
-
-
-# backtest/configs/phase5_multimodel.py  ← Phase 5 skeleton (미래 작성)
-# from backtest.models.ensemble import EnsembleModel
+Phase 5 멀티모델 조립(`backtest/configs/phase5_multimodel.py`)은 미작성 — Phase 5 착수 시
+`backtest/models/ensemble.py`(`EnsembleModel`) 기반으로 신규 작성 예정.
 # from backtest.models.ev_sales import EVSalesModel
 # from backtest.models.fcff     import FCFFModel
 #

@@ -154,12 +154,31 @@ Universe 필터는 Hard → Stability → Momentum → RIM **3단계 구조**(SP
 **후속 확인 — 컴포지트 단독 효과 및 원인 (2026-07-05)**: "위치(프리필터) 문제 vs 구성 자체 문제"를
 분리하기 위해 `D_factor_only`(4팩터 합산 점수로 RIM 없이 직접 선정, `_FactorCompositeRankPipeline`)
 추가 실행 — **4.72%로 랜덤(C_no_r6 5.23%)보다도 낮음** (D_factor_only는 상폐 종목 미보유로 버그
-수정 전후 값 동일, C_no_r6는 5.41%→5.23%로 소폭 하향— 결론 불변). 원인 확인을 위해 3개 시점(2020/2022/2024년
+수정 전후 값 동일, C_no_r6는 5.41%→5.23%로 소폭 하향 — 결론 불변). 원인 확인을 위해 3개 시점(2020/2022/2024년
 4월, R1~R5 통과 유니버스) 교차상관 분석 결과 매출YoY·영업이익YoY는 inv_pbr과 거의 무상관(≈0),
 GP/A만 약한 음의 상관(-0.04~-0.21, 고GP/A일수록 소폭 고PBR). 즉 "고성장주=고PBR"이 아니라
 **작년 YoY 성장률 자체가 미래 수익률 예측력이 약하고(비지속적) R6 없이는 일회성·레버리지성
 성장까지 포함**되는 것이 근본 원인 — 위치 문제가 아니라 팩터 구성 자체의 문제임을 확정.
 상세 코드: `backtest/ablation.py`(`D_factor_only`).
+
+**StabilityFilter R1~R5 개별 검증 → R2/R3 폐기 (2026-07-07)** — leave-one-out(`D_no_r1`~`D_no_r5`)
++ 채택 파이프라인 기준 조합 검증(`F_no_r2`/`F_no_r3`/`F_no_r4`/조합 4개)으로 규칙별 기여도 분리.
+배경·전체 수치·`H_no_stability` 교란 해소 경위는 MASTER 버전이력 v5.4 참조.
+
+| 규칙 | D_rim_only(11.66%) 대비 leave-one-out | 판정 |
+|---|---:|---|
+| R1 부채비율 | -0.65%p, MDD 악화 | ✅ 유효 |
+| **R2 차입금비율** | **0.00%p (완전 동일)** | ❌ **R1과 완전 중복, 어떤 조합에서도 무영향** |
+| **R3 매출역성장** | **+0.53%p (오히려 개선), MDD도 개선** | ❌ **역효과** |
+| R4 영업CF 2년연속음수 | ±0.01%p | ⚠️ 거의 무력이나 유지 |
+| R5 차입 운영 | -0.20%p | ✅ 약하게 유효 |
+
+**결정**: R2·R3 폐기, R1/R4/R5/R6만 유지. 최적 조합(`F_no_r2r3r4`) CAGR 15.35%/MDD -28.7%/
+Sharpe 0.534로 기존 채택안(F_momentum_rim) 대비 세 지표 모두 개선. `backtest/configs/phase2_rim.py`
+를 `StabilityFilter(active_rules={'R1','R4','R5','R6'})`로 교체 완료. 코드(R2/R3 판정 로직)는
+삭제하지 않고 `active_rules`로 비활성화만 — ablation 재검증 가능하도록 보존.
+상세 코드: `backtest/filters/stability_filter.py`(`active_rules`), `backtest/ablation.py`
+(`D_no_r1`~`D_no_r5`, `F_no_r2`~`F_no_r2r3r4`, `F_no_stability_clean`, `D_no_stability`).
 
 ---
 
