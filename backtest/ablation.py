@@ -93,6 +93,32 @@ ABLATION_CONFIGS: dict[str, dict] = {
     'D_no_r5': {'use_hard': True, 'use_stability': True, 'use_screener': False,
                 'use_momentum': False, 'use_rim_filter': True,
                 'stability_rules': {'R1', 'R2', 'R3', 'R4', 'R6'}},
+
+    # R2/R3/R4 단일·조합 제외 — 채택 파이프라인(F) 기준. R1·R2가 둘 다 부채/차입금 관련이라
+    # R2가 D_no_r2에서 "완전히 무력"으로 나온 게 R1과의 중복(R1이 먼저 걸러냄) 때문인지,
+    # R3(매출역성장, D_no_r3에서 역효과로 나옴)·R4(영업CF 2년연속음수, 거의 무력)와의
+    # 조합에서도 같은 패턴이 유지되는지 확인. R1·R5·R6는 항상 유지.
+    'F_no_r2':     {'use_hard': True, 'use_stability': True, 'use_screener': False,
+                    'use_momentum': True, 'use_rim_filter': True,
+                    'stability_rules': {'R1', 'R3', 'R4', 'R5', 'R6'}},
+    'F_no_r3':     {'use_hard': True, 'use_stability': True, 'use_screener': False,
+                    'use_momentum': True, 'use_rim_filter': True,
+                    'stability_rules': {'R1', 'R2', 'R4', 'R5', 'R6'}},
+    'F_no_r4':     {'use_hard': True, 'use_stability': True, 'use_screener': False,
+                    'use_momentum': True, 'use_rim_filter': True,
+                    'stability_rules': {'R1', 'R2', 'R3', 'R5', 'R6'}},
+    'F_no_r2r3':   {'use_hard': True, 'use_stability': True, 'use_screener': False,
+                    'use_momentum': True, 'use_rim_filter': True,
+                    'stability_rules': {'R1', 'R4', 'R5', 'R6'}},
+    'F_no_r2r4':   {'use_hard': True, 'use_stability': True, 'use_screener': False,
+                    'use_momentum': True, 'use_rim_filter': True,
+                    'stability_rules': {'R1', 'R3', 'R5', 'R6'}},
+    'F_no_r3r4':   {'use_hard': True, 'use_stability': True, 'use_screener': False,
+                    'use_momentum': True, 'use_rim_filter': True,
+                    'stability_rules': {'R1', 'R2', 'R5', 'R6'}},
+    'F_no_r2r3r4': {'use_hard': True, 'use_stability': True, 'use_screener': False,
+                    'use_momentum': True, 'use_rim_filter': True,
+                    'stability_rules': {'R1', 'R5', 'R6'}},
 }
 
 RANDOM_TAGS    = frozenset({'A_random', 'B_hard_random', 'C_stability_random', 'C_no_r6'})

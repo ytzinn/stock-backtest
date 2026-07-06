@@ -276,6 +276,15 @@ def make_summary(det_results: dict[str, dict], dist_stats: dict[str, dict]) -> d
                 judgements[f'{rule_tag}<D_rim_only (R{i} 개별 기여)'] = cagr(rule_tag) < d_cagr
                 judgements[f'_{rule_tag}_cagr'] = round(cagr(rule_tag), 6)
 
+    if 'F_momentum_rim' in s:
+        # R2/R3/R4 단일·조합 제외 — 채택 파이프라인(F) 기준, R1과의 중복·상호작용 확인
+        f_cagr = cagr('F_momentum_rim')
+        for combo_tag in ('F_no_r2', 'F_no_r3', 'F_no_r4',
+                          'F_no_r2r3', 'F_no_r2r4', 'F_no_r3r4', 'F_no_r2r3r4'):
+            if combo_tag in s:
+                judgements[f'{combo_tag}<F_momentum_rim'] = cagr(combo_tag) < f_cagr
+                judgements[f'_{combo_tag}_cagr'] = round(cagr(combo_tag), 6)
+
     summary['judgements'] = judgements
     return summary
 
