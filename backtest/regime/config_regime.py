@@ -1,23 +1,39 @@
 """
 레짐 진단 파라미터 단일 소스 (SPEC_07 §7-1). §8 민감도에서 이 값만 흔든다.
 config_hash = 이 파라미터 집합의 해시 → regime_indicators.config_hash 로 기록.
+
+STEP A-7 민감도 스윕은 config_regime.py를 매번 편집하는 대신 환경변수로 덮어쓴다
+(REGIME_ 접두사) — 파일 상태를 스윕마다 되돌릴 필요 없이
+`REGIME_PBR_QUANTILES=4 venv/bin/python -m backtest.regime.indicators_inhouse`처럼
+바로 실행 가능. config_hash()가 모듈 전역을 자동 수집하므로 덮어쓴 값도 자동으로
+해시에 반영되어 base run과 겹치지 않는 run_id가 나온다.
 """
 from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 from datetime import date
 
-PBR_QUANTILES   = 5
-SIZE_DECILES    = 10
-LIQ_QUANTILES   = 5
-MOM_LOOKBACK_M  = 6         # size_mom_6m
-MOM_FORMATION   = 't_minus_6m'   # bucket 형성 시점. §8 민감도에서 't_minus_1m'도 확인
-BREADTH_MA_DAYS = 200
-LIQ_LOOKBACK_D  = 20
-MEGACAP_TOP_N   = 10
-MONTH_END_RULE  = 'last_trading_day'
+
+def _env_int(name: str, default: int) -> int:
+    return int(os.getenv(f'REGIME_{name}', default))
+
+
+def _env_str(name: str, default: str) -> str:
+    return os.getenv(f'REGIME_{name}', default)
+
+
+PBR_QUANTILES   = _env_int('PBR_QUANTILES', 5)
+SIZE_DECILES    = _env_int('SIZE_DECILES', 10)
+LIQ_QUANTILES   = _env_int('LIQ_QUANTILES', 5)
+MOM_LOOKBACK_M  = _env_int('MOM_LOOKBACK_M', 6)         # size_mom_6m
+MOM_FORMATION   = _env_str('MOM_FORMATION', 't_minus_6m')   # §8 민감도: 't_minus_1m'도 확인
+BREADTH_MA_DAYS = _env_int('BREADTH_MA_DAYS', 200)
+LIQ_LOOKBACK_D  = _env_int('LIQ_LOOKBACK_D', 20)
+MEGACAP_TOP_N   = _env_int('MEGACAP_TOP_N', 10)
+MONTH_END_RULE  = _env_str('MONTH_END_RULE', 'last_trading_day')
 
 # 상폐 청산 가정은 별도 상수를 두지 않고 backtest.engine.DELISTING_HAIRCUT를 그대로 import해
 # 쓴다(단일 소스 유지, §7-2 복제 게이트 전제조건).
