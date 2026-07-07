@@ -51,12 +51,14 @@ def plot_indicator(indicator_df, monthly_df, indicator: str, scenario: str, out_
 
     fig, (ax_top, ax_bot) = plt.subplots(2, 1, figsize=(9, 8))
 
+    # 서버(Linux)에 한글 폰트가 없어 matplotlib 렌더링이 깨짐(Glyph missing) — 플롯 텍스트는
+    # 영문으로만 구성한다. 한글 설명은 build_report()의 마크다운 리포트 쪽에서 담당.
     ax_top.plot(series.index, series.values, color='tab:blue', label=indicator)
     ax_top.set_ylabel(indicator, color='tab:blue')
     ax_top2 = ax_top.twinx()
-    ax_top2.plot(cum_rel.index, cum_rel.values, color='tab:red', label=f'누적 rel_vs_large ({scenario})')
-    ax_top2.set_ylabel('누적 rel_vs_large', color='tab:red')
-    ax_top.set_title(f'{indicator} vs {scenario} 누적 상대수익')
+    ax_top2.plot(cum_rel.index, cum_rel.values, color='tab:red', label=f'cumulative rel_vs_large ({scenario})')
+    ax_top2.set_ylabel('cumulative rel_vs_large', color='tab:red')
+    ax_top.set_title(f'{indicator} vs {scenario} cumulative relative return')
 
     merged = series.to_frame('x').join(rel.shift(-1).rename('y')).dropna()
     if len(merged) >= 5:
@@ -66,7 +68,7 @@ def plot_indicator(indicator_df, monthly_df, indicator: str, scenario: str, out_
         ax_bot.plot(xs, np.polyval(coef, xs), color='tab:orange')
     ax_bot.set_xlabel(f'{indicator}(t)')
     ax_bot.set_ylabel('rel_vs_large(t+1)')
-    ax_bot.set_title('t → t+1 산점도 + 회귀선 (참고용, 통과 판정은 HAC 회귀 결과 사용)')
+    ax_bot.set_title('t -> t+1 scatter + regression line (reference only; gate uses HAC regression)')
 
     fig.tight_layout()
     fig.savefig(out_path, dpi=120)
@@ -112,11 +114,12 @@ def build_report(analysis: dict, indicators_run_id: str, mtm_run_id: str) -> str
     lines.append(f'| G1 | value_spread 부호 일치(≥2/3 horizon) | ' +
                  ' | '.join(_signs_summary(results, sc) for sc in PRIMARY_SCENARIOS) + ' | 1차 구속 |')
     lines.append(f'| G1b | hot value_spread 중앙값 > cold | {_gate_row("g1b_pass", results)} | 1차 구속 |')
-    lines.append(f'| G1c | HAC t값/Spearman (참고, 미판정) | 기록만 | 참고 |')
+    _same_across = lambda text: ' | '.join([text] * len(PRIMARY_SCENARIOS))
+    lines.append(f'| G1c | HAC t값/Spearman (참고, 미판정) | {_same_across("기록만")} | 참고 |')
     lines.append(f'| G2 | 21개 반기 앵커 부호 일치 | {_gate_row("g2_pass", results)} | 1차 구속 |')
     lines.append(f'| G2b | #22 제외해도 부호 유지 | {_gate_row("g2b_pass", results)} | 1차 구속 |')
     lines.append(f'| G3 | size_mom_6m hot/cold 구분 | {_gate_row("g3_pass", results)} | 필수 |')
-    lines.append(f'| G4 | §8 민감도 강건성 | (STEP A-7 별도 실행 후 수기 기록) | 필수 |')
+    lines.append(f'| G4 | §8 민감도 강건성 | {_same_across("(STEP A-7 별도 실행 후 수기 기록)")} | 필수 |')
     lines.append('')
     lines.append('> #23(진행 중인 반기)은 위 게이트 판정 모집단에서 제외됨 (v0.3 확정, SPEC_07 §9)')
     lines.append('')
