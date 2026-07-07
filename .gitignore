@@ -13,6 +13,7 @@ venv/
 
 # 실험 결과 (대용량, 재현 가능)
 experiments/runs/*.csv
+experiments/runs/*.png
 experiments/ablation/*.csv
 experiments/sensitivity/
 experiments/reports/

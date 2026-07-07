@@ -11,3 +11,6 @@ scipy>=1.13.0
 streamlit>=1.35.0
 watchdog>=4.0.0
 plotly>=5.0.0
+statsmodels>=0.14.2
+matplotlib>=3.8.0
+pytest>=8.0.0
