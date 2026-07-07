@@ -420,6 +420,15 @@ regime_indicators × strategy_returns_monthly 병합 → 관계 분석.
 
 ## 8. 실행 STEP 시퀀스 + 검증
 
+**실행 결과 (2026-07-07, 서버 실행 완료)**: STEP A-1~A-6 전부 실행 완료.
+`experiments/runs/2026.07.07._REGIME_PHASE_A.md` 참조. 핵심 요약:
+- STEP A-2 복제 게이트: 21개 폐쇄 구간 × 5개 시나리오 = 105건 전부 오차 0.00000으로 통과
+  (MTM 고정수량 로직이 기존 백테스트 반기 수익률과 완전히 일치함을 실측 확인)
+- STEP A-3 지표: `run_id=ind_d937165660ed`, dropped_pct 전 구간 30% 미만(4.5~18.4%) 정상
+- STEP A-5/A-6 게이트: **D_rim_only는 G1·G1b·G2·G2b·G3 전부 PASS**. F_momentum_rim은
+  G3(size_mom_6m hot/cold 구분)만 FAIL, 나머지는 PASS
+- G4(§8 민감도 강건성)는 STEP A-7 별도 실행 후 확정 필요 — 아직 미실행
+
 기존 SSH/DB 패턴 준수, **포트 5433**, 배포는 git 워크플로우.
 
 ```
