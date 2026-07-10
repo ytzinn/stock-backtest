@@ -218,6 +218,21 @@ def month_end_dates(conn, start_date: date, end_date: date) -> list[date]:
     return result
 
 
+def next_trading_day(conn, after_date: date) -> date:
+    """
+    after_date보다 뒤(>)인 첫 거래일. SPEC_08 §3-1 — signal_date(월말)와 execution_date를
+    분리해 "같은 종가로 신호→체결"하는 룩어헤드를 막기 위한 lag 계산용(Phase B 신규).
+    price_history에 after_date 이후 데이터가 없으면(가장 최근 월말 등) None.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT MIN(date) FROM price_history WHERE date > %s",
+            (after_date,),
+        )
+        row = cur.fetchone()
+    return row[0] if row and row[0] is not None else None
+
+
 # ── KOSPI 벤치마크 ───────────────────────────────────────────────────────────
 
 def kospi_return(start_date: date, end_date: date) -> float:
