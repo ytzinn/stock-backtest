@@ -50,6 +50,31 @@ PERIOD22_START = date(2025, 8, 20)   # #22 — analyze.py의 EXCLUDE_PERIOD_STAR
 S_NEUTRAL_BY_OPTION = {'A_defensive': S_NEUTRAL_A, 'B_two_sided': S_NEUTRAL_B}
 ALT_RETURN_COLUMN = {'largecap_cw': 'largecap_cw_return', 'kospi': 'kospi_return'}
 
+# ── grid.py 216 조합 재계산 캐시 ─────────────────────────────────────────────
+# §5 그리드 축(tilt_option/normalization/overlay_freq/alt_sleeve/K) 중 상당수는 이 값들에
+# 영향을 주지 않는데도 조합마다 매번 새로 DB에서 읽고 nav_path()를 다시 돌리고 있었다
+# (216 조합 × 21구간 기준 실측 ~1분/조합, 전체 그리드 3~4시간 추정). 프로세스 하나가
+# grid.py 실행 동안 계속 살아있는 걸 이용해 조합-불변 구간만 메모이즈한다:
+#   - load_base_monthly/load_indicator_series/compute_z: scenario·indicator·normalization에만 의존
+#   - 결정일/집행일: (rebal_date,next_date,overlay_freq)에만 의존(K/정규화/시나리오 무관)
+#   - 소형가치 NAV: (scenario,rebal_date,overlay_freq)에만 의존(K/정규화/alt_sleeve 무관 —
+#     D_v1/D_v2가 같은 tag를 쓰므로 variant끼리도 공유됨)
+#   - 대체 sleeve NAV: (alt_sleeve,rebal_date,overlay_freq)에만 의존(시나리오조차 무관)
+_MONTHLY_DF_CACHE: dict[tuple, pd.DataFrame] = {}
+_INDICATOR_SERIES_CACHE: dict[tuple, pd.Series] = {}
+_Z_CACHE: dict[tuple, pd.Series] = {}
+_DECISION_DATES_CACHE: dict[tuple, tuple | None] = {}
+_SMALL_NAV_CACHE: dict[tuple, list[float] | None] = {}
+_ALT_NAV_CACHE: dict[tuple, list[float]] = {}
+
+
+def clear_caches() -> None:
+    """테스트/재실행 격리용. grid.py 프로세스 하나가 끝나면 어차피 다 날아가지만,
+    같은 프로세스에서 다른 indicators_run_id/mtm_run_id로 다시 돌릴 땐 명시적으로 불러야 한다."""
+    for cache in (_MONTHLY_DF_CACHE, _INDICATOR_SERIES_CACHE, _Z_CACHE,
+                  _DECISION_DATES_CACHE, _SMALL_NAV_CACHE, _ALT_NAV_CACHE):
+        cache.clear()
+
 
 # ── Phase A 데이터 로드 ──────────────────────────────────────────────────────
 
@@ -57,7 +82,11 @@ def load_base_monthly(conn, mtm_run_id: str, scenario: str) -> pd.DataFrame:
     """
     analyze.py::load_monthly_returns()의 확장판 — always_on 블렌딩에 필요한
     largecap_ew_return/kospi_return까지 SELECT한다(analyze.py는 일부만 가져옴).
+    scenario당 한 번만 조회하면 되므로 캐시한다(grid.py가 216번 반복 호출).
     """
+    cache_key = (mtm_run_id, scenario)
+    if cache_key in _MONTHLY_DF_CACHE:
+        return _MONTHLY_DF_CACHE[cache_key]
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -81,11 +110,15 @@ def load_base_monthly(conn, mtm_run_id: str, scenario: str) -> pd.DataFrame:
         df['period_start'] = pd.to_datetime(df['period_start'])
         df['period_end'] = pd.to_datetime(df['period_end'])
         df = df.set_index('date').sort_index()
+    _MONTHLY_DF_CACHE[cache_key] = df
     return df
 
 
 def load_indicator_series(conn, indicators_run_id: str, indicator: str) -> pd.Series:
-    """regime_indicators에서 지표 하나의 시계열(date-indexed)만 로드."""
+    """regime_indicators에서 지표 하나의 시계열(date-indexed)만 로드. indicator당 캐시."""
+    cache_key = (indicators_run_id, indicator)
+    if cache_key in _INDICATOR_SERIES_CACHE:
+        return _INDICATOR_SERIES_CACHE[cache_key]
     with conn.cursor() as cur:
         cur.execute(
             "SELECT date, value FROM regime_indicators WHERE run_id = %s AND indicator = %s ORDER BY date",
@@ -93,9 +126,12 @@ def load_indicator_series(conn, indicators_run_id: str, indicator: str) -> pd.Se
         )
         rows = cur.fetchall()
     if not rows:
-        return pd.Series(dtype=float)
-    dates, values = zip(*rows)
-    return pd.Series(values, index=pd.to_datetime(dates), dtype=float).sort_index()
+        result = pd.Series(dtype=float)
+    else:
+        dates, values = zip(*rows)
+        result = pd.Series(values, index=pd.to_datetime(dates), dtype=float).sort_index()
+    _INDICATOR_SERIES_CACHE[cache_key] = result
+    return result
 
 
 # ── always_on (순수 산술, §3-14 게이트) ──────────────────────────────────────
@@ -171,15 +207,19 @@ def _combined_z(value_spread_z: float | None, size_mom_z: float | None) -> float
     return float(np.mean(vals))
 
 
-def _period_tilt_rows(conn, tag: str, rebal_date: date, next_date: date, is_closed: bool,
-                       overlay_freq: str, alt_sleeve: str, value_spread_z: pd.Series,
-                       size_mom_z: pd.Series | None, variant: str, s_neutral: float, k: float,
-                       s_min: float, s_max: float) -> list[dict]:
-    """한 구간(반기) 내 tilt 모드 행들을 계산(지연 반영 execution_date 시퀀스 재사용)."""
+def _get_decision_exec_obs_dates(conn, rebal_date: date, next_date: date,
+                                  overlay_freq: str) -> tuple | None:
+    """
+    (rebal_date, next_date, overlay_freq)에만 의존 — K/normalization/scenario/alt_sleeve와
+    무관하므로 grid.py의 216 조합 중 겹치는 조합끼리 재사용한다(21구간×3빈도=63개면 충분).
+    """
+    cache_key = (rebal_date, next_date, overlay_freq)
+    if cache_key in _DECISION_DATES_CACHE:
+        return _DECISION_DATES_CACHE[cache_key]
+
     decision_dates = _decision_dates_for_period(conn, rebal_date, next_date, overlay_freq)
     exec_dates = [next_trading_day(conn, d) for d in decision_dates]
     period_end_exec = next_trading_day(conn, next_date)
-    obs_dates = exec_dates[1:] + [period_end_exec]
 
     # 진행 중인 구간(#23류, is_closed=False)은 next_date=오늘이라 그 이후 거래일이 아직
     # 없어 next_trading_day()가 None을 반환할 수 있다 — None이 nav_path의 가격조회에 섞이면
@@ -187,22 +227,60 @@ def _period_tilt_rows(conn, tag: str, rebal_date: date, next_date: date, is_clos
     # 나누는 사고로 이어짐, 실제 서버에서 재현됨) is_closed=False는 어차피 §9 게이트
     # 모집단에서 제외되므로 여기서도 건너뛴다.
     if None in exec_dates or period_end_exec is None:
+        _DECISION_DATES_CACHE[cache_key] = None
+        return None
+
+    obs_dates = exec_dates[1:] + [period_end_exec]
+    result = (decision_dates, exec_dates, obs_dates)
+    _DECISION_DATES_CACHE[cache_key] = result
+    return result
+
+
+def _get_small_navs(conn, tag: str, rebal_date: date, exec_dates: list, obs_dates: list) -> list[float] | None:
+    """(tag,rebal_date,overlay_freq)에만 의존 — D_v1/D_v2가 tag를 공유하므로 variant끼리도 재사용."""
+    cache_key = (tag, rebal_date, tuple(exec_dates), tuple(obs_dates))
+    if cache_key in _SMALL_NAV_CACHE:
+        return _SMALL_NAV_CACHE[cache_key]
+    period = load_period_holdings(tag, rebal_date)
+    tickers = [h['ticker'] for h in period['holdings']]
+    result = None
+    if tickers:
+        weights = {t: 1.0 / len(tickers) for t in tickers}
+        result = nav_path(conn, weights, exec_dates[0], obs_dates)
+    _SMALL_NAV_CACHE[cache_key] = result
+    return result
+
+
+def _get_alt_navs(conn, alt_sleeve: str, rebal_date: date, exec_dates: list, obs_dates: list) -> list[float]:
+    """(alt_sleeve,rebal_date,overlay_freq)에만 의존 — 시나리오/variant조차 무관하게 재사용."""
+    cache_key = (alt_sleeve, rebal_date, tuple(exec_dates), tuple(obs_dates))
+    if cache_key in _ALT_NAV_CACHE:
+        return _ALT_NAV_CACHE[cache_key]
+    if alt_sleeve == 'kospi':
+        result = _kospi_nav_path(exec_dates[0], obs_dates)
+    else:
+        cw_weights, _ = build_largecap_sleeve(conn, rebal_date)
+        result = nav_path(conn, cw_weights, exec_dates[0], obs_dates)
+    _ALT_NAV_CACHE[cache_key] = result
+    return result
+
+
+def _period_tilt_rows(conn, tag: str, rebal_date: date, next_date: date, is_closed: bool,
+                       overlay_freq: str, alt_sleeve: str, value_spread_z: pd.Series,
+                       size_mom_z: pd.Series | None, variant: str, s_neutral: float, k: float,
+                       s_min: float, s_max: float) -> list[dict]:
+    """한 구간(반기) 내 tilt 모드 행들을 계산(지연 반영 execution_date 시퀀스 재사용)."""
+    dates_result = _get_decision_exec_obs_dates(conn, rebal_date, next_date, overlay_freq)
+    if dates_result is None:
         log.warning('%s %s~%s: execution_date 미확정(진행 중인 구간) — tilt 계산 건너뜀',
                      tag, rebal_date, next_date)
         return []
+    decision_dates, exec_dates, obs_dates = dates_result
 
-    period = load_period_holdings(tag, rebal_date)
-    tickers = [h['ticker'] for h in period['holdings']]
-    if not tickers:
+    small_navs = _get_small_navs(conn, tag, rebal_date, exec_dates, obs_dates)
+    if small_navs is None:
         return []
-    weights = {t: 1.0 / len(tickers) for t in tickers}
-
-    small_navs = nav_path(conn, weights, exec_dates[0], obs_dates)
-    if alt_sleeve == 'kospi':
-        alt_navs = _kospi_nav_path(exec_dates[0], obs_dates)
-    else:
-        cw_weights, _ = build_largecap_sleeve(conn, rebal_date)
-        alt_navs = nav_path(conn, cw_weights, exec_dates[0], obs_dates)
+    alt_navs = _get_alt_navs(conn, alt_sleeve, rebal_date, exec_dates, obs_dates)
 
     rows = []
     nav_prev_small = nav_prev_alt = 1.0
@@ -276,6 +354,18 @@ def _upsert(conn, run_id: str, cfg_hash: str, scenario: str, variant: str, tilt_
         )
 
 
+def _get_z_series(conn, indicator: str, normalization: str) -> pd.Series:
+    """(indicator,normalization)에만 의존 — K/overlay_freq/alt_sleeve/scenario와 무관하므로
+    216 조합 중 정규화 축(2종)만큼만 계산하면 된다."""
+    cache_key = (INDICATORS_RUN_ID, indicator, normalization)
+    if cache_key in _Z_CACHE:
+        return _Z_CACHE[cache_key]
+    raw = load_indicator_series(conn, INDICATORS_RUN_ID, indicator)
+    z = compute_z(raw, normalization, WARMUP_M, Z_CAP, ROLLING_WINDOW_M)
+    _Z_CACHE[cache_key] = z
+    return z
+
+
 # ── 조합 실행 (grid.py가 반복 호출) ──────────────────────────────────────────
 
 def run_combo(conn, scenario: str, variant: str, tilt_option: str, mode: str,
@@ -298,12 +388,10 @@ def run_combo(conn, scenario: str, variant: str, tilt_option: str, mode: str,
     check_always_on_gate(monthly_df, alt_sleeve)
     base_series = compute_always_on_series(monthly_df, alt_sleeve, s_neutral_eff)
 
-    value_spread_raw = load_indicator_series(conn, INDICATORS_RUN_ID, 'value_spread')
-    value_spread_z = compute_z(value_spread_raw, normalization, WARMUP_M, Z_CAP, ROLLING_WINDOW_M)
+    value_spread_z = _get_z_series(conn, 'value_spread', normalization)
     size_mom_z = None
     if variant.endswith('_v2'):
-        size_mom_raw = load_indicator_series(conn, INDICATORS_RUN_ID, 'size_mom_6m')
-        size_mom_z = compute_z(size_mom_raw, normalization, WARMUP_M, Z_CAP, ROLLING_WINDOW_M)
+        size_mom_z = _get_z_series(conn, 'size_mom_6m', normalization)
 
     for rebal_date, next_date, is_closed in periods():
         if mode == 'always_on':

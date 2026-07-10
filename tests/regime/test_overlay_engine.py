@@ -12,6 +12,14 @@ import pytest
 from backtest.regime import overlay_engine as oe
 
 
+@pytest.fixture(autouse=True)
+def _clear_overlay_caches():
+    """run_combo()의 216 조합 재계산 캐시가 테스트 간에 새지 않도록 매 테스트 전 초기화."""
+    oe.clear_caches()
+    yield
+    oe.clear_caches()
+
+
 class _FakeCursor:
     def __init__(self, rows):
         self._rows = rows
@@ -172,3 +180,65 @@ def test_period_tilt_rows_skips_when_execution_date_unresolved(monkeypatch):
         s_neutral=1.0, k=0.15, s_min=0.5, s_max=1.0,
     )
     assert rows == []
+
+
+# ── grid.py 216 조합 재계산 캐시 회귀 테스트 ──────────────────────────────────
+# (grid.py가 1분/조합 x 216 = 3~4시간 걸리던 걸 줄이려고 넣은 캐시 — 조합-불변 값을
+# 실제로 재사용하는지, 그리고 다른 키에는 새로 계산하는지 둘 다 확인한다.)
+
+def test_get_z_series_computes_once_per_normalization(monkeypatch):
+    calls = []
+    monkeypatch.setattr(oe, 'load_indicator_series', lambda conn, run_id, ind: pd.Series([1.0, 2.0]))
+    monkeypatch.setattr(oe, 'compute_z', lambda series, norm, *a: calls.append(norm) or pd.Series([norm]))
+
+    oe._get_z_series(None, 'value_spread', 'expanding_z')
+    oe._get_z_series(None, 'value_spread', 'expanding_z')   # 캐시 히트 -> compute_z 재호출 안 됨
+    oe._get_z_series(None, 'value_spread', 'rolling_pct_60m')   # 다른 정규화 -> 새로 계산
+
+    assert calls == ['expanding_z', 'rolling_pct_60m']
+
+
+def test_get_small_navs_computes_once_per_tag_rebal_dates(monkeypatch):
+    calls = []
+    monkeypatch.setattr(oe, 'load_period_holdings',
+                         lambda tag, rebal: {'holdings': [{'ticker': 'A'}]})
+
+    def fake_nav_path(conn, weights, buy, obs):
+        calls.append((buy, tuple(obs)))
+        return [1.1, 1.2]
+
+    monkeypatch.setattr(oe, 'nav_path', fake_nav_path)
+
+    exec_dates = [date(2020, 5, 4)]
+    obs_dates = [date(2020, 6, 1), date(2020, 8, 19)]
+    oe._get_small_navs(None, 'D_rim_only', date(2020, 4, 3), exec_dates, obs_dates)
+    oe._get_small_navs(None, 'D_rim_only', date(2020, 4, 3), exec_dates, obs_dates)   # 캐시 히트
+    oe._get_small_navs(None, 'F_momentum_rim', date(2020, 4, 3), exec_dates, obs_dates)  # tag 다름 -> 재계산
+
+    assert len(calls) == 2
+
+
+def test_get_alt_navs_shared_across_scenarios(monkeypatch):
+    """alt_navs는 scenario조차 무관하므로 D/F가 같은 (alt_sleeve,rebal_date,dates)면 캐시를 공유해야 한다."""
+    calls = []
+    monkeypatch.setattr(oe, 'build_largecap_sleeve', lambda conn, rebal: ({'X': 1.0}, {'X': 1.0}))
+    monkeypatch.setattr(oe, 'nav_path', lambda conn, weights, buy, obs: calls.append(1) or [1.05])
+
+    exec_dates = [date(2020, 5, 4)]
+    obs_dates = [date(2020, 6, 1)]
+    oe._get_alt_navs(None, 'largecap_cw', date(2020, 4, 3), exec_dates, obs_dates)
+    oe._get_alt_navs(None, 'largecap_cw', date(2020, 4, 3), exec_dates, obs_dates)
+
+    assert len(calls) == 1
+
+
+def test_clear_caches_forces_recomputation(monkeypatch):
+    calls = []
+    monkeypatch.setattr(oe, 'load_indicator_series', lambda conn, run_id, ind: pd.Series([1.0]))
+    monkeypatch.setattr(oe, 'compute_z', lambda series, norm, *a: calls.append(norm) or pd.Series([norm]))
+
+    oe._get_z_series(None, 'value_spread', 'expanding_z')
+    oe.clear_caches()
+    oe._get_z_series(None, 'value_spread', 'expanding_z')
+
+    assert calls == ['expanding_z', 'expanding_z']
