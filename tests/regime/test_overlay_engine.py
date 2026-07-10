@@ -12,6 +12,46 @@ import pytest
 from backtest.regime import overlay_engine as oe
 
 
+class _FakeCursor:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def execute(self, *a, **k):
+        pass
+
+    def fetchall(self):
+        return self._rows
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+class _FakeConn:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def cursor(self):
+        return _FakeCursor(self._rows)
+
+
+def test_load_base_monthly_period_start_matches_timestamp_comparison():
+    """
+    ★ 핵심 회귀 — period_start가 datetime.date(object dtype)로 남아있으면
+    `df['period_start'] == pd.Timestamp(rebal_date)`가 실제로 같은 날짜여도 전부 False가
+    되어 run_combo()의 always_on 분기가 행을 0건만 저장하고도 에러 없이 조용히 넘어간다
+    (실제 서버 실행에서 재현됨).
+    """
+    rows = [
+        (date(2020, 4, 30), date(2020, 4, 3), date(2020, 8, 20), True, 0.01, 0.02, 0.02, 0.01),
+    ]
+    df = oe.load_base_monthly(_FakeConn(rows), mtm_run_id='mtm_v1', scenario='D_rim_only')
+    matched = df[df['period_start'] == pd.Timestamp(date(2020, 4, 3))]
+    assert len(matched) == 1
+
+
 def _fake_monthly_df():
     dates = pd.to_datetime([date(2020, 4, 30), date(2020, 5, 31), date(2020, 8, 20)])
     return pd.DataFrame({

@@ -75,6 +75,11 @@ def load_base_monthly(conn, mtm_run_id: str, scenario: str) -> pd.DataFrame:
     df = pd.DataFrame(rows, columns=cols)
     if not df.empty:
         df['date'] = pd.to_datetime(df['date'])
+        # period_start는 raw datetime.date(object dtype)로 남아있으면 pd.Timestamp와 비교 시
+        # 전부 False가 되는 함정이 있다(같은 날짜인데도 매칭 안 됨) — 실제 서버에서 always_on
+        # 행이 조용히 0건만 저장되던 원인. date 컬럼과 동일하게 datetime으로 통일한다.
+        df['period_start'] = pd.to_datetime(df['period_start'])
+        df['period_end'] = pd.to_datetime(df['period_end'])
         df = df.set_index('date').sort_index()
     return df
 
