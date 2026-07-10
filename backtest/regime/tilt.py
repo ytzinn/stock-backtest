@@ -69,7 +69,7 @@ def share_from_z(z_t: float | None, s_neutral: float, k: float, s_min: float, s_
     z_t가 None/NaN(워밍업 이전·비활성)이면 s_neutral 그대로 — 신뢰 못 하는 신호로
     임의 진입/이탈하지 않는다.
     """
-    if z_t is None or (isinstance(z_t, float) and np.isnan(z_t)):
+    if z_t is None or pd.isna(z_t):
         return s_neutral
     return float(np.clip(s_neutral + k * z_t, s_min, s_max))
 

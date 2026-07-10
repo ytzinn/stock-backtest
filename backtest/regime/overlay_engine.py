@@ -156,7 +156,7 @@ def _combined_z(value_spread_z: float | None, size_mom_z: float | None) -> float
     `[ASSUMPTION]` 정식 결합 가중치는 미정 — D_v2는 판단 신호가 아니라 탐색용이라
     가장 단순한 평균으로 시작하고, 필요시 §8류 민감도로 가중치를 흔든다.
     """
-    vals = [z for z in (value_spread_z, size_mom_z) if z is not None and not (isinstance(z, float) and np.isnan(z))]
+    vals = [z for z in (value_spread_z, size_mom_z) if pd.notna(z)]
     if not vals:
         return None
     return float(np.mean(vals))
@@ -190,13 +190,19 @@ def _period_tilt_rows(conn, tag: str, rebal_date: date, next_date: date, is_clos
     prev_s = s_neutral
     episode_tag = 'period22' if rebal_date == PERIOD22_START else 'normal'
     for i, signal_date in enumerate(decision_dates):
-        vs_z = value_spread_z.asof(pd.Timestamp(signal_date)) if not value_spread_z.empty else None
+        vs_z_raw = value_spread_z.asof(pd.Timestamp(signal_date)) if not value_spread_z.empty else None
+        # .asof()/.loc()는 np.float64를 반환한다 — isinstance(x, float)는 플랫폼에 따라
+        # np.float64를 못 잡을 수 있어(numpy가 builtin float를 상속하지 않는 빌드) pd.notna()로
+        # 통일하고 항상 순수 float로 변환한다. 안 그러면 psycopg2가 numpy 스칼라를 SQL에
+        # raw 텍스트로 박아 넣어 `schema "np" does not exist` 에러가 난다(실제 서버에서 재현됨).
+        vs_z = float(vs_z_raw) if pd.notna(vs_z_raw) else None
         if variant.endswith('_v2') and size_mom_z is not None and not size_mom_z.empty:
-            sm_z = size_mom_z.asof(pd.Timestamp(signal_date))
+            sm_z_raw = size_mom_z.asof(pd.Timestamp(signal_date))
+            sm_z = float(sm_z_raw) if pd.notna(sm_z_raw) else None
             z_t = _combined_z(vs_z, sm_z)
         else:
             sm_z = None
-            z_t = vs_z if vs_z is None or not (isinstance(vs_z, float) and np.isnan(vs_z)) else None
+            z_t = vs_z
 
         s_t = share_from_z(z_t, s_neutral, k, s_min, s_max)
         small_ret = small_navs[i] / nav_prev_small - 1
@@ -284,11 +290,12 @@ def run_combo(conn, scenario: str, variant: str, tilt_option: str, mode: str,
         if mode == 'always_on':
             period_rows = monthly_df[monthly_df['period_start'] == pd.Timestamp(rebal_date)]
             for d, r in period_rows.iterrows():
-                port_ret = base_series.loc[d]
+                port_ret = float(base_series.loc[d])
+                alt_ret = float(r[ALT_RETURN_COLUMN[alt_sleeve]])
                 row = {
                     'signal_date': d.date(), 'execution_date': d.date(), 'date': d.date(),
                     's_t': s_neutral_eff, 'z_t': None, 'size_mom_z': None,
-                    'port_return': port_ret, 'alt_return': r[ALT_RETURN_COLUMN[alt_sleeve]],
+                    'port_return': port_ret, 'alt_return': alt_ret,
                     'overlay_turnover': 0.0, 'overlay_cost': 0.0, 'net_port_return': port_ret,
                     'is_oos': False,
                     'episode_tag': 'period22' if rebal_date == PERIOD22_START else 'normal',
@@ -302,7 +309,8 @@ def run_combo(conn, scenario: str, variant: str, tilt_option: str, mode: str,
                                       s_neutral_eff, k_eff, S_MIN, S_MAX)
             for row in rows:
                 d = row['date']
-                base_ret = base_series.asof(pd.Timestamp(d)) if not base_series.empty else None
+                base_ret_raw = base_series.asof(pd.Timestamp(d)) if not base_series.empty else None
+                base_ret = float(base_ret_raw) if pd.notna(base_ret_raw) else None
                 net_base = base_ret
                 _upsert(conn, run_id, cfg_hash, scenario, variant, tilt_option_eff, mode,
                         normalization, overlay_freq, alt_sleeve, row, rebal_date, next_date,
