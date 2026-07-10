@@ -53,14 +53,17 @@ def test_check_always_on_gate_raises_if_formula_broken(monkeypatch):
 
 
 def test_decision_dates_for_period_monthly_quarterly_semiannual(monkeypatch):
+    """★ 반드시 rebal_date로 시작 — 첫 return interval의 s_t를 포트폴리오 형성 시점 신호로
+    결정하기 위함(실제 서버에서 이게 빠져 첫 구간 수익이 통째로 누락되던 버그 수정)."""
     month_ends = [date(2020, 4, 30), date(2020, 5, 31), date(2020, 6, 30),
                   date(2020, 7, 31), date(2020, 8, 18)]
     monkeypatch.setattr(oe, 'month_end_dates', lambda conn, s, e: month_ends)
 
     rebal_date, next_date = date(2020, 4, 3), date(2020, 8, 18)
-    assert oe._decision_dates_for_period(None, rebal_date, next_date, 'monthly') == month_ends
+    assert oe._decision_dates_for_period(None, rebal_date, next_date, 'monthly') == \
+        [rebal_date] + month_ends
     assert oe._decision_dates_for_period(None, rebal_date, next_date, 'quarterly') == \
-        [date(2020, 4, 30), date(2020, 7, 31)]
+        [rebal_date, date(2020, 4, 30), date(2020, 7, 31)]
     assert oe._decision_dates_for_period(None, rebal_date, next_date, 'semiannual') == [rebal_date]
 
 
@@ -76,6 +79,8 @@ def test_period_tilt_rows_turnover_and_bounds(monkeypatch):
     """
     ★ 핵심 회귀 — s_t가 실제로 turnover/cost/port_return 계산에 쓰이는지 확인
     (MAX_STOCK_WEIGHT 폐기 사례처럼 '계산은 되는데 안 쓰이는' 죽은 파라미터 방지).
+    decision_dates는 rebal_date로 시작해야 하므로(첫 구간의 s_t는 포트폴리오 형성 시점
+    신호로 결정) 3개 결정(rebal_date, 4월말, 5월말)이 나온다.
     """
     d0, d1, d2, d3 = date(2020, 4, 5), date(2020, 5, 4), date(2020, 6, 1), date(2020, 8, 19)
     monkeypatch.setattr(oe, 'month_end_dates',
@@ -85,10 +90,13 @@ def test_period_tilt_rows_turnover_and_bounds(monkeypatch):
                                            date(2020, 5, 31): d2, date(2020, 8, 20): d3}[d])
     monkeypatch.setattr(oe, 'load_period_holdings',
                          lambda tag, rebal: {'holdings': [{'ticker': 'A'}, {'ticker': 'B'}]})
-    monkeypatch.setattr(oe, 'nav_path', lambda conn, weights, buy, obs: [1.05, 1.10])
+    monkeypatch.setattr(oe, 'nav_path', lambda conn, weights, buy, obs: [1.02, 1.05, 1.10])
     monkeypatch.setattr(oe, 'build_largecap_sleeve', lambda conn, rebal: ({'X': 1.0}, {'X': 1.0}))
 
-    value_spread_z = pd.Series([2.0, -2.0], index=pd.to_datetime([date(2020, 4, 30), date(2020, 5, 31)]))
+    value_spread_z = pd.Series(
+        [0.0, 2.0, -2.0],
+        index=pd.to_datetime([date(2020, 4, 3), date(2020, 4, 30), date(2020, 5, 31)]),
+    )
 
     rows = oe._period_tilt_rows(
         conn=None, tag='D_rim_only', rebal_date=date(2020, 4, 3), next_date=date(2020, 8, 20),
@@ -97,13 +105,30 @@ def test_period_tilt_rows_turnover_and_bounds(monkeypatch):
         s_neutral=1.0, k=0.15, s_min=0.5, s_max=1.0,
     )
 
-    assert len(rows) == 2
-    # 첫 결정: z=2.0(양수) -> 옵션A 관례상 s_neutral=1.0에서 clamp돼 그대로 1.0
+    assert len(rows) == 3
+    # 첫 결정(rebal_date): z=0.0 -> s_t = clamp(1.0 + 0, ...) = 1.0, s_neutral에서 시작이라 turnover=0
     assert rows[0]['s_t'] == pytest.approx(1.0)
-    assert rows[0]['overlay_turnover'] == pytest.approx(0.0)   # s_neutral(1.0)에서 시작 -> 변화 없음
-    # 두번째 결정: z=-2.0 -> s_t = clamp(1.0 - 0.15*2.0, 0.5, 1.0) = 0.70
-    assert rows[1]['s_t'] == pytest.approx(0.70)
-    assert rows[1]['overlay_turnover'] == pytest.approx(abs(0.70 - 1.0))
+    assert rows[0]['overlay_turnover'] == pytest.approx(0.0)
+    # 둘째 결정: z=2.0(양수) -> 옵션A 관례상 s_neutral=1.0에서 clamp돼 그대로 1.0
+    assert rows[1]['s_t'] == pytest.approx(1.0)
+    # 셋째 결정: z=-2.0 -> s_t = clamp(1.0 - 0.15*2.0, 0.5, 1.0) = 0.70
+    assert rows[2]['s_t'] == pytest.approx(0.70)
+    assert rows[2]['overlay_turnover'] == pytest.approx(abs(0.70 - 1.0))
     assert all(0.5 <= r['s_t'] <= 1.0 for r in rows)
     # port_return이 s_t에 실제로 의존하는지 확인 — s_t=1.0일 땐 순수 소형가치 수익률과 같아야 함
-    assert rows[0]['port_return'] == pytest.approx(1.05 / 1.0 - 1)
+    assert rows[0]['port_return'] == pytest.approx(1.02 / 1.0 - 1)
+
+
+def test_period_tilt_rows_skips_when_execution_date_unresolved(monkeypatch):
+    """진행 중인 구간(#23류)은 next_date=오늘이라 그 이후 거래일이 없어 next_trading_day가
+    None을 반환할 수 있다 — None이 nav_path에 섞여 0으로-나누기 사고로 번지기 전에 건너뛴다."""
+    monkeypatch.setattr(oe, 'month_end_dates', lambda conn, s, e: [date(2026, 4, 30)])
+    monkeypatch.setattr(oe, 'next_trading_day', lambda conn, d: None)   # 미래 거래일 없음
+
+    rows = oe._period_tilt_rows(
+        conn=None, tag='D_rim_only', rebal_date=date(2026, 4, 3), next_date=date(2026, 7, 10),
+        is_closed=False, overlay_freq='monthly', alt_sleeve='largecap_cw',
+        value_spread_z=pd.Series(dtype=float), size_mom_z=None, variant='D_v1',
+        s_neutral=1.0, k=0.15, s_min=0.5, s_max=1.0,
+    )
+    assert rows == []

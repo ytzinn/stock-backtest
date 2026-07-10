@@ -124,7 +124,11 @@ def check_always_on_gate(monthly_df: pd.DataFrame, alt_sleeve: str, tol: float =
 
 def _decision_dates_for_period(conn, rebal_date: date, next_date: date, overlay_freq: str) -> list[date]:
     """
-    이 구간에서 s_t를 재평가하는 신호일(signal_date) 목록.
+    이 구간에서 s_t를 재평가하는 신호일(signal_date) 목록. ★ 반드시 rebal_date로 시작한다 —
+    첫 구간([exec(rebal_date), exec(첫 월말)])의 s_t는 포트폴리오 형성 시점(rebal_date)에
+    알려진 신호로 결정돼야 하며, 이게 빠지면 nav_path()의 buy_date가 첫 월말의 집행일이
+    되어버려 그 사이 수익이 통째로 누락된다(구현 중 실제 서버에서 발견된 버그).
+
     `[ASSUMPTION]` 반기 구간 길이가 일정하지 않아(4~8개월) quarterly는 "매 3번째 월말"로
     근사한다(달력상 정확한 분기 경계가 아님) — §8 민감도 대상.
     """
@@ -132,9 +136,9 @@ def _decision_dates_for_period(conn, rebal_date: date, next_date: date, overlay_
         return [rebal_date]
     month_ends = month_end_dates(conn, rebal_date, next_date)
     if overlay_freq == 'monthly':
-        return month_ends
+        return [rebal_date] + month_ends
     if overlay_freq == 'quarterly':
-        return month_ends[::3] or month_ends[-1:]
+        return [rebal_date] + (month_ends[::3] or month_ends[-1:])
     raise ValueError(f'알 수 없는 overlay_freq: {overlay_freq}')
 
 
@@ -171,6 +175,16 @@ def _period_tilt_rows(conn, tag: str, rebal_date: date, next_date: date, is_clos
     exec_dates = [next_trading_day(conn, d) for d in decision_dates]
     period_end_exec = next_trading_day(conn, next_date)
     obs_dates = exec_dates[1:] + [period_end_exec]
+
+    # 진행 중인 구간(#23류, is_closed=False)은 next_date=오늘이라 그 이후 거래일이 아직
+    # 없어 next_trading_day()가 None을 반환할 수 있다 — None이 nav_path의 가격조회에 섞이면
+    # 그 시점 가격이 통째로 빈 딕셔너리가 되어 NAV가 0으로 떨어지고(다음 구간에서 0으로
+    # 나누는 사고로 이어짐, 실제 서버에서 재현됨) is_closed=False는 어차피 §9 게이트
+    # 모집단에서 제외되므로 여기서도 건너뛴다.
+    if None in exec_dates or period_end_exec is None:
+        log.warning('%s %s~%s: execution_date 미확정(진행 중인 구간) — tilt 계산 건너뜀',
+                     tag, rebal_date, next_date)
+        return []
 
     period = load_period_holdings(tag, rebal_date)
     tickers = [h['ticker'] for h in period['holdings']]
