@@ -1,0 +1,118 @@
+{
+  "_meta": {
+    "purpose": "AUDIT_01 Pass 0A — 재현성 인벤토리. 기존 백테스트 결과(experiments/ablation/)의 provenance 확정. 코드 미수정.",
+    "generated_at_kst": "2026-07-12",
+    "generated_from_branch": "audit/pass0a-inventory"
+  },
+
+  "code_state": {
+    "dev_pc": {
+      "note": "코드 작성 환경(Windows). 실행 환경 아님 — CLAUDE.md 참조.",
+      "git_sha": "1d4a5fd83899e4a63b9c16ff358d1850f4c3cbce",
+      "git_branch": "audit/pass0a-inventory",
+      "parent_sha": "1e6719e02961e9d93031f9383e2aae355673f93e",
+      "python_version": "3.14.3",
+      "pip_freeze_key_packages": {
+        "finance-datareader": "0.9.110",
+        "numpy": "2.4.4",
+        "pandas": "2.3.3",
+        "pykrx": "1.2.7",
+        "pytest": "9.1.1",
+        "scipy": "1.18.0",
+        "statsmodels": "0.14.6"
+      },
+      "label": "[검증된 사실] dev PC pykrx==1.2.7 은 requirements.txt(pykrx==1.0.47) 및 서버 실제 설치본(1.0.47)과 다르다. dev PC에서 pykrx 의존 코드를 로컬 실행/검증하면 서버와 다른 결과가 날 수 있다. CLAUDE.md 규칙상 실행은 서버에서만 하므로 결과 오염 경로는 아니지만, Pass 0C에서 로컬 테스트 실행 시 유의."
+    },
+    "server": {
+      "note": "실제 실행 환경 (Ubuntu, /opt/stock-backtest). 아래 experiments/ablation/ 결과 파일은 이 환경에서 생성됨.",
+      "host": "172.30.1.96 (milmelmul@)",
+      "git_sha": "1e6719e02961e9d93031f9383e2aae355673f93e",
+      "git_branch": "phase-b-signal-tilt",
+      "git_status_dirty": true,
+      "git_status_dirty_detail": "untracked 파일만 존재 (experiments/ablation/*.json·*.csv, experiments/*.csv·*.json·*.xlsx, data/no_ctrl_equity_tickers.json). 추적 대상 파일 수정 없음 — .gitignore(experiments/ablation/*.csv 등)에 걸리는 산출물이 대부분.",
+      "python_version": "3.14.4 (main, Jun 18 2026, 14:25:02) [GCC 15.2.0]",
+      "package_versions": {
+        "pykrx": "1.0.47",
+        "finance-datareader": "0.9.110",
+        "psycopg2-binary": "2.9.12",
+        "pandas": "2.3.3",
+        "numpy": "2.4.4",
+        "scipy": "1.17.1",
+        "statsmodels": "0.14.6",
+        "optuna": "4.8.0",
+        "pytest": "9.1.1"
+      },
+      "label": "[검증된 사실] 서버 git HEAD(1e6719e)는 experiments/ablation/ 결과 파일들의 run_at(2026-07-04~07)보다 최신이다. 즉 서버는 결과 생성 이후 계속 전진했고, '이 결과가 정확히 어느 commit에서 나왔는지'는 결과 JSON에 git_sha가 기록되지 않아 run_at 시각과 git log 시각의 수동 대조로만 추정 가능하다 (아래 provenance_gaps 참조)."
+    }
+  },
+
+  "db_state": {
+    "queried_via": "psycopg2, 서버에서 실행 (port 5433, 운영 DB, 읽기전용 SELECT만)",
+    "price_history_max_date": "2026-05-22",
+    "price_history_max_date_flag": "[검증된 사실] 오늘(2026-07-12) 기준 약 7주 전. price_ingest 파이프라인이 최근 갱신되지 않았을 가능성 — Pass 1A에서 원인 확인 필요 (cron 실패 / 서버 작업 vs ingest 순서 등). Pass 0A는 사실만 기록, 원인 조사는 범위 밖.",
+    "financials_pit_max_available_from": "2026-06-19",
+    "stock_listing_events_row_count": 6894,
+    "financials_pit_row_count": 643498,
+    "universe_gate_pit_row_count": 42254,
+    "stocks_row_count": 3264,
+    "migration_v8_xbrl_original_applied": true,
+    "migration_v8_xbrl_original_columns_found": ["amendment_from", "original_amount"],
+    "migration_ledger_table_exists": false,
+    "migration_ledger_flag": "[검증된 사실] schema_migrations/migration_history 류의 이력 테이블이 DB에 없다. ingest/migrations/apply.py는 SQL을 실행만 하고 적용 이력을 남기지 않는다 (코드에도 이런 테이블에 대한 참조 없음, grep 확인). 마이그레이션이 1개(v8_xbrl_original)뿐이라 지금은 컬럼 존재 여부로 수동 확인 가능하지만, 마이그레이션이 늘어나면 '어떤 스키마 버전인지'를 추적할 방법이 없다. — GAPS.md PROV-DB-001"
+  },
+
+  "engine_open_period_end_date": {
+    "location": "backtest/engine.py:69",
+    "code": "next_date = rebalance_dates[i + 1] if i + 1 < len(rebalance_dates) else date.today()",
+    "label": "[검증된 사실] 마지막(열린) 리밸런싱 구간의 종료일을 date.today()로 결정한다. 같은 코드·같은 DB라도 실행 날짜가 다르면 그 구간의 수익률이 달라진다 — CORR-ENGINE-003 (AUDIT_00 §5 기지 목록, 코드 읽고 재확인 완료).",
+    "consequence_for_baselines": "tests/baselines는 closed_period(열린 마지막 구간 제외)와 live_snapshot(valuation_date 고정)으로 분리해야 한다 (AUDIT_01 Pass 0B 지시 그대로 따름)."
+  },
+
+  "ablation_scenario_definitions": {
+    "source": "backtest/ablation.py::ABLATION_CONFIGS",
+    "counted_via": "python ast 파싱 (개수를 가정하지 않고 코드에서 직접 셈)",
+    "total_tags": 33,
+    "random_tags": 4,
+    "deterministic_tags": 29,
+    "docstring_claim": "backtest/ablation.py 1~2행: 'Ablation Test — 7개 시나리오 (A_random ~ G_full)'",
+    "docstring_mismatch_label": "[검증된 사실] docstring은 7개라 하나 실제 정의는 33개다 (DOC-ABL-001, AUDIT_00 §5 기지 목록과 일치, 코드로 재확인).",
+    "canonical_pipeline_mismatch_label": "[검증된 사실] backtest/configs/phase2_rim.py:55 주석은 '채택 파이프라인 F_momentum_rim 구조'라고 적었으나, phase2_rim.py가 실제로 생성하는 StabilityFilter(active_rules={R1,R4,R5,R6})는 ablation.py의 'F_momentum_rim' 태그(stability_rules 키 없음 → StabilityFilter 기본값 _ALL_RULES={R1..R6} 사용)가 아니라 'F_no_r2r3' 태그(stability_rules={R1,R4,R5,R6} 명시)와 정확히 일치한다. 즉 프로덕션과 실제로 같은 필터 구성을 가진 ablation 결과 파일은 F_momentum_rim.json이 아니라 F_no_r2r3.json이다. 이는 AUDIT_00의 기지 목록에 없던 새 발견이며, SSOT-SCEN-001(ablation.py vs configs/ 이중 정의)의 구체적 재현 사례다. — DOC-ABL-002"
+  },
+
+  "ablation_results_inventory": "tests/baselines/ABLATION_FILE_INVENTORY.json 참조 (파일별 sha256 + mtime, 서버 experiments/ablation/ 전체 90개 파일)",
+
+  "provenance_gaps": [
+    {
+      "id": "PROV-ABL-001",
+      "label": "[검증된 사실]",
+      "summary": "동일 태그의 요약 결과({tag}.json, run_ablation.py 산출)와 편입종목 상세({tag}_holdings.json, export_portfolios.py 산출 — 별개 스크립트, 별개 실행)가 서로 다른 시각에 생성된 경우가 대부분이다. 13개 존재하는 holdings 파일 중 11개가 짝인 summary와 다른 날 또는 같은 날이라도 몇 시간 이상 떨어져 있다 (예: D_no_r6.json은 2026-07-06 10:17 UTC, D_no_r6_holdings.json은 2026-07-04 07:39 UTC — 2일 먼저 생성됨). run_ablation.py는 engine.run()을 직접 호출해 지표를 계산하고, export_portfolios.py는 같은 파이프라인을 별도로 재실행해 holdings만 뽑는 완전히 분리된 코드 경로다 (scripts/export_portfolios.py, scripts/run_ablation.py 확인).",
+      "aggravating_fact": "D_no_r6_holdings.json / E_no_r6_holdings.json / F_no_r6_holdings.json / G_no_r6_holdings.json 4개는 2026-07-04 07:39~07:49 UTC에 생성됐다. 이는 export_portfolios.py의 상장폐지 판정 버그 수정(commit 48a9adc, 2026-07-06 21:18 UTC)보다 이르다 — commit 메시지 자체가 'engine.py와 동일한 버그'라고 명시한 상폐 미판정 버그다 (get_close_price(next_date) is None을 상폐 트리거로 썼으나 date<=as_of 최신값 반환 때문에 항상 None이 아니어서 상폐 미판정). 즉 이 4개 holdings 파일의 상폐 종목 청산가·수익률 표시는 신뢰할 수 없다.",
+      "not_affected": "engine.py 자체의 동일 버그는 commit d2d619e(2026-07-05 05:06 UTC)에서 이미 수정됐고, 모든 ablation summary({tag}.json) run_at은 이보다 늦다(가장 이른 것이 2026-07-05 12:44 UTC). 즉 CAGR/Sharpe 등 집계 지표 자체는 이 버그의 영향을 받지 않는다 — holdings 표시 전용 문제다.",
+      "action_needed": "Pass 1에서 TECH_DEBT.md에 정식 등재하고 등급 확정. 최소한 4개 holdings 파일은 export_portfolios.py 재실행으로 갱신 필요 (Pass 3 대상, 지금은 기록만)."
+    },
+    {
+      "id": "PROV-DB-001",
+      "label": "[검증된 사실]",
+      "summary": "DB 마이그레이션 적용 이력을 남기는 테이블이 없다 (schema_migrations 류 부재, ingest/migrations/apply.py는 SQL을 실행만 함). 현재는 마이그레이션이 v8_xbrl_original 1개뿐이라 컬럼 존재 여부로 우회 확인 가능했으나, 재현성 관점에서 '이 DB가 정확히 어떤 스키마 버전인지'를 코드만으로 확정할 방법이 없다.",
+      "action_needed": "Pass 1에서 P1(재현성) 항목으로 TECH_DEBT.md 등재 검토."
+    },
+    {
+      "id": "PROV-ABL-002",
+      "label": "[검증된 사실]",
+      "summary": "experiments/ablation/ 결과 JSON은 run_at(datetime.now().isoformat())만 기록하고 git commit SHA를 기록하지 않는다 (scripts/run_ablation.py::save_deterministic 확인). 따라서 '이 결과 파일이 어느 커밋에서 생성됐는가'는 run_at 시각과 `git log --date=iso` 커밋 시각을 수동 대조해야만 추정 가능하다. 이번 감사에서는 이 방식으로 배치별 시각과 66daf42(R2/R3 폐기)·48a9adc(export_portfolios.py 상폐 버그 수정)·d2d619e(engine.py 상폐 버그 수정) 세 커밋과 대조해 PROV-ABL-001을 특정했다.",
+      "action_needed": "Pass 3 이후 run_ablation.py/export_portfolios.py에 git rev-parse HEAD를 결과 JSON에 기록하도록 개선 검토 (P1, 이번 감사 수정 대상 아님 — P0-A/P0-B만 Pass 2/3 대상)."
+    },
+    {
+      "id": "PROV-PRICE-001",
+      "label": "[검증된 사실]",
+      "summary": "price_history MAX(date) = 2026-05-22. 오늘(2026-07-12) 대비 약 7주 지연. Pass 1A에서 원인(ingest cron 실패 여부 등) 확인 필요.",
+      "action_needed": "Pass 1A 범위. Pass 0A는 사실만 기록."
+    },
+    {
+      "id": "DOC-SPEC-001",
+      "label": "[검증된 사실]",
+      "summary": "MASTER.md의 SPEC 파일 목록 표(31~36행)는 SPEC_01~06 6개만 나열한다. 실제 저장소 루트에는 SPEC_*.md 10개가 있다: SPEC_01_infra, SPEC_02_ingest, SPEC_03_universe, SPEC_04_models, SPEC_05_backtest, SPEC_05_부록A_StabilityFilter검증, SPEC_06_phases, SPEC_07_regime, SPEC_08_regime_phaseB, SPEC_08_B05_timing_vs_deconcentration. SPEC_05_부록A/SPEC_07/SPEC_08/SPEC_08_B05 4개가 MASTER.md 표에 없다.",
+      "action_needed": "Pass 1에서 P1(문서-구현 불일치) 항목으로 등재 검토. AUDIT_00 §5 기지 목록에는 없던 새 발견."
+    }
+  ]
+}

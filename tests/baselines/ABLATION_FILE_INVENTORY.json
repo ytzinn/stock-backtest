@@ -1,0 +1,111 @@
+{
+  "_meta": {
+    "purpose": "AUDIT_01 Pass 0A — experiments/ablation/ 전체 파일의 sha256 + mtime. 서버(172.30.1.96:/opt/stock-backtest/experiments/ablation/)에서 직접 수집.",
+    "queried_at_kst": "2026-07-12",
+    "note": "이 디렉토리는 .gitkeep 외 전부 gitignore 대상(주로 *.csv)이거나 git add된 적 없는 untracked 산출물이다. 즉 이 저장소의 git 이력만으로는 이 파일들의 존재를 알 수 없다 — 서버 직접 조회가 유일한 확인 경로였다."
+  },
+  ".gitkeep": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "mtime_utc": "2026-05-16T05:48:07.048183+00:00", "size_bytes": 0},
+
+  "A_random_dist.csv":           {"sha256": "8c20bb2b17f132af337e106ce3d3c09b71fd78522a013749561ec30b46918c89", "mtime_utc": "2026-07-05T12:44:46.160831+00:00", "size_bytes": 134711},
+  "B_hard_random_dist.csv":      {"sha256": "619a4a2b6ab7828f6d5b89618fca516b1df086a7f5ef697834ad0a345851f12d", "mtime_utc": "2026-07-05T14:25:29.515231+00:00", "size_bytes": 134517},
+  "C_no_r6_dist.csv":            {"sha256": "8da20c6d1590fd7b7e29bba66f346349fee8ff96e8cd5a86df633e5e0c6f0fc8", "mtime_utc": "2026-07-05T17:47:00.871805+00:00", "size_bytes": 134297},
+  "C_stability_random_dist.csv": {"sha256": "3c41ab39dc8a948fbf266fcd872da7cdafdf82305be916dcf163f563464f494b", "mtime_utc": "2026-07-05T16:06:15.427927+00:00", "size_bytes": 133739},
+
+  "D_factor_only.json":          {"sha256": "35b51394f10b2cb699e8c6751dbff7d33046dbabda89891bb6317a23584472a4", "mtime_utc": "2026-07-05T17:53:52.820883+00:00", "size_bytes": 579},
+  "D_factor_only_holdings.json": {"sha256": "3703548228d49aded31dc8bade321fa6a23ff3025888d10c8bfdf709281d5e61", "mtime_utc": "2026-07-06T21:23:27.919380+00:00", "size_bytes": 77822},
+  "D_factor_only_periods.csv":   {"sha256": "717a187f182f4f4213b129d9a871a8c48f5c33086d426c0635fffd201fed3252", "mtime_utc": "2026-07-05T17:53:52.821597+00:00", "size_bytes": 3454},
+
+  "D_no_r1.json":                {"sha256": "0d358de6b22928e16af6ad20abea258b2558751cf585d362caeb92a6f63fb6d0", "mtime_utc": "2026-07-06T10:25:16.707892+00:00", "size_bytes": 575},
+  "D_no_r1_periods.csv":         {"sha256": "d296589f0856b6b9680bcfe9c28ee250f4fe6ecf5a4ddd55453622a94fa8df28", "mtime_utc": "2026-07-06T10:25:16.708114+00:00", "size_bytes": 3333},
+  "D_no_r2.json":                {"sha256": "89af13f83cebd4b50316c13b95079ea9b9a72ebbc2107e714f380021f1b9529d", "mtime_utc": "2026-07-06T10:26:58.406478+00:00", "size_bytes": 574},
+  "D_no_r2_periods.csv":         {"sha256": "02c7969c0910146894a3afb20230ac4e8a50993ce89cd1a855d698ed6c363813", "mtime_utc": "2026-07-06T10:26:58.406620+00:00", "size_bytes": 3432},
+  "D_no_r3.json":                {"sha256": "695766e0d95b611daf58a9a9dda1fe2137d60c5fe4c3497ba66560d1bd8d8942", "mtime_utc": "2026-07-06T10:28:39.013108+00:00", "size_bytes": 577},
+  "D_no_r3_periods.csv":         {"sha256": "de6d6e31efccc45dcb24a19f82029509af110471fbd22b2f84ae53d5a6bfae3c", "mtime_utc": "2026-07-06T10:28:39.013921+00:00", "size_bytes": 3416},
+  "D_no_r4.json":                {"sha256": "b756f3b4cd6f1494458c2f2e7347c723b9b5a8b417202e1965887bb0ef228bd2", "mtime_utc": "2026-07-06T10:30:19.952181+00:00", "size_bytes": 572},
+  "D_no_r4_periods.csv":         {"sha256": "c071634e6f9df6baa117ba0bd31dfb6e55fc2f129d8b01de20445807510f8c5a", "mtime_utc": "2026-07-06T10:30:19.952851+00:00", "size_bytes": 3434},
+  "D_no_r5.json":                {"sha256": "ccbbf0523ecb5590b796f2cfbf3bcfc7493c1ae9e2429292d3f4d0da7691d1e9", "mtime_utc": "2026-07-06T10:32:01.237019+00:00", "size_bytes": 573},
+  "D_no_r5_periods.csv":         {"sha256": "fdd9f77d1a271d157ca70d394865f0e8e133433219fd16f1f6029ca82cd8558d", "mtime_utc": "2026-07-06T10:32:01.237231+00:00", "size_bytes": 3414},
+
+  "D_no_r6.json":                {"sha256": "d7531594cc4c44ba0e1bc1a725eb8ae26e92ebf1664a17908e1f0f656fe3f1d2", "mtime_utc": "2026-07-06T10:17:56.432072+00:00", "size_bytes": 575},
+  "D_no_r6_holdings.json":       {"sha256": "13ede0ecfec2d304847e9e7a900ab6934ad552b497db587ede4c6c6d216ec2f1", "mtime_utc": "2026-07-04T07:39:30.734181+00:00", "size_bytes": 75123, "flag": "PROV-ABL-001 — export_portfolios.py 상폐버그 수정(48a9adc, 07-06 21:18 UTC) 이전 생성"},
+  "D_no_r6_periods.csv":         {"sha256": "631ed2427b888532cb5fbe78e3977b0605008c6e4dcd9294f0cc976ca310ea6d", "mtime_utc": "2026-07-06T10:17:56.432348+00:00", "size_bytes": 3447},
+
+  "D_no_stability.json":         {"sha256": "96ee66568d2cb83f8055f16ffa794a4afbde87cc79c725a4d09025e13f0e74f8", "mtime_utc": "2026-07-06T10:23:35.515681+00:00", "size_bytes": 578},
+  "D_no_stability_periods.csv":  {"sha256": "b6e4fdbe772008a074acdb8283dd69b448c13e36cba8202b25b6ff4121f59024", "mtime_utc": "2026-07-06T10:23:35.515886+00:00", "size_bytes": 3332},
+
+  "D_pbr_only.json":             {"sha256": "b9655b861a3bb62713ab94cd5d585b3df013cd4dc509229a2651aa066a0e1609", "mtime_utc": "2026-07-05T17:52:09.515116+00:00", "size_bytes": 577},
+  "D_pbr_only_holdings.json":    {"sha256": "cf88f579f3ef19c3a9e391a279054e0657ea2aafeaae18ba34127c203151b9b4", "mtime_utc": "2026-07-06T21:21:47.614535+00:00", "size_bytes": 77922},
+  "D_pbr_only_periods.csv":      {"sha256": "4074569473568956a88165633e5a45421c0610f7a34d2f9e70a13181c94bdde6", "mtime_utc": "2026-07-05T17:52:09.515383+00:00", "size_bytes": 3368},
+
+  "D_rim_only.json":             {"sha256": "7882761b5568b09f5812191ded9be5967b9fefe556f2311fcea9ffabeaa62490", "mtime_utc": "2026-07-06T10:16:12.424860+00:00", "size_bytes": 577},
+  "D_rim_only_holdings.json":    {"sha256": "053cce7bd1f4536477a00c0b74ea6eb79e6bbbba10b4f30d9f8bfb5e07dc6846", "mtime_utc": "2026-07-06T21:20:06.965239+00:00", "size_bytes": 74963},
+  "D_rim_only_periods.csv":      {"sha256": "10adf414261b79ffaa0f70a9252a339c976ac0b1cf316ff04dfbf53333dd9757", "mtime_utc": "2026-07-06T10:16:12.425581+00:00", "size_bytes": 3432},
+
+  "E_gpa_only.json":             {"sha256": "3ce345765b28dff4a77205d270c3c50a185c86b46f40219413efab2cd1a9c138", "mtime_utc": "2026-07-05T18:02:18.706078+00:00", "size_bytes": 590},
+  "E_gpa_only_periods.csv":      {"sha256": "e3ec464a1babbc94b3f7b9065b8b247020a490fbaeb06a98d7e0b2187b08f2ac", "mtime_utc": "2026-07-05T18:02:18.706831+00:00", "size_bytes": 3518},
+
+  "E_no_r6.json":                {"sha256": "73adfb0ffd8351e03c5917a5e60b0dc6997fe3e88fac1fc895f543d648f037bd", "mtime_utc": "2026-07-05T17:57:15.626094+00:00", "size_bytes": 575},
+  "E_no_r6_holdings.json":       {"sha256": "b13f9d584612e9c197e0bd66c36d1f5dab2c2e03708ca4d180e449d7ed8d64bf", "mtime_utc": "2026-07-04T07:42:47.088299+00:00", "size_bytes": 75277, "flag": "PROV-ABL-001 — export_portfolios.py 상폐버그 수정(48a9adc, 07-06 21:18 UTC) 이전 생성"},
+  "E_no_r6_periods.csv":         {"sha256": "a15f764b17468d46f110c47b49de78fe8e465687c8a4309ad5b960601fc83768", "mtime_utc": "2026-07-05T17:57:15.627194+00:00", "size_bytes": 3477},
+
+  "E_op_only.json":              {"sha256": "47e5a0a9aa89a219ebbc9b6f65d53e0224a1b196b83faf50b95e140a78402331", "mtime_utc": "2026-07-05T18:00:37.350419+00:00", "size_bytes": 579},
+  "E_op_only_periods.csv":       {"sha256": "6842d174e86c708c54604bd5d71d65f1e958c4fd9c598f1ea4b4ddd5a6753c33", "mtime_utc": "2026-07-05T18:00:37.350619+00:00", "size_bytes": 3375},
+
+  "E_pbr_only.json":             {"sha256": "2a0ec001992dfdc032bc4c4cd92cd84c7c8d11df24c24fdc822767bab124b628", "mtime_utc": "2026-07-05T18:03:58.313064+00:00", "size_bytes": 578},
+  "E_pbr_only_periods.csv":      {"sha256": "74a631191aecea9fc3a217e5a683fdd4917080b252f6962547ebbe09fd84dd42", "mtime_utc": "2026-07-05T18:03:58.313947+00:00", "size_bytes": 3487},
+
+  "E_rev_only.json":             {"sha256": "b24714359c39a04d696453aeb744c82f6fe1803c00afca46e7de7391e6cf31e7", "mtime_utc": "2026-07-05T17:58:56.470534+00:00", "size_bytes": 583},
+  "E_rev_only_periods.csv":      {"sha256": "54a963827ab01fa4a1b8244f97178a3bc274de9ca5bced5f5134de29d04dc8a9", "mtime_utc": "2026-07-05T17:58:56.471549+00:00", "size_bytes": 3375},
+
+  "E_screener_rim.json":            {"sha256": "9fa23ae7e97e18494c6e12bcb9dea7cc76643955db0cfe5bfe28bc17b3433158", "mtime_utc": "2026-07-05T17:55:33.773455+00:00", "size_bytes": 582},
+  "E_screener_rim_holdings.json":   {"sha256": "a7b23a061fb559ff393fb0329c4a3346b21d027c92c32a4c404b566c11c20b78", "mtime_utc": "2026-07-06T21:25:05.255071+00:00", "size_bytes": 75045},
+  "E_screener_rim_periods.csv":     {"sha256": "c2572c36b891023766b69ac2ce3e7062218521114a8e139384ddeedaab8a6ab9", "mtime_utc": "2026-07-05T17:55:33.773736+00:00", "size_bytes": 3423},
+
+  "F_momentum_rim.json":            {"sha256": "7932a55d09ead667ac6a7e535f7098d9dce562c24d0be8eb8de05542e8381abe", "mtime_utc": "2026-07-06T20:50:25.355803+00:00", "size_bytes": 581},
+  "F_momentum_rim_holdings.json":   {"sha256": "2a4e7be018298a96f16428e99084b0805e521b1d8011417e20c067e242b0a573", "mtime_utc": "2026-07-06T21:26:51.465888+00:00", "size_bytes": 72771},
+  "F_momentum_rim_periods.csv":     {"sha256": "9fe5c06834c107985c6f1a3614a93f3152b582938481b23885eb3f2c139dd3d4", "mtime_utc": "2026-07-06T20:50:25.356101+00:00", "size_bytes": 3366},
+
+  "F_no_r2.json":                {"sha256": "a3dc471be6bb273f9a65375509d11bf20acdddbf5cb8cb8ccc5bba20844a79fa", "mtime_utc": "2026-07-06T20:52:13.853348+00:00", "size_bytes": 574},
+  "F_no_r2_periods.csv":         {"sha256": "b3c82650e93fde2a5fb8928e471a00e8bbb90f5aa353475d7ae9ef2a0a6dcd39", "mtime_utc": "2026-07-06T20:52:13.853570+00:00", "size_bytes": 3366},
+
+  "F_no_r2r3.json":              {"sha256": "57afb951bbb9c72ab6289108a00f21386e1cd7c3fc91f60c0b2993074a0f670a", "mtime_utc": "2026-07-06T20:57:43.348760+00:00", "size_bytes": 575, "flag": "CANONICAL — phase2_rim.py의 실제 프로덕션 필터 구성과 일치 (SCENARIO_REGISTRY.json 참조)"},
+  "F_no_r2r3_holdings.json":     {"sha256": "6f32276ab49df23d6e2a1941e83a8d55bafe72bfdf4b8ec7bacf6442d5c2350b", "mtime_utc": "2026-07-06T21:32:24.454064+00:00", "size_bytes": 72739},
+  "F_no_r2r3_periods.csv":       {"sha256": "16db640c4a093f0c74ce416083d1bb83eff10411c5bf5b2e47178a4b098855be", "mtime_utc": "2026-07-06T20:57:43.348999+00:00", "size_bytes": 3382},
+
+  "F_no_r2r3r4.json":            {"sha256": "1c1c6201ad08bf0c564443d9bd5a2b702fc7b9177e9a008efbc9898e8bd67d6a", "mtime_utc": "2026-07-06T21:03:10.932462+00:00", "size_bytes": 578},
+  "F_no_r2r3r4_periods.csv":     {"sha256": "d84ea17c162b9028fc93fa8854ef77901267a7ba0cf29863b9753607a56b260c", "mtime_utc": "2026-07-06T21:03:10.932688+00:00", "size_bytes": 3382},
+
+  "F_no_r2r4.json":              {"sha256": "57b63028d3902c2be7d21a92011680f0187452db180d4d2a7f3ab46b15eacd91", "mtime_utc": "2026-07-06T20:59:32.119872+00:00", "size_bytes": 577},
+  "F_no_r2r4_periods.csv":       {"sha256": "ff0d3026080b962a58ac1e3f5ba8610005a93c22673e98fbeb400aceb4cf361e", "mtime_utc": "2026-07-06T20:59:32.120096+00:00", "size_bytes": 3366},
+
+  "F_no_r3.json":                {"sha256": "2934f3fb8ee849f2c3e9d110c08bd898e40df05353571dcf451dafeebd84127a", "mtime_utc": "2026-07-06T20:54:03.530467+00:00", "size_bytes": 573},
+  "F_no_r3_periods.csv":         {"sha256": "93a9174885ffa979668afd19af7751f8667049f529ed3c5d922a719dcc6dce8e", "mtime_utc": "2026-07-06T20:54:03.530693+00:00", "size_bytes": 3382},
+
+  "F_no_r3r4.json":              {"sha256": "67f0221832fe7d9e235a32629d070edfb82d38f2d7963898b8953826a43126ac", "mtime_utc": "2026-07-06T21:01:21.522722+00:00", "size_bytes": 576},
+  "F_no_r3r4_periods.csv":       {"sha256": "59404b9077ea4ca5ce633c3b151806c4c0632d4f24650bcf4d5c8df4bd4e87a0", "mtime_utc": "2026-07-06T21:01:21.522942+00:00", "size_bytes": 3382},
+
+  "F_no_r4.json":                {"sha256": "ba473b546453878db9d53fe2ac02bc09800a37c6453e2cfbae4879aca0b33187", "mtime_utc": "2026-07-06T20:55:54.034457+00:00", "size_bytes": 575},
+  "F_no_r4_periods.csv":         {"sha256": "ea72ad0ca61a4df1dac66ae690687a9557f8c33472059a6c691a60a357cb7a78", "mtime_utc": "2026-07-06T20:55:54.034557+00:00", "size_bytes": 3366},
+
+  "F_no_r6.json":                {"sha256": "527905b93537b67e603bcd62b0c4b09c70125b206d2097d35ba882fab663b6ea", "mtime_utc": "2026-07-05T18:07:43.589185+00:00", "size_bytes": 569},
+  "F_no_r6_holdings.json":       {"sha256": "a7111631b32229be4c1b7e88942e801bddb16370cef7d88219f6c73c080fe173", "mtime_utc": "2026-07-04T07:46:27.178975+00:00", "size_bytes": 73275, "flag": "PROV-ABL-001 — export_portfolios.py 상폐버그 수정(48a9adc, 07-06 21:18 UTC) 이전 생성"},
+  "F_no_r6_periods.csv":         {"sha256": "f07c7bfcd63d48c5ef0f39987858d1050d9cea7a7017ef6115b3038be620043b", "mtime_utc": "2026-07-05T18:07:43.589468+00:00", "size_bytes": 3358},
+
+  "F_no_stability_clean.json":          {"sha256": "832432cb47bd37243a19647b93440dd1c4977ad28e83e128c9b101a5054677b8", "mtime_utc": "2026-07-06T10:21:49.071709+00:00", "size_bytes": 587},
+  "F_no_stability_clean_holdings.json": {"sha256": "c30c32313b5f4561978882227b805004df6a27db44473141a2a945637557bacc", "mtime_utc": "2026-07-06T21:30:38.007426+00:00", "size_bytes": 74262},
+  "F_no_stability_clean_periods.csv":   {"sha256": "448a99285a45e68716bd25c55feabeac5442ac404fb724a182b62b8dac4f5b3b", "mtime_utc": "2026-07-06T10:21:49.071940+00:00", "size_bytes": 3307},
+
+  "G_full.json":                 {"sha256": "d31263daacc26711228fec71fac2ecb1702422e3ef16de8ce4ab2110f5a087a1", "mtime_utc": "2026-07-05T18:09:25.245051+00:00", "size_bytes": 558},
+  "G_full_holdings.json":        {"sha256": "0796c98cbf97d5180c3341b274d0c75c6e41a8e4eab8b8bdc0b4dba52b813eed", "mtime_utc": "2026-07-07T11:19:53.690300+00:00", "size_bytes": 68821},
+  "G_full_periods.csv":          {"sha256": "ab017dfcfa8233d80ea40bd28f5e99096eb79973be832a4e384664192aaf451a", "mtime_utc": "2026-07-05T18:09:25.245335+00:00", "size_bytes": 3408},
+
+  "G_no_r6.json":                {"sha256": "49d147f93153fa07408571825a818bd5f5523e6cf6f8edb99290b11815e6b02c", "mtime_utc": "2026-07-05T18:11:09.471709+00:00", "size_bytes": 574},
+  "G_no_r6_holdings.json":       {"sha256": "7919b50748ca02fc5acc8fdb783d89be08fbaa9ee8bde6dfbbd550bc0fc93c18", "mtime_utc": "2026-07-04T07:49:47.485117+00:00", "size_bytes": 71344, "flag": "PROV-ABL-001 — export_portfolios.py 상폐버그 수정(48a9adc, 07-06 21:18 UTC) 이전 생성"},
+  "G_no_r6_periods.csv":         {"sha256": "c2e3ab5fd21d1afe8953596258392f65df7858e7255ef5f0be9cd5ca810762ef", "mtime_utc": "2026-07-05T18:11:09.472003+00:00", "size_bytes": 3407},
+
+  "H_no_stability.json":            {"sha256": "33bb5bda5d4a6d7dcb478ca5e6b4ab3383cc23f7e395bbb9ab23d78916e26de0", "mtime_utc": "2026-07-05T18:12:56.863343+00:00", "size_bytes": 581},
+  "H_no_stability_holdings.json":   {"sha256": "3950337be0649b0dc90d1469f8a78d72c6213ecae0975f995cbf9d0e4162b2ab", "mtime_utc": "2026-07-06T21:28:36.028905+00:00", "size_bytes": 72482},
+  "H_no_stability_periods.csv":     {"sha256": "82f5499d297841ae4cc2e30ced0934245a48c3f5c41bb74b5620f532a53932cb", "mtime_utc": "2026-07-05T18:12:56.863601+00:00", "size_bytes": 3437},
+
+  "summary.json": {"sha256": "5350807a9306e5f59d35acf216e5a6e09379e08a5517e6a5ebb6394b00ed1723", "mtime_utc": "2026-07-06T21:03:10.932875+00:00", "size_bytes": 4072}
+}
