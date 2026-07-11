@@ -308,14 +308,22 @@ def _period_tilt_rows(conn, tag: str, rebal_date: date, next_date: date, is_clos
         turnover = abs(s_t - prev_s)
         cost = turnover * (SMALL_LEG_BPS + LARGE_LEG_BPS) / 10000.0
         net_ret = port_ret - cost
+        # B-FIX-2: always_on 비교군(base_return)을 base_series.asof()의 1개월 스냅샷이 아니라
+        # 이 행과 정확히 같은 구간([obs_dates[i-1], obs_dates[i]])에서 이미 nav_path()로 복리
+        # 계산해둔 small_ret/alt_ret를 그대로 블렌딩해 만든다. quarterly/semiannual에서
+        # net_port_return(3~6개월 복리)과 base_return(과거엔 1개월 스냅샷)의 구간 불일치를
+        # 없앤다. s_neutral은 이 조합의 tilt_option이 정의하는 고정 비중 그대로(비용 없음 —
+        # always_on은 sleeve 이동이 없는 순수 기준선).
+        base_ret = s_neutral * small_ret + (1 - s_neutral) * alt_ret
 
         rows.append({
             'signal_date': signal_date, 'execution_date': exec_dates[i],
             'date': obs_dates[i], 's_t': s_t, 'z_t': z_t, 'size_mom_z': sm_z,
-            'port_return': port_ret, 'alt_return': alt_ret,
+            'port_return': port_ret, 'small_return': small_ret, 'alt_return': alt_ret,
             'overlay_turnover': turnover, 'overlay_cost': cost,
             'net_port_return': net_ret, 'is_oos': z_t is not None,
             'episode_tag': episode_tag,
+            'base_return': base_ret, 'net_base_return': base_ret,
         })
         nav_prev_small, nav_prev_alt, prev_s = small_navs[i], alt_navs[i], s_t
     return rows
@@ -333,14 +341,15 @@ def _upsert(conn, run_id: str, cfg_hash: str, scenario: str, variant: str, tilt_
             INSERT INTO overlay_returns (
                 run_id, config_hash, scenario, variant, tilt_option, mode, normalization,
                 overlay_freq, alt_sleeve, signal_date, execution_date, period_start, period_end,
-                date, s_t, z_t, size_mom_z, port_return, base_return, alt_return,
+                date, s_t, z_t, size_mom_z, port_return, small_return, base_return, alt_return,
                 overlay_turnover, overlay_cost, net_port_return, net_base_return, is_oos, episode_tag
             ) VALUES (
-                %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
+                %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
             )
             ON CONFLICT (run_id, config_hash, scenario, variant, tilt_option, mode, date) DO UPDATE SET
                 s_t = EXCLUDED.s_t, z_t = EXCLUDED.z_t, size_mom_z = EXCLUDED.size_mom_z,
-                port_return = EXCLUDED.port_return, base_return = EXCLUDED.base_return,
+                port_return = EXCLUDED.port_return, small_return = EXCLUDED.small_return,
+                base_return = EXCLUDED.base_return,
                 alt_return = EXCLUDED.alt_return, overlay_turnover = EXCLUDED.overlay_turnover,
                 overlay_cost = EXCLUDED.overlay_cost, net_port_return = EXCLUDED.net_port_return,
                 net_base_return = EXCLUDED.net_base_return, is_oos = EXCLUDED.is_oos,
@@ -349,8 +358,9 @@ def _upsert(conn, run_id: str, cfg_hash: str, scenario: str, variant: str, tilt_
             (run_id, cfg_hash, scenario, variant, tilt_option, mode, normalization, overlay_freq,
              alt_sleeve, row['signal_date'], row['execution_date'], period_start, period_end,
              row['date'], row['s_t'], row['z_t'], row.get('size_mom_z'), row['port_return'],
-             base_return, row['alt_return'], row['overlay_turnover'], row['overlay_cost'],
-             row['net_port_return'], net_base_return, row['is_oos'], row['episode_tag']),
+             row.get('small_return'), base_return, row['alt_return'], row['overlay_turnover'],
+             row['overlay_cost'], row['net_port_return'], net_base_return, row['is_oos'],
+             row['episode_tag']),
         )
 
 
@@ -399,10 +409,11 @@ def run_combo(conn, scenario: str, variant: str, tilt_option: str, mode: str,
             for d, r in period_rows.iterrows():
                 port_ret = float(base_series.loc[d])
                 alt_ret = float(r[ALT_RETURN_COLUMN[alt_sleeve]])
+                small_ret = float(r['port_return'])   # monthly_df 원본(순수 소형가치, 블렌딩 전)
                 row = {
                     'signal_date': d.date(), 'execution_date': d.date(), 'date': d.date(),
                     's_t': s_neutral_eff, 'z_t': None, 'size_mom_z': None,
-                    'port_return': port_ret, 'alt_return': alt_ret,
+                    'port_return': port_ret, 'small_return': small_ret, 'alt_return': alt_ret,
                     'overlay_turnover': 0.0, 'overlay_cost': 0.0, 'net_port_return': port_ret,
                     'is_oos': False,
                     'episode_tag': 'period22' if rebal_date == PERIOD22_START else 'normal',
@@ -414,14 +425,13 @@ def run_combo(conn, scenario: str, variant: str, tilt_option: str, mode: str,
             rows = _period_tilt_rows(conn, tag, rebal_date, next_date, is_closed, overlay_freq,
                                       alt_sleeve, value_spread_z, size_mom_z, variant,
                                       s_neutral_eff, k_eff, S_MIN, S_MAX)
+            # B-FIX-2: base_return/net_base_return은 이제 _period_tilt_rows()가 이 행과 동일한
+            # 구간(nav_path 복리)으로 이미 계산해 row에 실어 보낸다 — base_series.asof() 1개월
+            # 스냅샷을 더는 쓰지 않는다(quarterly/semiannual 구간 불일치 버그 수정).
             for row in rows:
-                d = row['date']
-                base_ret_raw = base_series.asof(pd.Timestamp(d)) if not base_series.empty else None
-                base_ret = float(base_ret_raw) if pd.notna(base_ret_raw) else None
-                net_base = base_ret
                 _upsert(conn, run_id, cfg_hash, scenario, variant, tilt_option_eff, mode,
                         normalization, overlay_freq, alt_sleeve, row, rebal_date, next_date,
-                        base_return=base_ret, net_base_return=net_base)
+                        base_return=row['base_return'], net_base_return=row['net_base_return'])
         conn.commit()
 
     log.info('조합 완료: scenario=%s variant=%s tilt_option=%s mode=%s norm=%s freq=%s alt=%s K=%s '

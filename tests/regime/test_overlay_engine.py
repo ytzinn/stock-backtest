@@ -165,6 +165,46 @@ def test_period_tilt_rows_turnover_and_bounds(monkeypatch):
     assert all(0.5 <= r['s_t'] <= 1.0 for r in rows)
     # port_return이 s_t에 실제로 의존하는지 확인 — s_t=1.0일 땐 순수 소형가치 수익률과 같아야 함
     assert rows[0]['port_return'] == pytest.approx(1.02 / 1.0 - 1)
+    # B-FIX-1: small_return이 저장되고, s_neutral=1.0에서는 base_return과 정확히 같아야 함
+    assert rows[0]['small_return'] == pytest.approx(1.02 / 1.0 - 1)
+    assert rows[0]['base_return'] == pytest.approx(rows[0]['small_return'])
+    assert rows[0]['net_base_return'] == rows[0]['base_return']
+
+
+def test_period_tilt_rows_base_return_interval_compounded_blend(monkeypatch):
+    """
+    B-FIX-2 회귀 — base_return이 base_series.asof() 1개월 스냅샷이 아니라 이 행과 정확히 같은
+    구간(nav_path 복리)의 small_return/alt_return 블렌딩이어야 한다. semiannual처럼 여러 달을
+    묶는 구간에서도 그 구간 전체 수익으로 나와야 한다(과거엔 asof가 1개월치만 반영하던 버그 —
+    SPEC_08_B05 검토에서 발견). tilt_option=B_two_sided(s_neutral=0.8)도 함께 검증한다 —
+    base_return이 이미 블렌딩된 상태로 저장돼야 하는 이유(순수 소형가치가 아님)를 보장한다.
+    """
+    d0, d1 = date(2020, 4, 5), date(2020, 8, 19)
+    monkeypatch.setattr(oe, 'month_end_dates', lambda conn, s, e: [])
+    monkeypatch.setattr(oe, 'next_trading_day',
+                         lambda conn, d: {date(2020, 4, 3): d0, date(2020, 8, 20): d1}[d])
+    monkeypatch.setattr(oe, 'load_period_holdings',
+                         lambda tag, rebal: {'holdings': [{'ticker': 'A'}]})
+
+    def fake_nav_path(conn, weights, buy, obs):
+        return [1.30] if 'A' in weights else [1.05]   # 소형가치 구간 전체 +30% / 대체 sleeve +5%
+
+    monkeypatch.setattr(oe, 'nav_path', fake_nav_path)
+    monkeypatch.setattr(oe, 'build_largecap_sleeve', lambda conn, rebal: ({'X': 1.0}, {'X': 1.0}))
+
+    rows = oe._period_tilt_rows(
+        conn=None, tag='D_rim_only', rebal_date=date(2020, 4, 3), next_date=date(2020, 8, 20),
+        is_closed=True, overlay_freq='semiannual', alt_sleeve='largecap_cw',
+        value_spread_z=pd.Series(dtype=float), size_mom_z=None, variant='D_v1',
+        s_neutral=0.8, k=0.15, s_min=0.5, s_max=1.0,
+    )
+
+    assert len(rows) == 1
+    row = rows[0]
+    assert row['small_return'] == pytest.approx(0.30)
+    assert row['alt_return'] == pytest.approx(0.05)
+    assert row['base_return'] == pytest.approx(0.8 * 0.30 + 0.2 * 0.05)
+    assert row['net_base_return'] == row['base_return']
 
 
 def test_period_tilt_rows_skips_when_execution_date_unresolved(monkeypatch):

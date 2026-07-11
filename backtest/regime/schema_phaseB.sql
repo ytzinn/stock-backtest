@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS overlay_returns (
     z_t              DOUBLE PRECISION,
     size_mom_z       DOUBLE PRECISION,   -- D_v2 실험용
     port_return      DOUBLE PRECISION,   -- overlay 적용(gross)
-    base_return      DOUBLE PRECISION,   -- always-on(비교군)
+    small_return     DOUBLE PRECISION,   -- 순수 소형가치 sleeve 수익(s=1.0 기준, nav_path 구간 규약)
+    base_return      DOUBLE PRECISION,   -- always-on(비교군), s_neutral·small_return+(1-s_neutral)·alt_return
     alt_return       DOUBLE PRECISION,
     overlay_turnover DOUBLE PRECISION,   -- |Δs_t| (sleeve 이동)
     overlay_cost     DOUBLE PRECISION,   -- 2*|Δs_t|*leg_bps (비대칭)
@@ -35,5 +36,10 @@ CREATE TABLE IF NOT EXISTS overlay_returns (
     -- 포함해 계산되도록 하고 PK에 추가해 막는다(config_phaseB.py::config_hash 참고).
     PRIMARY KEY (run_id, config_hash, scenario, variant, tilt_option, mode, date)
 );
+
+-- B-FIX-1 (SPEC_08_B05 검토 후속): 최초 배포 스키마엔 small_return이 없었다. 이미 서버에
+-- overlay_returns가 존재하는 배포본을 위해 idempotent ALTER로 추가한다(PG16, ADD COLUMN IF
+-- NOT EXISTS 지원). CREATE TABLE IF NOT EXISTS만으로는 기존 테이블에 컬럼이 안 생긴다.
+ALTER TABLE overlay_returns ADD COLUMN IF NOT EXISTS small_return DOUBLE PRECISION;
 
 CREATE INDEX IF NOT EXISTS idx_overlay_returns_date ON overlay_returns (date);
