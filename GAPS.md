@@ -1,6 +1,6 @@
-# GAPS — Pass 0A 재현성 인벤토리 결과
+# GAPS — Pass 0A/0B 결과
 
-> AUDIT_01_PASS0.md § Pass 0A 산출물. 코드는 한 줄도 수정하지 않았다.
+> AUDIT_01_PASS0.md § Pass 0A/0B 산출물. 프로덕션 코드는 한 줄도 수정하지 않았다(신규 스크립트/테스트만 추가).
 > 라벨: `[검증된 사실]` = 코드/DB/파일을 직접 읽고 확인. `[Claude 의견]` = 판단. `[확실하지 않은 사실]` = 확인 방법을 함께 기재.
 
 ---
@@ -128,6 +128,56 @@ PHASE2_PIPELINE = build_phase2_pipeline()
 
 ---
 
+## Pass 0B — 특성화(characterization) baseline
+
+**모델**: Sonnet 5 / effort high (AUDIT_00 §3와 일치)
+
+**작업**: `scripts/audit/characterize_baseline.py` 작성 후 서버에서 실행 — 프로덕션 코드
+(`backtest.engine`/`backtest.ablation`/`backtest.pipeline`/`backtest.portfolio`)를 **재구현하지 않고
+그대로 import해 호출**했다. `engine.run()`이 실제로 사용한 `portfolio` dict를 그대로 받아 종목별
+원시 entry/exit price만 추가 조회하는 방식이라, 두 번째 파이프라인 실행으로 인한 유니버스
+불일치 위험이 없다.
+
+**대상 시나리오 5개** (CANONICAL 전체 + DIAGNOSTIC 중 결론 근거):
+`F_no_r2r3`(CANONICAL, §2 참조), `D_rim_only`(RIM 유효성 핵심 대조군),
+`D_no_r2`/`D_no_r3`(R2/R3 폐기 결정의 직접 근거), `D_no_stability`(StabilityFilter 완전제거 대조군).
+
+**제외**: ARCHIVE(9개, 선택사항이라 이번 라운드 제외) / RANDOM(4개, seed 고정 가능함을 코드로 확인했으나
+500회 반복 분포 전체를 raw tape로 남기는 건 규모가 너무 커 이번 범위에서 제외 — 필요 시 단일 대표
+seed로 축소 캡처하는 방안을 Pass 1 이후 검토).
+
+**자체 교차검증**: 캡처 스크립트가 selection tape(raw price)로 재계산한 `gross_return`을 같은 실행
+안에서 `engine.run()`의 실제 출력과 대조한다. **5개 시나리오 × 23개 구간 전부 tol=1e-9 이내 일치**
+(`cross_check_mismatches: []`). 스크립트 자체가 `_calc_period_return`과 다르게 동작할 위험을
+실행 시점에 자동으로 잡아내는 장치다.
+
+**신뢰성 확인(부수 발견)**: `D_rim_only`(기본 stability_rules=R1~R6 전체)와 `D_no_r2`
+(R1,R3,R4,R5,R6 — R2 제외)의 전체 성과지표(CAGR/net_CAGR/Sharpe/alpha)가 **완전히 동일**했다.
+`phase2_rim.py:7-8` 주석의 "R2는 R1과 완전 중복 — 결과에 영향 없음" 주장을 독립적으로 재실행한
+raw 데이터로 재확인한 것이다. `D_no_r3`(R3 제외)는 값이 달라져 "R3는 역효과"라는 주장도 일관됐다.
+이는 새 버그가 아니라 **기존 문서 주장이 유지된다는 확인**이다.
+
+**게이트**:
+- [x] `pytest -m "not integration"` 전부 통과 (91 passed, 로컬 dev PC)
+- [x] `tests/characterization/README.md` + 각 테스트 파일 상단에 "정답 아님" 경고 명시
+- [x] selection(`tests/baselines/selection/`)과 aggregate(`tests/baselines/aggregate/`) 물리적 분리
+- [x] closed_period 판정 — `is_open_period` 플래그로 마킹(파일 자체는 미분리, 테스트에서
+      `is_open_period=False`로 필터링해 재계산). 열린 구간(#23, rebal_date=2026-04-03)은
+      5개 시나리오 모두 정확히 1개로 존재함을 `test_closed_period_baseline_excludes_open_period`가 검증.
+
+**산출물**: `tests/baselines/selection/{F_no_r2r3,D_rim_only,D_no_r2,D_no_r3,D_no_stability}.json`,
+`tests/baselines/aggregate/{같은 5개}.json`, `tests/baselines/PASS0B_FILE_HASHES.json`,
+`tests/characterization/test_ablation_aggregate.py`(20 테스트), `tests/characterization/README.md`,
+`scripts/audit/characterize_baseline.py`.
+
+**설계 메모**: `overall_metrics_all_periods_including_open`은 열린 구간(#23)을 포함한 engine.run()의
+실제 출력 그대로다(재계산 안 함). closed_period 전용 CAGR/Sharpe 등이 필요하면 이후 별도 테스트로
+`is_open_period=False` 구간만 골라 재계산해야 한다 — 이번 Pass 0B는 그 재계산 로직 자체는
+아직 작성하지 않았다(gross_return/turnover 검증만 구현). **Pass 1 이후 closed_period 전용 CAGR
+검증이 필요하면 이 갭을 메워야 한다.**
+
+---
+
 ## 요약 — Pass 1로 넘길 항목
 
 | ID | 요지 | 예상 등급 | Pass 1 확인 필요 사항 |
@@ -138,5 +188,11 @@ PHASE2_PIPELINE = build_phase2_pipeline()
 | PROV-DB-001 | 마이그레이션 이력 테이블 부재 | P1 | 마이그레이션 2개 이상 시점에 재검토 |
 | PROV-PRICE-001 | price_history 7주 지연 | 미정 | Pass 1A에서 원인 확인 |
 | DOC-SPEC-001 | MASTER.md SPEC 목록에 4개 파일 누락 | P1 | — |
+| GAP-0B-001 | closed_period 전용 CAGR/Sharpe/MDD 재계산 로직이 characterization 테스트에 아직 없음(gross_return/turnover만 구현) | P2 (테스트 커버리지) | closed_period 지표가 실제로 필요해지는 시점(Pass 1B/2)에 추가 |
 
-P0-A/P0-B 후보는 이번 Pass 0A에서 새로 재현되지 않았다(모두 조사 단계). AUDIT_00 §5 기지 목록의 CORR-*/CORR-METRIC-*/CONTRACT-PF-001은 Pass 1B(파이프라인·수익률·metrics 감사)에서 다룬다 — Pass 0A 범위는 provenance 확정까지다.
+P0-A/P0-B 후보는 이번 Pass 0A/0B에서 새로 재현되지 않았다(모두 조사 단계). AUDIT_00 §5 기지 목록의 CORR-*/CORR-METRIC-*/CONTRACT-PF-001은 Pass 1B(파이프라인·수익률·metrics 감사)에서 다룬다 — Pass 0 범위는 provenance 확정과 특성화 baseline 구축까지다.
+
+Pass 0B 특성화로 독립 재확인된 것: `_calc_period_return`의 단순평균(가중치 미사용, CORR-ENGINE-001)과
+`_calc_turnover`의 `sold/max(len(prev),len(curr),1)` 산식(CORR-METRIC-001)이 **현재 코드에서
+실제로 그렇게 동작함**을 raw selection tape 기반 재계산으로 확인했다(이 산식이 옳은지는 판단하지
+않음 — 그건 Pass 1B/tests/oracle의 몫이다).

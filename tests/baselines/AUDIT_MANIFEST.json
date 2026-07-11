@@ -81,6 +81,22 @@
 
   "ablation_results_inventory": "tests/baselines/ABLATION_FILE_INVENTORY.json 참조 (파일별 sha256 + mtime, 서버 experiments/ablation/ 전체 90개 파일)",
 
+  "pass0b_characterization": {
+    "purpose": "특성화 baseline. tests/baselines/selection/{tag}.json(원시 float, decision tape) + tests/baselines/aggregate/{tag}.json(engine.run() 실제 출력). 코드 미수정 — scripts/audit/characterize_baseline.py가 backtest.engine/ablation의 기존 함수를 그대로 호출.",
+    "captured_via": "scripts/audit/characterize_baseline.py, 서버(172.30.1.96)에서 실행, 운영 DB 읽기전용 조회",
+    "captured_at_range": "2026-07-11T22:16 ~ 22:2X (KST, captured_at 필드는 서버 로컬시각/naive)",
+    "server_code_state_at_capture": "git HEAD 1e6719e02961e9d93031f9383e2aae355673f93e (phase-b-signal-tilt, Pass 0A 시점과 동일 — 캡처 사이 서버 코드 변경 없음)",
+    "scenarios_captured": ["F_no_r2r3", "D_rim_only", "D_no_r2", "D_no_r3", "D_no_stability"],
+    "selection_criteria": "AUDIT_01 §Pass 0B 지시: CANONICAL 전체 + DIAGNOSTIC 중 현재 결론의 근거가 된 것. CANONICAL(F_no_r2r3, 1/1 전체) + RIM 유효성 핵심 대조군(D_rim_only) + R2/R3 폐기 결정의 직접 근거(D_no_r2/D_no_r3, phase2_rim.py:7-9 주석이 인용하는 leave-one-out) + StabilityFilter 완전제거 대조군(D_no_stability, SPEC_05 부록A).",
+    "not_captured": {
+      "ARCHIVE(9개)": "AUDIT_01 지시상 선택사항 — 이번 라운드 제외.",
+      "RANDOM(4개, A_random/B_hard_random/C_stability_random/C_no_r6)": "[검증된 사실] seed는 고정 가능(random.Random(f'{seed}:{rebalance_date.isoformat()}'), ablation.py:141) — 재현성 자체는 문제 없음. 그러나 500회 반복 분포 전체를 raw selection tape로 남기면 규모가 CANONICAL/DIAGNOSTIC 대비 500배라 이번 Pass 0B 범위에서 제외. 필요 시 seed=0 등 단일 대표 시드로 축소 캡처하는 방안을 Pass 1 이후 검토."
+    },
+    "cross_validation": "[검증된 사실] 5개 시나리오 모두 characterize_baseline.py 내부에서 selection tape(raw price)로 재계산한 gross_return이 engine.run() 실제 출력과 23개 구간 전부 tol=1e-9 이내 일치 (cross_check_mismatches: [] 확인). 이는 라운드된 experiments/ablation/{tag}.json이 아니라 이번에 새로 실행한 결과와의 자체 일관성 검증이다.",
+    "confirmatory_observation": "[검증된 사실] D_rim_only(stability_rules 미지정→기본 R1~R6 전체)와 D_no_r2(R1,R3,R4,R5,R6, R2 제외)의 overall_metrics가 CAGR/net_CAGR/Sharpe/alpha 전부 소수 15자리까지 완전히 동일(0.11663...). phase2_rim.py:7-8 주석의 'R2는 R1과 완전 중복 — leave-one-out 검증 결과 어떤 조합에서도 결과에 영향 없음'이라는 주장을 이번에 독립적으로 재실행한 raw 데이터로 재확인. D_no_r3(0.1219)는 D_rim_only(0.1166)와 다른 값 — R3 제외가 실제로 결과를 바꾼다는 주장(역효과)도 일관됨. 이 관찰은 CANONICAL 오라벨(DOC-ABL-002)과는 별개로, R2/R3 제거 결정 자체의 근거는 이번 재실행에서도 유지됨을 뜻한다.",
+    "file_hashes": "tests/baselines/PASS0B_FILE_HASHES.json 참조"
+  },
+
   "provenance_gaps": [
     {
       "id": "PROV-ABL-001",
