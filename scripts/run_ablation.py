@@ -43,11 +43,12 @@ OUT_DIR = Path('experiments/ablation')
 
 
 def _run_one(args: tuple) -> dict:
-    """멀티프로세싱 워커. (tag, config, seed, rebalance_dates) → metrics dict."""
-    tag, config, seed, rebalance_dates = args
+    """멀티프로세싱 워커. (tag, config, seed, rebalance_dates, valuation_date) → metrics dict."""
+    tag, config, seed, rebalance_dates, valuation_date = args
     pipeline = build_ablation_pipeline(tag, config, seed=seed)
     engine   = BacktestEngine(pipeline)
-    result   = engine.run(rebalance_dates, run_name=tag, ablation_tag=tag)
+    result   = engine.run(rebalance_dates, run_name=tag, ablation_tag=tag,
+                          valuation_date=valuation_date)
     m        = result['metrics']
     return {
         'seed':               seed,
@@ -68,7 +69,8 @@ def _run_one(args: tuple) -> dict:
     }
 
 
-def run_deterministic(tag: str, config: dict, rebalance_dates: list[date]) -> tuple[dict, list[dict]]:
+def run_deterministic(tag: str, config: dict, rebalance_dates: list[date],
+                      valuation_date: date | None = None) -> tuple[dict, list[dict]]:
     """단일 실행 (D/E/F/G). (metrics_dict, period_results) 반환."""
     log.info(f'[{tag}] 실행 시작')
     pipeline = build_ablation_pipeline(tag, config, seed=None)
@@ -105,6 +107,7 @@ def run_random_distribution(
     tag:             str,
     config:          dict,
     rebalance_dates: list[date],
+    valuation_date:  date | None = None,
     n_repeats:       int = RANDOM_REPEATS,
     n_workers:       int | None = None,
 ) -> list[dict]:
@@ -112,7 +115,7 @@ def run_random_distribution(
     workers = n_workers or max(1, cpu_count() - 1)
     log.info(f'[{tag}] 랜덤 {n_repeats}회 반복 — workers={workers}')
 
-    tasks = [(tag, config, seed, rebalance_dates) for seed in range(n_repeats)]
+    tasks = [(tag, config, seed, rebalance_dates, valuation_date) for seed in range(n_repeats)]
     with Pool(processes=workers) as pool:
         results = pool.map(_run_one, tasks)
 
@@ -296,6 +299,9 @@ def main() -> None:
     parser.add_argument('--det-only',    action='store_true', help='비랜덤 시나리오(D/E/F/G)만 실행')
     parser.add_argument('--repeats',     type=int, default=RANDOM_REPEATS, help='랜덤 반복 횟수')
     parser.add_argument('--workers',     type=int, default=None,           help='병렬 프로세스 수')
+    parser.add_argument('--valuation-date', default=None,
+                        help='열린 구간 평가 기준일 YYYY-MM-DD (기본: 오늘 — CLI에서 결정, '
+                             '엔진은 date.today()를 내부 호출하지 않는다)')
     args = parser.parse_args()
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -307,6 +313,9 @@ def main() -> None:
         tags_to_run -= RANDOM_TAGS
 
     rebalance_dates = REBALANCE_DATES
+    valuation_date  = (date.fromisoformat(args.valuation_date)
+                       if args.valuation_date else date.today())
+    log.info(f'valuation_date = {valuation_date}')
 
     det_results:  dict[str, dict] = {}
     dist_stats:   dict[str, dict] = {}
@@ -317,7 +326,7 @@ def main() -> None:
         config = ABLATION_CONFIGS[tag]
 
         if tag in RANDOM_TAGS:
-            results  = run_random_distribution(tag, config, rebalance_dates,
+            results  = run_random_distribution(tag, config, rebalance_dates, valuation_date,
                                                n_repeats=args.repeats, n_workers=args.workers)
             save_distribution(tag, results)
             cagrs = sorted(r['cagr'] for r in results)
@@ -329,7 +338,7 @@ def main() -> None:
                 'n_repeats':    n,
             }
         else:
-            result, period_results = run_deterministic(tag, config, rebalance_dates)
+            result, period_results = run_deterministic(tag, config, rebalance_dates, valuation_date)
             save_deterministic(tag, result)
             save_periods(tag, period_results)
             det_results[tag] = result

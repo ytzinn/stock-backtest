@@ -48,25 +48,55 @@ class BacktestEngine:
         rebalance_dates: list[date],
         run_name:        str = '',
         ablation_tag:    str = 'F_full',
+        valuation_date:  date | None = None,
     ) -> dict:
         """
         전체 백테스트 실행.
 
+        valuation_date: 마지막(열린) 구간의 평가 기준일. **주입 필수** — 엔진은 재현성을
+          위해 내부에서 date.today()를 호출하지 않는다 (CORR-ENGINE-003). 호출부(CLI)가
+          "오늘"을 원하면 date.today()를 명시적으로 넘겨라.
+          price_history 최신일보다 미래면 경고를 남긴다 (CORR-FRESH-001) — 열린 구간은
+          어차피 최신 보유 가격까지만 반영된다.
+
+        성과 지표(metrics)는 **완결 구간(closed periods)만으로 계산**한다 — 마지막 열린
+        구간은 period_results에 is_open_period=True로 포함되지만 공식 지표에서 제외된다.
+        (열린 구간을 포함하면 실행 날짜에 따라 지표가 달라지고, CAGR 연수 계산도 부분
+        연도로 왜곡된다 — CORR-ENGINE-003/METRIC-002 동시 소거, AUDIT IMPACT_MATRIX §5.)
+        CAGR는 완결 구간의 실제 캘린더 경과일수 기준이다.
+
         반환: {
-            'metrics': {cagr, sharpe, mdd, alpha, robustness, ...},
-            'period_results': [...],  # 구간별 상세 결과
+            'metrics': {cagr, sharpe, mdd, alpha, robustness, ...},  # closed 기준
+            'period_results': [...],  # 구간별 상세 (열린 구간 포함, is_open_period 플래그)
             'run_name': str,
             'ablation_tag': str,
+            'valuation_date': date,
+            'price_data_max_date': date | None,
         }
         """
+        if valuation_date is None:
+            raise ValueError(
+                'valuation_date 주입 필수 — 엔진은 date.today()를 내부 호출하지 않는다 '
+                '(재현성, CORR-ENGINE-003). 예: engine.run(dates, valuation_date=date.today())'
+            )
+
         conn = get_connection()
         try:
+            from backtest.data_access import get_max_price_date
+            price_max = get_max_price_date(conn)
+            if price_max is not None and valuation_date > price_max:
+                log.warning(
+                    f'[신선도] valuation_date={valuation_date} > price_history 최신 {price_max} '
+                    f'— 열린 구간 수익률은 {price_max}까지의 가격으로만 계산된다 (CORR-FRESH-001)'
+                )
+
             period_results: list[dict]       = []
             kospi_returns:  list[float]       = []
             prev_portfolio: dict[str, float]  = {}
 
             for i, rebal_date in enumerate(rebalance_dates):
-                next_date = rebalance_dates[i + 1] if i + 1 < len(rebalance_dates) else date.today()
+                is_open   = i + 1 >= len(rebalance_dates)
+                next_date = rebalance_dates[i + 1] if not is_open else valuation_date
 
                 log.info(f'[{i+1}/{len(rebalance_dates)}] rebal_date={rebal_date}')
 
@@ -114,6 +144,7 @@ class BacktestEngine:
                 period_results.append({
                     'rebalance_date':     rebal_date,
                     'next_date':          next_date,
+                    'is_open_period':     is_open,
                     'portfolio':          portfolio,
                     'period_return':      gross_ret,
                     'net_return':         net_ret,
@@ -134,52 +165,70 @@ class BacktestEngine:
         finally:
             conn.close()
 
-        # 7. 성과 측정
-        # TTM 미충족으로 gate=0인 빈 구간(2015-04, 2015-08)을 성과 지표에서 제외.
+        # 7. 성과 측정 — **완결 구간(closed) 공식 기준**
+        # TTM 미충족으로 gate=0인 빈 구간(2015-04, 2015-08)을 제외하고,
+        # 마지막 열린 구간(is_open_period)도 공식 지표에서 제외한다 (docstring 참조).
         # 벤치마크(KOSPI/KOSDAQ)도 동일 구간 기준으로 적용 → 공정 비교 보장.
-        # period_results 자체는 전체(빈 구간 포함)를 유지해 구간 상세 리포트에 표시.
+        # period_results 자체는 전체(빈 구간·열린 구간 포함)를 유지해 상세 리포트에 표시.
         active = [r for r in period_results if r['n_gate'] > 0]
+        closed = [r for r in active if not r['is_open_period']]
         if len(active) < len(period_results):
             log.info(
-                f'  [TTM 미충족] {len(period_results) - len(active)}개 빈 구간 제외 → '
-                f'유효 {len(active)}개 구간 기준으로 성과 측정'
+                f'  [TTM 미충족] {len(period_results) - len(active)}개 빈 구간 제외'
+            )
+        if len(closed) < len(active):
+            log.info(
+                f'  [열린 구간 제외] 공식 지표는 완결 {len(closed)}개 구간 기준 '
+                f'(열린 구간 {len(active) - len(closed)}개는 open_period_* 참고 지표로 별도 보고)'
             )
 
-        idx        = pd.DatetimeIndex([r['rebalance_date'] for r in active])
-        strat_ret  = pd.Series([r['period_return']      for r in active], index=idx)
-        net_ret_s  = pd.Series([r['net_return']         for r in active], index=idx)
+        idx        = pd.DatetimeIndex([r['rebalance_date'] for r in closed])
+        strat_ret  = pd.Series([r['period_return']      for r in closed], index=idx)
+        net_ret_s  = pd.Series([r['net_return']         for r in closed], index=idx)
         opt_ret_s  = pd.Series(
-            [r['period_return'] + r['delisting_opt_adj']  for r in active], index=idx
+            [r['period_return'] + r['delisting_opt_adj']  for r in closed], index=idx
         )
         cons_ret_s = pd.Series(
-            [r['period_return'] + r['delisting_cons_adj'] for r in active], index=idx
+            [r['period_return'] + r['delisting_cons_adj'] for r in closed], index=idx
         )
-        bench_ret  = pd.Series([r['kospi_return']  for r in active], index=idx)
-        kosdaq_ret = pd.Series([r['kosdaq_return'] for r in active], index=idx)
+        bench_ret  = pd.Series([r['kospi_return']  for r in closed], index=idx)
+        kosdaq_ret = pd.Series([r['kosdaq_return'] for r in closed], index=idx)
 
-        metrics = compute_metrics(strat_ret, bench_ret)
-        kosdaq_cagr = compute_metrics(strat_ret, kosdaq_ret)['benchmark_cagr']
+        # CAGR 연수 = 완결 구간의 실제 캘린더 경과일수 (CORR-METRIC-002)
+        span = dict(start_date=closed[0]['rebalance_date'],
+                    end_date=closed[-1]['next_date']) if closed else {}
+
+        metrics = compute_metrics(strat_ret, bench_ret, **span)
+        kosdaq_cagr = compute_metrics(strat_ret, kosdaq_ret, **span)['benchmark_cagr']
         metrics['kosdaq_cagr']       = kosdaq_cagr
         metrics['alpha_kosdaq']      = metrics['cagr'] - kosdaq_cagr
-        metrics['net_cagr']          = compute_cagr(net_ret_s)
+        metrics['net_cagr']          = compute_cagr(net_ret_s, **span)
         metrics['net_sharpe']        = compute_sharpe(net_ret_s)
-        metrics['cagr_optimistic']   = compute_cagr(opt_ret_s)
-        metrics['cagr_conservative'] = compute_cagr(cons_ret_s)
+        metrics['cagr_optimistic']   = compute_cagr(opt_ret_s, **span)
+        metrics['cagr_conservative'] = compute_cagr(cons_ret_s, **span)
         metrics['avg_turnover']      = float(
-            sum(r['turnover'] for r in active) / max(len(active), 1)
+            sum(r['turnover'] for r in closed) / max(len(closed), 1)
+        )
+        # 열린 구간은 참고 지표로만 (실행 날짜·가격 신선도에 종속 — 공식 비교 금지)
+        open_periods = [r for r in active if r['is_open_period']]
+        metrics['open_period_return'] = (
+            open_periods[-1]['period_return'] if open_periods else None
         )
         log.info(
-            f'백테스트 완료: CAGR={metrics["cagr"]:.1%} (net={metrics["net_cagr"]:.1%}) '
+            f'백테스트 완료 (완결 {len(closed)}구간 기준): '
+            f'CAGR={metrics["cagr"]:.1%} (net={metrics["net_cagr"]:.1%}) '
             f'Alpha(KOSPI)={metrics["alpha"]:.1%} Alpha(KOSDAQ)={metrics["alpha_kosdaq"]:.1%} '
             f'MDD={metrics["mdd"]:.1%} Sharpe={metrics["sharpe"]:.2f} '
             f'Turnover(avg)={metrics["avg_turnover"]:.0%}'
         )
 
         return {
-            'metrics':        metrics,
-            'period_results': period_results,
-            'run_name':       run_name,
-            'ablation_tag':   ablation_tag,
+            'metrics':             metrics,
+            'period_results':      period_results,
+            'run_name':            run_name,
+            'ablation_tag':        ablation_tag,
+            'valuation_date':      valuation_date,
+            'price_data_max_date': price_max,
         }
 
 

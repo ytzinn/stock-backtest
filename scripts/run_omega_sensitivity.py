@@ -43,7 +43,8 @@ def run_one_omega(omega: float) -> dict:
     config   = ABLATION_CONFIGS['D_rim_only']
     pipeline = build_ablation_pipeline('D_rim_only', config, omega=omega)
     engine   = BacktestEngine(pipeline)
-    result   = engine.run(REBALANCE_DATES, run_name=f'D_omega_{omega:.2f}')
+    result   = engine.run(REBALANCE_DATES, run_name=f'D_omega_{omega:.2f}',
+                          valuation_date=date.today())
     m        = result['metrics']
     log.info(
         f'  ω={omega:.2f}  CAGR={m["cagr"]:.1%}  '

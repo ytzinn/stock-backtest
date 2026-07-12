@@ -155,7 +155,8 @@ def run_one(tag: str) -> None:
     engine   = BacktestEngine(pipeline)
 
     print(f'[{tag}] engine.run() 실행 중 (23개 구간)...')
-    result = engine.run(REBALANCE_DATES, run_name=tag, ablation_tag=tag)
+    result = engine.run(REBALANCE_DATES, run_name=tag, ablation_tag=tag,
+                        valuation_date=date.today())
     captured_at = datetime.now().isoformat()
 
     conn = get_connection()

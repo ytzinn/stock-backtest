@@ -100,6 +100,8 @@
 - **Pass 1 판정**: P0-B 유지 확정. metrics.py 단일 정의 확인(복제본 없음). SPEC_05 §12는 연수
   산정 규약을 아예 정의하지 않음 — 문서가 현행 관례를 뒷받침하지 않음 [검증된 사실].
   CORR-ENGINE-003과 #23으로 결합(동시 수정 필수). **Label**: [검증된 사실]
+- **상태: ✅ 수정 완료 (Pass 3, PR audit/CORR-ENGINE-003)** — compute_cagr/compute_metrics에
+  캘린더 경계(start_date/end_date) 추가, 엔진이 완결 구간 실경과일수로 CAGR 계산.
 
 ### CORR-ENGINE-003 — 열린 구간 종료일을 date.today()로 결정 (재현성 결함)
 - **Commit**: 5ea5c48 / **Location**: `backtest/engine.py::BacktestEngine.run` (69)
@@ -108,6 +110,10 @@
   `engine.run(rebalance_dates, valuation_date=date(...))` 주입 + closed-period 공식 기준 채택
   (CORR-METRIC-002와 동시 소거). 신규 발견 CORR-FRESH-001과도 결합 — 아래 참조.
 - **Label**: [검증된 사실]
+- **상태: ✅ 수정 완료 (Pass 3, PR audit/CORR-ENGINE-003)** — valuation_date 주입 필수화
+  (미주입 시 ValueError, 엔진 내부 date.today() 호출 제거), 호출부 3곳(run_ablation·
+  run_omega_sensitivity·characterize_baseline)에 명시 전달. 공식 지표는 완결 구간만으로
+  계산(열린 구간은 open_period_return 참고 지표) — METRIC-002·FRESH-001 동시 소거.
 
 ### CORR-FRESH-001 — 데이터 신선도 가드 부재: 열린 구간이 stale 가격을 조용히 사용 (Pass 1 신규)
 - **Commit**: 5ea5c48
@@ -123,6 +129,9 @@
 - **Affected scenarios**: 전 시나리오의 열린 구간(#23) + 향후 모든 live 실행
 - **Evidence**: tests/baselines/selection/F_no_r2r3.json #23 vs AUDIT_MANIFEST.json price_max_date
 - **Label**: [검증된 사실]
+- **상태: ✅ 수정 완료 (Pass 3, PR audit/CORR-ENGINE-003)** — valuation_date > price_history
+  최신일이면 경고 로그 + 결과 dict에 valuation_date/price_data_max_date 기록(provenance).
+  공식 지표에서 열린 구간 제외로 stale 가격이 공표 수치에 못 들어간다.
 
 ### CORR-BENCH-001 — 벤치마크 조회 실패 시 0.0 반환
 - **Commit**: 5ea5c48 / **Location**: `backtest/engine.py::_calc_kospi_return`/`_calc_kosdaq_return`

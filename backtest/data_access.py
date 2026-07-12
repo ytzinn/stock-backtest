@@ -95,6 +95,14 @@ def get_adj_close_range(conn, ticker: str, as_of: date, lookback: int) -> pd.Ser
     return df.set_index('date')['adj_close'].sort_index()
 
 
+def get_max_price_date(conn) -> date | None:
+    """price_history 전체의 최신 거래일. 데이터 신선도 검증용 (CORR-FRESH-001). 없으면 None."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT MAX(date) FROM price_history")
+        row = cur.fetchone()
+    return row[0] if row else None
+
+
 def get_close_price(conn, ticker: str, as_of: date) -> float | None:
     """as_of 기준 가장 가까운 adj_close. 없으면 None."""
     with conn.cursor() as cur:
