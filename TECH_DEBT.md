@@ -35,6 +35,9 @@
 - **Pass 2**: 수정 후보 차이표 산출 — net CAGR Δ −0.046~−0.082%p, selection 불변(순수 산술).
   IMPACT_MATRIX §4-A. 수정 순서 4번.
 - **Label**: [검증된 사실]
+- **상태: ✅ 수정 완료 (Pass 3, PR audit/CORR-METRIC-001)** — 0.5×Σ|Δw| 표준 정의로 교체.
+  oracle 통과 전환. **characterization test_turnover_formula 5건 정당 깨짐** — 종목 수 변동
+  구간의 기록값(구 산식)과 불일치. baseline 갱신은 사용자 승인 후 별도 커밋 (AUDIT_03 규칙).
 - **비고**: SPEC_08 소형/대형 비대칭 거래비용 설계와 결합 조율 필요.
 
 ### PIT-AMEND-001 — 정정 미공개 + original_amount NULL → 정정값 사용 (룩어헤드) ★ Pass 2 승격
