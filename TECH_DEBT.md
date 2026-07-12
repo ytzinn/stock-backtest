@@ -144,6 +144,9 @@
   이므로 등급 유지. regime 쪽 복제 구현도 동일 수정 필요 지점으로 추가.
 - **Evidence(Pass 2)**: `tests/oracle/test_pass2_contracts.py::test_benchmark_fetch_failure_must_not_become_zero_return`(×2, 의도적 실패)
 - **Label**: [검증된 사실](코드 경로·로그 부재) / [확실하지 않은 사실](로그 보존 완전성)
+- **상태: ✅ 수정 완료 (Pass 3, PR audit/CORR-BENCH-001)** — BenchmarkDataUnavailable
+  예외 신설, engine 2개 함수 + regime kospi_return(복제 지점) 모두 실패 시 예외 전파로
+  교체. 과거 결과 영향 없음(발생 이력 0건) — 미래 실행의 조용한 오염 차단.
 
 > PIT-AMEND-001·CORR-HARD-001은 Pass 2에서 실데이터 편입 오염이 재현돼 **P0-A로 승격** — 위 참조.
 

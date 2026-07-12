@@ -34,6 +34,14 @@ log = logging.getLogger(__name__)
 DELISTING_HAIRCUT = 0.70  # 상장폐지 청산 시 마지막 가격 × 70% (기준 시나리오)
 
 
+class BenchmarkDataUnavailable(RuntimeError):
+    """벤치마크 지수 조회 실패. 조용한 0.0 반환 대신 이 예외로 실행을 중단한다.
+
+    네트워크 장애가 '벤치마크 0% 수익'으로 둔갑하면 alpha·robustness가 오염된 채
+    백테스트가 성공 상태로 끝난다 (CORR-BENCH-001). 재시도는 호출자(CLI) 책임이다.
+    """
+
+
 def _report_type(d: date) -> str:
     """8월 리밸런싱 → H1 반기보고서, 나머지 → FY 연간보고서."""
     return 'H1' if d.month == 8 else 'FY'
@@ -324,43 +332,41 @@ def _last_known_price(conn, ticker: str, before_date: date) -> float:
     return float(prices.iloc[-1]) if not prices.empty else 0.0
 
 
-def _calc_kosdaq_return(start_date: date, end_date: date) -> float:
+def _calc_index_return(symbol: str, name: str, start_date: date, end_date: date) -> float:
     """
-    KOSDAQ 구간 수익률. FDR 'KQ11' 사용 (Naver Finance/KRX 기반).
-    실패 시 0 반환.
+    지수 구간 수익률 (FDR, Naver Finance 라우트).
+
+    계약: 조회 실패·데이터 부족 시 **BenchmarkDataUnavailable을 던진다** — 0.0을
+    반환하지 않는다 (CORR-BENCH-001: 장애가 '정상 수익률 0%'로 둔갑해 alpha·robustness를
+    조용히 오염시키고 백테스트가 성공 상태로 끝나는 것을 차단).
     """
     import FinanceDataReader as fdr
     try:
-        df = fdr.DataReader('KQ11', str(start_date), str(end_date))
-        if df is None or df.empty or len(df) < 2:
-            return 0.0
-        close = df['Close'].dropna()
-        if len(close) < 2:
-            return 0.0
-        return float(close.iloc[-1] / close.iloc[0] - 1)
+        df = fdr.DataReader(symbol, str(start_date), str(end_date))
     except Exception as e:
-        log.warning(f'KOSDAQ 수익률 조회 실패 ({start_date}~{end_date}): {e}')
-        return 0.0
+        raise BenchmarkDataUnavailable(
+            f'{name}({symbol}) 조회 실패 ({start_date}~{end_date}): {e}'
+        ) from e
+
+    close = df['Close'].dropna() if df is not None and not df.empty else None
+    if close is None or len(close) < 2:
+        raise BenchmarkDataUnavailable(
+            f'{name}({symbol}) 데이터 부족 ({start_date}~{end_date}): '
+            f'{0 if close is None else len(close)}행'
+        )
+    return float(close.iloc[-1] / close.iloc[0] - 1)
+
+
+def _calc_kosdaq_return(start_date: date, end_date: date) -> float:
+    """KOSDAQ 구간 수익률 (KQ11). 실패 시 BenchmarkDataUnavailable — 0.0 반환 금지."""
+    return _calc_index_return('KQ11', 'KOSDAQ', start_date, end_date)
 
 
 def _calc_kospi_return(start_date: date, end_date: date) -> float:
     """
-    KOSPI 구간 수익률. FDR 'KS11' 사용 (Naver Finance/KRX 기반).
+    KOSPI 구간 수익률 (KS11, Naver Finance 라우트). 실패 시 BenchmarkDataUnavailable.
 
     'KRX/INDEX/KOSPI' 포맷은 FDR이 Yahoo Finance로 fallback → 500 에러.
-    'KS11'은 Naver Finance 라우트 (컬럼: Close, UpDown, Comp, Change).
     pykrx get_index_ohlcv_by_date는 KRX 2024 리뉴얼 후 KeyError로 불작동.
-    실패 시 0 반환.
     """
-    import FinanceDataReader as fdr
-    try:
-        df = fdr.DataReader('KS11', str(start_date), str(end_date))
-        if df is None or df.empty or len(df) < 2:
-            return 0.0
-        close = df['Close'].dropna()
-        if len(close) < 2:
-            return 0.0
-        return float(close.iloc[-1] / close.iloc[0] - 1)
-    except Exception as e:
-        log.warning(f'KOSPI 수익률 조회 실패 ({start_date}~{end_date}): {e}')
-        return 0.0
+    return _calc_index_return('KS11', 'KOSPI', start_date, end_date)

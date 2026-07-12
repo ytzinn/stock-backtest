@@ -236,18 +236,30 @@ def next_trading_day(conn, after_date: date) -> date:
 # ── KOSPI 벤치마크 ───────────────────────────────────────────────────────────
 
 def kospi_return(start_date: date, end_date: date) -> float:
-    """KS11(Naver Finance, fdr) 구간 수익률. 실패 시 0.0 (engine.py 관례와 동일)."""
+    """
+    KS11(Naver Finance, fdr) 구간 수익률.
+
+    계약: 조회 실패·데이터 부족 시 engine.BenchmarkDataUnavailable을 던진다 — 0.0을
+    반환하지 않는다 (CORR-BENCH-001 복제 지점, engine._calc_index_return과 동일 계약).
+    """
+    from backtest.engine import BenchmarkDataUnavailable
+
     global _KOSPI_CACHE
     try:
         if _KOSPI_CACHE is None:
             import FinanceDataReader as fdr
             _KOSPI_CACHE = fdr.DataReader('KS11', '2015-01-01')['Close']
-        s = _KOSPI_CACHE
-        s1 = s[s.index <= pd.Timestamp(start_date)]
-        s2 = s[s.index <= pd.Timestamp(end_date)]
-        if s1.empty or s2.empty:
-            return 0.0
-        return float(s2.iloc[-1] / s1.iloc[-1] - 1)
-    except Exception:
-        log.exception('KOSPI 수익률 조회 실패 (%s~%s)', start_date, end_date)
-        return 0.0
+    except Exception as e:
+        raise BenchmarkDataUnavailable(
+            f'KOSPI(KS11) 조회 실패 ({start_date}~{end_date}): {e}'
+        ) from e
+
+    s = _KOSPI_CACHE
+    s1 = s[s.index <= pd.Timestamp(start_date)]
+    s2 = s[s.index <= pd.Timestamp(end_date)]
+    if s1.empty or s2.empty:
+        raise BenchmarkDataUnavailable(
+            f'KOSPI(KS11) 데이터 부족 ({start_date}~{end_date}): '
+            f'기준일 이전 데이터 없음 (s1={len(s1)}행, s2={len(s2)}행)'
+        )
+    return float(s2.iloc[-1] / s1.iloc[-1] - 1)
