@@ -63,7 +63,31 @@ RANDOM(4개)·ARCHIVE(9개)는 이번 라운드 제외 — 사유는 `GAPS.md` P
 ## Pass 0C — 독립 오라클 + 통합 테스트 (`AUDIT_01_PASS0.md`) ★ 가장 어려움
 
 - **모델 요구사항**: Fable 5 또는 Opus 4.8 / effort xhigh
-- **상태**: ⏳ 미시작 — 시작 전 `/model fable` 또는 `/model opus` + `/effort xhigh`로 전환 필요 (사용자 확인 필요, Sonnet 5로 진행 시 AUDIT_00 §3 위반)
+- **사용 모델**: Fable 5 (사용자가 `/model fable`로 전환 후 진행 — 일치)
+- **상태**: ✅ 완료 (2026-07-12)
+
+게이트:
+- [x] `pytest -m "not integration"`: 122 passed + 1 xfail + **의도적 실패 5개**
+      → AUDIT_01 게이트 3항("oracle 중 실패 = P0 후보, 고치지 말고 기록만") 적용, 기록 완료
+- [x] `pytest -m integration`: 30/30 통과 (합성 PostgreSQL 16, 포트 5434, 실행 후 컨테이너 파기)
+- [x] 실패 oracle 전부 TECH_DEBT.md에 P0 항목으로 등재 (CORR-ENGINE-001/002,
+      CORR-METRIC-001/002/003)
+- [x] `tests/oracle/` ↔ `tests/characterization/` 물리 분리
+
+작업:
+- [x] O-1 RIM 오라클 (주당가 계약·clamp 경계·equity 우선순위·shares 나눗셈, 상수 SSOT import)
+- [x] O-2 가중수익률 소비 검증 — **실패 = CORR-ENGINE-001 증거** (xfail 아님, 그대로 둠)
+- [x] O-3 상폐 3시나리오 순서 독립성 — **실패 = CORR-ENGINE-002 재현.** 단 실데이터(5개 tape)
+      공존 스캔 음성 → P0-B 유지
+- [x] O-4 turnover 올바른 정의 — **실패 + 거래비용 입력 확인 + 실측 오염 정량화 → P0-A 확정**
+      (CANONICAL 누적 거래비용 0.952%p 과소계상)
+- [x] O-5 CAGR 캘린더일수 오라클(실패, CORR-METRIC-002) + Sharpe/MDD 규약 명시·검증(통과)
+      + **신규 발견 CORR-METRIC-003** (Sharpe zero-variance 가드 오류 → inf)
+- [x] O-6 최소종목 정책 — xfail(strict=False) 계류, CONTRACT-PF-001로 TECH_DEBT 등재
+- [x] I-1~I-6 통합 테스트 30개 — 룩어헤드 방지 경로 전부 정상 확인.
+      **신규 발견 2건**: PIT-AMEND-001(원본 미캡처 시 정정값 룩어헤드), MIX-FSDIV-001(계정 단위 CFS/OFS 혼합)
+- [x] TECH_DEBT.md 개설 (P0-A 1건 · P0-B 6건 · P1 다수)
+- [x] `scripts/audit/turnover_impact_scan.py` (tape 기반 영향 스캔, 재실행 가능)
 
 ---
 
@@ -71,6 +95,9 @@ RANDOM(4개)·ARCHIVE(9개)는 이번 라운드 제외 — 사유는 `GAPS.md` P
 
 - **모델 요구사항**: Fable 5
 - **상태**: ⏳ 미시작
+- Pass 0에서 넘어온 확인 과제: PIT-AMEND-001 발생 건수 쿼리(1A), CORR-BENCH-001 로그 대조(1B),
+  price_history 7주 지연 원인(1A), 미캡처 24개 시나리오의 상폐+결측 공존 여부(1B),
+  DOC-ABL-002 오라벨이 실제 보고에 쓰였는지(1B)
 
 ## Pass 2 — 재현·영향분석 (`AUDIT_03_PASS2_3.md`)
 
