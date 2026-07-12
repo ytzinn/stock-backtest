@@ -23,5 +23,15 @@ Pass 3에서 프로덕션 코드를 고치면 저절로 통과한다.**
 | `test_metrics_oracle.py::test_cagr_uses_actual_calendar_days` | CAGR 연수를 캘린더일수가 아니라 구간수÷2로 계산 | CORR-METRIC-002 |
 | `test_metrics_oracle.py::test_sharpe_zero_variance_returns_zero` | zero-variance 가드가 returns.std()를 검사하고 나눗셈은 excess.std()로 → inf 가능 (오라클 작성 중 신규 발견) | CORR-METRIC-003 |
 
-fast suite를 "전부 통과" 기준으로 쓰려면 위 5개를 제외하고 본다:
-`pytest -m "not integration" --deselect <...>` 또는 TECH_DEBT.md의 해당 항목이 닫혔는지 확인.
+### Pass 2 추가분 (2026-07-12)
+
+| 실패 테스트 | 재현하는 결함 | TECH_DEBT ID |
+|---|---|---|
+| `test_pass2_contracts.py::test_engine_run_accepts_injected_valuation_date` | 열린 구간 종료일 date.today() — valuation_date 주입 계약 부재 | CORR-ENGINE-003 (+FRESH-001) |
+| `test_pass2_contracts.py::test_benchmark_fetch_failure_must_not_become_zero_return` (×2) | 벤치마크 조회 실패 → 0.0 둔갑 | CORR-BENCH-001 |
+| `test_pass2_contracts.py::test_unknown_listed_date_must_not_bypass_seasoning_filter` | listed_date NULL → 상장 6개월 검사 생략 | CORR-HARD-001 (P0-A) |
+| `tests/integration/test_pass2_pit_gate.py` 4건 | PIT 정정 룩어헤드 / 게이트 비결정 병합 / 게이트 룩어헤드 / 결손 침묵 0 | PIT-AMEND-001(P0-A), CORR-GATE-001/002, CORR-DA-001 |
+
+**정상 상태 요약**: fast suite = 통과 다수 + **의도적 실패 9개** + xfail 1개.
+integration suite = 통과 30개 + **의도적 실패 4개**.
+이 실패들을 통과시키려고 테스트를 고치지 마라 — Pass 3의 프로덕션 수정이 통과시킨다.

@@ -6,14 +6,15 @@
 >
 > **기준 commit: de93559** (개별 `Commit:` 표기가 없는 항목의 공통 기준. Pass 0C 등재분은 5ea5c48).
 >
-> **상태: Pass 1A/1B 재검토 완료 (2026-07-12, Fable 5) — P0-A/P0-B 목록 확정.**
-> Pass 0C가 잠정 등재한 8개 항목을 전건 독립 재검토(유지 7 · 재검토확정 1)했고,
-> Pass 1 신규 발견 12건을 추가했다. 각 항목의 `Pass 1 판정:` 줄이 이중 점검 기록이다.
-> 다음 단계: P0-A/P0-B만 Pass 2(실패 테스트로 재현)·Pass 3(수정 PR) 대상.
+> **상태: Pass 2 재현·영향 행렬 완료 (2026-07-12, Fable 5).**
+> P0 11건 전건에 실패 테스트 커밋 (재현 불가 0건). 실데이터 편입 오염이 재현된
+> **PIT-AMEND-001·CORR-HARD-001을 P0-A로 승격** (P0-A 3건 · P0-B 8건).
+> 영향 행렬·수정 후보 차이표·결합 판정·수정 순서는 **IMPACT_MATRIX.md** 참조.
+> 다음 단계: Pass 3 — IMPACT_MATRIX §6 순서로 항목당 1 PR (7~9번은 정책 결정 선행).
 
 ---
 
-## P0-A — 숫자가 틀렸음이 재현됨 (1건)
+## P0-A — 숫자가 틀렸음이 재현됨 (3건)
 
 ### CORR-METRIC-001 — turnover 산식이 비중 변화를 무시 → 거래비용·net 수익률 오염
 - **Commit**: 5ea5c48
@@ -31,12 +32,40 @@
 - **Pass 1 판정**: **P0-A 유지 확정.** 추가 확인 — SPEC_05 §13 Fitness Function이
   `0.05 × metrics['turnover']`를 소비하도록 설계돼 있음(코드 미구현, Phase 3 예정) [검증된 사실].
   수정 없이 Phase 3 진입 시 튜닝 목적함수까지 오염된다.
+- **Pass 2**: 수정 후보 차이표 산출 — net CAGR Δ −0.046~−0.082%p, selection 불변(순수 산술).
+  IMPACT_MATRIX §4-A. 수정 순서 4번.
 - **Label**: [검증된 사실]
 - **비고**: SPEC_08 소형/대형 비대칭 거래비용 설계와 결합 조율 필요.
 
+### PIT-AMEND-001 — 정정 미공개 + original_amount NULL → 정정값 사용 (룩어헤드) ★ Pass 2 승격
+- **Commit**: 5ea5c48 / **Location**: `backtest/data_access.py::load_pit_series` (260-267 CASE)
+  + `backtest/regime/data_access_regime.py::book_equity_batch` (159-171, 동일 CASE 복제)
+- **Expected contract**: SPEC_02 §3-1-2 "정정 미공개 시점 → 원본값 사용 (PIT 보존)"
+- **Actual behavior**: `original_amount IS NULL`이면 ELSE로 정정값 반환
+- **Result impact**: **Y — 편입 오염 재현 (Pass 2).** Pass 0B 실편입 817쌍 × 운영 DB 교차:
+  **26개 (ticker, 리밸) 쌍**의 재무 계정이 시장 미공개 정정값으로 계산됨 (000880·000150·
+  065150 등은 RIM 입력 포함 9계정 전부). 유니버스 레벨 노출: 매 리밸 15~599행.
+  **원본 소실로 반사실 복원 불가** — "선택 자체가 오염" 유형. 상세: IMPACT_MATRIX §2.
+- **Evidence**: `tests/integration/test_pass2_pit_gate.py::test_amended_row_without_original_must_not_leak_amended_value`(의도적 실패) + 서버 교차 조회
+- **Pass 2 판정**: **P0-A 승격.** 수정은 정책 결정 필요((a)계정 제외 (b)available_from 이동
+  (c)XBRL 원본 백필) — CORR-GATE-002·DOC-PIT-001과 데이터 모델 결정 공유. 수정 순서 7번.
+- **Label**: [검증된 사실]
+
+### CORR-HARD-001 — listed_date NULL이면 상장기간 검사 통과 ★ Pass 2 승격
+- **Commit**: 5ea5c48 / **Location**: `backtest/filters/hard_filter.py::_hard_filter` (66-68)
+- **Expected contract**: MASTER §3-3·SPEC_03 — 상장 6개월 미만 제외
+- **Actual behavior**: NULL이면 검사 생략 (stocks의 92.1%가 NULL)
+- **Result impact**: **Y — 편입 재현 (Pass 2).** tape 편입 종목 284개 전원 listed_date NULL.
+  가격 이력 프록시 기준 6개월 미만 의심 편입 **6건**: 204270(상장 ~30일 만에 2020-04-03
+  편입), 237690(~56일), 237750(~45일), 228340·377740·004440(3~5개월). 상세: IMPACT_MATRIX §2.
+- **Evidence**: `tests/oracle/test_pass2_contracts.py::test_unknown_listed_date_must_not_bypass_seasoning_filter`(의도적 실패) + 서버 교차 조회
+- **Pass 2 판정**: **P0-A 승격.** 수정 = listed_date 백필(krx_listing_snapshots) + NULL 가드
+  병행. selection 변경 확실. 수정 순서 8번.
+- **Label**: [검증된 사실](프록시 기준) / [확실하지 않은 사실](정확한 상장일 — krx_listing_snapshots/외부 IPO 기록 대조)
+
 ---
 
-## P0-B — 조용한 숫자 오염이 가능한 구조 (10건)
+## P0-B — 조용한 숫자 오염이 가능한 구조 (8건)
 
 ### CORR-ENGINE-001 — build_portfolio()의 weight를 _calc_period_return()이 소비하지 않음
 - **Commit**: 5ea5c48 / **Location**: `backtest/engine.py::_calc_period_return` (198-249)
@@ -68,6 +97,7 @@
 
 ### CORR-ENGINE-003 — 열린 구간 종료일을 date.today()로 결정 (재현성 결함)
 - **Commit**: 5ea5c48 / **Location**: `backtest/engine.py::BacktestEngine.run` (69)
+- **Evidence(Pass 2)**: `tests/oracle/test_pass2_contracts.py::test_engine_run_accepts_injected_valuation_date`(의도적 실패)
 - **Pass 1 판정**: P0-B 유지 확정. 해법 제안(AUDIT_02 B-2 지시 반영):
   `engine.run(rebalance_dates, valuation_date=date(...))` 주입 + closed-period 공식 기준 채택
   (CORR-METRIC-002와 동시 소거). 신규 발견 CORR-FRESH-001과도 결합 — 아래 참조.
@@ -94,32 +124,10 @@
 - **Pass 1 판정**: P0-B 유지 확정. 서버 보존 로그 전수 grep 결과 '수익률 조회 실패' 발생 이력
   0건 [검증된 사실 — 단, 과거 ablation 실행 로그가 전부 보존됐는지는 확인 불가]. 구조는 그대로
   이므로 등급 유지. regime 쪽 복제 구현도 동일 수정 필요 지점으로 추가.
+- **Evidence(Pass 2)**: `tests/oracle/test_pass2_contracts.py::test_benchmark_fetch_failure_must_not_become_zero_return`(×2, 의도적 실패)
 - **Label**: [검증된 사실](코드 경로·로그 부재) / [확실하지 않은 사실](로그 보존 완전성)
 
-### PIT-AMEND-001 — 정정 미공개 구간인데 original_amount가 NULL이면 정정값 사용 (룩어헤드)
-- **Commit**: 5ea5c48 / **Location**: `backtest/data_access.py::load_pit_series` (260-267 CASE)
-  + `backtest/regime/data_access_regime.py::book_equity_batch` (159-171, 동일 CASE 복제)
-- **Expected contract**: SPEC_02 §3-1-2 "정정 미공개 시점 → 원본값 사용 (PIT 보존)" [검증된 사실 — 문서 명문]
-- **Actual behavior**: `original_amount IS NULL`이면 ELSE로 정정값(amount) 반환
-- **Result impact**: **Unknown → 규모 확정.** 운영 DB 실측: 정정 행 86,379개 중
-  **18,676개(21.6%)가 original_amount NULL** [검증된 사실, 2026-07-12 서버 조회].
-  이 행들은 리밸런싱일이 available_from과 amendment_from 사이에 놓일 때마다 룩어헤드.
-- **Evidence**: `tests/integration/test_pit_sql_contracts.py::test_amendment_after_rebalance_with_null_original_uses_amended_value_LOOKAHEAD` + 서버 카운트
-- **Pass 1 판정**: P0-B 유지 확정 (실오염 여부·크기는 Pass 2에서 재현: 해당 행 × 리밸런싱일
-  교차로 실제 영향받은 (ticker, rebal) 산출). **Label**: [검증된 사실]
-
-### CORR-HARD-001 — listed_date NULL이면 상장기간 검사 통과 → 필터 사실상 미작동 (Pass 1 신규)
-- **Commit**: 5ea5c48
-- **Location**: `backtest/filters/hard_filter.py::_hard_filter` (66-68)
-- **Expected contract**: MASTER §3-3·SPEC_03 — 상장 6개월 미만 제외 (Hard Filter 구성 요건)
-- **Actual behavior**: `ld = get_listed_date(...)` 후 `if ld is not None and ...` — NULL이면 검사 생략.
-- **Result impact**: Conditional — 운영 DB 실측: **stocks 3,264개 중 3,005개(92.1%)가
-  listed_date NULL** [검증된 사실, 서버 조회]. 즉 "상장 6개월" 요건이 표본의 92%에서 죽은
-  코드다. 신규 상장주는 FY 재무 부재로 게이트에서 자연 탈락하는 경우가 많아 실질 유입 규모는
-  별도 확인 필요 [확실하지 않은 사실 — 확인법: krx_listing_snapshots 최초 등장일을 상장일
-  프록시로 편입 종목과 교차].
-- **Evidence**: 코드 + 서버 카운트. (재현 테스트는 Pass 2에서)
-- **Label**: [검증된 사실](구조·규모) / [확실하지 않은 사실](실제 조기편입 발생)
+> PIT-AMEND-001·CORR-HARD-001은 Pass 2에서 실데이터 편입 오염이 재현돼 **P0-A로 승격** — 위 참조.
 
 ### CORR-GATE-001 — dq_gate가 fs_div를 구분하지 않고 CFS/OFS를 비결정적으로 병합 (Pass 1 신규)
 - **Commit**: 5ea5c48
@@ -131,6 +139,7 @@
 - **Result impact**: Conditional — 실측: 게이트 핵심 계정(자본총계 등 5종)에서 CFS/OFS 값이
   서로 다른 (ticker,year,rt,acct) **0건** [검증된 사실, 서버 조회] → 현재 데이터에선 무해.
   단 값이 갈리는 데이터가 들어오는 순간 게이트 판정(=유니버스)이 실행마다 흔들릴 수 있는 구조.
+- **Evidence(Pass 2)**: `tests/integration/test_pass2_pit_gate.py::test_gate_load_accounts_must_prefer_cfs_deterministically`(의도적 실패 — OFS가 CFS를 덮어씀을 실증)
 - **Label**: [검증된 사실](구조) / 현재 무해(실측)
 
 ### CORR-GATE-002 — 게이트가 정정 반영값으로 판정 → 게이트 경유 룩어헤드 (Pass 1 신규)
@@ -141,9 +150,12 @@
 - **Actual behavior**: 게이트는 `financials`(최신 정정 반영값)로 일괄 재판정된다. 정정으로
   R02(자본잠식) 등 판정이 뒤집히면, 정정 **이전** 리밸런싱일에도 뒤집힌 판정이 적용됨.
 - **Result impact**: Conditional — 실측: 정정으로 자본총계 **부호가 뒤집힌 행 145건**
-  [검증된 사실, 서버 조회] = R02 플립 후보. 실제 유니버스 변동 여부는 Pass 2에서
-  (ticker, year)별 게이트 재판정 시뮬레이션으로 재현.
-- **Label**: [검증된 사실](경로·후보 규모) / [확실하지 않은 사실](실제 플립 발생)
+  [검증된 사실, 서버 조회] = R02 플립 후보.
+- **Pass 2**: 노출 창 × 리밸런싱 교차 — "잘못 포함 가능" 후보가 18개 리밸런싱일에 1~19종목
+  실재하나 **실제 편입 침투 0건** (IMPACT_MATRIX §3) → P0-B 유지. 단 랜덤 분포·스크리너
+  percentile 컷은 유니버스에 직접 의존하므로 진단 시나리오 미세 오염 가능 [Claude 의견].
+- **Evidence(Pass 2)**: `tests/integration/test_pass2_pit_gate.py::test_gate_verdict_must_reflect_values_known_at_rebalance`(의도적 실패)
+- **Label**: [검증된 사실](경로·후보 규모·비침투) 
 
 ### CORR-DA-001 — get_avg_turnover/has_recent_trade가 "데이터 없음"과 "거래 없음"을 구분 못 함 (Pass 1 신규)
 - **Commit**: 5ea5c48
@@ -154,6 +166,7 @@
 - **Result impact**: Conditional — 방향은 보수적(잘못 편입이 아니라 잘못 제외)이지만,
   price_ingest 부분 실패 시 **유니버스가 조용히 왜곡**되고 아무 경고도 없다. AUDIT_02 판정
   규칙("조회 실패 시 0 반환 구조는 P0-B") 적용.
+- **Evidence(Pass 2)**: `tests/integration/test_pass2_pit_gate.py::test_avg_turnover_missing_data_must_not_be_silent_zero`(의도적 실패)
 - **Label**: [검증된 사실](구조) / [확실하지 않은 사실](과거 수집 실패로 인한 실제 제외 사례)
 
 ---
