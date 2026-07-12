@@ -234,14 +234,18 @@ class BacktestEngine:
 
 def _calc_turnover(prev: dict[str, float], curr: dict[str, float]) -> float:
     """
-    단방향 회전율 (0~1). 매도된 종목의 비중 합계.
-    첫 구간(prev 빈 경우)은 1.0 (전액 신규 매수).
+    turnover = 0.5 × Σ_{t∈prev∪curr} |w_new[t] − w_old[t]|  — 재조정 규모의 표준 정의.
+    첫 구간(prev 없음)은 전액 신규 매수 관례로 1.0.
+
+    종전 산식 sold/max(len(prev),len(curr),1)은 이탈 종목 **수**만 세어 비중 변화를
+    무시했다 — 종목 수가 같고 등가중이면 항등식으로 우연히 일치했지만, 종목 수가
+    바뀌는 구간(예: 5→20종목)에서 재조정 규모를 크게 과소평가해 거래비용·net 수익률을
+    오염시켰다 (CORR-METRIC-001, P0-A). 검증: tests/oracle/test_turnover_oracle.py.
     """
-    if not prev or not curr:
-        return 1.0 if not prev and curr else 0.0
-    n = max(len(prev), len(curr), 1)
-    sold = len(set(prev) - set(curr))
-    return sold / n
+    if not prev:
+        return 1.0 if curr else 0.0
+    tickers = set(prev) | set(curr)
+    return 0.5 * sum(abs(curr.get(t, 0.0) - prev.get(t, 0.0)) for t in tickers)
 
 
 def _calc_period_return(

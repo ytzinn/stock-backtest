@@ -17,7 +17,6 @@ Pass 3에서 프로덕션 코드를 고치면 저절로 통과한다.**
 
 | 실패 테스트 | 재현하는 결함 | TECH_DEBT ID |
 |---|---|---|
-| `test_turnover_oracle.py::test_turnover_expansion_5_to_20_stocks` | turnover 산식이 비중 변화를 무시 (거래비용 입력값 오염) | CORR-METRIC-001 |
 | `test_metrics_oracle.py::test_sharpe_zero_variance_returns_zero` | zero-variance 가드가 returns.std()를 검사하고 나눗셈은 excess.std()로 → inf 가능 (오라클 작성 중 신규 발견) | CORR-METRIC-003 |
 
 ### Pass 2 추가분 (2026-07-12)
@@ -36,7 +35,8 @@ Pass 3에서 프로덕션 코드를 고치면 저절로 통과한다.**
 | `test_weighted_return_consumes_portfolio_weights` | CORR-ENGINE-001 | audit/CORR-ENGINE-001 (weight 소비 + 재정규화) |
 | `test_engine_run_accepts_injected_valuation_date` | CORR-ENGINE-003 (+METRIC-002·FRESH-001) | audit/CORR-ENGINE-003 (valuation_date 주입 + closed-period 공식 기준 + 캘린더 CAGR + 신선도 경고) |
 | `test_cagr_uses_actual_calendar_days` | CORR-METRIC-002 | audit/CORR-ENGINE-003 (compute_cagr에 캘린더 경계 파라미터) |
+| `test_turnover_expansion_5_to_20_stocks` | CORR-METRIC-001 (P0-A) | audit/CORR-METRIC-001 (0.5Σ|Δw| 표준 정의) — **characterization 5건 정당 깨짐, baseline 갱신 승인 대기** |
 
-**정상 상태 요약**: fast suite = 통과 다수 + **의도적 실패 5개** + xfail 1개 (ENGINE-001/002/003·METRIC-002 해소 후).
+**정상 상태 요약**: fast suite = 통과 다수 + **의도적 실패 4개** + xfail 1개 + **characterization 정당 깨짐 5개(METRIC-001, baseline 승인 대기)**.
 integration suite = 통과 30개 + **의도적 실패 4개**.
 이 실패들을 통과시키려고 테스트를 고치지 마라 — Pass 3의 프로덕션 수정이 통과시킨다.
