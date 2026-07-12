@@ -75,6 +75,9 @@
   근본 원인이 인터페이스 계약 부채로 잔존.
 - **Evidence**: `tests/oracle/test_engine_return_oracle.py::test_weighted_return_consumes_portfolio_weights`(의도적 실패)
 - **Pass 1 판정**: P0-B 유지 확정. **Label**: [검증된 사실]
+- **상태: ✅ 수정 완료 (Pass 3, PR audit/CORR-ENGINE-001)** — weight 소비 + 유효 종목
+  weight 합 재정규화. 등가중에서 종전 단순평균과 동일값 → characterization 20/20 통과,
+  baseline 갱신 불필요. 비등가중(Phase 3 업종 상한 등) 도입 시의 조용한 오류 선제 차단.
 
 ### CORR-ENGINE-002 — 상폐 opt/cons 조정값이 종목 순회 순서에 의존
 - **Commit**: 5ea5c48 / **Location**: `backtest/engine.py::_calc_period_return` (220-243, `n -= 1`)
