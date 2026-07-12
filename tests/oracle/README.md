@@ -24,7 +24,7 @@ Pass 3에서 프로덕션 코드를 고치면 저절로 통과한다.**
 | 실패 테스트 | 재현하는 결함 | TECH_DEBT ID |
 |---|---|---|
 | `test_pass2_contracts.py::test_unknown_listed_date_must_not_bypass_seasoning_filter` | listed_date NULL → 상장 6개월 검사 생략 | CORR-HARD-001 (P0-A) |
-| `tests/integration/test_pass2_pit_gate.py` 4건 | PIT 정정 룩어헤드 / 게이트 비결정 병합 / 게이트 룩어헤드 / 결손 침묵 0 | PIT-AMEND-001(P0-A), CORR-GATE-001/002, CORR-DA-001 |
+| `tests/integration/test_pass2_pit_gate.py` 3건 | PIT 정정 룩어헤드 / 게이트 비결정 병합 / 게이트 룩어헤드 | PIT-AMEND-001(P0-A), CORR-GATE-001/002 |
 
 ### 해소됨 (Pass 3)
 
@@ -36,7 +36,8 @@ Pass 3에서 프로덕션 코드를 고치면 저절로 통과한다.**
 | `test_cagr_uses_actual_calendar_days` | CORR-METRIC-002 | audit/CORR-ENGINE-003 (compute_cagr에 캘린더 경계 파라미터) |
 | `test_turnover_expansion_5_to_20_stocks` | CORR-METRIC-001 (P0-A) | audit/CORR-METRIC-001 (0.5Σ|Δw| 표준 정의) — **characterization 5건 정당 깨짐, baseline 갱신 승인 대기** |
 | `test_benchmark_fetch_failure_must_not_become_zero_return` (×2) | CORR-BENCH-001 | audit/CORR-BENCH-001 (BenchmarkDataUnavailable 예외, regime 복제본 포함) |
+| `test_avg_turnover_missing_data_must_not_be_silent_zero` | CORR-DA-001 | audit/CORR-DA-001 (PriceDataUnavailable + hard_filter 명시 사유) |
 
 **정상 상태 요약**: fast suite = 통과 다수 + **의도적 실패 2개(HARD-001·sharpe P2)** + xfail 1개 + **characterization 정당 깨짐 5개(METRIC-001, baseline 승인 대기)**.
-integration suite = 통과 30개 + **의도적 실패 4개**.
+integration suite = 통과 31개 + **의도적 실패 3개(PIT-AMEND·GATE×2)**.
 이 실패들을 통과시키려고 테스트를 고치지 마라 — Pass 3의 프로덕션 수정이 통과시킨다.

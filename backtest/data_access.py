@@ -14,6 +14,24 @@ import pandas as pd
 
 log = logging.getLogger(__name__)
 
+
+class PriceDataUnavailable(RuntimeError):
+    """price_history에 해당 종목의 행이 아예 없음 (미수집 또는 미상장).
+
+    '데이터 없음'과 '거래 없음(정지·무거래)'은 다른 상태다 (CORR-DA-001) —
+    조용한 0/False 반환 대신 이 예외로 구분한다. 호출자가 '제외'로 처리하려면
+    명시적으로 잡아서 사유를 남겨라 (hard_filter가 그렇게 한다).
+    """
+
+
+def _has_any_price_row(cur, ticker: str, as_of: date) -> bool:
+    cur.execute(
+        "SELECT 1 FROM price_history WHERE ticker = %s AND date <= %s LIMIT 1",
+        (ticker, as_of),
+    )
+    return cur.fetchone() is not None
+
+
 # TTM 계산 대상 계정 (IS + CF: 기간 누적값)
 _IS_CF_ACCOUNTS = frozenset({
     '매출액', '매출총이익', '영업이익', '당기순이익',
@@ -25,7 +43,13 @@ _IS_CF_ACCOUNTS = frozenset({
 
 def get_avg_turnover(conn, ticker: str, as_of: date, window: int = 20,
                      max_lookback_days: int = 90) -> float:
-    """최근 window 영업일 평균 거래대금(KRW). 데이터 없거나 is_suspended이면 0으로 처리.
+    """최근 window 영업일 평균 거래대금(KRW).
+
+    계약 (CORR-DA-001):
+      - price_history에 이 종목의 행이 **아예 없으면** PriceDataUnavailable을 던진다
+        (미수집/미상장 — '무거래'와 다른 상태. 조용한 0 반환 금지).
+      - 행은 있으나 거래정지·turnover NULL 등으로 유효 거래가 없으면 0.0
+        (실제 '거래 없음' — 유동성 부족 제외 사유로 정당).
 
     max_lookback_days: 이 기간(캘린더 일) 밖의 데이터는 사용하지 않는다.
     거래정지 후 오래된 거래량이 현재 유동성인 것처럼 계산되는 것을 방지.
@@ -33,7 +57,7 @@ def get_avg_turnover(conn, ticker: str, as_of: date, window: int = 20,
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT COALESCE(AVG(turnover), 0)
+            SELECT AVG(turnover), COUNT(*)
             FROM (
                 SELECT turnover
                 FROM price_history
@@ -47,12 +71,17 @@ def get_avg_turnover(conn, ticker: str, as_of: date, window: int = 20,
             """,
             (ticker, as_of, as_of, max_lookback_days, window),
         )
-        row = cur.fetchone()
-    return float(row[0]) if row and row[0] is not None else 0.0
+        avg, cnt = cur.fetchone()
+        if cnt == 0 and not _has_any_price_row(cur, ticker, as_of):
+            raise PriceDataUnavailable(f'{ticker}: price_history에 {as_of} 이전 행 없음')
+    return float(avg) if avg is not None else 0.0
 
 
 def has_recent_trade(conn, ticker: str, as_of: date, window: int = 5) -> bool:
     """최근 window 영업일(KRX 거래일 기준) 중 거래가 한 건이라도 있으면 True.
+
+    계약 (CORR-DA-001): price_history에 이 종목의 행이 아예 없으면
+    PriceDataUnavailable을 던진다 — '거래정지'(False)와 '데이터 미수집'은 다른 상태다.
 
     price_history에서 as_of 이전 최근 window 거래일을 조회해 is_suspended=FALSE인
     날이 하나라도 있는지 확인한다. 없으면 거래정지 상태로 간주.
@@ -72,6 +101,8 @@ def has_recent_trade(conn, ticker: str, as_of: date, window: int = 5) -> bool:
             (ticker, as_of, window),
         )
         row = cur.fetchone()
+        if (not row or row[0] == 0) and not _has_any_price_row(cur, ticker, as_of):
+            raise PriceDataUnavailable(f'{ticker}: price_history에 {as_of} 이전 행 없음')
     return (row[0] > 0) if row else False
 
 

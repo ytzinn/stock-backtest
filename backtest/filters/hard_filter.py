@@ -4,9 +4,18 @@ Step 1 — Hard Filter.
 거래유동성, 상장기간, PIT 데이터 존재, 상장폐지 여부를 검사한다.
 R06(감사의견), R08(관리종목)은 DB 데이터 미수집 → 미구현 (Phase 3 이후 추가 예정).
 """
+import logging
 from datetime import date
 
-from backtest.data_access import get_avg_turnover, get_listed_date, has_recent_trade, is_delisted_at
+from backtest.data_access import (
+    PriceDataUnavailable,
+    get_avg_turnover,
+    get_listed_date,
+    has_recent_trade,
+    is_delisted_at,
+)
+
+log = logging.getLogger(__name__)
 
 
 class HardFilter:
@@ -54,13 +63,19 @@ def _hard_filter(
 ) -> tuple[bool, str]:
     """True = 통과. 반환: (pass_flag, reason)"""
 
-    # 직전 5 영업일 중 거래 0건 → 거래정지 상태로 간주, 편입 불가
-    if not has_recent_trade(conn, ticker, rebalance_date, window=5):
-        return False, '5일 이상 거래정지'
+    # 가격 데이터 자체가 없는 종목(미수집/미상장)은 '거래정지'·'거래대금 부족'과
+    # 구분해 명시 사유로 제외한다 (CORR-DA-001 — 조용한 유니버스 왜곡을 가시화).
+    try:
+        # 직전 5 영업일 중 거래 0건 → 거래정지 상태로 간주, 편입 불가
+        if not has_recent_trade(conn, ticker, rebalance_date, window=5):
+            return False, '5일 이상 거래정지'
 
-    # 거래유동성: 최근 20 영업일 일평균 거래대금 (최대 90일 이내 데이터만 사용)
-    if get_avg_turnover(conn, ticker, rebalance_date, 20) < min_turnover:
-        return False, '거래대금 부족'
+        # 거래유동성: 최근 20 영업일 일평균 거래대금 (최대 90일 이내 데이터만 사용)
+        if get_avg_turnover(conn, ticker, rebalance_date, 20) < min_turnover:
+            return False, '거래대금 부족'
+    except PriceDataUnavailable as e:
+        log.warning(f'[가격 데이터 없음] {ticker} @ {rebalance_date}: {e} — 유니버스 제외')
+        return False, '가격 데이터 없음 (미수집/미상장)'
 
     # 상장기간: listed_date 기준 min_listed_months 개월 이상
     ld = get_listed_date(conn, ticker)
