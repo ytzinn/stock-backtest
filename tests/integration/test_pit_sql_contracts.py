@@ -91,24 +91,29 @@ def test_amendment_before_rebalance_uses_amended_value(conn, make_stock):
     assert result['BBB003'][0]['당기순이익'] == 200.0
 
 
-def test_amendment_after_rebalance_with_null_original_uses_amended_value_LOOKAHEAD(conn, make_stock):
+def test_amendment_after_rebalance_with_null_original_excludes_account(conn, make_stock):
     """
-    ⚠ 현행 동작 문서화 (오라클 아님) — TECH_DEBT.md PIT-AMEND-001.
-
-    amendment_from > rebalance_date 인데 original_amount 가 NULL(원본 미캡처)이면
-    CASE의 ELSE 분기로 떨어져 **정정 반영값(amount)이 그대로 쓰인다** = 조용한 룩어헤드.
-    올바른 계약이 무엇이어야 하는지(제외? 원본 필수?)는 Pass 1 정책 결정 사항이므로,
-    여기서는 현행 동작을 고정해 '동작이 조용히 바뀌는 것'만 막는다.
-    이 테스트가 깨지면: PIT-AMEND-001이 수정된 것 — TECH_DEBT.md를 갱신하고 이 테스트를
-    새 계약으로 교체하라.
+    확정 계약 (PIT-AMEND-001 수정, 2026-07-12 사용자 결정): 정정 미공개 구간에서
+    원본값이 소실된 계정은 **사용 불가로 제외**한다 — 정정값을 쓰면 룩어헤드다.
+    (1차 대응은 XBRL 원본 백필 — 백필이 채우지 못한 잔여분에 이 보수 규칙이 적용된다.)
+    정정 공개(amendment_from) 이후부터는 정정값이 정상 사용된다.
     """
     make_stock('BBB004')
     _insert_pit(conn, 'BBB004', 2023, '당기순이익', amount=200.0,
                 available_from=date(2024, 3, 20),
                 original_amount=None, amendment_from=REBAL + timedelta(days=30))
+    # 같은 종목의 다른 계정(정정 무관)은 정상 사용돼야 한다 — 계정 단위 제외 확인용
+    _insert_pit(conn, 'BBB004', 2023, '자본총계', amount=1000.0,
+                available_from=date(2024, 3, 20))
 
     result = load_pit_series(conn, REBAL, n_years=3, report_type='FY')
-    assert result['BBB004'][0]['당기순이익'] == 200.0   # ← 룩어헤드 값 (현행 동작)
+    pit0 = result['BBB004'][0]
+    assert '당기순이익' not in pit0          # 오염 계정만 제외
+    assert pit0['자본총계'] == 1000.0        # 무관 계정은 유지
+
+    # 정정 공개 이후 리밸런싱에서는 정정값 사용
+    result_after = load_pit_series(conn, REBAL + timedelta(days=60), n_years=3, report_type='FY')
+    assert result_after['BBB004'][0]['당기순이익'] == 200.0
 
 
 # ── I-4: CFS ↔ OFS fallback ────────────────────────────────────────────────────

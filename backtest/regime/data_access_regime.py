@@ -161,6 +161,9 @@ def book_equity_batch(conn, tickers: list[str], as_of: date) -> dict[str, float]
                        CASE
                            WHEN f.amendment_from IS NOT NULL AND f.amendment_from <= %s
                            THEN f.amount            -- 정정 공개됨 → 정정값
+                           WHEN f.amendment_from IS NOT NULL AND f.original_amount IS NULL
+                           THEN NULL                -- 정정 미공개 + 원본 미상 → 사용 불가
+                                                    -- (PIT-AMEND-001, load_pit_series와 동일 규칙)
                            WHEN f.original_amount IS NOT NULL
                            THEN f.original_amount   -- 정정 미공개 → 원본값
                            ELSE f.amount             -- 정정 없음

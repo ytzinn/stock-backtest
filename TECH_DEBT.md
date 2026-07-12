@@ -53,6 +53,10 @@
 - **Pass 2 판정**: **P0-A 승격.** 수정은 정책 결정 필요((a)계정 제외 (b)available_from 이동
   (c)XBRL 원본 백필) — CORR-GATE-002·DOC-PIT-001과 데이터 모델 결정 공유. 수정 순서 7번.
 - **Label**: [검증된 사실]
+- **상태: ✅ 코드 수정 완료 (Pass 3, PR audit/PIT-AMEND-001, 사용자 결정 (c)+잔여 보수)** —
+  쿼리 계약: 정정 미공개+원본 미상 계정은 노출 창에서 제외(NULL) — load_pit_series·
+  book_equity_batch 동일 적용. 배포 후 런북: xbrl_historical_ingest 백필 → pit_loader
+  재빌드 → **전후 ablation 비교(사용자 지정 필수 산출물)**. PR 본문 참조.
 
 ### CORR-HARD-001 — listed_date NULL이면 상장기간 검사 통과 ★ Pass 2 승격
 - **Commit**: 5ea5c48 / **Location**: `backtest/filters/hard_filter.py::_hard_filter` (66-68)
