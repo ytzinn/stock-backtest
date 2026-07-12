@@ -1,20 +1,14 @@
 """
-[O-6] 최소 편입 종목 수 — 정책 결정 항목 (CONTRACT-PF-001).
+[O-6] 최소 편입 종목 수 — 정책 확정 (CONTRACT-PF-001, 2026-07-12).
 
-portfolio.py 계약 충돌:
-  docstring (portfolio.py:28): "후보가 MIN_PORTFOLIO_STOCKS 미만이면 빈 dict
-                                → engine이 period_return=0으로 처리"
-  구현     (portfolio.py:35): n == 0 일 때만 빈 dict — 1~4개면 그대로 전액 투자
-
-어느 쪽이 정답인지 **감사자가 임의로 정하지 않는다** (AUDIT_01 O-6 지시).
-docstring 쪽 계약을 xfail(strict=False)로 걸어두고 TECH_DEBT.md CONTRACT-PF-001에
-정책 결정 항목으로 올린다. 선택지:
-  (a) 5종목 미만 → 현금 100%   (b) 그대로 전액 투자(현행 동작)
-  (c) 부족분만 현금             (d) 차선 종목으로 보완
+**확정된 계약**: 후보가 1개라도 있으면 그 수만큼 전액 투자(동일가중 1/n).
+빈 dict는 후보 0개일 때만. (선택지 (a)현금100% / (c)부족분 현금 / (d)차선 보완은
+비채택 — 실측상 5종목 미만 구간 0건, 5~7종목 구간 2건뿐이라 결과 영향 미미.
+사용자 결정 이력은 TECH_DEBT.md CONTRACT-PF-001 참조.)
 
 관련 동작: pipeline.score_and_rank()는 RIM 컷 통과가 MIN_PORTFOLIO_STOCKS 미만이면
-고평가 종목을 upside 순으로 **보완**한다 (pipeline.py:111-118) — 선택지 (d)가 랭킹
-단계에 이미 부분 구현돼 있는 셈이라, 정책 결정 시 두 단계의 상호작용을 함께 정해야 한다.
+고평가 종목을 upside 순으로 5개까지 보완한다 (pipeline.py) — 랭킹 단계의 보완과
+구성 단계의 전액 투자가 한 세트의 확정 정책이다.
 """
 from __future__ import annotations
 
@@ -28,17 +22,13 @@ def _candidates(n: int) -> list[dict]:
              'fair_value': 1000.0, 'price': 500.0} for i in range(n)]
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason='CONTRACT-PF-001: docstring은 "MIN_PORTFOLIO_STOCKS 미만이면 빈 dict"이나 '
-           '구현은 n==0일 때만 빈 dict. 정책 결정 전까지 xfail(strict=False) 유지 — '
-           'TECH_DEBT.md 참조. 임의 수정 금지.',
-)
-def test_docstring_contract_below_min_stocks_returns_empty():
-    """docstring 계약: 후보 3개 (< MIN_PORTFOLIO_STOCKS=5) → 빈 포트폴리오."""
+def test_below_min_stocks_invests_fully_in_available_candidates():
+    """확정 계약: 후보 3개 (< MIN_PORTFOLIO_STOCKS=5) → 3종목 전액 투자 (각 1/3)."""
     assert MIN_PORTFOLIO_STOCKS == 5   # 상수가 바뀌면 이 테스트 전제도 재검토
     portfolio = build_portfolio(_candidates(3), n_stocks=20)
-    assert portfolio == {}
+    assert len(portfolio) == 3
+    assert all(w == pytest.approx(1 / 3, abs=1e-12) for w in portfolio.values())
+    assert sum(portfolio.values()) == pytest.approx(1.0, abs=1e-12)
 
 
 def test_zero_candidates_returns_empty():

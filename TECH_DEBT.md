@@ -204,8 +204,11 @@
   ② 구현 "n==0만 빈 dict, 1개라도 있으면 전액 투자" ③ SPEC_04 §9-1 "충족 종목 수만큼 편입,
   **현금 보유 허용**" — 셋 다 다르다. 선택지 (a)현금100% (b)전액투자(현행) (c)부족분 현금
   (d)차선 보완. `pipeline.py:111-118`의 고평가 보완(선택지 d의 부분 구현)과 함께 결정할 것.
-- **Evidence**: `tests/oracle/test_portfolio_contract.py` (xfail strict=False)
+- **Evidence**: `tests/oracle/test_portfolio_contract.py`
 - **Pass 1 판정**: P1 유지 (정책 결정 항목). **Label**: [검증된 사실]
+- **상태: ✅ 정책 확정·해소 (2026-07-12, 사용자 결정 (b), PR audit/CONTRACT-PF-001)** —
+  "후보가 있으면 전액 투자, 빈 dict는 0개일 때만"이 공식 계약. portfolio.py docstring·
+  SPEC_04 §9-1 동기화, xfail → 확정 계약 테스트로 교체.
 
 ### CONTRACT-PF-002 — 업종 25%·KOSDAQ 60% 상한: 문서는 "확정값", 코드는 미구현 스텁 (Pass 1 신규)
 - **Location**: `backtest/portfolio.py::apply_portfolio_constraints` (43-58, 입력 그대로 반환)
