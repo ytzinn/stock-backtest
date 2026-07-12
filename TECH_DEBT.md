@@ -189,6 +189,10 @@
   규칙("조회 실패 시 0 반환 구조는 P0-B") 적용.
 - **Evidence(Pass 2)**: `tests/integration/test_pass2_pit_gate.py::test_avg_turnover_missing_data_must_not_be_silent_zero`(의도적 실패)
 - **Label**: [검증된 사실](구조) / [확실하지 않은 사실](과거 수집 실패로 인한 실제 제외 사례)
+- **상태: ✅ 수정 완료 (Pass 3, PR audit/CORR-DA-001)** — PriceDataUnavailable 신설:
+  행이 아예 없으면(미수집/미상장) 예외, 행은 있으나 무거래면 0/False 유지(정당 제외).
+  hard_filter가 예외를 잡아 '가격 데이터 없음' 명시 사유 + 경고 로그로 가시화 —
+  정상 데이터에서 결과 불변, 수집 장애 시 조용한 왜곡 대신 진단 가능.
 
 ---
 
