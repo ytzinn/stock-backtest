@@ -300,6 +300,10 @@ def load_pit_series(
                        CASE
                            WHEN f.amendment_from IS NOT NULL AND f.amendment_from <= %s
                            THEN f.amount           -- 정정 공개됨 → 정정값
+                           WHEN f.amendment_from IS NOT NULL AND f.original_amount IS NULL
+                           THEN NULL               -- 정정 미공개 + 원본 미상 → 사용 불가
+                                                   -- (정정값을 쓰면 룩어헤드 — PIT-AMEND-001.
+                                                   --  NULL은 파이썬 쪽에서 계정 제외로 처리)
                            WHEN f.original_amount IS NOT NULL
                            THEN f.original_amount  -- 정정 미공개 → 원본값
                            ELSE f.amount           -- 정정 없음
