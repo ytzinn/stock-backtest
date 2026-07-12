@@ -40,10 +40,11 @@ def test_cagr_uses_actual_calendar_days():
     두 구간: 2020-04-03→2020-08-20 (+10%), 2020-08-20→2021-04-05 (+10%).
     실제 경과 = 2020-04-03 → 2021-04-05 = 367일.
     진실: 1.21^(365.25/367) − 1  (≈ 20.93%)
-    현행: 구간수 2 ÷ 2 = 1년 → 21.00% — 경과일수를 무시한다.
 
-    ⚠ 의도적 실패 (CORR-METRIC-002 증거). 수정 전 영향 추정용 차이 기록은
-      GAPS.md Pass 0C 절 참조. 고치지 말고 그대로 둘 것.
+    [CORR-METRIC-002 해소 이력] 종전 compute_cagr는 날짜를 받을 수조차 없어(구간수÷2
+    관례) 이 진실값을 낼 방법이 없었다 — Pass 2까지 의도적 실패 상태였고,
+    PR audit/CORR-ENGINE-003에서 start_date/end_date 캘린더 경계 파라미터가 추가되며
+    통과로 전환. 수학적 기대값 자체는 변경 전과 동일하다 (진실 불변, API만 진화).
     """
     period_dates = [date(2020, 4, 3), date(2020, 8, 20)]
     end_of_last  = date(2021, 4, 5)
@@ -52,7 +53,19 @@ def test_cagr_uses_actual_calendar_days():
     elapsed_days = (end_of_last - period_dates[0]).days
     true_cagr = float((1.21) ** (365.25 / elapsed_days) - 1)
 
-    assert compute_cagr(returns) == pytest.approx(true_cagr, abs=1e-6)
+    assert compute_cagr(
+        returns, start_date=period_dates[0], end_date=end_of_last
+    ) == pytest.approx(true_cagr, abs=1e-9)
+
+
+def test_cagr_uneven_periods_calendar_definition():
+    """단일 4.5개월 구간 +10% → 연환산 = 1.1^(365.25/139) − 1 (구간수÷2=반년 근사가 아님)."""
+    start, end = date(2020, 4, 3), date(2020, 8, 20)
+    returns = pd.Series([0.10], index=pd.DatetimeIndex([start]))
+    days = (end - start).days
+    assert compute_cagr(returns, start_date=start, end_date=end) == pytest.approx(
+        1.10 ** (365.25 / days) - 1, abs=1e-9
+    )
 
 
 def test_cagr_two_equal_periods_current_convention_sanity():

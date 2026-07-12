@@ -26,13 +26,28 @@ def compute_period_returns(
     return pd.Series(returns, index=pd.DatetimeIndex(dates))
 
 
-def compute_cagr(returns: pd.Series, periods_per_year: int = PERIODS_PER_YEAR) -> float:
-    """연복리 수익률(CAGR)."""
+def compute_cagr(
+    returns: pd.Series,
+    periods_per_year: int = PERIODS_PER_YEAR,
+    *,
+    start_date=None,
+    end_date=None,
+) -> float:
+    """
+    연복리 수익률(CAGR).
+
+    start_date·end_date(구간 전체의 실제 캘린더 경계)가 주어지면 **실제 경과일수 기준**
+    (365.25일 = 1년)으로 연수를 계산한다 — 리밸런싱 구간은 4월→8월(≈4.5개월)과
+    8월→4월(≈7.5개월)로 균등하지 않으므로 이것이 정확한 정의다 (CORR-METRIC-002).
+    날짜 미제공 시 구간수 ÷ periods_per_year 근사(레거시 관례)로 동작한다.
+    """
     if returns.empty:
         return 0.0
-    n      = len(returns)
-    total  = (1 + returns).prod()
-    years  = n / periods_per_year
+    total = (1 + returns).prod()
+    if start_date is not None and end_date is not None:
+        years = (end_date - start_date).days / 365.25
+    else:
+        years = len(returns) / periods_per_year
     return float(total ** (1 / years) - 1) if years > 0 else 0.0
 
 
@@ -69,14 +84,20 @@ def compute_metrics(
     strategy_returns:  pd.Series,
     benchmark_returns: pd.Series,
     periods_per_year:  int = PERIODS_PER_YEAR,
+    *,
+    start_date=None,
+    end_date=None,
 ) -> dict:
     """
     전략 성과 지표 종합 계산.
 
     반환: {cagr, sharpe, mdd, alpha, robustness, benchmark_cagr}
+    start_date/end_date 제공 시 CAGR는 실제 캘린더 경과일수 기준 (compute_cagr 참조).
     """
-    strat_cagr = compute_cagr(strategy_returns, periods_per_year)
-    bench_cagr = compute_cagr(benchmark_returns, periods_per_year)
+    strat_cagr = compute_cagr(strategy_returns, periods_per_year,
+                              start_date=start_date, end_date=end_date)
+    bench_cagr = compute_cagr(benchmark_returns, periods_per_year,
+                              start_date=start_date, end_date=end_date)
 
     return {
         'cagr':            strat_cagr,
