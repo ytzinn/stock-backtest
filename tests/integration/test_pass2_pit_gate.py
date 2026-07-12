@@ -15,7 +15,7 @@ from datetime import date, timedelta
 import pytest
 
 from backtest.data_access import get_avg_turnover, load_gate_passed_tickers, load_pit_series
-from ingest.dq_gate import _load_accounts
+from ingest.dq_gate import _load_accounts, run_dq_gate
 
 pytestmark = pytest.mark.integration
 
@@ -66,29 +66,17 @@ def test_amended_row_without_original_must_not_leak_amended_value(conn, make_sto
 
 def test_gate_load_accounts_must_prefer_cfs_deterministically(conn, make_stock):
     """
-    [CORR-GATE-001 재현]
-    dq_gate._load_accounts()는 fs_div 필터·ORDER BY 없이 dict를 덮어써 CFS/OFS 중
-    어느 쪽이 이기는지 비결정적이다. 기대 계약: load_pit_series와 일관된 CFS 우선.
+    [CORR-GATE-001 확정 계약 — Pass 3 수정으로 통과 전환]
+    종전 _load_accounts()는 fs_div 필터·ORDER BY 없이 dict를 덮어써 CFS/OFS 승자가
+    비결정적이었다. 수정: ORDER BY로 CFS가 항상 마지막에 덮어쓰도록 고정
+    (load_pit_series와 일관된 CFS 우선).
 
-    합성: CFS 자본총계=+100(정상), OFS=-100(자본잠식) — 승자에 따라 R02 판정이 뒤집힌다.
-    CFS를 먼저 INSERT하면 PostgreSQL seq scan 순서상 OFS가 나중에 읽혀 dict를 덮어쓴다.
-
-    ⚠ 의도적 실패 — 현재 -100(OFS)이 반환된다. (스캔 순서 의존이라 이 실패 자체가
-      비결정성의 증거다 — 수정 후에는 순서와 무관하게 +100이어야 한다.)
+    합성: CFS 자본총계=+100(정상), OFS=-100(자본잠식) — 승자에 따라 R02가 뒤집힌다.
+    삽입 순서와 무관하게 CFS(+100)여야 한다.
     """
     make_stock('GA2001')
-    # dq_gate._load_accounts는 financials 테이블을 읽는다 — 합성 스키마에 동일 구조 생성.
-    # CFS를 먼저, OFS를 나중에 INSERT (seq scan 순서상 OFS가 dict를 덮어쓰게 유도).
     with conn.cursor() as cur:
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS financials (
-                id SERIAL PRIMARY KEY, ticker TEXT NOT NULL, corp_code TEXT DEFAULT '0',
-                year INTEGER NOT NULL, report_type TEXT NOT NULL, fs_div TEXT NOT NULL,
-                account_nm TEXT NOT NULL, amount NUMERIC, frmtrm_amount NUMERIC,
-                UNIQUE (ticker, year, report_type, fs_div, account_nm)
-            )
-        """)
-        cur.execute("TRUNCATE financials")
+        # CFS를 먼저 INSERT (종전 구현이라면 seq scan 순서상 OFS가 덮어썼을 배치)
         cur.execute(
             "INSERT INTO financials (ticker, year, report_type, fs_div, account_nm, amount) "
             "VALUES ('GA2001', 2023, 'FY', 'CFS', '자본총계', 100.0)")
@@ -109,30 +97,42 @@ def test_gate_load_accounts_must_prefer_cfs_deterministically(conn, make_stock):
 
 def test_gate_verdict_must_reflect_values_known_at_rebalance(conn, make_stock):
     """
-    [CORR-GATE-002 재현 — 게이트 경유 룩어헤드, end-to-end]
-    시나리오: 원본 공시 자본총계 = -100(자본잠식, R02 REJECT 대상). 리밸런싱 이후의
-    정정공시로 +100으로 수정됨. 현재 파이프라인은 게이트를 financials(정정 반영값)로
-    일괄 재판정하므로 universe_gate_pit에 'PASS'가 저장되고, 정정 **이전** 리밸런싱일
-    조회에서도 이 종목이 유니버스에 들어온다 — 시장이 자본잠식으로 알던 시점에.
+    [CORR-GATE-002 확정 계약 — Pass 3 수정으로 통과 전환, end-to-end]
+    시나리오: 원본 공시 자본총계 = -100(자본잠식, R02 REJECT 대상). 이후 정정공시로
+    +100으로 수정됨 (financials.amount는 정정값으로 덮어써지고 original_amount에
+    원본 보존 — dart_ingest/amendment_checker 동작).
 
-    기대 계약: universe_gate_pit는 이름대로 PIT — 리밸런싱 시점에 공개돼 있던 값 기준.
-    운영 DB 실측: 정정으로 자본총계 부호가 뒤집힌 행 145건 (플립 후보).
-
-    ⚠ 의도적 실패 — 현재 아키텍처에서는 포함된다.
+    확정 계약 (사용자 결정 (a), 2026-07-12): 게이트는 **최초 공시값**(COALESCE(original,
+    amount)) 기준으로 판정한다 — 정정 이전 리밸런싱일에서 시장이 알던 값. 원본 -100
+    → R02 REJECT → 유니버스 제외. (운영 DB 실측: 부호 플립 145행이 이 경로의 대상.)
     """
     make_stock('GB2001')
+    # financials: 정정 후 상태 (amount=정정값 +100, original_amount=원본 -100)
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO financials (ticker, year, report_type, fs_div, account_nm, "
+            " amount, original_amount) "
+            "VALUES ('GB2001', 2023, 'FY', 'CFS', '자본총계', 100.0, -100.0)")
+    # financials_pit: 게이트 JOIN용 가용성 행 (최신 보고서 = 2023 FY)
     _insert_pit(conn, 'GB2001', 2023, '자본총계', amount=100.0,
                 available_from=REBAL - timedelta(days=10),
                 original_amount=-100.0, amendment_from=REBAL + timedelta(days=30))
+
+    # 수정된 dq_gate 평가 경로를 그대로 구동 (최초 공시값 기준 판정 → upsert)
     with conn.cursor() as cur:
-        # 현행 dq_gate가 (정정 반영값 +100 기준으로) 저장했을 판정을 재현
-        cur.execute("INSERT INTO universe_gate_pit (ticker, year, report_type, status) "
-                    "VALUES ('GB2001', 2023, 'FY', 'PASS')")
+        accounts = _load_accounts(cur, 'GB2001', 2023, 'FY')
+    assert accounts['자본총계'] == -100.0   # PIT: 원본값이 판정 입력이어야 한다
+    run_dq_gate('GB2001', 2023, 'FY', accounts, conn=conn)
+
+    with conn.cursor() as cur:
+        cur.execute("SELECT status FROM universe_gate_pit "
+                    "WHERE ticker='GB2001' AND year=2023 AND report_type='FY'")
+        assert cur.fetchone()[0] == 'REJECT'   # R02: 자본총계 < 0 (원본 기준)
 
     tickers = load_gate_passed_tickers(conn, REBAL, report_type='FY')
     assert 'GB2001' not in tickers, (
-        'REBAL 시점 시장이 알던 자본총계는 -100(자본잠식)인데, 이후 정정값(+100) 기준의 '
-        'PASS 판정으로 유니버스에 포함됐다 — 게이트 경유 룩어헤드 (CORR-GATE-002)'
+        'REBAL 시점 시장이 알던 자본총계는 -100(자본잠식)인데 유니버스에 포함됐다 — '
+        '게이트 경유 룩어헤드 (CORR-GATE-002)'
     )
 
 

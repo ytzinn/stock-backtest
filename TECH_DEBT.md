@@ -170,6 +170,8 @@
   단 값이 갈리는 데이터가 들어오는 순간 게이트 판정(=유니버스)이 실행마다 흔들릴 수 있는 구조.
 - **Evidence(Pass 2)**: `tests/integration/test_pass2_pit_gate.py::test_gate_load_accounts_must_prefer_cfs_deterministically`(의도적 실패 — OFS가 CFS를 덮어씀을 실증)
 - **Label**: [검증된 사실](구조) / 현재 무해(실측)
+- **상태: ✅ 수정 완료 (Pass 3, PR audit/CORR-GATE-001)** — ORDER BY로 CFS가 항상
+  마지막에 덮어쓰도록 고정 (스캔 순서 비의존).
 
 ### CORR-GATE-002 — 게이트가 정정 반영값으로 판정 → 게이트 경유 룩어헤드 (Pass 1 신규)
 - **Commit**: 5ea5c48
@@ -185,6 +187,10 @@
   percentile 컷은 유니버스에 직접 의존하므로 진단 시나리오 미세 오염 가능 [Claude 의견].
 - **Evidence(Pass 2)**: `tests/integration/test_pass2_pit_gate.py::test_gate_verdict_must_reflect_values_known_at_rebalance`(의도적 실패)
 - **Label**: [검증된 사실](경로·후보 규모·비침투) 
+- **상태: ✅ 코드 수정 완료 (Pass 3, PR audit/CORR-GATE-001, 사용자 결정 (a))** —
+  _load_accounts가 COALESCE(original_amount, amount) = 최초 공시값으로 판정.
+  배포 후 런북: `python -m ingest.dq_gate` 전종목 재판정 (universe_gate_pit 재생성)
+  → ablation diff. run_dq_gate에 conn 주입 지원 (평가·upsert 동일 트랜잭션).
 
 ### CORR-DA-001 — get_avg_turnover/has_recent_trade가 "데이터 없음"과 "거래 없음"을 구분 못 함 (Pass 1 신규)
 - **Commit**: 5ea5c48
@@ -201,6 +207,31 @@
   행이 아예 없으면(미수집/미상장) 예외, 행은 있으나 무거래면 0/False 유지(정당 제외).
   hard_filter가 예외를 잡아 '가격 데이터 없음' 명시 사유 + 경고 로그로 가시화 —
   정상 데이터에서 결과 불변, 수집 장애 시 조용한 왜곡 대신 진단 가능.
+
+### CORR-GATE-003 — universe_gate_pit에 시점 차원이 없어 게이트 판정이 시점 stale (Pass 3 신규)
+- **Commit**: 1fc3f3e (PR #10 수정 중 발견 — 수정의 부작용을 자체 재검토하다 확인)
+- **Location**: `ingest/schema.sql::universe_gate_pit` (PK = ticker, year, report_type — **시점 없음**)
+  × `ingest/dq_gate.py::_load_accounts` × `backtest/data_access.py::load_gate_passed_tickers`
+- **Expected contract**: 게이트 판정은 각 리밸런싱 시점에 시장이 알던 값 기준 (진짜 PIT)
+- **Actual behavior**: 판정값이 (ticker, year, report_type)당 **단 하나**다. CORR-GATE-002
+  수정으로 판정 기준을 "최초 공시값"으로 고정한 결과:
+    - 정정 **이전** 리밸런싱 → 원본 기준 = **올바름** (룩어헤드 제거 완료)
+    - 정정 **이후** 리밸런싱 → 여전히 원본 기준 = **stale.** 정정으로 자본잠식이 해소된
+      기업이 그 사실이 공개된 뒤에도 영구 REJECT된다 (**반대 방향 오류**)
+- **Result impact**: Conditional — 오염 방향이 보수적(잘못 편입이 아니라 잘못 제외)이므로
+  P0-A 아님. 대상 규모: 자본총계 부호 플립 145행 [검증된 사실, 서버 조회]. 실제 편입 기회
+  상실 규모는 미측정 [확실하지 않은 사실 — 확인법: 정정 공개 이후 리밸런싱에서 원본 기준
+  REJECT인데 정정 기준 PASS인 (ticker, rebal) 쌍 산출].
+- **채택된 대응 (사용자 결정 2026-07-12, 선택지 (a))**: PR #10을 그대로 머지 — 룩어헤드
+  제거를 우선하고 시점 stale은 보수적 오염이므로 감수. 정석 해법은 별도 항목으로 처리:
+    - **(b) 권장**: 게이트 룰(R02/R03/R09 등)을 백테스트 런타임에 동적 평가.
+      `load_pit_series()`가 이미 시점별로 올바른 값을 주므로 그 값으로 평가하면 시점
+      정확성이 자동 확보된다. 게이트 룰이 ingest → backtest로 이동하는 구조 변경.
+    - (c) `universe_gate_pit`에 시점 차원 추가 — 스키마 변경 + 전량 재수집.
+      DOC-PIT-001(append-only PIT vs 단일행 upsert)과 같은 아키텍처 결정에 묶인다.
+- **Evidence**: `tests/integration/test_pass2_pit_gate.py::test_gate_verdict_must_reflect_values_known_at_rebalance`
+  (정정 **이전** 시점만 검증 — 정정 이후 시점 계약은 아직 테스트 없음. (b)/(c) 착수 시 추가할 것)
+- **Label**: [검증된 사실](구조·방향) / [확실하지 않은 사실](실제 편입 기회 상실 규모)
 
 ---
 

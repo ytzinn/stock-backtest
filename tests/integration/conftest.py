@@ -20,7 +20,7 @@ DEFAULT_DSN = 'host=127.0.0.1 port=5434 dbname=postgres user=postgres password=a
 
 # ingest/schema.sql 부분집합 (백테스트가 읽는 테이블만) + v8_xbrl_original 컬럼 반영
 SCHEMA_DDL = """
-DROP TABLE IF EXISTS financials_pit, disclosures, universe_gate_pit,
+DROP TABLE IF EXISTS financials, financials_pit, disclosures, universe_gate_pit,
                      price_history, market_cap_history, stock_listing_events, stocks CASCADE;
 
 CREATE TABLE stocks (
@@ -87,12 +87,29 @@ CREATE TABLE universe_gate_pit (
     year           INTEGER NOT NULL,
     report_type    TEXT NOT NULL,
     status         TEXT NOT NULL,
+    reject_reasons JSONB DEFAULT '[]',
+    flags          JSONB DEFAULT '[]',
+    evaluated_at   TIMESTAMPTZ DEFAULT now(),
     PRIMARY KEY (ticker, year, report_type)
+);
+
+CREATE TABLE financials (
+    id            SERIAL PRIMARY KEY,
+    ticker        TEXT NOT NULL REFERENCES stocks(ticker),
+    corp_code     TEXT NOT NULL DEFAULT '00000000',
+    year          INTEGER NOT NULL,
+    report_type   TEXT NOT NULL,
+    fs_div        TEXT NOT NULL,
+    account_nm    TEXT NOT NULL,
+    amount        NUMERIC,
+    frmtrm_amount NUMERIC,
+    original_amount NUMERIC,          -- v8_xbrl_original
+    UNIQUE (ticker, year, report_type, fs_div, account_nm)
 );
 """
 
 DATA_TABLES = [
-    'financials_pit', 'disclosures', 'universe_gate_pit',
+    'financials', 'financials_pit', 'disclosures', 'universe_gate_pit',
     'price_history', 'market_cap_history', 'stock_listing_events', 'stocks',
 ]
 
