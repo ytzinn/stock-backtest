@@ -17,7 +17,6 @@ Pass 3에서 프로덕션 코드를 고치면 저절로 통과한다.**
 
 | 실패 테스트 | 재현하는 결함 | TECH_DEBT ID |
 |---|---|---|
-| `test_engine_return_oracle.py::test_weighted_return_consumes_portfolio_weights` | `_calc_period_return()`이 weight를 소비하지 않고 단순평균 | CORR-ENGINE-001 |
 | `test_turnover_oracle.py::test_turnover_expansion_5_to_20_stocks` | turnover 산식이 비중 변화를 무시 (거래비용 입력값 오염) | CORR-METRIC-001 |
 | `test_metrics_oracle.py::test_cagr_uses_actual_calendar_days` | CAGR 연수를 캘린더일수가 아니라 구간수÷2로 계산 | CORR-METRIC-002 |
 | `test_metrics_oracle.py::test_sharpe_zero_variance_returns_zero` | zero-variance 가드가 returns.std()를 검사하고 나눗셈은 excess.std()로 → inf 가능 (오라클 작성 중 신규 발견) | CORR-METRIC-003 |
@@ -36,7 +35,8 @@ Pass 3에서 프로덕션 코드를 고치면 저절로 통과한다.**
 | 테스트 | 항목 | 해소 PR |
 |---|---|---|
 | `test_delisting_adjustments_are_order_independent` | CORR-ENGINE-002 | audit/CORR-ENGINE-002 (2-pass 재작성 + tie-break 고정) |
+| `test_weighted_return_consumes_portfolio_weights` | CORR-ENGINE-001 | audit/CORR-ENGINE-001 (weight 소비 + 재정규화) |
 
-**정상 상태 요약**: fast suite = 통과 다수 + **의도적 실패 8개** + xfail 1개 (ENGINE-002 해소 후).
+**정상 상태 요약**: fast suite = 통과 다수 + **의도적 실패 7개** + xfail 1개 (ENGINE-001/002 해소 후).
 integration suite = 통과 30개 + **의도적 실패 4개**.
 이 실패들을 통과시키려고 테스트를 고치지 마라 — Pass 3의 프로덕션 수정이 통과시킨다.

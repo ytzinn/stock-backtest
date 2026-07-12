@@ -202,7 +202,9 @@ def _calc_period_return(
     end_date:     date,
 ) -> tuple[float, float, float]:
     """
-    포트폴리오 구간 수익률 (기준/낙관/보수 조정값). 동일가중 평균.
+    포트폴리오 구간 수익률 (기준/낙관/보수 조정값). **build_portfolio()가 준 weight를
+    소비하는 가중 수익률** — 유효 종목의 weight 합으로 재정규화한다 (등가중 1/N이면
+    단순평균과 동일값).
 
     반환: (gross_return, opt_adj, cons_adj)
       gross_return : 기준 수익률 (상폐 × DELISTING_HAIRCUT=0.70)
@@ -220,14 +222,15 @@ def _calc_period_return(
     if not portfolio:
         return 0.0, 0.0, 0.0
 
-    # 1-pass: 가격·상폐 판정만 수집 (계산 없음). 2-pass: 확정된 유효 종목 수(n)로 계산.
-    # 분모 n을 순회 중에 줄이면서 상폐 조정 가중치(1/n)를 쓰면 가격결측 종목이 상폐 종목보다
+    # 1-pass: 가격·상폐 판정만 수집 (계산 없음). 2-pass: 확정된 유효 weight 합으로 계산.
+    # 분모를 순회 중에 줄이면서 상폐 조정 가중치를 쓰면 가격결측 종목이 상폐 종목보다
     # 앞/뒤 어디에 있느냐로 opt/cons가 달라진다 — 순회 순서는 RIM 정렬 순서라서 tie-break만
     # 바뀌어도 편입이 같은데 숫자가 바뀌는 결함(CORR-ENGINE-002)이었다. 결과는 반드시
-    # 편입 집합에만 의존해야 한다.
-    valid: list[tuple[float, float, float | None]] = []  # (price_start, price_end, last_if_delisted)
+    # 편입 집합(과 weight)에만 의존해야 한다.
+    valid: list[tuple[float, float, float, float | None]] = []
+    # (weight, price_start, price_end, last_if_delisted)
 
-    for ticker in portfolio:
+    for ticker, weight in portfolio.items():
         price_start = get_close_price(conn, ticker, start_date)
 
         if price_start is None or price_start <= 0:
@@ -235,28 +238,30 @@ def _calc_period_return(
 
         if is_delisted_at(conn, ticker, end_date):
             last = _last_known_price(conn, ticker, end_date)
-            valid.append((price_start, last * DELISTING_HAIRCUT, last))
+            valid.append((weight, price_start, last * DELISTING_HAIRCUT, last))
         else:
             price_end = get_close_price(conn, ticker, end_date)
             if price_end is None:
                 continue
-            valid.append((price_start, price_end, None))
+            valid.append((weight, price_start, price_end, None))
 
     if not valid:
         return 0.0, 0.0, 0.0
 
-    n = len(valid)
-    stock_returns = []
+    # 가격결측으로 탈락한 종목의 weight는 유효 종목에 비례 재배분 (합 1.0 재정규화).
+    # 등가중 1/N 포트폴리오에서는 종전 단순평균(sum/len)과 정확히 같은 값이다.
+    total_w = sum(w for w, *_ in valid)
+    gross    = 0.0
     opt_adj  = 0.0
     cons_adj = 0.0
-    for price_start, price_end, last in valid:
-        stock_returns.append(price_end / price_start - 1)
+    for weight, price_start, price_end, last in valid:
+        w = weight / total_w
+        gross += w * (price_end / price_start - 1)
         if last is not None:
-            w = 1.0 / n
             opt_adj  += w * last * (1.0 - DELISTING_HAIRCUT) / price_start
             cons_adj -= w * last * DELISTING_HAIRCUT / price_start
 
-    return sum(stock_returns) / n, opt_adj, cons_adj
+    return gross, opt_adj, cons_adj
 
 
 def _last_known_price(conn, ticker: str, before_date: date) -> float:
