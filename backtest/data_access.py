@@ -184,9 +184,21 @@ def get_shares_outstanding(conn, ticker: str, as_of: date) -> int | None:
 # ── 종목 메타 ───────────────────────────────────────────────────────────────────
 
 def get_listed_date(conn, ticker: str) -> date | None:
-    """stocks.listed_date 반환. 없으면 None."""
+    """stocks.listed_date 반환. 없으면 None (운영 DB의 92%가 NULL — CORR-HARD-001,
+    백필 전까지 호출자는 get_first_price_date 프록시로 보완해야 한다)."""
     with conn.cursor() as cur:
         cur.execute("SELECT listed_date FROM stocks WHERE ticker = %s", (ticker,))
+        row = cur.fetchone()
+    return row[0] if row else None
+
+
+def get_first_price_date(conn, ticker: str) -> date | None:
+    """price_history 최초 거래일. 상장일 프록시 (실제 상장일보다 늦을 수 없는 하한이 아니라
+    수집 시작일(2014-01)로 절단된 값 — 2014년 이전 상장 종목은 2014년으로 나온다.
+    '최근 상장' 판정(상장 N개월 미만)에는 보수적으로 안전: 프록시가 실제보다 늦으면
+    더 오래 제외될 뿐 조기 편입은 없다). 없으면 None."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT MIN(date) FROM price_history WHERE ticker = %s", (ticker,))
         row = cur.fetchone()
     return row[0] if row else None
 

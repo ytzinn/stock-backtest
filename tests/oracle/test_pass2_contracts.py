@@ -73,33 +73,47 @@ def test_benchmark_fetch_failure_must_not_become_zero_return(monkeypatch, fn_nam
 
 # ── CORR-HARD-001: listed_date NULL이면 상장기간 검사가 통과되는 문제 ─────────────
 
-def test_unknown_listed_date_must_not_bypass_seasoning_filter(monkeypatch):
-    """
-    [CORR-HARD-001 재현]
-    MASTER §3-3·SPEC_03 계약: 상장 6개월 미만 종목은 Hard Filter에서 제외.
-    현재 구현(hard_filter.py:66-68)은 listed_date가 NULL이면 검사 자체를 생략한다 —
-    운영 DB에서 stocks의 92.1%(3,005/3,264)가 NULL이므로 이 요건은 사실상 미작동.
-
-    합성 케이스: listed_date 불명 + 가격 이력이 20 영업일뿐(신규 상장 신호)인 종목.
-    기대: 상장기간을 확인할 수 없고 가용 증거가 '최근 상장'을 가리키면 제외.
-    (수정 방식은 열려 있음 — listed_date 백필, krx_listing_snapshots 프록시,
-     가격 이력 길이 프록시 등. 어떤 방식이든 이 케이스는 제외돼야 한다.)
-
-    ⚠ 의도적 실패 — 현재는 통과된다.
-    """
-    rebal = date(2024, 4, 3)
-
+def _patch_hard_filter_env(monkeypatch, listed_date=None, first_price_date=None):
     monkeypatch.setattr(hard_filter_mod, 'has_recent_trade', lambda *a, **k: True)
     monkeypatch.setattr(hard_filter_mod, 'get_avg_turnover', lambda *a, **k: 1e12)
-    monkeypatch.setattr(hard_filter_mod, 'get_listed_date', lambda *a, **k: None)
     monkeypatch.setattr(hard_filter_mod, 'is_delisted_at', lambda *a, **k: False)
+    monkeypatch.setattr(hard_filter_mod, 'get_listed_date', lambda *a, **k: listed_date)
+    monkeypatch.setattr(hard_filter_mod, 'get_first_price_date',
+                        lambda *a, **k: first_price_date)
 
-    # 가격 이력 20일뿐인 신규 상장 신호는 현재 구현이 조회하지 않는다 — 그게 결함이다.
+
+def test_unknown_listed_date_must_not_bypass_seasoning_filter(monkeypatch):
+    """
+    [CORR-HARD-001 확정 계약 — Pass 3 수정으로 통과 전환]
+    MASTER §3-3·SPEC_03 계약: 상장 6개월 미만 종목은 Hard Filter에서 제외.
+    종전 구현은 listed_date NULL이면 검사를 생략했다 (운영 DB 92%가 NULL → 요건 사망,
+    실편입 6건 재현 — IMPACT_MATRIX §2). 수정: NULL이면 가격 이력 최초일 프록시로 판정
+    (+ 배포 후 listed_date 백필, 사용자 결정 2026-07-12).
+
+    합성: listed_date 불명 + 첫 가격이 리밸 30일 전 (신규 상장) → 제외돼야 한다.
+    """
+    rebal = date(2024, 4, 3)
+    _patch_hard_filter_env(monkeypatch, listed_date=None,
+                           first_price_date=date(2024, 3, 4))   # 30일 전 상장 신호
+
     ok, reason = _hard_filter(
         'NEWLY', rebal, pit_series_for_ticker=[{'자본총계': 1.0}], conn=None,
         min_turnover=100_000_000, min_listed_months=6,
     )
     assert ok is False, (
-        'listed_date를 알 수 없는 종목이 상장기간 검사를 그냥 통과했다 — '
-        '운영 DB의 92%가 NULL이므로 "상장 6개월" 요건이 사실상 죽은 코드 (CORR-HARD-001)'
+        'listed_date를 알 수 없고 가격 이력이 30일뿐인 종목이 상장기간 검사를 통과했다 '
+        '(CORR-HARD-001)'
     )
+
+
+def test_unknown_listed_date_with_long_price_history_passes(monkeypatch):
+    """프록시 반대 방향: 가격 이력이 충분히 오래된 종목은 listed_date NULL이어도 통과."""
+    rebal = date(2024, 4, 3)
+    _patch_hard_filter_env(monkeypatch, listed_date=None,
+                           first_price_date=date(2014, 1, 2))   # 수집 시작일 = 구주
+
+    ok, _ = _hard_filter(
+        'OLDIE', rebal, pit_series_for_ticker=[{'자본총계': 1.0}], conn=None,
+        min_turnover=100_000_000, min_listed_months=6,
+    )
+    assert ok is True

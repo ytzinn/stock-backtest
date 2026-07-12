@@ -23,7 +23,6 @@ Pass 3에서 프로덕션 코드를 고치면 저절로 통과한다.**
 
 | 실패 테스트 | 재현하는 결함 | TECH_DEBT ID |
 |---|---|---|
-| `test_pass2_contracts.py::test_unknown_listed_date_must_not_bypass_seasoning_filter` | listed_date NULL → 상장 6개월 검사 생략 | CORR-HARD-001 (P0-A) |
 | `tests/integration/test_pass2_pit_gate.py` 2건 | 게이트 비결정 병합 / 게이트 룩어헤드 | CORR-GATE-001/002 |
 
 ### 해소됨 (Pass 3)
@@ -38,7 +37,8 @@ Pass 3에서 프로덕션 코드를 고치면 저절로 통과한다.**
 | `test_benchmark_fetch_failure_must_not_become_zero_return` (×2) | CORR-BENCH-001 | audit/CORR-BENCH-001 (BenchmarkDataUnavailable 예외, regime 복제본 포함) |
 | `test_avg_turnover_missing_data_must_not_be_silent_zero` | CORR-DA-001 | audit/CORR-DA-001 (PriceDataUnavailable + hard_filter 명시 사유) |
 | `test_amended_row_without_original_must_not_leak_amended_value` | PIT-AMEND-001 (P0-A) | audit/PIT-AMEND-001 (원본 미상 계정 노출창 제외 + XBRL 백필 런북) |
+| `test_unknown_listed_date_must_not_bypass_seasoning_filter` | CORR-HARD-001 (P0-A) | audit/CORR-HARD-001 (가격이력 프록시 가드 + listed_date 백필 스크립트) |
 
-**정상 상태 요약**: fast suite = 통과 다수 + **의도적 실패 2개(HARD-001·sharpe P2)** + xfail 1개 + **characterization 정당 깨짐 5개(METRIC-001, baseline 승인 대기)**.
+**정상 상태 요약**: fast suite = 통과 다수 + **의도적 실패 1개(sharpe P2 — Pass 3 비대상)** + **characterization 정당 깨짐 5개(METRIC-001, baseline 승인 대기)**. xfail 0 (CONTRACT-PF-001 확정).
 integration suite = 통과 32개 + **의도적 실패 2개(GATE×2)**.
 이 실패들을 통과시키려고 테스트를 고치지 마라 — Pass 3의 프로덕션 수정이 통과시킨다.

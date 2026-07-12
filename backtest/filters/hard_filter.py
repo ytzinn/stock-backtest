@@ -10,6 +10,7 @@ from datetime import date
 from backtest.data_access import (
     PriceDataUnavailable,
     get_avg_turnover,
+    get_first_price_date,
     get_listed_date,
     has_recent_trade,
     is_delisted_at,
@@ -77,10 +78,15 @@ def _hard_filter(
         log.warning(f'[가격 데이터 없음] {ticker} @ {rebalance_date}: {e} — 유니버스 제외')
         return False, '가격 데이터 없음 (미수집/미상장)'
 
-    # 상장기간: listed_date 기준 min_listed_months 개월 이상
+    # 상장기간: listed_date 기준 min_listed_months 개월 이상.
+    # listed_date NULL(운영 DB 92% — CORR-HARD-001)이면 검사를 건너뛰지 않고
+    # 가격 이력 최초일을 프록시로 판정한다 (수집 시작일 절단 때문에 실제 상장일보다
+    # 늦을 수 있으나 '최근 상장' 판정에는 보수 방향 — 조기 편입만은 막는다).
     ld = get_listed_date(conn, ticker)
+    if ld is None:
+        ld = get_first_price_date(conn, ticker)
     if ld is not None and (rebalance_date - ld).days < min_listed_months * 30:
-        return False, '상장 6개월 미만'
+        return False, '상장 6개월 미만 (listed_date 또는 가격이력 프록시)'
 
     # PIT FY 데이터 존재 여부: pit_series에 데이터가 없으면 제외
     if not pit_series_for_ticker:
