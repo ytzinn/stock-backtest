@@ -69,6 +69,10 @@
 - **Pass 2 판정**: **P0-A 승격.** 수정 = listed_date 백필(krx_listing_snapshots) + NULL 가드
   병행. selection 변경 확실. 수정 순서 8번.
 - **Label**: [검증된 사실](프록시 기준) / [확실하지 않은 사실](정확한 상장일 — krx_listing_snapshots/외부 IPO 기록 대조)
+- **상태: ✅ 코드 수정 완료 (Pass 3, PR audit/CORR-HARD-001)** — listed_date NULL이면
+  가격 이력 최초일 프록시로 상장기간 판정 (조기 편입 차단, 보수 방향). 배포 후 런북:
+  ingest/backfill_listed_dates.py (FDR KRX 공식 상장일 → listing_events → 잔여 프록시).
+  selection 변경 확실 (6건 이상 제외 예상) — 재실행 diff 승인 후 baseline 갱신.
 
 ---
 
