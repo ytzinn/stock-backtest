@@ -86,7 +86,10 @@ RANDOM(4개)·ARCHIVE(9개)는 이번 라운드 제외 — 사유는 `GAPS.md` P
 - [x] O-6 최소종목 정책 — xfail(strict=False) 계류, CONTRACT-PF-001로 TECH_DEBT 등재
 - [x] I-1~I-6 통합 테스트 30개 — 룩어헤드 방지 경로 전부 정상 확인.
       **신규 발견 2건**: PIT-AMEND-001(원본 미캡처 시 정정값 룩어헤드), MIX-FSDIV-001(계정 단위 CFS/OFS 혼합)
-- [x] TECH_DEBT.md 개설 (P0-A 1건 · P0-B 6건 · P1 다수)
+- [x] TECH_DEBT.md 개설 (P0-A 1건 · P0-B 6건 · P1 다수) — **⚠ 등급은 잠정.**
+      AUDIT_00 §2상 "TECH_DEBT.md 확정"은 Pass 1A/1B 게이트다. Pass 0C는 증거 기록 +
+      1차 판단까지만 하고 지우지 않은 채 남겼다(CONTRACT-PF-001만 AUDIT_01이 직접 지시).
+      Pass 1A/1B가 각 항목을 독립 재검토해 등급을 확정해야 게이트 통과로 본다.
 - [x] `scripts/audit/turnover_impact_scan.py` (tape 기반 영향 스캔, 재실행 가능)
 
 ---
@@ -94,10 +97,31 @@ RANDOM(4개)·ARCHIVE(9개)는 이번 라운드 제외 — 사유는 `GAPS.md` P
 ## Pass 1A/1B — 데이터·엔진 감사 (`AUDIT_02_PASS1.md`)
 
 - **모델 요구사항**: Fable 5
-- **상태**: ⏳ 미시작
-- Pass 0에서 넘어온 확인 과제: PIT-AMEND-001 발생 건수 쿼리(1A), CORR-BENCH-001 로그 대조(1B),
-  price_history 7주 지연 원인(1A), 미캡처 24개 시나리오의 상폐+결측 공존 여부(1B),
-  DOC-ABL-002 오라벨이 실제 보고에 쓰였는지(1B)
+- **사용 모델**: Fable 5 (일치)
+- **상태**: ✅ 완료 (2026-07-12)
+
+게이트:
+- [x] TECH_DEBT.md에 P0-A/P0-B 목록 확정 — **P0-A 1건 · P0-B 10건** (Pass 0C 잠정 8건 전건
+      재검토: 유지 7 + P2 확정 1, 신규 12건 등재). 각 항목 `Pass 1 판정:` 줄이 이중 점검 기록.
+- [x] 모든 항목에 심볼 위치 + commit SHA (기준 commit de93559, 헤더 명시)
+- [x] 모든 문장에 라벨 ([검증된 사실]/[Claude 의견]/[확실하지 않은 사실])
+- [x] "중복" 분류 항목의 의도적 분리 검토 흔적 (SSOT-EQUITY-001에 AUDIT_00 원칙 4 적용 명시,
+      data_access_regime은 의도적 분리로 판정 — 중복 부채 아님)
+- [x] 프로덕션 코드 미수정 (`git status` 확인)
+
+주요 신규 발견 (Pass 1):
+- **CORR-HARD-001** (P0-B): stocks 92%가 listed_date NULL → "상장 6개월" 필터 사실상 미작동
+- **CORR-GATE-001/002** (P0-B): dq_gate가 fs_div 비결정 병합 + 정정 반영값으로 판정(게이트
+  룩어헤드, 자본총계 부호 플립 후보 145행 실재)
+- **CORR-FRESH-001** (P0-B): 신선도 가드 부재 — #23 구간이 07-11 라벨로 05-22 stale 가격 사용 실사례
+- **CORR-DA-001** (P0-B): 데이터 미수집과 무거래를 구분 못 해 유니버스 조용한 왜곡 가능
+- PIT-AMEND-001 규모 확정: 정정 행의 21.6%(18,676행)가 원본 미캡처 — 룩어헤드 후보 실재
+- 해소: 상폐 플래그 0건 미결항목(불가능 확인, v5.3 버그 증상이었음), 티커 재사용 0건,
+  지연제출 룩어헤드 0건, stock_listing_history 잔존 0건
+- OPS-CRON-001: price 7주 지연 원인 = **가격 수집 크론 자체가 없음** (healthcheck만 등록)
+
+Pass 2로 넘길 재현 과제: PIT-AMEND-001(리밸런싱일 교차 실오염 산출), CORR-GATE-002(게이트
+재판정 시뮬), CORR-HARD-001(조기 편입 실사례), CORR-METRIC-001(이미 재현 완료 — 수정 PR 준비만)
 
 ## Pass 2 — 재현·영향분석 (`AUDIT_03_PASS2_3.md`)
 

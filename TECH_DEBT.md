@@ -1,152 +1,282 @@
 # TECH_DEBT — 코드 정합성 부채 대장
 
 > 포맷: AUDIT_00_MASTER.md §4. 라인 번호는 보조 정보 — **심볼과 commit SHA가 기준**이다.
-> 이 파일은 Pass 0C에서 개설됐다. 등급은 Pass 1에서 확정한다 (P0-A/P0-B만 Pass 2·3 대상).
 > 증거 테스트 중 "의도적 실패" 상태인 것들은 tests/oracle/README.md 참조 — 통과시키려고
 > 오라클을 고치지 마라.
+>
+> **기준 commit: de93559** (개별 `Commit:` 표기가 없는 항목의 공통 기준. Pass 0C 등재분은 5ea5c48).
+>
+> **상태: Pass 1A/1B 재검토 완료 (2026-07-12, Fable 5) — P0-A/P0-B 목록 확정.**
+> Pass 0C가 잠정 등재한 8개 항목을 전건 독립 재검토(유지 7 · 재검토확정 1)했고,
+> Pass 1 신규 발견 12건을 추가했다. 각 항목의 `Pass 1 판정:` 줄이 이중 점검 기록이다.
+> 다음 단계: P0-A/P0-B만 Pass 2(실패 테스트로 재현)·Pass 3(수정 PR) 대상.
 
 ---
 
-## P0-A — 숫자가 틀렸음이 재현됨
+## P0-A — 숫자가 틀렸음이 재현됨 (1건)
 
 ### CORR-METRIC-001 — turnover 산식이 비중 변화를 무시 → 거래비용·net 수익률 오염
 - **Commit**: 5ea5c48
 - **Location**: `backtest/engine.py::_calc_turnover` (Lines 186-195)
 - **Expected contract**: turnover = 0.5 × Σ|w_new − w_old| (재조정 규모의 표준 정의)
 - **Actual behavior**: `sold / max(len(prev), len(curr), 1)` — 이탈 종목 수 비율만 계산.
-  종목 수가 같고 등가중이면 우연히 일치(항등식), **종목 수가 바뀌는 구간에서 어긋남**.
-- **Result impact**: **Y — 재현됨.** turnover는 `engine.py:110-112`에서
-  `tc = turnover × (COST_SELL + COST_BUY)`로 거래비용에 직접 입력된다 [검증된 사실].
-  Pass 0B 실측 tape 스캔(scripts/audit/turnover_impact_scan.py) 결과:
-  | 시나리오 | 오염 구간 | 기록 vs 올바른 값 | net 왜곡 |
-  |---|---|---|---|
-  | F_no_r2r3 (CANONICAL) | 2017-04-05 (5→20) | 0.25 vs 1.00 | +0.510%p |
-  | F_no_r2r3 (CANONICAL) | 2020-08-20 (7→20) | 0.35 vs 1.00 | +0.442%p |
-  | D_rim_only/D_no_r2/D_no_r3 | 2017-04-05 (5→20) | 0.25 vs 1.00 | +0.510%p |
-  | D_no_stability | 2017-04-05 (6→20) | 0.30 vs 1.00 | +0.476%p |
-  CANONICAL 누적 거래비용 0.952%p 과소계상 → net CAGR이 실제보다 유리하게 보고됨.
-- **Affected scenarios**: 전 시나리오의 `net_return`/`net_cagr`/`net_sharpe`/`avg_turnover`
-  (종목 수 변동 구간 보유 시). gross 지표는 무관.
-- **Evidence**: `tests/oracle/test_turnover_oracle.py::test_turnover_expansion_5_to_20_stocks`
-  (의도적 실패) + `scripts/audit/turnover_impact_scan.py` 출력 (GAPS.md Pass 0C 절)
+  종목 수가 같고 등가중이면 항등식으로 우연히 일치, **종목 수가 바뀌는 구간에서 어긋남**.
+- **Result impact**: **Y — 재현됨.** `engine.py:110-112`에서 `tc = turnover × (COST_SELL+COST_BUY)`로
+  거래비용에 직접 입력 [검증된 사실]. Pass 0B tape 스캔 실측:
+  CANONICAL(F_no_r2r3) 2017-04-05 기록 0.25 vs 참값 1.00 / 2020-08-20 0.35 vs 1.00
+  → 누적 거래비용 0.952%p 과소계상, net CAGR 유리하게 보고. D 계열 4개도 동일 패턴.
+- **Affected scenarios**: 전 시나리오의 `net_*`/`avg_turnover` (종목 수 변동 구간 보유 시). gross 무관.
+- **Evidence**: `tests/oracle/test_turnover_oracle.py::test_turnover_expansion_5_to_20_stocks`(의도적 실패)
+  + `scripts/audit/turnover_impact_scan.py`
+- **Pass 1 판정**: **P0-A 유지 확정.** 추가 확인 — SPEC_05 §13 Fitness Function이
+  `0.05 × metrics['turnover']`를 소비하도록 설계돼 있음(코드 미구현, Phase 3 예정) [검증된 사실].
+  수정 없이 Phase 3 진입 시 튜닝 목적함수까지 오염된다.
 - **Label**: [검증된 사실]
-- **비고**: SPEC_08이 소형/대형 비대칭 거래비용을 설계 중 — 수정 시 그 설계와 결합 조율 필요.
+- **비고**: SPEC_08 소형/대형 비대칭 거래비용 설계와 결합 조율 필요.
 
 ---
 
-## P0-B — 조용한 숫자 오염이 가능한 구조
+## P0-B — 조용한 숫자 오염이 가능한 구조 (10건)
 
 ### CORR-ENGINE-001 — build_portfolio()의 weight를 _calc_period_return()이 소비하지 않음
-- **Commit**: 5ea5c48
-- **Location**: `backtest/engine.py::_calc_period_return` (Lines 198-249)
-- **Expected contract**: `{ticker: weight}` 포트폴리오의 **가중** 수익률
-- **Actual behavior**: weight 무시, `sum(stock_returns)/len(stock_returns)` 단순평균
-- **Result impact**: Conditional — 현행 등가중(1/N)에서는 두 계산이 일치. 비등가중 도입
-  (업종 상한 25% 등 Phase 3 예정 기능) 즉시 조용히 틀린다. v5.2 MAX_STOCK_WEIGHT 유령
-  파라미터 사고의 근본 원인이 아직 살아있는 것.
-- **Evidence**: `tests/oracle/test_engine_return_oracle.py::test_weighted_return_consumes_portfolio_weights` (의도적 실패)
-- **Label**: [검증된 사실]
+- **Commit**: 5ea5c48 / **Location**: `backtest/engine.py::_calc_period_return` (198-249)
+- **Expected contract**: `{ticker: weight}` 가중 수익률 / **Actual**: weight 무시 단순평균
+- **Result impact**: Conditional — 등가중에선 일치. SPEC_04 §9-1이 예정한 비등가중 요소
+  (업종 상한·현금 보유·주문규모 제한) 도입 즉시 조용히 틀림. v5.2 MAX_STOCK_WEIGHT 사고의
+  근본 원인이 인터페이스 계약 부채로 잔존.
+- **Evidence**: `tests/oracle/test_engine_return_oracle.py::test_weighted_return_consumes_portfolio_weights`(의도적 실패)
+- **Pass 1 판정**: P0-B 유지 확정. **Label**: [검증된 사실]
 
 ### CORR-ENGINE-002 — 상폐 opt/cons 조정값이 종목 순회 순서에 의존
-- **Commit**: 5ea5c48
-- **Location**: `backtest/engine.py::_calc_period_return` (Lines 220-243, `n -= 1` 상호작용)
-- **Expected contract**: 편입 종목 집합이 같으면 순서와 무관하게 동일한 (gross, opt, cons)
-- **Actual behavior**: 분모 `n`이 순회 중 감소 → 가격결측 종목이 상폐 종목보다 앞/뒤냐에
-  따라 상폐 조정 가중치 `w = 1/n`이 달라짐. 순회 순서 = RIM 상승여력 정렬 순서이므로
-  **정렬 tie-break를 바꾸면 편입종목이 같아도 opt/cons가 바뀐다.**
-- **Result impact**: Conditional — 합성 케이스로 순서 의존성 **재현됨** (opt_adj 0.12 vs 0.08).
-  단, Pass 0B 실측 tape 5개 스캔 결과 상폐+가격결측 공존 구간 **미발견** (상폐 구간 2개는
-  전부 단독 상폐) → 현재 공표 수치는 영향권 밖. 나머지 24개 시나리오는 미스캔.
-- **Evidence**: `tests/oracle/test_engine_return_oracle.py::test_delisting_adjustments_are_order_independent` (의도적 실패) + `scripts/audit/turnover_impact_scan.py` 공존 스캔
-- **Label**: [검증된 사실] (재현) / [확실하지 않은 사실] (미캡처 24개 시나리오 영향 — 확인법: 해당 시나리오 tape 캡처 후 동일 스캔)
+- **Commit**: 5ea5c48 / **Location**: `backtest/engine.py::_calc_period_return` (220-243, `n -= 1`)
+- **Expected contract**: 편입 집합이 같으면 순서 무관 동일 결과
+- **Actual behavior**: 분모 n이 순회 중 감소 → 가격결측 종목의 위치에 따라 상폐 조정 가중치 변동
+- **Result impact**: Conditional — 합성 재현 성공(opt_adj 0.12 vs 0.08). 실측 tape 5개에선
+  상폐+가격결측 공존 미발견(상폐 2건 전부 단독) → 현재 공표 수치 영향권 밖. 미캡처 24개 미확인.
+- **Evidence**: `tests/oracle/test_engine_return_oracle.py::test_delisting_adjustments_are_order_independent`(의도적 실패)
+- **Pass 1 판정**: P0-B 유지 확정. 관련 신규 항목 CORR-SORT-001(정렬 안정성) 분리 등재.
+- **Label**: [검증된 사실](재현) / [확실하지 않은 사실](미캡처 시나리오 — 확인법: tape 캡처 후 동일 스캔)
 
 ### CORR-METRIC-002 — CAGR 연수를 캘린더일수가 아니라 구간수÷2로 계산
-- **Commit**: 5ea5c48
-- **Location**: `backtest/metrics.py::compute_cagr` (Lines 29-36)
-- **Expected contract**: CAGR = (Π(1+r))^(365.25/실제경과일수) − 1
-- **Actual behavior**: `years = len(returns) / periods_per_year` — 4월→8월(≈4.5개월)과
-  8월→4월(≈7.5개월)을 같은 반년으로 취급. 시그니처가 날짜를 받지도 않음.
-- **Result impact**: Y(방향 확정)/Conditional(크기) — closed 20구간은 2016-04-05→2026-04-03
-  = 9.993년 vs 관례 10.0년으로 우연히 근접(4월→4월 정렬 덕). **왜곡의 주범은 열린 구간
-  #23**: n=21 → 10.5년 vs 실제 ≈10.27년 → CANONICAL CAGR 15.27%는 캘린더 기준 ≈15.65%로
-  약 0.38%p 과소 보고. CORR-ENGINE-003과 #23을 통해 결합 (AUDIT_00 §5 결합 주의 그대로).
-- **Evidence**: `tests/oracle/test_metrics_oracle.py::test_cagr_uses_actual_calendar_days` (의도적 실패)
-- **Label**: [검증된 사실]
+- **Commit**: 5ea5c48 / **Location**: `backtest/metrics.py::compute_cagr` (29-36)
+- **Result impact**: Y(방향)/Conditional(크기) — closed 20구간은 4월→4월 정렬로 우연히 근접.
+  왜곡 주범은 열린 구간 #23 포함 시(10.5년 vs 실제 ≈10.27년, CANONICAL 기준 ≈0.38%p 과소).
+- **Evidence**: `tests/oracle/test_metrics_oracle.py::test_cagr_uses_actual_calendar_days`(의도적 실패)
+- **Pass 1 판정**: P0-B 유지 확정. metrics.py 단일 정의 확인(복제본 없음). SPEC_05 §12는 연수
+  산정 규약을 아예 정의하지 않음 — 문서가 현행 관례를 뒷받침하지 않음 [검증된 사실].
+  CORR-ENGINE-003과 #23으로 결합(동시 수정 필수). **Label**: [검증된 사실]
 
 ### CORR-ENGINE-003 — 열린 구간 종료일을 date.today()로 결정 (재현성 결함)
+- **Commit**: 5ea5c48 / **Location**: `backtest/engine.py::BacktestEngine.run` (69)
+- **Pass 1 판정**: P0-B 유지 확정. 해법 제안(AUDIT_02 B-2 지시 반영):
+  `engine.run(rebalance_dates, valuation_date=date(...))` 주입 + closed-period 공식 기준 채택
+  (CORR-METRIC-002와 동시 소거). 신규 발견 CORR-FRESH-001과도 결합 — 아래 참조.
+- **Label**: [검증된 사실]
+
+### CORR-FRESH-001 — 데이터 신선도 가드 부재: 열린 구간이 stale 가격을 조용히 사용 (Pass 1 신규)
 - **Commit**: 5ea5c48
-- **Location**: `backtest/engine.py::BacktestEngine.run` (Line 69)
-- **Expected contract**: 같은 코드·같은 DB → 같은 결과 (valuation_date 주입)
-- **Actual behavior**: 마지막 구간 종료일 = 실행일. 실행 날짜마다 결과 변동.
-- **Result impact**: Y (재현성) — Pass 0B baseline은 `is_open_period` 플래그로 #23을
-  분리 마킹해 완화. 수정은 CORR-METRIC-002와 함께 (closed-period 기준 채택 시 동시 소거).
-- **Evidence**: GAPS.md §1, Pass 0B selection tape의 end_date=캡처일
+- **Location**: `backtest/engine.py::BacktestEngine.run` (69) × `backtest/data_access.py::get_close_price` (98-110)
+- **Expected contract**: 구간 종료일 라벨과 실제 사용 가격의 기준일이 일치하거나, 불일치 시 경고
+- **Actual behavior**: `date.today()`가 종료일이 되고 `get_close_price(date<=as_of 최신값)`가
+  결합되면, 엔진은 MAX(price_history.date) 이후의 어떤 날짜로 실행돼도 **같은 stale 가격으로
+  "오늘까지의 수익률"을 라벨링**한다. 어디에서도 신선도를 검사하지 않는다.
+- **Result impact**: **Y — 실사례 확인.** Pass 0B tape #23 구간이 end_date=2026-07-11로
+  기록됐으나 price_history MAX(date)=2026-05-22 [검증된 사실, 서버 조회] — 7주 stale 가격이
+  "7월 11일까지의 수익률"로 표시됨. closed_period 기준 채택 시 자동 소거되나, live_snapshot
+  용도가 남는 한 가드 필요.
+- **Affected scenarios**: 전 시나리오의 열린 구간(#23) + 향후 모든 live 실행
+- **Evidence**: tests/baselines/selection/F_no_r2r3.json #23 vs AUDIT_MANIFEST.json price_max_date
 - **Label**: [검증된 사실]
 
 ### CORR-BENCH-001 — 벤치마크 조회 실패 시 0.0 반환
-- **Commit**: 5ea5c48
-- **Location**: `backtest/engine.py::_calc_kospi_return` / `_calc_kosdaq_return` (Lines 259-298)
-- **Expected contract**: 조회 실패는 실패로 전파 (또는 명시적 재시도/중단)
-- **Actual behavior**: `except Exception → log.warning + return 0.0` — 네트워크 장애가
-  "벤치마크 0% 수익"으로 둔갑해 alpha·robustness를 조용히 오염.
-- **Result impact**: Conditional — 발생 시점의 로그로만 탐지 가능. Pass 1B에서 기존 결과의
-  벤치마크 값 vs 독립 재조회 대조 필요.
-- **Evidence**: 코드 직접 확인. (오라클 테스트는 외부 API 의존이라 미작성 — Pass 1B에서
-  fdr monkeypatch 방식 검토)
-- **Label**: [검증된 사실] (코드 경로) / [확실하지 않은 사실] (실제 발생 이력 — 확인법: 서버
-  로그 grep 'KOSPI 수익률 조회 실패' + baseline 벤치마크 대조)
+- **Commit**: 5ea5c48 / **Location**: `backtest/engine.py::_calc_kospi_return`/`_calc_kosdaq_return`
+  (259-298) + `backtest/regime/data_access_regime.py::kospi_return` (238-253, 동일 관례 복제)
+- **Pass 1 판정**: P0-B 유지 확정. 서버 보존 로그 전수 grep 결과 '수익률 조회 실패' 발생 이력
+  0건 [검증된 사실 — 단, 과거 ablation 실행 로그가 전부 보존됐는지는 확인 불가]. 구조는 그대로
+  이므로 등급 유지. regime 쪽 복제 구현도 동일 수정 필요 지점으로 추가.
+- **Label**: [검증된 사실](코드 경로·로그 부재) / [확실하지 않은 사실](로그 보존 완전성)
 
 ### PIT-AMEND-001 — 정정 미공개 구간인데 original_amount가 NULL이면 정정값 사용 (룩어헤드)
+- **Commit**: 5ea5c48 / **Location**: `backtest/data_access.py::load_pit_series` (260-267 CASE)
+  + `backtest/regime/data_access_regime.py::book_equity_batch` (159-171, 동일 CASE 복제)
+- **Expected contract**: SPEC_02 §3-1-2 "정정 미공개 시점 → 원본값 사용 (PIT 보존)" [검증된 사실 — 문서 명문]
+- **Actual behavior**: `original_amount IS NULL`이면 ELSE로 정정값(amount) 반환
+- **Result impact**: **Unknown → 규모 확정.** 운영 DB 실측: 정정 행 86,379개 중
+  **18,676개(21.6%)가 original_amount NULL** [검증된 사실, 2026-07-12 서버 조회].
+  이 행들은 리밸런싱일이 available_from과 amendment_from 사이에 놓일 때마다 룩어헤드.
+- **Evidence**: `tests/integration/test_pit_sql_contracts.py::test_amendment_after_rebalance_with_null_original_uses_amended_value_LOOKAHEAD` + 서버 카운트
+- **Pass 1 판정**: P0-B 유지 확정 (실오염 여부·크기는 Pass 2에서 재현: 해당 행 × 리밸런싱일
+  교차로 실제 영향받은 (ticker, rebal) 산출). **Label**: [검증된 사실]
+
+### CORR-HARD-001 — listed_date NULL이면 상장기간 검사 통과 → 필터 사실상 미작동 (Pass 1 신규)
 - **Commit**: 5ea5c48
-- **Location**: `backtest/data_access.py::load_pit_series` (Lines 260-267, CASE 분기)
-- **Expected contract**: `amendment_from > rebalance_date`면 시장이 그 시점에 알던
-  **원본값**을 사용해야 함
-- **Actual behavior**: `original_amount IS NULL`이면 ELSE 분기로 떨어져 `f.amount`
-  (= 정정 반영값)를 반환 — 원본 미캡처 행에서 조용한 룩어헤드.
-- **Result impact**: Unknown — 확인법: 운영 DB에서
-  `SELECT COUNT(*) FROM financials_pit WHERE amendment_from IS NOT NULL AND original_amount IS NULL`
-  (Pass 1A에서 실행). 0이면 이론상 경로, >0이면 실오염 후보.
-- **Evidence**: `tests/integration/test_pit_sql_contracts.py::test_amendment_after_rebalance_with_null_original_uses_amended_value_LOOKAHEAD` (현행 동작 문서화 테스트)
-- **Label**: [검증된 사실] (SQL 경로) / [확실하지 않은 사실] (실데이터 발생 건수)
+- **Location**: `backtest/filters/hard_filter.py::_hard_filter` (66-68)
+- **Expected contract**: MASTER §3-3·SPEC_03 — 상장 6개월 미만 제외 (Hard Filter 구성 요건)
+- **Actual behavior**: `ld = get_listed_date(...)` 후 `if ld is not None and ...` — NULL이면 검사 생략.
+- **Result impact**: Conditional — 운영 DB 실측: **stocks 3,264개 중 3,005개(92.1%)가
+  listed_date NULL** [검증된 사실, 서버 조회]. 즉 "상장 6개월" 요건이 표본의 92%에서 죽은
+  코드다. 신규 상장주는 FY 재무 부재로 게이트에서 자연 탈락하는 경우가 많아 실질 유입 규모는
+  별도 확인 필요 [확실하지 않은 사실 — 확인법: krx_listing_snapshots 최초 등장일을 상장일
+  프록시로 편입 종목과 교차].
+- **Evidence**: 코드 + 서버 카운트. (재현 테스트는 Pass 2에서)
+- **Label**: [검증된 사실](구조·규모) / [확실하지 않은 사실](실제 조기편입 발생)
+
+### CORR-GATE-001 — dq_gate가 fs_div를 구분하지 않고 CFS/OFS를 비결정적으로 병합 (Pass 1 신규)
+- **Commit**: 5ea5c48
+- **Location**: `ingest/dq_gate.py::_load_accounts` (130-140)
+- **Expected contract**: 게이트 판정 입력은 결정적이어야 하고, CFS/OFS 기준이 명시돼야 함
+- **Actual behavior**: `SELECT account_nm, amount FROM financials WHERE ...` (fs_div 필터·ORDER BY
+  없음) → dict comprehension이 동일 account_nm의 CFS/OFS 행을 **스캔 순서대로 덮어씀** —
+  어느 쪽이 이기는지 비결정적.
+- **Result impact**: Conditional — 실측: 게이트 핵심 계정(자본총계 등 5종)에서 CFS/OFS 값이
+  서로 다른 (ticker,year,rt,acct) **0건** [검증된 사실, 서버 조회] → 현재 데이터에선 무해.
+  단 값이 갈리는 데이터가 들어오는 순간 게이트 판정(=유니버스)이 실행마다 흔들릴 수 있는 구조.
+- **Label**: [검증된 사실](구조) / 현재 무해(실측)
+
+### CORR-GATE-002 — 게이트가 정정 반영값으로 판정 → 게이트 경유 룩어헤드 (Pass 1 신규)
+- **Commit**: 5ea5c48
+- **Location**: `ingest/dq_gate.py::_load_accounts` (financials.amount 사용) ×
+  `ingest/dart_ingest.py::_upsert_financials` (317-321, 정정 시 amount 덮어씀)
+- **Expected contract**: universe_gate_pit는 이름대로 PIT — 리밸런싱 시점에 시장이 알던 값으로 판정
+- **Actual behavior**: 게이트는 `financials`(최신 정정 반영값)로 일괄 재판정된다. 정정으로
+  R02(자본잠식) 등 판정이 뒤집히면, 정정 **이전** 리밸런싱일에도 뒤집힌 판정이 적용됨.
+- **Result impact**: Conditional — 실측: 정정으로 자본총계 **부호가 뒤집힌 행 145건**
+  [검증된 사실, 서버 조회] = R02 플립 후보. 실제 유니버스 변동 여부는 Pass 2에서
+  (ticker, year)별 게이트 재판정 시뮬레이션으로 재현.
+- **Label**: [검증된 사실](경로·후보 규모) / [확실하지 않은 사실](실제 플립 발생)
+
+### CORR-DA-001 — get_avg_turnover/has_recent_trade가 "데이터 없음"과 "거래 없음"을 구분 못 함 (Pass 1 신규)
+- **Commit**: 5ea5c48
+- **Location**: `backtest/data_access.py::get_avg_turnover` (26-51, COALESCE 0) /
+  `::has_recent_trade` (54-75, 행 없으면 False)
+- **Expected contract**: 데이터 미수집(수집 실패)과 실제 무거래는 다른 상태
+- **Actual behavior**: 둘 다 "0 / False" — Hard Filter가 해당 종목을 조용히 제외(fail-closed).
+- **Result impact**: Conditional — 방향은 보수적(잘못 편입이 아니라 잘못 제외)이지만,
+  price_ingest 부분 실패 시 **유니버스가 조용히 왜곡**되고 아무 경고도 없다. AUDIT_02 판정
+  규칙("조회 실패 시 0 반환 구조는 P0-B") 적용.
+- **Label**: [검증된 사실](구조) / [확실하지 않은 사실](과거 수집 실패로 인한 실제 제외 사례)
 
 ---
 
-## P1 — 계약·정책·재현성 (Pass 1에서 등급 확정, 감사 종료 후 처리)
+## P1 — 계약·정책·재현성 (감사 종료 후 처리, Pass 2·3 비대상)
 
 ### CONTRACT-PF-001 — 최소 편입 종목 수 정책 미결 ★ 정책 결정 항목 (임의 수정 금지)
-- **Location**: `backtest/portfolio.py::build_portfolio` (docstring vs Lines 33-40)
-- docstring: "후보 MIN_PORTFOLIO_STOCKS(5) 미만 → 빈 dict" / 구현: n==0일 때만 빈 dict.
-- 실측: 2016-08-18(5종목), 2020-04-03(7종목) 구간 존재 — 5종목 미만은 실측상 드묾.
-- 선택지: (a) 5종목 미만 → 현금 100% (b) 그대로 전액 투자(현행) (c) 부족분만 현금 (d) 차선 보완.
-- **상호작용 주의**: `pipeline.py:111-118`이 RIM 컷 미달 시 고평가 종목으로 5개까지
-  **이미 보완**한다(선택지 (d)의 부분 구현). 정책 결정 시 두 단계를 함께 정할 것.
+- **Location**: `backtest/portfolio.py::build_portfolio` (docstring vs 33-40)
+- 계약이 이제 **3중으로 어긋남** [검증된 사실]: ① docstring "5개 미만 → 빈 dict"
+  ② 구현 "n==0만 빈 dict, 1개라도 있으면 전액 투자" ③ SPEC_04 §9-1 "충족 종목 수만큼 편입,
+  **현금 보유 허용**" — 셋 다 다르다. 선택지 (a)현금100% (b)전액투자(현행) (c)부족분 현금
+  (d)차선 보완. `pipeline.py:111-118`의 고평가 보완(선택지 d의 부분 구현)과 함께 결정할 것.
 - **Evidence**: `tests/oracle/test_portfolio_contract.py` (xfail strict=False)
-- **Label**: [검증된 사실]
+- **Pass 1 판정**: P1 유지 (정책 결정 항목). **Label**: [검증된 사실]
 
-### CORR-METRIC-003 — compute_sharpe의 zero-variance 가드가 잘못된 변수를 검사 (신규)
-- **Location**: `backtest/metrics.py::compute_sharpe` (Lines 41-45)
-- 가드는 `returns.std() == 0`을 보는데 나눗셈은 `excess.std()`로 한다. 부동소수점 표현
-  차이로 `returns.std()`가 ε>0인데 `excess.std()`가 정확히 0이면 가드를 통과해 **inf 반환**.
-- Result impact: N(실질) — 실데이터에서 상수 수익률 시계열은 비현실적. 다만 가드 자체가
-  결함이므로 P2~P1. 오라클이 우연히 발견.
-- **Evidence**: `tests/oracle/test_metrics_oracle.py::test_sharpe_zero_variance_returns_zero` (의도적 실패)
-- **Label**: [검증된 사실]
+### CONTRACT-PF-002 — 업종 25%·KOSDAQ 60% 상한: 문서는 "확정값", 코드는 미구현 스텁 (Pass 1 신규)
+- **Location**: `backtest/portfolio.py::apply_portfolio_constraints` (43-58, 입력 그대로 반환)
+  vs MASTER §3-3 표("확정값")·§3-7("Phase 2에서는 하드 룰로 유지")·SPEC_04 §9-1
+- 문서만 읽으면 업종 분산이 적용된 결과로 오독한다. portfolio.py docstring은 "Phase 2 미구현"을
+  명시하나 MASTER §3-7 "하드 룰로 유지"와 정면 충돌 [검증된 사실]. 어느 쪽이 맞는지 판정하지
+  않고 둘 다 기록 (AUDIT_02 B-5 지시).
 
-### FALLBACK-MARGIN-001 — fallback available_from과 리밸런싱일의 안전 마진이 0~2일 (신규)
-- **Location**: `ingest/pit_loader.py::FALLBACK_OFFSET` + `backtest/configs/rebalance_dates.py`
-- FY fallback = 4/5, H1 fallback = 8/19. 리밸런싱일은 법정마감+3영업일(4/3~4/5, 8/18~8/20).
-  → 2016·2017·2021·2022·2023년 4월 리밸런싱(전부 4/5)과 2015-08-19에서 fallback 행이
-  `available_from <= rebalance_date` **경계값으로 포함**된다. 리밸런싱이 4/3인 해에는 제외.
-  fallback 의존 종목이 리밸런싱 날짜 ±2일에 따라 유니버스를 들락거림 [검증된 사실].
-- 추가 위험 [Claude 의견]: fallback은 "정시 제출" 가정. 지연 제출 기업은 실제 공시일이
-  4/5보다 늦을 수 있어 룩어헤드 가능 — 확인법: disclosures에 늦은 rcept_dt가 있으면서
-  fallback_used=TRUE인 (ticker,year) 존재 여부 조회 (Pass 1A).
+### CONTRACT-COST-001 — 거래세: SPEC은 시장별 차등, 코드는 전 종목 KOSPI 세율 (Pass 1 신규)
+- **Location**: `backtest/configs/constants.py` (TAX=0.0033 단일) vs SPEC_04 §9-2
+  (TAX_KOSPI 0.33% / TAX_KOSDAQ 0.18% + `total_cost(market, side)`)
+- KOSDAQ 종목 매도에 0.15%p 과대 비용 → net 수익률 **보수 편향** (소형주 전략이라 KOSDAQ
+  비중 상당 — 방향은 안전하나 문서 계약과 다름) [검증된 사실]. SPEC_08 비대칭 비용 설계 시 함께 정리.
 
-### 기타 P1 (Pass 0A에서 발견, GAPS.md 참조)
-- DOC-ABL-002 (CANONICAL 오라벨: F_momentum_rim → 실제 F_no_r2r3) — SSOT-SCEN-001의 재현 사례
-- PROV-ABL-001 (holdings 4건 상폐버그 이전 생성) / PROV-ABL-002 (결과 JSON git_sha 미기록)
-- PROV-DB-001 (마이그레이션 이력 테이블 부재) / PROV-PRICE-001 (price_history 7주 지연)
-- DOC-SPEC-001 (MASTER.md SPEC 목록 4건 누락) / DOC-ABL-001 (docstring 7개 vs 실제 33개)
-- MIX-FSDIV-001 (신규, 통합 테스트로 문서화): load_pit_series의 CFS→OFS fallback이
-  **계정 단위**라 한 종목·연도 dict 안에 CFS 매출액과 OFS 당기순이익이 섞일 수 있음.
-  docstring "CFS 우선, OFS fallback"은 재무제표 단위인지 계정 단위인지 불명 — 계약 명문화 필요.
+### CORR-SORT-001 — 랭킹 tie-break 계약 미문서화 (Pass 1 신규, AUDIT_02 B-2 ★ 지시)
+- **Location**: `backtest/pipeline.py::score_and_rank` (120, `sorted(key=upside_pct, reverse=True)`)
+- 동률 시 순서 = 파이썬 안정 정렬 → 필터 통과 순서 → `load_gate_passed_tickers`의
+  `ORDER BY s.ticker` [검증된 사실 — 체인 추적]. 즉 현재 tie-break는 "티커 오름차순"이지만
+  어디에도 계약으로 명시돼 있지 않다. 정렬 방식이 바뀌면 n_stocks 경계의 동률 종목 편입이
+  바뀌고, CORR-ENGINE-002와 결합해 편입이 같아도 opt/cons가 바뀐다.
+- **Pass 1 판정**: P1 (upside_pct 완전 동률은 실측상 희귀 — [확실하지 않은 사실], 확인법:
+  tape에서 동률 쌍 검색). 수정 시 tie-break를 ticker로 명시 고정 권고.
+
+### SSOT-CONST-001 — RF가 metrics.py에 재선언 (Pass 1 신규)
+- **Location**: `backtest/metrics.py:16` `RF_ANNUAL = 0.0263` (import 아닌 재선언) vs
+  `backtest/configs/constants.py::RF`
+- constants.RF 변경 시 Sharpe만 옛 값 사용 — 조용한 drift 구조 [검증된 사실]. STEP 10
+  RF/ERP 민감도 작업 예정이라 그 전에 정리 필요.
+
+### SSOT-EQUITY-001 — equity 우선순위 규칙 2곳 정의 (Pass 1 신규)
+- **Location**: `backtest/models/rim.py::fair_value` (48-50 인라인 or-체인) vs
+  `backtest/regime/data_access_regime.py::_EQUITY_KEYS` (21, "rim.py와 동일" 주석만 의존)
+- 의도적 분리(배치 성능)는 정당 [AUDIT_00 원칙 4 적용] — 그러나 (a) 공통 상수 미공유,
+  (b) drift 방지 테스트 부재. 우선순위 변경 시 두 곳이 조용히 갈라진다 [검증된 사실].
+
+### ISOL-STAB-001 — StabilityFilter 기본 생성자가 폐기된 R2/R3를 부활시킴 (Pass 1 신규, B-4)
+- **Location**: `backtest/filters/stability_filter.py::__init__` (33-34, 기본값 `_ALL_RULES`)
+- 폐기 코드 격리 판정: FactorScreener는 CANONICAL 경로에서 완전 격리 ✅ (ablation의
+  use_screener 플래그 경로만). R2/R3는 프로덕션이 explicit `active_rules`로 우회 ✅.
+  **그러나 `StabilityFilter()` 무인자 생성 시 R2/R3 포함 전체 룰로 조립된다** — v5.2 재조립
+  사고(phase2가 G_full로 조립)와 같은 유형의 재발 경로 [검증된 사실]. 격리 제안: 기본값을
+  채택 룰셋으로 바꾸거나 active_rules를 필수 인자로.
+
+### FALLBACK-MARGIN-001 — fallback available_from과 리밸런싱일 마진 0~2일
+- **Pass 1 판정**: P1 유지, 위험 축소 확정 — 실측: fallback_used 그룹 **17개뿐**, 지연 제출
+  룩어헤드(공시일 > fallback일) **0건** [검증된 사실, 서버 조회]. 경계 일치 5개 리밸런싱
+  날짜의 구조적 관찰은 유효하나 실오염 없음.
+
+### DOC-PIT-001 — SPEC_02 스키마는 append-only PIT, 실제는 단일행 upsert (Pass 1 신규)
+- **Location**: SPEC_02 §스키마 `UNIQUE (..., account_nm, available_from)` vs
+  `ingest/schema.sql:71` `UNIQUE (..., account_nm)` + `ingest/pit_loader.py` ON CONFLICT DO UPDATE
+- 문서는 "과거 값을 소급 수정하지 않"는 버전 이력 구조를 약속하나, 실제는 제자리 덮어쓰기
+  + original_amount 1칸 보존(정정 1회 깊이) [검증된 사실]. 연쇄 정정 시 중간 상태 소실 —
+  PIT-AMEND-001의 구조적 배경. 아키텍처 결정 필요 항목.
+
+### MIX-FSDIV-001 — load_pit_series의 CFS→OFS fallback이 계정 단위 (혼합 가능)
+- **Pass 1 판정**: P1 유지 — 실측 핵심 계정 CFS/OFS 값 충돌 0건으로 현재 무해 [검증된 사실].
+  계약 명문화(재무제표 단위 vs 계정 단위)만 필요.
+
+### CORR-METRIC-003 — compute_sharpe zero-variance 가드가 잘못된 변수 검사
+- **Pass 1 판정**: **P2로 확정** (Pass 0C 잠정 P2~P1 → P2). 상수 수익률 시계열은 실데이터에서
+  발생 불가, inf는 조용하지 않고 요란함. 가드 결함 자체는 사실 [검증된 사실].
+- **Evidence**: `tests/oracle/test_metrics_oracle.py::test_sharpe_zero_variance_returns_zero`(의도적 실패)
+
+### 기타 P1 (Pass 0A 발견, 재검토 유지)
+- DOC-ABL-002: CANONICAL 오라벨 (phase2_rim.py:55 주석 "F_momentum_rim" → 실제 F_no_r2r3).
+  Pass 1 추가 확인: 시나리오 개수 서술이 3중 불일치 — ablation.py docstring "7개" vs
+  MASTER "13개 시나리오" vs 실제 33개 [검증된 사실].
+- PROV-ABL-001(holdings 4건 상폐버그 이전 생성) / PROV-ABL-002(결과 JSON git_sha 미기록)
+- PROV-DB-001(마이그레이션 이력 테이블 부재)
+- DOC-SPEC-001(MASTER SPEC 목록 4건 누락) / DOC-ABL-001(개수 불일치, 위와 통합)
+
+---
+
+## P2 — 성능·운영 (2건 신규)
+
+### OPS-CRON-001 — 가격·시총 수집 크론 부재 → price_history 7주 지연의 원인 (Pass 1 신규)
+- **[검증된 사실]** 서버 `crontab -l`: dashboard.health 30분 주기 1건뿐. price_ingest 크론 없음.
+  마지막 가격 수집 = 2026-05-23 수동 실행 (logs/price*.log). PROV-PRICE-001 원인 확정.
+  CORR-FRESH-001(신선도 가드 부재)과 결합 시 조용한 stale 실행이 가능했던 배경.
+
+### OPS-DELIST-001 — delisting_ingest의 stock_listing_events INSERT 멱등성 없음 (Pass 1 신규)
+- **Location**: `ingest/delisting_ingest.py::_upsert_delisted_stock` (52-61, ON CONFLICT 없는 순수 INSERT)
+- 실측: 상폐 이벤트 4,124행 중 중복 6행 [검증된 사실]. `is_delisted_at`은 LIMIT 1이라 판정
+  무영향. 재실행마다 중복 누적되는 구조만 정리 필요.
+
+---
+
+## Pass 1에서 해소·종결된 항목
+
+- **A-3 ★ "10년+ 소형주 홀딩 상폐 플래그 0건이 구조적으로 가능한가" (MASTER 미결)**:
+  **불가능 — 그리고 이미 해소됨.** 백테스트 구간 상폐 1,569종목(distinct) 실재 [검증된 사실,
+  서버 조회]. "상폐 0건" 관찰은 v5.3 haircut 버그(d2d619e 수정)의 증상이었고, 수정 후
+  Pass 0B tape에는 상폐 보유 2건(066110@2022-04-05, 001880@2023-08-18)이 정상 기록됨.
+- **티커 재사용 오판정 경로 (A-3)**: 구조상 가능(`is_delisted_at`이 재상장 이벤트를 무시)하나
+  실측 재사용 후보 **0건** [검증된 사실] → 항목 미등재, 관찰 기록만.
+- **stock_listing_history 잔존 참조 (A-3)**: 전체 grep 0건 — 금지 규칙 준수 확인 [검증된 사실].
+- **DELISTING_HAIRCUT·거래비용·OMEGA/VB_CAP SSOT (B-3)**: 단일 정의 + import 소비 확인,
+  regime(mtm_monthly, indicators_inhouse)·scripts 전부 engine에서 import [검증된 사실]. 정상.
+- **rebalance_dates SSOT (B-3)**: configs/rebalance_dates.py 단일 하드코딩, 복제 없음 [검증된 사실].
+
+---
+
+## P3 — 문서 stale (Pass 1 신규, 일괄)
+
+### DOC-MASTER-001 — MASTER.md 서술 노후 모음
+[검증된 사실] ① §3-1 "RF, RK 선언 위치: rim.py·stability_filter.py 두 파일에서 동일 값 유지"
+— 실제는 constants.py SSOT를 두 파일이 import (코드가 문서보다 개선된 상태).
+② 디렉토리 트리 주석 "price_ingest.py # FDR DataReader" — 실제 pykrx (§2 표와도 자체 모순).
+③ 트리 주석 "rim.py # Gordon growth" — 실제 Ohlson 지속성형 (§3-1과 자체 모순).
+④ §2 흐름도·트리의 `universe_loader.py` — 저장소에 존재하지 않는 파일.
+⑤ §1-1 "개발: VS Code Remote SSH" vs CLAUDE.md "Windows 로컬 개발".
