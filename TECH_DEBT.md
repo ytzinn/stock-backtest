@@ -85,6 +85,9 @@
 - **Evidence**: `tests/oracle/test_engine_return_oracle.py::test_delisting_adjustments_are_order_independent`(의도적 실패)
 - **Pass 1 판정**: P0-B 유지 확정. 관련 신규 항목 CORR-SORT-001(정렬 안정성) 분리 등재.
 - **Label**: [검증된 사실](재현) / [확실하지 않은 사실](미캡처 시나리오 — 확인법: tape 캡처 후 동일 스캔)
+- **상태: ✅ 수정 완료 (Pass 3, PR audit/CORR-ENGINE-002)** — _calc_period_return 2-pass
+  재작성(집합 의존 계약 명시) + score_and_rank tie-break 고정(SORT-001 동시 해소).
+  characterization 20개 전부 통과 = 캡처 시나리오 숫자 불변 확인, baseline 갱신 불필요.
 
 ### CORR-METRIC-002 — CAGR 연수를 캘린더일수가 아니라 구간수÷2로 계산
 - **Commit**: 5ea5c48 / **Location**: `backtest/metrics.py::compute_cagr` (29-36)

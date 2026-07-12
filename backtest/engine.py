@@ -213,40 +213,50 @@ def _calc_period_return(
     `date <= as_of` 최신값을 반환해 상폐로 가격이 끊겨도 절대 None이 되지 않으므로
     (2026-07-05 확인된 버그 — haircut 분기가 도달 불가능했음), `price_end is None`을
     트리거로 쓰지 않는다.
+
+    계약: 결과는 편입 종목 **집합**에만 의존한다 — dict 순회 순서(=RIM 정렬 순서)와 무관.
+    검증: tests/oracle/test_engine_return_oracle.py (순서 독립성 O-3).
     """
     if not portfolio:
         return 0.0, 0.0, 0.0
 
-    n = len(portfolio)
-    stock_returns = []
-    opt_adj  = 0.0
-    cons_adj = 0.0
+    # 1-pass: 가격·상폐 판정만 수집 (계산 없음). 2-pass: 확정된 유효 종목 수(n)로 계산.
+    # 분모 n을 순회 중에 줄이면서 상폐 조정 가중치(1/n)를 쓰면 가격결측 종목이 상폐 종목보다
+    # 앞/뒤 어디에 있느냐로 opt/cons가 달라진다 — 순회 순서는 RIM 정렬 순서라서 tie-break만
+    # 바뀌어도 편입이 같은데 숫자가 바뀌는 결함(CORR-ENGINE-002)이었다. 결과는 반드시
+    # 편입 집합에만 의존해야 한다.
+    valid: list[tuple[float, float, float | None]] = []  # (price_start, price_end, last_if_delisted)
 
     for ticker in portfolio:
         price_start = get_close_price(conn, ticker, start_date)
 
         if price_start is None or price_start <= 0:
-            n -= 1
             continue
 
         if is_delisted_at(conn, ticker, end_date):
             last = _last_known_price(conn, ticker, end_date)
-            price_end = last * DELISTING_HAIRCUT
-            w = 1.0 / max(n, 1)
-            opt_adj  += w * last * (1.0 - DELISTING_HAIRCUT) / price_start
-            cons_adj -= w * last * DELISTING_HAIRCUT / price_start
+            valid.append((price_start, last * DELISTING_HAIRCUT, last))
         else:
             price_end = get_close_price(conn, ticker, end_date)
             if price_end is None:
-                n -= 1
                 continue
+            valid.append((price_start, price_end, None))
 
-        stock_returns.append(price_end / price_start - 1)
-
-    if not stock_returns:
+    if not valid:
         return 0.0, 0.0, 0.0
 
-    return sum(stock_returns) / len(stock_returns), opt_adj, cons_adj
+    n = len(valid)
+    stock_returns = []
+    opt_adj  = 0.0
+    cons_adj = 0.0
+    for price_start, price_end, last in valid:
+        stock_returns.append(price_end / price_start - 1)
+        if last is not None:
+            w = 1.0 / n
+            opt_adj  += w * last * (1.0 - DELISTING_HAIRCUT) / price_start
+            cons_adj -= w * last * DELISTING_HAIRCUT / price_start
+
+    return sum(stock_returns) / n, opt_adj, cons_adj
 
 
 def _last_known_price(conn, ticker: str, before_date: date) -> float:
