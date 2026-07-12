@@ -14,6 +14,24 @@ import pandas as pd
 
 log = logging.getLogger(__name__)
 
+
+class PriceDataUnavailable(RuntimeError):
+    """price_history에 해당 종목의 행이 아예 없음 (미수집 또는 미상장).
+
+    '데이터 없음'과 '거래 없음(정지·무거래)'은 다른 상태다 (CORR-DA-001) —
+    조용한 0/False 반환 대신 이 예외로 구분한다. 호출자가 '제외'로 처리하려면
+    명시적으로 잡아서 사유를 남겨라 (hard_filter가 그렇게 한다).
+    """
+
+
+def _has_any_price_row(cur, ticker: str, as_of: date) -> bool:
+    cur.execute(
+        "SELECT 1 FROM price_history WHERE ticker = %s AND date <= %s LIMIT 1",
+        (ticker, as_of),
+    )
+    return cur.fetchone() is not None
+
+
 # TTM 계산 대상 계정 (IS + CF: 기간 누적값)
 _IS_CF_ACCOUNTS = frozenset({
     '매출액', '매출총이익', '영업이익', '당기순이익',
@@ -25,7 +43,13 @@ _IS_CF_ACCOUNTS = frozenset({
 
 def get_avg_turnover(conn, ticker: str, as_of: date, window: int = 20,
                      max_lookback_days: int = 90) -> float:
-    """최근 window 영업일 평균 거래대금(KRW). 데이터 없거나 is_suspended이면 0으로 처리.
+    """최근 window 영업일 평균 거래대금(KRW).
+
+    계약 (CORR-DA-001):
+      - price_history에 이 종목의 행이 **아예 없으면** PriceDataUnavailable을 던진다
+        (미수집/미상장 — '무거래'와 다른 상태. 조용한 0 반환 금지).
+      - 행은 있으나 거래정지·turnover NULL 등으로 유효 거래가 없으면 0.0
+        (실제 '거래 없음' — 유동성 부족 제외 사유로 정당).
 
     max_lookback_days: 이 기간(캘린더 일) 밖의 데이터는 사용하지 않는다.
     거래정지 후 오래된 거래량이 현재 유동성인 것처럼 계산되는 것을 방지.
@@ -33,7 +57,7 @@ def get_avg_turnover(conn, ticker: str, as_of: date, window: int = 20,
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT COALESCE(AVG(turnover), 0)
+            SELECT AVG(turnover), COUNT(*)
             FROM (
                 SELECT turnover
                 FROM price_history
@@ -47,12 +71,17 @@ def get_avg_turnover(conn, ticker: str, as_of: date, window: int = 20,
             """,
             (ticker, as_of, as_of, max_lookback_days, window),
         )
-        row = cur.fetchone()
-    return float(row[0]) if row and row[0] is not None else 0.0
+        avg, cnt = cur.fetchone()
+        if cnt == 0 and not _has_any_price_row(cur, ticker, as_of):
+            raise PriceDataUnavailable(f'{ticker}: price_history에 {as_of} 이전 행 없음')
+    return float(avg) if avg is not None else 0.0
 
 
 def has_recent_trade(conn, ticker: str, as_of: date, window: int = 5) -> bool:
     """최근 window 영업일(KRX 거래일 기준) 중 거래가 한 건이라도 있으면 True.
+
+    계약 (CORR-DA-001): price_history에 이 종목의 행이 아예 없으면
+    PriceDataUnavailable을 던진다 — '거래정지'(False)와 '데이터 미수집'은 다른 상태다.
 
     price_history에서 as_of 이전 최근 window 거래일을 조회해 is_suspended=FALSE인
     날이 하나라도 있는지 확인한다. 없으면 거래정지 상태로 간주.
@@ -72,6 +101,8 @@ def has_recent_trade(conn, ticker: str, as_of: date, window: int = 5) -> bool:
             (ticker, as_of, window),
         )
         row = cur.fetchone()
+        if (not row or row[0] == 0) and not _has_any_price_row(cur, ticker, as_of):
+            raise PriceDataUnavailable(f'{ticker}: price_history에 {as_of} 이전 행 없음')
     return (row[0] > 0) if row else False
 
 
@@ -93,6 +124,14 @@ def get_adj_close_range(conn, ticker: str, as_of: date, lookback: int) -> pd.Ser
         return pd.Series(dtype=float)
     df = pd.DataFrame(rows, columns=['date', 'adj_close'])
     return df.set_index('date')['adj_close'].sort_index()
+
+
+def get_max_price_date(conn) -> date | None:
+    """price_history 전체의 최신 거래일. 데이터 신선도 검증용 (CORR-FRESH-001). 없으면 None."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT MAX(date) FROM price_history")
+        row = cur.fetchone()
+    return row[0] if row else None
 
 
 def get_close_price(conn, ticker: str, as_of: date) -> float | None:
@@ -145,9 +184,21 @@ def get_shares_outstanding(conn, ticker: str, as_of: date) -> int | None:
 # ── 종목 메타 ───────────────────────────────────────────────────────────────────
 
 def get_listed_date(conn, ticker: str) -> date | None:
-    """stocks.listed_date 반환. 없으면 None."""
+    """stocks.listed_date 반환. 없으면 None (운영 DB의 92%가 NULL — CORR-HARD-001,
+    백필 전까지 호출자는 get_first_price_date 프록시로 보완해야 한다)."""
     with conn.cursor() as cur:
         cur.execute("SELECT listed_date FROM stocks WHERE ticker = %s", (ticker,))
+        row = cur.fetchone()
+    return row[0] if row else None
+
+
+def get_first_price_date(conn, ticker: str) -> date | None:
+    """price_history 최초 거래일. 상장일 프록시 (실제 상장일보다 늦을 수 없는 하한이 아니라
+    수집 시작일(2014-01)로 절단된 값 — 2014년 이전 상장 종목은 2014년으로 나온다.
+    '최근 상장' 판정(상장 N개월 미만)에는 보수적으로 안전: 프록시가 실제보다 늦으면
+    더 오래 제외될 뿐 조기 편입은 없다). 없으면 None."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT MIN(date) FROM price_history WHERE ticker = %s", (ticker,))
         row = cur.fetchone()
     return row[0] if row else None
 
@@ -261,6 +312,10 @@ def load_pit_series(
                        CASE
                            WHEN f.amendment_from IS NOT NULL AND f.amendment_from <= %s
                            THEN f.amount           -- 정정 공개됨 → 정정값
+                           WHEN f.amendment_from IS NOT NULL AND f.original_amount IS NULL
+                           THEN NULL               -- 정정 미공개 + 원본 미상 → 사용 불가
+                                                   -- (정정값을 쓰면 룩어헤드 — PIT-AMEND-001.
+                                                   --  NULL은 파이썬 쪽에서 계정 제외로 처리)
                            WHEN f.original_amount IS NOT NULL
                            THEN f.original_amount  -- 정정 미공개 → 원본값
                            ELSE f.amount           -- 정정 없음

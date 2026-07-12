@@ -110,11 +110,22 @@ class BacktestPipeline:
         # RIM 컷 통과 종목이 최소 기준 미달 → 고평가 종목 중 upside 상위부터 보완
         if len(passed) < MIN_PORTFOLIO_STOCKS and rejected:
             need = MIN_PORTFOLIO_STOCKS - len(passed)
-            supplement = sorted(rejected, key=lambda x: x['upside_pct'], reverse=True)[:need]
+            supplement = sorted(rejected, key=_rank_key)[:need]
             log.info(
                 f'[{rebalance_date}] RIM 컷 통과 {len(passed)}개 < 최소 {MIN_PORTFOLIO_STOCKS}개 '
                 f'→ 고평가 보완 {len(supplement)}개 추가'
             )
             passed.extend(supplement)
 
-        return sorted(passed, key=lambda x: x['upside_pct'], reverse=True)
+        return sorted(passed, key=_rank_key)
+
+
+def _rank_key(item: dict) -> tuple[float, str]:
+    """
+    랭킹 정렬 키: upside_pct 내림차순, 동률 시 ticker 오름차순 (tie-break 명시 고정).
+
+    종전에는 tie-break가 파이썬 안정 정렬 + 유니버스 순서(load_gate_passed_tickers의
+    ORDER BY ticker)에 암묵적으로 의존했다 — 동작은 같지만 계약이 아니었다 (CORR-SORT-001).
+    n_stocks 경계의 동률 종목 편입과 상폐 조정값이 정렬 구현에 흔들리지 않도록 여기 고정한다.
+    """
+    return (-item['upside_pct'], item['ticker'])

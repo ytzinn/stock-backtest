@@ -268,6 +268,14 @@ def run(run_id: str = 'mtm_v1') -> None:
     log.info('전체 MTM 완료 (run_id=%s)', run_id)
 
 
+# SPEC_08(Phase B) 재사용을 위한 공개 별칭 — 동작 변경 없음, 이름만 공개(SPEC_08 §4-1).
+# Phase A 자체 코드는 계속 프라이빗 이름(_nav_path 등)을 쓴다.
+nav_path = _nav_path
+build_largecap_sleeve = _build_largecap_sleeve
+load_period_holdings = _load_period_holdings
+periods = _periods
+
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()

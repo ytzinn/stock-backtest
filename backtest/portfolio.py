@@ -9,12 +9,14 @@ Phase 2 확정값:
      드물게 종목 수가 적은 구간에서만 "표시상 5%, 실제 계산은 1/n"로 괴리가
      있었음 — 코드·실제 동작 불일치 해소를 위해 캡 자체를 제거.)
   - 목표 종목 수: n_stocks (기본 20)
-  - 최소 종목 수: MIN_PORTFOLIO_STOCKS (기본 5) — 미달 시 해당 기간 건너뜀 (return=0)
+  - 후보 미달 시: **충족 종목 수만큼 전액 투자 (동일가중 1/n)** — 2026-07-12 정책 확정
+    (CONTRACT-PF-001). MIN_PORTFOLIO_STOCKS는 구성 차단 기준이 아니라
+    ① pipeline.score_and_rank의 고평가 보완 목표치 ② engine의 경고 기준선이다.
   - 업종 최대 25%, KOSDAQ 최대 60% — 업종/거래소 데이터 미수집으로 Phase 2 미구현
 """
 from __future__ import annotations
 
-MIN_PORTFOLIO_STOCKS = 5   # 이 미만이면 포트폴리오 구성 불가로 빈 dict 반환
+MIN_PORTFOLIO_STOCKS = 5   # 보완 목표치·경고 기준선 (구성 차단 아님 — 모듈 docstring 참조)
 
 
 def build_portfolio(
@@ -25,7 +27,10 @@ def build_portfolio(
     score_and_rank() 반환값(upside_pct 내림차순 정렬)을 받아 포트폴리오 비중 반환.
 
     반환: {ticker: weight}  (동일가중 1/n, 합계 1.0)
-    후보가 MIN_PORTFOLIO_STOCKS 미만이면 빈 dict → engine이 period_return=0으로 처리.
+    계약 (2026-07-12 정책 확정, CONTRACT-PF-001): 후보가 1개라도 있으면 그 수만큼
+    전액 투자한다. 빈 dict는 후보 0개일 때만 — engine이 period_return=0으로 처리.
+    (검토된 대안: 현금 100% / 부족분 현금 / 차선 보완 — TECH_DEBT.md 참조.
+     5종목 미만 실측 0건, 5~7종목 구간 2건뿐이라 결과 영향 미미.)
 
     Phase 2 미구현: 업종 상한 25%, KOSDAQ 상한 60%.
     (sector 데이터 미수집. Phase 3 이후 classification_history 연동 시 추가.)

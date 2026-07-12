@@ -161,6 +161,9 @@ def book_equity_batch(conn, tickers: list[str], as_of: date) -> dict[str, float]
                        CASE
                            WHEN f.amendment_from IS NOT NULL AND f.amendment_from <= %s
                            THEN f.amount            -- 정정 공개됨 → 정정값
+                           WHEN f.amendment_from IS NOT NULL AND f.original_amount IS NULL
+                           THEN NULL                -- 정정 미공개 + 원본 미상 → 사용 불가
+                                                    -- (PIT-AMEND-001, load_pit_series와 동일 규칙)
                            WHEN f.original_amount IS NOT NULL
                            THEN f.original_amount   -- 정정 미공개 → 원본값
                            ELSE f.amount             -- 정정 없음
@@ -218,21 +221,48 @@ def month_end_dates(conn, start_date: date, end_date: date) -> list[date]:
     return result
 
 
+def next_trading_day(conn, after_date: date) -> date:
+    """
+    after_date보다 뒤(>)인 첫 거래일. SPEC_08 §3-1 — signal_date(월말)와 execution_date를
+    분리해 "같은 종가로 신호→체결"하는 룩어헤드를 막기 위한 lag 계산용(Phase B 신규).
+    price_history에 after_date 이후 데이터가 없으면(가장 최근 월말 등) None.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT MIN(date) FROM price_history WHERE date > %s",
+            (after_date,),
+        )
+        row = cur.fetchone()
+    return row[0] if row and row[0] is not None else None
+
+
 # ── KOSPI 벤치마크 ───────────────────────────────────────────────────────────
 
 def kospi_return(start_date: date, end_date: date) -> float:
-    """KS11(Naver Finance, fdr) 구간 수익률. 실패 시 0.0 (engine.py 관례와 동일)."""
+    """
+    KS11(Naver Finance, fdr) 구간 수익률.
+
+    계약: 조회 실패·데이터 부족 시 engine.BenchmarkDataUnavailable을 던진다 — 0.0을
+    반환하지 않는다 (CORR-BENCH-001 복제 지점, engine._calc_index_return과 동일 계약).
+    """
+    from backtest.engine import BenchmarkDataUnavailable
+
     global _KOSPI_CACHE
     try:
         if _KOSPI_CACHE is None:
             import FinanceDataReader as fdr
             _KOSPI_CACHE = fdr.DataReader('KS11', '2015-01-01')['Close']
-        s = _KOSPI_CACHE
-        s1 = s[s.index <= pd.Timestamp(start_date)]
-        s2 = s[s.index <= pd.Timestamp(end_date)]
-        if s1.empty or s2.empty:
-            return 0.0
-        return float(s2.iloc[-1] / s1.iloc[-1] - 1)
-    except Exception:
-        log.exception('KOSPI 수익률 조회 실패 (%s~%s)', start_date, end_date)
-        return 0.0
+    except Exception as e:
+        raise BenchmarkDataUnavailable(
+            f'KOSPI(KS11) 조회 실패 ({start_date}~{end_date}): {e}'
+        ) from e
+
+    s = _KOSPI_CACHE
+    s1 = s[s.index <= pd.Timestamp(start_date)]
+    s2 = s[s.index <= pd.Timestamp(end_date)]
+    if s1.empty or s2.empty:
+        raise BenchmarkDataUnavailable(
+            f'KOSPI(KS11) 데이터 부족 ({start_date}~{end_date}): '
+            f'기준일 이전 데이터 없음 (s1={len(s1)}행, s2={len(s2)}행)'
+        )
+    return float(s2.iloc[-1] / s1.iloc[-1] - 1)

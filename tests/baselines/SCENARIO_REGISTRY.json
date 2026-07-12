@@ -1,0 +1,62 @@
+{
+  "_meta": {
+    "generated_by": "AUDIT_01 Pass 0A",
+    "generated_at": "2026-07-12",
+    "source": "backtest/ablation.py::ABLATION_CONFIGS (33 tags, counted via ast parse, not assumed)",
+    "canonical_pipeline_source": "backtest/configs/phase2_rim.py::build_phase2_pipeline / PHASE2_PIPELINE",
+    "method": "각 태그의 config dict를 backtest/configs/phase2_rim.py의 실제 필터 조합(HardFilter -> StabilityFilter(active_rules={R1,R4,R5,R6}) -> MomentumFilter -> RIMModel, use_screener=False)과 직접 대조해 분류. 코드만 보고 판정, 문서 주석은 교차검증에만 사용.",
+    "counts": {
+      "total": 33,
+      "CANONICAL": 1,
+      "DIAGNOSTIC": 19,
+      "ARCHIVE": 9,
+      "RANDOM": 4
+    }
+  },
+  "CANONICAL": {
+    "F_no_r2r3": {
+      "label": "[검증된 사실] backtest/configs/phase2_rim.py::build_phase2_pipeline 과 필터 구성이 정확히 일치하는 유일한 ablation 태그.",
+      "config": {"use_hard": true, "use_stability": true, "use_screener": false, "use_momentum": true, "use_rim_filter": true, "stability_rules": ["R1", "R4", "R5", "R6"]},
+      "pass0b_characterization_baseline": "tests/baselines/selection/F_no_r2r3.json, tests/baselines/aggregate/F_no_r2r3.json (2026-07-12 캡처, 23구간 자체 교차검증 전부 일치)",
+      "note": "phase2_rim.py:55 주석은 '채택 파이프라인 F_momentum_rim 구조'라고 적혀 있으나 이는 오기(誤記)다. F_momentum_rim 태그는 stability_rules 키가 없어 StabilityFilter 기본값(_ALL_RULES = R1~R6, R2/R3 포함)으로 빌드되므로 실제 프로덕션 설정과 다르다. 프로덕션과 필터 구성이 정확히 일치하는 태그는 F_no_r2r3 뿐이다. GAPS.md DOC-ABL-002 참조."
+    }
+  },
+  "DIAGNOSTIC": {
+    "D_rim_only":            {"note": "RIM 유효성(D>C) 판정용 핵심 대조군. 스크리너/모멘텀 없이 Hard+Stability(전체 6룰 기본)+RIM만.", "pass0b_characterization_baseline": "tests/baselines/{selection,aggregate}/D_rim_only.json (2026-07-12 캡처)"},
+    "D_no_r6":                {"note": "R6(가치파괴 구간 제외) 단독 leave-one-out."},
+    "D_no_stability":         {"note": "SPEC_05 부록A — StabilityFilter 완전 제거 대조군 (D 계열, 스크리너 없음).", "pass0b_characterization_baseline": "tests/baselines/{selection,aggregate}/D_no_stability.json (2026-07-12 캡처)"},
+    "D_no_r1":                {"note": "R1 단독 leave-one-out."},
+    "D_no_r2":                {"note": "R2 단독 leave-one-out — R2 폐기 결정의 근거.", "pass0b_characterization_baseline": "tests/baselines/{selection,aggregate}/D_no_r2.json (2026-07-12 캡처). overall CAGR/Sharpe/alpha가 D_rim_only와 완전 동일 — 'R2는 R1과 완전 중복' 주장 재확인."},
+    "D_no_r3":                {"note": "R3 단독 leave-one-out — R3 폐기 결정의 근거.", "pass0b_characterization_baseline": "tests/baselines/{selection,aggregate}/D_no_r3.json (2026-07-12 캡처). D_rim_only와 값이 다름 — 'R3는 역효과' 주장과 일관."},
+    "D_no_r4":                {"note": "R4 단독 leave-one-out."},
+    "D_no_r5":                {"note": "R5 단독 leave-one-out."},
+    "D_pbr_only":             {"note": "RIM 업사이드 랭킹 대신 1/PBR 랭킹 — RIM 알파가 저PBR 재포장인지 신호분리 검증."},
+    "D_factor_only":          {"note": "RIM 없이 FactorScreener 4팩터 합산 점수로 직접 랭킹 — 신호분리 대조군 (스크리너 자체는 폐기됐으나 진단 목적 보존)."},
+    "F_momentum_rim":         {"note": "모멘텀 기여도(F>D) 판정용. 단, stability_rules 미지정 → 기본값(R1~R6 전체)이라 CANONICAL(R1,R4,R5,R6)과 필터 구성이 다르다. GAPS.md DOC-ABL-002 참조."},
+    "F_no_r6":                {"note": "F 계열에서 R6 제외 leave-one-out."},
+    "F_no_stability_clean":   {"note": "SPEC_05 부록A — StabilityFilter 완전 제거 대조군 (F 계열, 스크리너 없음). H_no_stability(스크리너 포함으로 교란)의 정정판."},
+    "F_no_r2":                {"note": "F 계열에서 R2 단독 제외."},
+    "F_no_r3":                {"note": "F 계열에서 R3 단독 제외."},
+    "F_no_r4":                {"note": "F 계열에서 R4 단독 제외 (참고용, R4는 채택 유지 규칙)."},
+    "F_no_r2r4":              {"note": "F 계열에서 R2+R4 동시 제외 (조합 확인용, 채택안 아님)."},
+    "F_no_r3r4":              {"note": "F 계열에서 R3+R4 동시 제외 (조합 확인용, 채택안 아님)."},
+    "F_no_r2r3r4":            {"note": "F 계열에서 R2+R3+R4 동시 제외 (조합 확인용, 채택안 아님)."}
+  },
+  "ARCHIVE": {
+    "E_screener_rim": {"note": "FactorScreener 폐기(2026-07-05, phase2_rim.py:7 주석). 원칙 5에 따라 삭제하지 않고 기록 보존."},
+    "E_no_r6":         {"note": "폐기된 스크리너 경로의 R6 leave-one-out."},
+    "E_rev_only":      {"note": "폐기된 스크리너의 단일 팩터(rev_yoy) 변형."},
+    "E_op_only":       {"note": "폐기된 스크리너의 단일 팩터(op_yoy) 변형."},
+    "E_gpa_only":      {"note": "폐기된 스크리너의 단일 팩터(gpa) 변형."},
+    "E_pbr_only":      {"note": "폐기된 스크리너의 단일 팩터(inv_pbr) 변형."},
+    "G_full":          {"note": "스크리너+모멘텀+RIM 풀 파이프라인. 스크리너 폐기로 더 이상 채택 후보 아님."},
+    "G_no_r6":         {"note": "G_full의 R6 leave-one-out. 동일 사유로 ARCHIVE."},
+    "H_no_stability":  {"note": "SPEC_05 부록A 주석(backtest/ablation.py:72-74)에 명시: use_screener=True까지 같이 꺼져 stability·screener 두 축이 동시에 달라 교란됨. F_no_stability_clean/D_no_stability로 대체됨."}
+  },
+  "RANDOM": {
+    "A_random":            {"note": "무작위 20종목 선택, seed x rebalance_date 복합 시드, 500회 반복. 결과: A_random_dist.csv (experiments/ablation/, gitignore됨)."},
+    "B_hard_random":       {"note": "HardFilter만 통과 후 무작위 선택, 500회 반복. B_hard_random_dist.csv."},
+    "C_stability_random":  {"note": "Hard+Stability(기본 전체 6룰) 통과 후 무작위 선택, 500회 반복. C_stability_random_dist.csv."},
+    "C_no_r6":             {"note": "이름과 달리 코드상 RANDOM_TAGS에 포함(use_rim_filter=False, random_n=20) — Hard+Stability(R6 제외) 통과 후 무작위 선택. C_no_r6_dist.csv."}
+  }
+}

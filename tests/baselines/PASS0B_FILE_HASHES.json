@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "purpose": "AUDIT_01 Pass 0B 산출물 SHA256 (AUDIT_MANIFEST.json §pass0b_characterization item 4 요구사항)",
+    "generated_at_kst": "2026-07-12"
+  },
+  "selection/D_no_r2.json":        {"sha256": "3e578c6aa5f09a4bd54e18bee14e969af2d01b6d82fa3ed3f3243cd0d7a5110e", "size_bytes": 143710},
+  "selection/D_no_r3.json":        {"sha256": "b8c9c6a1ab2392bdd0befccae9a424b4af1348eb4cf5ed035b767dfd1eb0bad2", "size_bytes": 143703},
+  "selection/D_no_stability.json": {"sha256": "e763341124e9a12e8e7038249086802bdd7ead107eb4b8c06b96c767cd044415", "size_bytes": 144101},
+  "selection/D_rim_only.json":     {"sha256": "1ed8ced843d8bcdd4df11005c549ccc4d6cae4f13d69168b8134e9eaf2c65674", "size_bytes": 143713},
+  "selection/F_no_r2r3.json":      {"sha256": "f81f9a024f6d2d265ebc5a79f323f105d367877b1ec4fd72a5ca5074e25a2292", "size_bytes": 139352},
+  "aggregate/D_no_r2.json":        {"sha256": "2d85070f28b940b068014f6edae1214f8968bb157a642dbbf1d4f981e624e6f0", "size_bytes": 11749},
+  "aggregate/D_no_r3.json":        {"sha256": "a3e8ba03a7c1ee809f12883c44837a828539939e6bd31bd4a9c503f7881d2836", "size_bytes": 11734},
+  "aggregate/D_no_stability.json": {"sha256": "bee3bc4021f299eede84c22e1d4fa20a70236483a1be7c3ce24d5ba9ed7c3ede", "size_bytes": 11698},
+  "aggregate/D_rim_only.json":     {"sha256": "563fe45ed49655c77161f71ca081650d47af7d535d2ba36611848a08ba4c8414", "size_bytes": 11758},
+  "aggregate/F_no_r2r3.json":      {"sha256": "6b8fea7afc54d7b3837be25aa7e92217fd6ee19a23e920e2b6626854bcbd1b4d", "size_bytes": 11584}
+}

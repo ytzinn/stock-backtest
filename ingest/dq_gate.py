@@ -23,12 +23,17 @@ log = logging.getLogger(__name__)
 
 
 def run_dq_gate(ticker: str, year: int, report_type: str,
-                accounts_cur: dict, accounts_prev: dict | None = None) -> None:
+                accounts_cur: dict, accounts_prev: dict | None = None,
+                conn=None) -> None:
     """
     단일 (ticker, year, report_type) DQ Gate 판정 → universe_gate_pit upsert.
 
     accounts_cur:  해당 기간 계정 딕셔너리 {account_nm: amount}
+                   ※ PIT 계약: _load_accounts()가 주는 **최초 공시값** 기준이어야 한다
+                   (CORR-GATE-002 — 정정 반영값으로 판정하면 정정 이전 리밸런싱일에
+                   미래 정보가 새어든다).
     accounts_prev: 직전 기간 (V09 연속 누락 판정용, 없으면 None)
+    conn: 주입 시 그 커넥션으로 upsert (테스트·배치 재사용). None이면 자체 db_conn.
     """
     reject_reasons: list[str] = []
     flags: list[str] = []
@@ -108,31 +113,51 @@ def run_dq_gate(ticker: str, year: int, report_type: str,
 
     status = 'REJECT' if reject_reasons else 'PASS'
 
-    with db_conn() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            INSERT INTO universe_gate_pit
-                (ticker, year, report_type, status, reject_reasons, flags)
-            VALUES (%s, %s, %s, %s, %s::jsonb, %s::jsonb)
-            ON CONFLICT (ticker, year, report_type) DO UPDATE SET
-                status         = EXCLUDED.status,
-                reject_reasons = EXCLUDED.reject_reasons,
-                flags          = EXCLUDED.flags,
-                evaluated_at   = now()
-            """,
-            (ticker, year, report_type, status,
-             json.dumps(reject_reasons, ensure_ascii=False),
-             json.dumps(flags, ensure_ascii=False)),
-        )
+    if conn is not None:
+        _upsert_gate(conn.cursor(), ticker, year, report_type, status, reject_reasons, flags)
+    else:
+        with db_conn() as own_conn:
+            _upsert_gate(own_conn.cursor(), ticker, year, report_type, status,
+                         reject_reasons, flags)
+
+
+def _upsert_gate(cur, ticker: str, year: int, report_type: str,
+                 status: str, reject_reasons: list, flags: list) -> None:
+    cur.execute(
+        """
+        INSERT INTO universe_gate_pit
+            (ticker, year, report_type, status, reject_reasons, flags)
+        VALUES (%s, %s, %s, %s, %s::jsonb, %s::jsonb)
+        ON CONFLICT (ticker, year, report_type) DO UPDATE SET
+            status         = EXCLUDED.status,
+            reject_reasons = EXCLUDED.reject_reasons,
+            flags          = EXCLUDED.flags,
+            evaluated_at   = now()
+        """,
+        (ticker, year, report_type, status,
+         json.dumps(reject_reasons, ensure_ascii=False),
+         json.dumps(flags, ensure_ascii=False)),
+    )
 
 
 def _load_accounts(cur, ticker: str, year: int,
                     report_type: str) -> dict:
+    """
+    게이트 판정 입력 로드. 두 가지 계약:
+
+    1. PIT (CORR-GATE-002): COALESCE(original_amount, amount) — **최초 공시값** 기준.
+       financials.amount는 정정공시로 덮어써지므로, 그걸 쓰면 정정 이전 리밸런싱일의
+       게이트 판정에 미래 정보가 새어든다 (정정으로 자본총계 부호가 뒤집힌 실측 145행).
+    2. 결정성 (CORR-GATE-001): 동일 account_nm에 CFS/OFS가 공존하면 **CFS 우선** —
+       load_pit_series와 동일 규칙. ORDER BY로 OFS를 먼저 읽고 CFS가 덮어쓰게 해
+       스캔 순서 비의존을 보장한다 (종전엔 ORDER BY 없이 dict 덮어쓰기 = 비결정적).
+    """
     cur.execute(
         """
-        SELECT account_nm, amount FROM financials
+        SELECT account_nm, COALESCE(original_amount, amount) AS first_disclosed
+        FROM financials
         WHERE ticker = %s AND year = %s AND report_type = %s
+        ORDER BY CASE fs_div WHEN 'OFS' THEN 1 ELSE 2 END
         """,
         (ticker, year, report_type),
     )
@@ -155,7 +180,8 @@ def evaluate_ticker(ticker: str) -> None:
         for year, report_type in periods:
             accounts = _load_accounts(cur, ticker, year, report_type)
             run_dq_gate(ticker, year, report_type, accounts,
-                        accounts_prev=prev_accounts if prev_year == year - 1 else None)
+                        accounts_prev=prev_accounts if prev_year == year - 1 else None,
+                        conn=conn)
             if report_type == 'FY':
                 prev_accounts = accounts
                 prev_year = year
