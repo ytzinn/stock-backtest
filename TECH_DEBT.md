@@ -170,6 +170,8 @@
   단 값이 갈리는 데이터가 들어오는 순간 게이트 판정(=유니버스)이 실행마다 흔들릴 수 있는 구조.
 - **Evidence(Pass 2)**: `tests/integration/test_pass2_pit_gate.py::test_gate_load_accounts_must_prefer_cfs_deterministically`(의도적 실패 — OFS가 CFS를 덮어씀을 실증)
 - **Label**: [검증된 사실](구조) / 현재 무해(실측)
+- **상태: ✅ 수정 완료 (Pass 3, PR audit/CORR-GATE-001)** — ORDER BY로 CFS가 항상
+  마지막에 덮어쓰도록 고정 (스캔 순서 비의존).
 
 ### CORR-GATE-002 — 게이트가 정정 반영값으로 판정 → 게이트 경유 룩어헤드 (Pass 1 신규)
 - **Commit**: 5ea5c48
@@ -185,6 +187,10 @@
   percentile 컷은 유니버스에 직접 의존하므로 진단 시나리오 미세 오염 가능 [Claude 의견].
 - **Evidence(Pass 2)**: `tests/integration/test_pass2_pit_gate.py::test_gate_verdict_must_reflect_values_known_at_rebalance`(의도적 실패)
 - **Label**: [검증된 사실](경로·후보 규모·비침투) 
+- **상태: ✅ 코드 수정 완료 (Pass 3, PR audit/CORR-GATE-001, 사용자 결정 (a))** —
+  _load_accounts가 COALESCE(original_amount, amount) = 최초 공시값으로 판정.
+  배포 후 런북: `python -m ingest.dq_gate` 전종목 재판정 (universe_gate_pit 재생성)
+  → ablation diff. run_dq_gate에 conn 주입 지원 (평가·upsert 동일 트랜잭션).
 
 ### CORR-DA-001 — get_avg_turnover/has_recent_trade가 "데이터 없음"과 "거래 없음"을 구분 못 함 (Pass 1 신규)
 - **Commit**: 5ea5c48
