@@ -9,6 +9,11 @@
 > **상태: Pass 2 재현·영향 행렬 완료 (2026-07-12, Fable 5).**
 > P0 11건 전건에 실패 테스트 커밋 (재현 불가 0건). 실데이터 편입 오염이 재현된
 > **PIT-AMEND-001·CORR-HARD-001을 P0-A로 승격** (P0-A 3건 · P0-B 8건).
+>
+> **⚠ 2026-07-12 정정 (배포 검증 중 자기 반증)**: PIT-AMEND-001의 P0-A 승격 근거(실편입
+> 26쌍 오염)는 **과장이었다.** 근거로 삼은 amendment_from 자체가 정정공시 여부를 보지 않고
+> 부여되고 있었다(PIT-AMEND-002, 오탐 10,226행). PIT-AMEND-001은 **P0-B로 환원**하고,
+> PIT 재빌드 후 재측정에서 실편입 오염이 확인되면 재승격한다. → 현재 P0-A 2건 · P0-B 10건.
 > 영향 행렬·수정 후보 차이표·결합 판정·수정 순서는 **IMPACT_MATRIX.md** 참조.
 > 다음 단계: Pass 3 — IMPACT_MATRIX §6 순서로 항목당 1 PR (7~9번은 정책 결정 선행).
 
@@ -45,18 +50,46 @@
   + `backtest/regime/data_access_regime.py::book_equity_batch` (159-171, 동일 CASE 복제)
 - **Expected contract**: SPEC_02 §3-1-2 "정정 미공개 시점 → 원본값 사용 (PIT 보존)"
 - **Actual behavior**: `original_amount IS NULL`이면 ELSE로 정정값 반환
-- **Result impact**: **Y — 편입 오염 재현 (Pass 2).** Pass 0B 실편입 817쌍 × 운영 DB 교차:
-  **26개 (ticker, 리밸) 쌍**의 재무 계정이 시장 미공개 정정값으로 계산됨 (000880·000150·
-  065150 등은 RIM 입력 포함 9계정 전부). 유니버스 레벨 노출: 매 리밸 15~599행.
-  **원본 소실로 반사실 복원 불가** — "선택 자체가 오염" 유형. 상세: IMPACT_MATRIX §2.
-- **Evidence**: `tests/integration/test_pass2_pit_gate.py::test_amended_row_without_original_must_not_leak_amended_value`(의도적 실패) + 서버 교차 조회
-- **Pass 2 판정**: **P0-A 승격.** 수정은 정책 결정 필요((a)계정 제외 (b)available_from 이동
-  (c)XBRL 원본 백필) — CORR-GATE-002·DOC-PIT-001과 데이터 모델 결정 공유. 수정 순서 7번.
+- **Result impact (Pass 2 최초 판정)**: Pass 0B 실편입 817쌍 × 운영 DB 교차에서
+  **26개 (ticker, 리밸) 쌍**이 노출 창에 걸린다고 산출했다.
+- **⚠ 정정 (2026-07-12, 배포 검증 중 자기 반증)**: **이 26쌍 산출의 상당 부분이 오탐이었다.**
+  근거로 삼은 `amendment_from` 자체가 정정공시 여부를 보지 않고 부여되고 있었기 때문이다
+  (PIT-AMEND-002). 실측: `amendment_from`이 붙은 86,379행 중 **10,226행이 정정공시가 전혀
+  없는 오탐**이고, 본 항목의 제외 대상 18,676행 중 **10,226행(55%)이 오탐**이었다.
+  Pass 2가 오염 사례로 지목한 000880·000150 등도 확인 결과 정정공시가 없는 그룹이다
+  [검증된 사실, 서버 조회]. 즉 **"실편입 26쌍 오염"이라는 P0-A 승격 근거는 과장이었다.**
+- **정정 후 실제 규모**: 진짜 정정 + 원본 미상 = 8,450행, 그중 백테스트 사용 계정 **2,091행**.
+  이 범위에서는 룩어헤드가 실재하므로 항목 자체는 유효하다. 다만 편입 오염이 **재현된**
+  규모는 PIT-AMEND-002 적용 후 재측정해야 확정된다 [확실하지 않은 사실 — 확인법: PIT
+  재빌드 후 동일 교차 조회 재실행].
+- **등급**: Pass 2의 P0-A 승격은 근거 오류에 기반했다. **P0-B로 환원**하고, 재측정에서 실편입
+  오염이 확인되면 다시 P0-A로 승격한다.
+- **XBRL 백필 결과 (사용자 결정 (c) 실행, 2026-07-12)**: 3,078건 처리 → **원본 3행만 복구.**
+  누락 원본이 XBRL로 매핑 불가능한 계정(`지배기업소유주지분_1`·`비지배지분_1` = DART 이름
+  충돌 fallback, 단기/장기차입금 등)에 몰려 있어 **원리적으로 백필 불가** [검증된 사실].
+  따라서 잔여분에는 보수 규칙(계정 제외)이 그대로 적용된다.
+- **Evidence**: `tests/integration/test_pit_sql_contracts.py::test_amendment_after_rebalance_with_null_original_excludes_account`
+- **상태: ✅ 코드 수정 완료 (PR audit/PIT-AMEND-001) + ⚠ PIT-AMEND-002 선행 필수** —
+  PIT-AMEND-002 없이 이 수정만 배포하면 오탐 10,226행(백테스트 계정 5,745행)을 근거 없이
+  제외하는 **과잉 교정**이 된다. 두 수정은 반드시 함께 배포한다.
+- **Label**: [검증된 사실](코드 경로·오탐 규모) / [확실하지 않은 사실](정정 후 실제 편입 오염 규모)
+
+### PIT-AMEND-002 — amendment_from이 정정공시 여부를 보지 않고 부여됨 (Pass 3 배포 검증 중 발견)
+- **Commit**: 79f5e83 (수정), 발견은 fcc76f2 직전
+- **Location**: `ingest/pit_loader.py::resolve_dates`
+- **Expected contract**: `amendment_from` = 정정공시가 시장에 공개된 날 (SPEC_02 §3-1-2)
+- **Actual behavior**: `MAX(rcept_dt) if MAX > MIN` — `disclosures.is_amendment`를 보지 않는다.
+  같은 (ticker, year, report_type)에 공시 행이 2개 이상이기만 하면(정정이 아닌 재공시·중복
+  접수여도) 정정 플래그가 붙는다.
+- **Result impact**: **Y — 실측 오탐 10,226행** (amendment_from 보유 86,379행 중 11.8%).
+  이 오탐이 `load_pit_series`의 "정정 미공개" 분기를 근거 없이 발동시켜, PIT-AMEND-001 수정
+  후에는 **유니버스를 근거 없이 축소**시킨다 (백테스트 사용 계정 5,745행).
+  PIT-AMEND-001의 P0-A 승격 근거(26쌍)도 이 오탐에 오염돼 있었다.
+- **Evidence**: `tests/integration/test_resolve_dates.py::test_non_amendment_republication_must_not_set_amendment_from` (회귀 방지) + 서버 카운트
+- **상태: ✅ 수정 완료 (PR #11)** — `MAX(rcept_dt) FILTER (WHERE is_amendment)`, 단 최초
+  공개일보다 뒤일 때만. MAX(마지막 정정일)를 쓰는 근거: `financials.amount`가 DART 최신
+  버전(마지막 정정 반영본)이라 완전 공개 시점이 마지막 정정일이다. 배포: pit_loader 전종목 재빌드.
 - **Label**: [검증된 사실]
-- **상태: ✅ 코드 수정 완료 (Pass 3, PR audit/PIT-AMEND-001, 사용자 결정 (c)+잔여 보수)** —
-  쿼리 계약: 정정 미공개+원본 미상 계정은 노출 창에서 제외(NULL) — load_pit_series·
-  book_equity_batch 동일 적용. 배포 후 런북: xbrl_historical_ingest 백필 → pit_loader
-  재빌드 → **전후 ablation 비교(사용자 지정 필수 산출물)**. PR 본문 참조.
 
 ### CORR-HARD-001 — listed_date NULL이면 상장기간 검사 통과 ★ Pass 2 승격
 - **Commit**: 5ea5c48 / **Location**: `backtest/filters/hard_filter.py::_hard_filter` (66-68)
