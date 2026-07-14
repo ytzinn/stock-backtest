@@ -5,7 +5,8 @@ stocks.listed_date 백필 (CORR-HARD-001, 사용자 결정 2026-07-12).
 요건이 사실상 미작동이었다. NULL 행만 채운다 (기존값 절대 덮어쓰지 않음).
 
 소스 우선순위 (정확도 순):
-  1. FDR StockListing('KRX')의 ListingDate — 현재 상장 종목의 공식 상장일
+  1. FDR StockListing('KRX-DESC')의 ListingDate — 현재 상장 종목의 공식 상장일
+     ※ 'KRX'는 시세 스냅샷이라 ListingDate 컬럼이 없다 (2026-07 확인). 'KRX-DESC'를 써야 한다.
   2. stock_listing_events.listed_date — 상장폐지 종목 (FDR KRX-DELISTING 유래)
   3. (잔여) 백필하지 않음 — hard_filter가 가격 이력 최초일 프록시로 판정
      (backtest/data_access.get_first_price_date)
@@ -27,19 +28,20 @@ log = logging.getLogger(__name__)
 
 
 def load_fdr_listing_dates() -> dict[str, object]:
-    """FDR KRX 전 종목의 {ticker: ListingDate}. 실패 시 예외 전파 (조용한 빈 dict 금지)."""
-    df = fdr.StockListing('KRX')
-    col = 'ListingDate' if 'ListingDate' in df.columns else None
-    if col is None:
-        raise RuntimeError(f"FDR StockListing('KRX')에 ListingDate 컬럼 없음: {list(df.columns)}")
+    """FDR KRX-DESC 전 종목의 {ticker: ListingDate}. 실패 시 예외 전파 (조용한 빈 dict 금지)."""
+    df = fdr.StockListing('KRX-DESC')
+    if 'ListingDate' not in df.columns:
+        raise RuntimeError(
+            f"FDR StockListing('KRX-DESC')에 ListingDate 컬럼 없음: {list(df.columns)}"
+        )
     code_col = 'Code' if 'Code' in df.columns else 'Symbol'
     result = {}
     for _, row in df.iterrows():
         ticker = str(row[code_col]).strip().zfill(6)
-        ld = row[col]
-        if ld is not None and str(ld) != 'NaT':
+        ld = row['ListingDate']
+        if ld is not None and str(ld) not in ('NaT', 'nan', ''):
             result[ticker] = ld
-    log.info(f'FDR KRX ListingDate: {len(result)}개 종목')
+    log.info(f'FDR KRX-DESC ListingDate: {len(result)}개 종목')
     return result
 
 
