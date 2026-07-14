@@ -29,20 +29,36 @@ def resolve_dates(cur, ticker: str, year: int,
     """
     원본 공시일, 정정 공시일, fallback 여부 반환.
       available_from  = MIN(rcept_dt) — 데이터 최초 공개일 (룩어헤드 기준)
-      amendment_from  = MAX(rcept_dt) if MAX > MIN else None — 정정 공개일
+      amendment_from  = **정정공시(is_amendment=TRUE) 중 MAX(rcept_dt)**, 단 최초 공개일보다
+                        뒤일 때만. 정정이 없으면 None.
       fallback_used   = True if disclosures 없어 법정마감+5일 사용
+
+    ⚠ PIT-AMEND-002 (2026-07-12 수정): 종전에는 `MAX(rcept_dt) if MAX > MIN`으로
+    **is_amendment를 보지 않고** 계산했다. 그래서 같은 보고서에 공시 행이 2개 이상이기만
+    하면(정정이 아닌 재공시·중복 접수여도) 정정 플래그가 붙었다 — 운영 DB 실측 결과
+    amendment_from이 붙은 86,379행 중 10,226행이 정정공시가 아예 없는 오탐이었다.
+    이 오탐은 load_pit_series의 "정정 미공개 → 원본값/제외" 분기를 근거 없이 발동시켜
+    유니버스를 축소시킨다.
+
+    MAX(정정일)을 쓰는 이유: financials.amount는 DART가 주는 **최신 버전**(마지막 정정
+    반영본)이다. 따라서 그 값이 시장에 완전히 공개된 시점은 마지막 정정일이다.
+    (MIN을 쓰면 첫 정정 시점부터 최종 정정값을 쓰게 돼 룩어헤드가 남는다.)
     """
     cur.execute(
         """
-        SELECT MIN(rcept_dt), MAX(rcept_dt) FROM disclosures
+        SELECT MIN(rcept_dt),
+               MAX(rcept_dt) FILTER (WHERE is_amendment)
+        FROM disclosures
         WHERE ticker = %s AND year = %s AND report_type = %s
         """,
         (ticker, year, report_type),
     )
     row = cur.fetchone()
     if row and row[0]:
-        min_dt, max_dt = row
-        amendment_from = max_dt if max_dt > min_dt else None
+        min_dt, max_amend_dt = row
+        amendment_from = (
+            max_amend_dt if (max_amend_dt is not None and max_amend_dt > min_dt) else None
+        )
         return min_dt, amendment_from, False
 
     yr_off, mo, day = FALLBACK_OFFSET[report_type]

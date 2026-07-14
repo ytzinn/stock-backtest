@@ -56,12 +56,13 @@ CREATE TABLE financials_pit (
 );
 
 CREATE TABLE disclosures (
-    rcept_no    TEXT PRIMARY KEY,
-    ticker      TEXT NOT NULL REFERENCES stocks(ticker),
-    rcept_dt    DATE,
-    report_nm   TEXT,
-    report_type TEXT,
-    year        INTEGER
+    rcept_no     TEXT PRIMARY KEY,
+    ticker       TEXT NOT NULL REFERENCES stocks(ticker),
+    rcept_dt     DATE,
+    report_nm    TEXT,
+    report_type  TEXT,
+    year         INTEGER,
+    is_amendment BOOLEAN DEFAULT FALSE   -- v8_xbrl_original
 );
 
 CREATE TABLE price_history (
