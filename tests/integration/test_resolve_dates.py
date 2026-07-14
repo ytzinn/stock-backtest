@@ -29,12 +29,12 @@ STATUTORY_DEADLINE = {
 
 
 def _insert_disclosure(conn, ticker: str, year: int, report_type: str,
-                       rcept_dt: date, rcept_no: str):
+                       rcept_dt: date, rcept_no: str, is_amendment: bool = False):
     with conn.cursor() as cur:
         cur.execute(
-            "INSERT INTO disclosures (rcept_no, ticker, rcept_dt, report_type, year) "
-            "VALUES (%s,%s,%s,%s,%s)",
-            (rcept_no, ticker, rcept_dt, report_type, year),
+            "INSERT INTO disclosures (rcept_no, ticker, rcept_dt, report_type, year, is_amendment) "
+            "VALUES (%s,%s,%s,%s,%s,%s)",
+            (rcept_no, ticker, rcept_dt, report_type, year, is_amendment),
         )
 
 
@@ -50,11 +50,12 @@ def test_single_disclosure_no_amendment(conn, make_stock):
     assert fallback is False
 
 
-def test_amendment_detected_as_max_rcept_dt(conn, make_stock):
-    """원본 3/20 + 정정 6/10 → available_from=3/20(최초 공개), amendment_from=6/10."""
+def test_amendment_uses_latest_amendment_disclosure_date(conn, make_stock):
+    """원본 3/20 + 정정공시 6/10 → available_from=3/20(최초 공개), amendment_from=6/10."""
     make_stock('FFF002')
     _insert_disclosure(conn, 'FFF002', 2023, 'FY', date(2024, 3, 20), 'R002')
-    _insert_disclosure(conn, 'FFF002', 2023, 'FY', date(2024, 6, 10), 'R003')
+    _insert_disclosure(conn, 'FFF002', 2023, 'FY', date(2024, 6, 10), 'R003',
+                       is_amendment=True)
 
     with conn.cursor() as cur:
         avail, amend, fallback = resolve_dates(cur, 'FFF002', 2023, 'FY')
@@ -62,6 +63,58 @@ def test_amendment_detected_as_max_rcept_dt(conn, make_stock):
     assert avail == date(2024, 3, 20)
     assert amend == date(2024, 6, 10)
     assert fallback is False
+
+
+def test_multiple_amendments_use_the_last_one(conn, make_stock):
+    """
+    정정이 여러 번이면 **마지막** 정정일. financials.amount는 DART 최신 버전(마지막 정정
+    반영본)이므로, 그 값이 완전히 공개된 시점은 마지막 정정일이다 (MIN을 쓰면 룩어헤드 잔존).
+    """
+    make_stock('FFF006')
+    _insert_disclosure(conn, 'FFF006', 2023, 'FY', date(2024, 3, 20), 'R010')
+    _insert_disclosure(conn, 'FFF006', 2023, 'FY', date(2024, 5, 2), 'R011', is_amendment=True)
+    _insert_disclosure(conn, 'FFF006', 2023, 'FY', date(2024, 9, 8), 'R012', is_amendment=True)
+
+    with conn.cursor() as cur:
+        _, amend, _ = resolve_dates(cur, 'FFF006', 2023, 'FY')
+
+    assert amend == date(2024, 9, 8)
+
+
+def test_non_amendment_republication_must_not_set_amendment_from(conn, make_stock):
+    """
+    ⚠ PIT-AMEND-002 회귀 방지 (핵심).
+    같은 보고서에 공시 행이 2개 이상이지만 **정정공시가 아닌** 경우(재공시·중복 접수 등)
+    amendment_from이 붙으면 안 된다. 종전 구현은 is_amendment를 보지 않고
+    `MAX(rcept_dt) if MAX > MIN`으로 계산해 이 케이스를 정정으로 오탐했다 —
+    운영 DB 실측 10,226행이 이 오탐이었고, load_pit_series의 "정정 미공개" 분기를
+    근거 없이 발동시켜 유니버스를 축소시켰다.
+    """
+    make_stock('FFF007')
+    _insert_disclosure(conn, 'FFF007', 2023, 'FY', date(2024, 3, 20), 'R020')
+    _insert_disclosure(conn, 'FFF007', 2023, 'FY', date(2024, 4, 15), 'R021')  # 정정 아님
+
+    with conn.cursor() as cur:
+        avail, amend, _ = resolve_dates(cur, 'FFF007', 2023, 'FY')
+
+    assert avail == date(2024, 3, 20)
+    assert amend is None
+
+
+def test_amendment_only_disclosure_does_not_set_amendment_from(conn, make_stock):
+    """
+    공시가 정정본 하나뿐이면(원본 미수집) available_from = 그 정정일이고, amount도 그
+    버전이므로 룩어헤드가 없다 → amendment_from은 None (max_amend > min 조건).
+    """
+    make_stock('FFF008')
+    _insert_disclosure(conn, 'FFF008', 2023, 'FY', date(2024, 6, 10), 'R030',
+                       is_amendment=True)
+
+    with conn.cursor() as cur:
+        avail, amend, _ = resolve_dates(cur, 'FFF008', 2023, 'FY')
+
+    assert avail == date(2024, 6, 10)
+    assert amend is None
 
 
 @pytest.mark.parametrize('report_type', ['FY', 'H1', 'Q1', 'Q3'])
