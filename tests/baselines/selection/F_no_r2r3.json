@@ -1,6 +1,6 @@
 {
   "tag": "F_no_r2r3",
-  "captured_at": "2026-07-11T22:16:57.513915",
+  "captured_at": "2026-07-15T09:32:30.418644",
   "cross_check_mismatches": [],
   "periods": [
     {
@@ -23,7 +23,7 @@
       "rebalance_date": "2016-04-05",
       "end_date": "2016-08-18",
       "is_open_period": false,
-      "n_gate": 1513,
+      "n_gate": 1500,
       "n_stocks": 20,
       "holdings": [
         {
@@ -252,12 +252,12 @@
       "rebalance_date": "2016-08-18",
       "end_date": "2017-04-05",
       "is_open_period": false,
-      "n_gate": 1482,
-      "n_stocks": 5,
+      "n_gate": 1478,
+      "n_stocks": 3,
       "holdings": [
         {
           "ticker": "042370",
-          "weight": 0.2,
+          "weight": 0.3333333333333333,
           "entry_price": 4835.0,
           "entry_price_date": "2016-08-18",
           "exit_price": 5990.0,
@@ -268,7 +268,7 @@
         },
         {
           "ticker": "130740",
-          "weight": 0.2,
+          "weight": 0.3333333333333333,
           "entry_price": 4060.0,
           "entry_price_date": "2016-08-18",
           "exit_price": 4135.0,
@@ -278,33 +278,11 @@
           "last_known_price_at_delisting": null
         },
         {
-          "ticker": "237750",
-          "weight": 0.2,
-          "entry_price": 9740.0,
-          "entry_price_date": "2016-08-18",
-          "exit_price": 8840.0,
-          "exit_price_date": "2017-04-05",
-          "is_delisted": false,
-          "delisting_date": null,
-          "last_known_price_at_delisting": null
-        },
-        {
           "ticker": "046440",
-          "weight": 0.2,
+          "weight": 0.3333333333333333,
           "entry_price": 10039.0,
           "entry_price_date": "2016-08-18",
           "exit_price": 7480.0,
-          "exit_price_date": "2017-04-05",
-          "is_delisted": false,
-          "delisting_date": null,
-          "last_known_price_at_delisting": null
-        },
-        {
-          "ticker": "237690",
-          "weight": 0.2,
-          "entry_price": 50500.0,
-          "entry_price_date": "2016-08-18",
-          "exit_price": 42450.0,
           "exit_price_date": "2017-04-05",
           "is_delisted": false,
           "delisting_date": null,
@@ -316,7 +294,7 @@
       "rebalance_date": "2017-04-05",
       "end_date": "2017-08-18",
       "is_open_period": false,
-      "n_gate": 1645,
+      "n_gate": 1635,
       "n_stocks": 20,
       "holdings": [
         {
@@ -545,7 +523,7 @@
       "rebalance_date": "2017-08-18",
       "end_date": "2018-04-04",
       "is_open_period": false,
-      "n_gate": 1622,
+      "n_gate": 1621,
       "n_stocks": 20,
       "holdings": [
         {
@@ -774,7 +752,7 @@
       "rebalance_date": "2018-04-04",
       "end_date": "2018-08-20",
       "is_open_period": false,
-      "n_gate": 1751,
+      "n_gate": 1724,
       "n_stocks": 20,
       "holdings": [
         {
@@ -1003,7 +981,7 @@
       "rebalance_date": "2018-08-20",
       "end_date": "2019-04-03",
       "is_open_period": false,
-      "n_gate": 1744,
+      "n_gate": 1740,
       "n_stocks": 20,
       "holdings": [
         {
@@ -1232,7 +1210,7 @@
       "rebalance_date": "2019-04-03",
       "end_date": "2019-08-20",
       "is_open_period": false,
-      "n_gate": 1834,
+      "n_gate": 1795,
       "n_stocks": 20,
       "holdings": [
         {
@@ -1461,7 +1439,7 @@
       "rebalance_date": "2019-08-20",
       "end_date": "2020-04-03",
       "is_open_period": false,
-      "n_gate": 1833,
+      "n_gate": 1821,
       "n_stocks": 20,
       "holdings": [
         {
@@ -1690,12 +1668,12 @@
       "rebalance_date": "2020-04-03",
       "end_date": "2020-08-20",
       "is_open_period": false,
-      "n_gate": 1915,
-      "n_stocks": 7,
+      "n_gate": 1871,
+      "n_stocks": 6,
       "holdings": [
         {
           "ticker": "016710",
-          "weight": 0.14285714285714285,
+          "weight": 0.16666666666666666,
           "entry_price": 9140.0,
           "entry_price_date": "2020-04-03",
           "exit_price": 14950.0,
@@ -1706,7 +1684,7 @@
         },
         {
           "ticker": "017650",
-          "weight": 0.14285714285714285,
+          "weight": 0.16666666666666666,
           "entry_price": 7650.0,
           "entry_price_date": "2020-04-03",
           "exit_price": 6800.0,
@@ -1717,7 +1695,7 @@
         },
         {
           "ticker": "065680",
-          "weight": 0.14285714285714285,
+          "weight": 0.16666666666666666,
           "entry_price": 10200.0,
           "entry_price_date": "2020-04-03",
           "exit_price": 27000.0,
@@ -1728,7 +1706,7 @@
         },
         {
           "ticker": "072470",
-          "weight": 0.14285714285714285,
+          "weight": 0.16666666666666666,
           "entry_price": 3900.0,
           "entry_price_date": "2020-04-03",
           "exit_price": 4850.0,
@@ -1739,7 +1717,7 @@
         },
         {
           "ticker": "067010",
-          "weight": 0.14285714285714285,
+          "weight": 0.16666666666666666,
           "entry_price": 3920.0,
           "entry_price_date": "2020-04-03",
           "exit_price": 4195.0,
@@ -1750,21 +1728,10 @@
         },
         {
           "ticker": "083450",
-          "weight": 0.14285714285714285,
+          "weight": 0.16666666666666666,
           "entry_price": 5863.0,
           "entry_price_date": "2020-04-03",
           "exit_price": 8369.0,
-          "exit_price_date": "2020-08-20",
-          "is_delisted": false,
-          "delisting_date": null,
-          "last_known_price_at_delisting": null
-        },
-        {
-          "ticker": "204270",
-          "weight": 0.14285714285714285,
-          "entry_price": 8600.0,
-          "entry_price_date": "2020-04-03",
-          "exit_price": 12200.0,
           "exit_price_date": "2020-08-20",
           "is_delisted": false,
           "delisting_date": null,
@@ -1776,7 +1743,7 @@
       "rebalance_date": "2020-08-20",
       "end_date": "2021-04-05",
       "is_open_period": false,
-      "n_gate": 1900,
+      "n_gate": 1888,
       "n_stocks": 20,
       "holdings": [
         {
@@ -2005,7 +1972,7 @@
       "rebalance_date": "2021-04-05",
       "end_date": "2021-08-19",
       "is_open_period": false,
-      "n_gate": 2005,
+      "n_gate": 1934,
       "n_stocks": 20,
       "holdings": [
         {
@@ -2234,7 +2201,7 @@
       "rebalance_date": "2021-08-19",
       "end_date": "2022-04-05",
       "is_open_period": false,
-      "n_gate": 2001,
+      "n_gate": 1989,
       "n_stocks": 20,
       "holdings": [
         {
@@ -2463,7 +2430,7 @@
       "rebalance_date": "2022-04-05",
       "end_date": "2022-08-18",
       "is_open_period": false,
-      "n_gate": 2078,
+      "n_gate": 2014,
       "n_stocks": 20,
       "holdings": [
         {
@@ -2692,7 +2659,7 @@
       "rebalance_date": "2022-08-18",
       "end_date": "2023-04-05",
       "is_open_period": false,
-      "n_gate": 2080,
+      "n_gate": 2066,
       "n_stocks": 20,
       "holdings": [
         {
@@ -2921,7 +2888,7 @@
       "rebalance_date": "2023-04-05",
       "end_date": "2023-08-18",
       "is_open_period": false,
-      "n_gate": 2158,
+      "n_gate": 2056,
       "n_stocks": 20,
       "holdings": [
         {
@@ -3090,17 +3057,6 @@
           "last_known_price_at_delisting": null
         },
         {
-          "ticker": "377740",
-          "weight": 0.05,
-          "entry_price": 6640.0,
-          "entry_price_date": "2023-04-05",
-          "exit_price": 5100.0,
-          "exit_price_date": "2023-08-18",
-          "is_delisted": false,
-          "delisting_date": null,
-          "last_known_price_at_delisting": null
-        },
-        {
           "ticker": "006660",
           "weight": 0.05,
           "entry_price": 12170.0,
@@ -3143,6 +3099,17 @@
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null
+        },
+        {
+          "ticker": "017480",
+          "weight": 0.05,
+          "entry_price": 5160.0,
+          "entry_price_date": "2023-04-05",
+          "exit_price": 4850.0,
+          "exit_price_date": "2023-08-18",
+          "is_delisted": false,
+          "delisting_date": null,
+          "last_known_price_at_delisting": null
         }
       ]
     },
@@ -3150,7 +3117,7 @@
       "rebalance_date": "2023-08-18",
       "end_date": "2024-04-03",
       "is_open_period": false,
-      "n_gate": 2173,
+      "n_gate": 2149,
       "n_stocks": 20,
       "holdings": [
         {
@@ -3379,7 +3346,7 @@
       "rebalance_date": "2024-04-03",
       "end_date": "2024-08-20",
       "is_open_period": false,
-      "n_gate": 2316,
+      "n_gate": 2216,
       "n_stocks": 20,
       "holdings": [
         {
@@ -3608,7 +3575,7 @@
       "rebalance_date": "2024-08-20",
       "end_date": "2025-04-03",
       "is_open_period": false,
-      "n_gate": 2326,
+      "n_gate": 2312,
       "n_stocks": 20,
       "holdings": [
         {
@@ -3837,7 +3804,7 @@
       "rebalance_date": "2025-04-03",
       "end_date": "2025-08-20",
       "is_open_period": false,
-      "n_gate": 2412,
+      "n_gate": 2353,
       "n_stocks": 20,
       "holdings": [
         {
@@ -4066,7 +4033,7 @@
       "rebalance_date": "2025-08-20",
       "end_date": "2026-04-03",
       "is_open_period": false,
-      "n_gate": 2435,
+      "n_gate": 2420,
       "n_stocks": 20,
       "holdings": [
         {
@@ -4293,18 +4260,29 @@
     },
     {
       "rebalance_date": "2026-04-03",
-      "end_date": "2026-07-11",
+      "end_date": "2026-07-15",
       "is_open_period": true,
-      "n_gate": 2498,
+      "n_gate": 2375,
       "n_stocks": 20,
       "holdings": [
+        {
+          "ticker": "003010",
+          "weight": 0.05,
+          "entry_price": 5610.0,
+          "entry_price_date": "2026-04-03",
+          "exit_price": 6090.0,
+          "exit_price_date": "2026-07-15",
+          "is_delisted": false,
+          "delisting_date": null,
+          "last_known_price_at_delisting": null
+        },
         {
           "ticker": "104480",
           "weight": 0.05,
           "entry_price": 2215.0,
           "entry_price_date": "2026-04-03",
           "exit_price": 2170.0,
-          "exit_price_date": "2026-07-11",
+          "exit_price_date": "2026-07-15",
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null
@@ -4315,7 +4293,7 @@
           "entry_price": 1033.0,
           "entry_price_date": "2026-04-03",
           "exit_price": 972.0,
-          "exit_price_date": "2026-07-11",
+          "exit_price_date": "2026-07-15",
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null
@@ -4326,7 +4304,7 @@
           "entry_price": 6160.0,
           "entry_price_date": "2026-04-03",
           "exit_price": 6310.0,
-          "exit_price_date": "2026-07-11",
+          "exit_price_date": "2026-07-15",
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null
@@ -4337,7 +4315,18 @@
           "entry_price": 6410.0,
           "entry_price_date": "2026-04-03",
           "exit_price": 6970.0,
-          "exit_price_date": "2026-07-11",
+          "exit_price_date": "2026-07-15",
+          "is_delisted": false,
+          "delisting_date": null,
+          "last_known_price_at_delisting": null
+        },
+        {
+          "ticker": "004960",
+          "weight": 0.05,
+          "entry_price": 15570.0,
+          "entry_price_date": "2026-04-03",
+          "exit_price": 12860.0,
+          "exit_price_date": "2026-07-15",
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null
@@ -4348,7 +4337,7 @@
           "entry_price": 6500.0,
           "entry_price_date": "2026-04-03",
           "exit_price": 6160.0,
-          "exit_price_date": "2026-07-11",
+          "exit_price_date": "2026-07-15",
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null
@@ -4359,7 +4348,7 @@
           "entry_price": 6890.0,
           "entry_price_date": "2026-04-03",
           "exit_price": 7810.0,
-          "exit_price_date": "2026-07-11",
+          "exit_price_date": "2026-07-15",
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null
@@ -4370,7 +4359,7 @@
           "entry_price": 2365.0,
           "entry_price_date": "2026-04-03",
           "exit_price": 2360.0,
-          "exit_price_date": "2026-07-11",
+          "exit_price_date": "2026-07-15",
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null
@@ -4381,7 +4370,7 @@
           "entry_price": 4425.0,
           "entry_price_date": "2026-04-03",
           "exit_price": 4650.0,
-          "exit_price_date": "2026-07-11",
+          "exit_price_date": "2026-07-15",
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null
@@ -4392,7 +4381,7 @@
           "entry_price": 21700.0,
           "entry_price_date": "2026-04-03",
           "exit_price": 22750.0,
-          "exit_price_date": "2026-07-11",
+          "exit_price_date": "2026-07-15",
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null
@@ -4403,7 +4392,7 @@
           "entry_price": 11650.0,
           "entry_price_date": "2026-04-03",
           "exit_price": 12400.0,
-          "exit_price_date": "2026-07-11",
+          "exit_price_date": "2026-07-15",
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null
@@ -4414,18 +4403,7 @@
           "entry_price": 2735.0,
           "entry_price_date": "2026-04-03",
           "exit_price": 2905.0,
-          "exit_price_date": "2026-07-11",
-          "is_delisted": false,
-          "delisting_date": null,
-          "last_known_price_at_delisting": null
-        },
-        {
-          "ticker": "004690",
-          "weight": 0.05,
-          "entry_price": 137400.0,
-          "entry_price_date": "2026-04-03",
-          "exit_price": 127700.0,
-          "exit_price_date": "2026-07-11",
+          "exit_price_date": "2026-07-15",
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null
@@ -4436,7 +4414,7 @@
           "entry_price": 20050.0,
           "entry_price_date": "2026-04-03",
           "exit_price": 20100.0,
-          "exit_price_date": "2026-07-11",
+          "exit_price_date": "2026-07-15",
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null
@@ -4447,7 +4425,7 @@
           "entry_price": 20650.0,
           "entry_price_date": "2026-04-03",
           "exit_price": 22600.0,
-          "exit_price_date": "2026-07-11",
+          "exit_price_date": "2026-07-15",
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null
@@ -4458,7 +4436,7 @@
           "entry_price": 13140.0,
           "entry_price_date": "2026-04-03",
           "exit_price": 14450.0,
-          "exit_price_date": "2026-07-11",
+          "exit_price_date": "2026-07-15",
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null
@@ -4469,7 +4447,7 @@
           "entry_price": 81600.0,
           "entry_price_date": "2026-04-03",
           "exit_price": 86100.0,
-          "exit_price_date": "2026-07-11",
+          "exit_price_date": "2026-07-15",
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null
@@ -4480,7 +4458,7 @@
           "entry_price": 3290.0,
           "entry_price_date": "2026-04-03",
           "exit_price": 3615.0,
-          "exit_price_date": "2026-07-11",
+          "exit_price_date": "2026-07-15",
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null
@@ -4491,7 +4469,7 @@
           "entry_price": 2490.0,
           "entry_price_date": "2026-04-03",
           "exit_price": 2630.0,
-          "exit_price_date": "2026-07-11",
+          "exit_price_date": "2026-07-15",
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null
@@ -4502,18 +4480,7 @@
           "entry_price": 2390.0,
           "entry_price_date": "2026-04-03",
           "exit_price": 2580.0,
-          "exit_price_date": "2026-07-11",
-          "is_delisted": false,
-          "delisting_date": null,
-          "last_known_price_at_delisting": null
-        },
-        {
-          "ticker": "073560",
-          "weight": 0.05,
-          "entry_price": 1636.0,
-          "entry_price_date": "2026-04-03",
-          "exit_price": 1679.0,
-          "exit_price_date": "2026-07-11",
+          "exit_price_date": "2026-07-15",
           "is_delisted": false,
           "delisting_date": null,
           "last_known_price_at_delisting": null

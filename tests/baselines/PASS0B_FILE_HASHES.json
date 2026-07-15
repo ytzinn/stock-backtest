@@ -1,16 +1,46 @@
 {
   "_meta": {
-    "purpose": "AUDIT_01 Pass 0B 산출물 SHA256 (AUDIT_MANIFEST.json §pass0b_characterization item 4 요구사항)",
-    "generated_at_kst": "2026-07-12"
+    "purpose": "Pass 3 재캡처 후 baseline SHA256 (2026-07-14, PIT-AMEND-002+HARD+GATE 배포 반영)",
+    "generated_at_kst": "2026-07-14"
   },
-  "selection/D_no_r2.json":        {"sha256": "3e578c6aa5f09a4bd54e18bee14e969af2d01b6d82fa3ed3f3243cd0d7a5110e", "size_bytes": 143710},
-  "selection/D_no_r3.json":        {"sha256": "b8c9c6a1ab2392bdd0befccae9a424b4af1348eb4cf5ed035b767dfd1eb0bad2", "size_bytes": 143703},
-  "selection/D_no_stability.json": {"sha256": "e763341124e9a12e8e7038249086802bdd7ead107eb4b8c06b96c767cd044415", "size_bytes": 144101},
-  "selection/D_rim_only.json":     {"sha256": "1ed8ced843d8bcdd4df11005c549ccc4d6cae4f13d69168b8134e9eaf2c65674", "size_bytes": 143713},
-  "selection/F_no_r2r3.json":      {"sha256": "f81f9a024f6d2d265ebc5a79f323f105d367877b1ec4fd72a5ca5074e25a2292", "size_bytes": 139352},
-  "aggregate/D_no_r2.json":        {"sha256": "2d85070f28b940b068014f6edae1214f8968bb157a642dbbf1d4f981e624e6f0", "size_bytes": 11749},
-  "aggregate/D_no_r3.json":        {"sha256": "a3e8ba03a7c1ee809f12883c44837a828539939e6bd31bd4a9c503f7881d2836", "size_bytes": 11734},
-  "aggregate/D_no_stability.json": {"sha256": "bee3bc4021f299eede84c22e1d4fa20a70236483a1be7c3ce24d5ba9ed7c3ede", "size_bytes": 11698},
-  "aggregate/D_rim_only.json":     {"sha256": "563fe45ed49655c77161f71ca081650d47af7d535d2ba36611848a08ba4c8414", "size_bytes": 11758},
-  "aggregate/F_no_r2r3.json":      {"sha256": "6b8fea7afc54d7b3837be25aa7e92217fd6ee19a23e920e2b6626854bcbd1b4d", "size_bytes": 11584}
+  "selection/D_no_r2.json": {
+    "sha256": "fe205bbfd076a590be3eb684daf8cb89c0fec1d4746f642b18daa9bb333c56d3",
+    "size_bytes": 143709
+  },
+  "selection/D_no_r3.json": {
+    "sha256": "ee2ac5ccf08c2e1515d82b43d8d6fdf3423a75df21ff7f5de2cebe55bdb3f0e3",
+    "size_bytes": 143700
+  },
+  "selection/D_no_stability.json": {
+    "sha256": "47a29b577a38140523a9d145467725ef7d7b4c1525c9f120fbead19144fc09a5",
+    "size_bytes": 143663
+  },
+  "selection/D_rim_only.json": {
+    "sha256": "71ed377e20e1cc2298708a0ebbba56aa1ae433c3c3b4e537e0fc5b1fe66b1e94",
+    "size_bytes": 143712
+  },
+  "selection/F_no_r2r3.json": {
+    "sha256": "7c8c39ae8d85cb9ffc8df1e6657d01349cbf21f26ea8c1a49d936e03abe9c9e0",
+    "size_bytes": 138350
+  },
+  "aggregate/D_no_r2.json": {
+    "sha256": "4f15af4a8d344906f4ec9f89081861f5a3b4423e3e060624e67677b108f334da",
+    "size_bytes": 11759
+  },
+  "aggregate/D_no_r3.json": {
+    "sha256": "df1a9de804f665e14d95dfdd7d878c327135dd50fa33020768adc84b71174f4f",
+    "size_bytes": 11754
+  },
+  "aggregate/D_no_stability.json": {
+    "sha256": "dc6a5c78bf598cc93dff8588a61a38590609130db4901bc3daf45bd67bd8a6fc",
+    "size_bytes": 11750
+  },
+  "aggregate/D_rim_only.json": {
+    "sha256": "f30f9241107cef85816b2c727d2bf89071f00233c4a09c94f62431aab3a4239f",
+    "size_bytes": 11768
+  },
+  "aggregate/F_no_r2r3.json": {
+    "sha256": "df7dcd9dff62a1e2f62699797bc77dc92af7642d0331b0804a3e84430b5e4117",
+    "size_bytes": 11674
+  }
 }
