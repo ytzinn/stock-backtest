@@ -236,6 +236,15 @@ def make_summary(det_results: dict[str, dict], dist_stats: dict[str, dict]) -> d
         )
         judgements['_D_no_r6_cagr']   = round(cagr('D_no_r6'), 6)
         judgements['_D_pbr_only_cagr'] = round(cagr('D_pbr_only'), 6)
+    if 'F_no_r6' in s and 'F_pbr_only' in s:
+        # STEP 3 후속: 모멘텀 결합 시에도 RIM 랭킹이 1/PBR 랭킹보다 나은가 —
+        # D_no_r6 < D_pbr_only(2026-07-15 재실행에서 반전)가 모멘텀 위에서도 유지되면
+        # "1/PBR+모멘텀"이 채택안(RIM+모멘텀)의 더 단순한 대체안이 된다
+        judgements['F_no_r6>F_pbr_only (모멘텀 결합 시 RIM 고유 신호)'] = (
+            cagr('F_no_r6') > cagr('F_pbr_only')
+        )
+        judgements['_F_no_r6_cagr']    = round(cagr('F_no_r6'), 6)
+        judgements['_F_pbr_only_cagr'] = round(cagr('F_pbr_only'), 6)
     if 'D_no_r6' in s and 'D_factor_only' in s:
         # STEP 3B 후속: FactorScreener 4팩터 합산 점수를 RIM 없이 단독 선정 기준으로 썼을 때
         # RIM 랭킹(D_no_r6) 대비 얼마나 나쁜지/좋은지 — "위치 문제 vs 구성 자체 문제" 분리

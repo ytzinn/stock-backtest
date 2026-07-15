@@ -61,6 +61,12 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'use_momentum': True,  'use_rim_filter': True},
     'F_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': False,
                             'use_momentum': True,  'use_rim_filter': True,  'stability_r6': False},
+    # D_no_r6 vs D_pbr_only 쌍의 모멘텀 결합판 — 동일 필터(R1~R5+모멘텀)에서 랭킹만
+    # RIM(F_no_r6) vs 순수 1/PBR로 바꿔, 2026-07-15 재실행에서 뒤집힌 RIM 고유신호가
+    # 모멘텀 결합 후에도 열위인지(= 1/PBR+모멘텀이 채택안을 대체 가능한지) 확인.
+    'F_pbr_only':          {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': False, 'stability_r6': False,
+                            'rank_mode': 'pbr'},
     'G_full':              {'use_hard': True,  'use_stability': True,  'use_screener': True,
                             'use_momentum': True,  'use_rim_filter': True},
     'G_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': True,
