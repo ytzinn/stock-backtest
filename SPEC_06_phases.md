@@ -422,6 +422,25 @@ Phase N 설계서.md
 
 ---
 
+# 24. 2026-07 감사 이월 항목 (미해결 P1 이하)
+
+2026-07 코드 정합성 감사(`docs/audit/`)에서 P0는 전부 수정됐다(PR #1~#14). 아래는 감사
+범위였으나 P1 이하로 분류돼 이월된 항목이다. 상세·증거는 `docs/audit/TECH_DEBT.md` 참조.
+
+| ID | 요지 | 등급 | 후속 |
+|----|------|------|------|
+| **CORR-GATE-003** | `universe_gate_pit` PK에 시점 차원이 없어, 최초 공시값 판정이 정정 **이후** 시점엔 stale (자본잠식 해소 기업이 영구 REJECT). 방향은 보수적(잘못 제외). | P0-B(보수) | 권장: 게이트 룰(R02/R03/R09)을 백테스트 런타임에 `load_pit_series` 값으로 동적 평가. 또는 스키마에 시점 차원 추가. |
+| **CORR-METRIC-003** | `compute_sharpe` zero-variance 가드가 `returns.std()` 검사 후 `excess.std()`로 나눔 → 상수 시계열에서 inf. 실데이터 발생 불가. | P2 | 가드를 `excess.std()` 기준으로 교체. |
+| **OPS-CRON-001** | 가격·시총 수집 크론 부재 → `price_history` 지연(감사 시점 7주). **감사 중 처리됨** (아래 참조). | P2 | ✅ 크론 등록 완료 (2026-07-14). |
+| **DOC-PIT-001** | SPEC_02 스키마는 append-only PIT를 약속하나 실제는 단일행 upsert + original 1칸 보존(정정 1회 깊이). 연쇄 정정 시 중간 상태 소실. | P1 | 아키텍처 결정 — 시점 이력 구조 도입 시 CORR-GATE-003과 함께. |
+| **MIX-FSDIV-001** | `load_pit_series` CFS→OFS fallback이 계정 단위 → 한 dict에 연결/별도 혼합 가능. 현재 실측 충돌 0건. | P1 | 계약 명문화 (재무제표 단위 vs 계정 단위). |
+| **CONTRACT-PF-002** | 업종 25%·KOSDAQ 60% 상한: 문서는 "확정값", 코드는 미구현 스텁. | P1 | Phase 3 sector 데이터 정비 시 구현. |
+| **CONTRACT-COST-001** | 거래세: SPEC은 시장별 차등(KOSPI 0.33%/KOSDAQ 0.18%), 코드는 전 종목 KOSPI 세율. KOSDAQ 매도 0.15%p 과대(보수 편향). | P1 | SPEC_08 비대칭 비용 설계와 함께 정리. |
+| **SSOT-EQUITY-001** | equity 우선순위 규칙이 `rim.py`와 `data_access_regime.py` 2곳(의도적 배치 분리). drift 방지 테스트 부재. | P1 | 공통 상수 추출 또는 drift 테스트 추가. |
+| **PROV-ABL-002 / PROV-DB-001** | ablation 결과 JSON에 git_sha 미기록 / DB 마이그레이션 이력 테이블 부재. | P1 | 재현성 개선 — 결과에 commit SHA·스키마 버전 기록. |
+
+---
+
 # 23. 한 줄 결론
 
 이 시스템의 목적은 복잡한 적정가 계산기가 아니라,
