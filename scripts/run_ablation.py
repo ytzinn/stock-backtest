@@ -75,7 +75,8 @@ def run_deterministic(tag: str, config: dict, rebalance_dates: list[date],
     log.info(f'[{tag}] 실행 시작')
     pipeline = build_ablation_pipeline(tag, config, seed=None)
     engine   = BacktestEngine(pipeline)
-    result   = engine.run(rebalance_dates, run_name=tag, ablation_tag=tag)
+    result   = engine.run(rebalance_dates, run_name=tag, ablation_tag=tag,
+                          valuation_date=valuation_date or date.today())
     m        = result['metrics']
     metrics  = {
         'seed':               None,
