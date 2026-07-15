@@ -67,6 +67,17 @@ ABLATION_CONFIGS: dict[str, dict] = {
     'F_pbr_only':          {'use_hard': True,  'use_stability': True,  'use_screener': False,
                             'use_momentum': True,  'use_rim_filter': False, 'stability_r6': False,
                             'rank_mode': 'pbr'},
+    # F_pbr_only + R6 — R6(adjROE<r)는 StabilityFilter 내부 계산이라 PBR 경로에도 적용 가능.
+    # F_momentum_rim(R6 포함)과의 정확한 head-to-head: 이기면 "RIM의 가치는 랭킹 신호가
+    # 아니라 R6 스크린"으로 분해됨.
+    'F_pbr_r6':            {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': False,
+                            'rank_mode': 'pbr'},
+    # F_no_r3r4(현재 최고치)의 PBR 대응판 — Stability {R1,R2,R5,R6} + 모멘텀 + PBR 랭킹.
+    'F_pbr_no_r3r4':       {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'},
+                            'rank_mode': 'pbr'},
     'G_full':              {'use_hard': True,  'use_stability': True,  'use_screener': True,
                             'use_momentum': True,  'use_rim_filter': True},
     'G_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': True,
