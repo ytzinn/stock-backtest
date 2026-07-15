@@ -78,6 +78,12 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'use_momentum': True,  'use_rim_filter': False,
                             'stability_rules': {'R1', 'R2', 'R5', 'R6'},
                             'rank_mode': 'pbr'},
+    # F_pbr_no_r3r4에서 R6까지 제외 — R6은 PBR 경로에서 음의 기여(F_pbr_r6 14.70 <
+    # F_pbr_only 14.96)였으므로, 신기록 구성 {R1,R2,R5,R6}에서도 빼면 개선되는지 확인.
+    'F_pbr_no_r3r4r6':     {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R5'},
+                            'rank_mode': 'pbr'},
     'G_full':              {'use_hard': True,  'use_stability': True,  'use_screener': True,
                             'use_momentum': True,  'use_rim_filter': True},
     'G_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': True,
