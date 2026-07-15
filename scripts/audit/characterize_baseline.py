@@ -99,7 +99,7 @@ def capture_selection_tape(conn, tag: str, period_results: list[dict]) -> list[d
         tape.append({
             'rebalance_date': rebal_date.isoformat(),
             'end_date':       next_date.isoformat(),
-            'is_open_period': rebal_date == OPEN_PERIOD_REBAL_DATE,
+            'is_open_period': period['is_open_period'],
             'n_gate':         period['n_gate'],
             'n_stocks':       period['n_stocks'],
             'holdings':       holdings,
@@ -114,7 +114,7 @@ def build_aggregate_tape(tag: str, result: dict, captured_at: str) -> dict:
         period_agg.append({
             'rebalance_date':      p['rebalance_date'].isoformat(),
             'end_date':            p['next_date'].isoformat(),
-            'is_open_period':      p['rebalance_date'] == OPEN_PERIOD_REBAL_DATE,
+            'is_open_period':      p['is_open_period'],
             'gross_return':        p['period_return'],
             'net_return':          p['net_return'],
             'turnover':            p['turnover'],
@@ -133,12 +133,14 @@ def build_aggregate_tape(tag: str, result: dict, captured_at: str) -> dict:
         'ablation_tag': result['ablation_tag'],
         'captured_at':  captured_at,
         'periods':      period_agg,
-        'overall_metrics_all_periods_including_open': result['metrics'],
+        'overall_metrics_closed_periods': result['metrics'],
+        'valuation_date':      str(result['valuation_date']),
+        'price_data_max_date': str(result['price_data_max_date']),
         'note': (
-            "overall_metrics_all_periods_including_open은 engine.run()이 실제로 산출한 값 그대로다 "
-            "(TTM 미충족 gate=0 구간만 내부적으로 제외, 열린 마지막 구간(#23)은 포함된 값). "
-            "closed_period 전용 지표가 필요하면 tests/characterization/의 테스트가 periods에서 "
-            "is_open_period=True 구간을 제외하고 재계산한다 — 이 파일 자체는 재계산하지 않는다."
+            "overall_metrics_closed_periods는 engine.run()이 산출한 값 그대로다 — 2026-07 감사 "
+            "(CORR-ENGINE-003/METRIC-002/FRESH-001) 이후 엔진의 공식 지표는 완결 구간만으로 "
+            "계산되며 CAGR 연수는 실제 캘린더 경과일수 기준이다. 열린 마지막 구간(#23)은 "
+            "periods에 is_open_period=True로 남지만 공식 지표에서는 제외된다."
         ),
     }
 
@@ -173,18 +175,15 @@ def run_one(tag: str) -> None:
         holdings = tape_period['holdings']
         if not holdings:
             continue
-        n = len(holdings)
-        stock_returns = []
-        for h in holdings:
-            ps, pe = h['entry_price'], h['exit_price']
-            if ps is None or ps <= 0:
-                n -= 1
-                continue
-            if pe is None:
-                n -= 1
-                continue
-            stock_returns.append(pe / ps - 1)
-        recomputed = sum(stock_returns) / len(stock_returns) if stock_returns else 0.0
+        # engine._calc_period_return과 동일 계약: 유효 종목 weight 합으로 재정규화한 가중합
+        valid = [h for h in holdings
+                 if h['entry_price'] not in (None, 0) and h['entry_price'] > 0
+                 and h['exit_price'] is not None]
+        total_w = sum(h['weight'] for h in valid)
+        recomputed = (
+            sum((h['weight'] / total_w) * (h['exit_price'] / h['entry_price'] - 1) for h in valid)
+            if valid and total_w > 0 else 0.0
+        )
         real = real_period['period_return']
         if abs(recomputed - real) > 1e-9:
             mismatches.append({

@@ -25,24 +25,25 @@ TAGS = sorted(p.stem for p in SELECTION_DIR.glob('*.json')) if SELECTION_DIR.exi
 def _recompute_gross_return(holdings: list[dict]) -> float:
     """
     backtest/engine.py::_calc_period_return()의 산술 경로를 그대로 재현한다.
-    DB 접근 없이 selection tape의 원시 entry/exit price만 사용한다.
+    DB 접근 없이 selection tape의 원시 entry/exit price와 weight만 사용한다.
     이건 오라클이 아니다 — "지금 코드가 뭘 하는지"의 기록이다. _calc_period_return()이
     바뀌면 이 함수도 같이 갱신해야 대조 의미가 유지된다.
+
+    2026-07 감사(CORR-ENGINE-001) 이후 계약: weight 가중합 + 유효 종목 weight 합 재정규화.
+    등가중 1/N에서는 종전 단순평균과 동일값이다.
     """
-    n = len(holdings)
-    stock_returns: list[float] = []
-    for h in holdings:
-        price_start, price_end = h['entry_price'], h['exit_price']
-        if price_start is None or price_start <= 0:
-            n -= 1
-            continue
-        if price_end is None:
-            n -= 1
-            continue
-        stock_returns.append(price_end / price_start - 1)
-    if not stock_returns:
+    valid = [
+        h for h in holdings
+        if h['entry_price'] is not None and h['entry_price'] > 0 and h['exit_price'] is not None
+    ]
+    if not valid:
         return 0.0
-    return sum(stock_returns) / len(stock_returns)
+    total_w = sum(h['weight'] for h in valid)
+    if total_w <= 0:
+        return 0.0
+    return sum(
+        (h['weight'] / total_w) * (h['exit_price'] / h['entry_price'] - 1) for h in valid
+    )
 
 
 def _load(tag: str) -> tuple[dict, dict]:
