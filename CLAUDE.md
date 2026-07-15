@@ -12,36 +12,36 @@ RIM(잔여이익모델) 기반 한국 주식 멀티팩터 백테스트 머신.
 
 ## 반드시 지킬 규칙
 
-### ⚠ AUDIT MODE — 2026-07 코드 정합성 감사 기간 한정
+### 코드 정합성 규칙 (영구 — 2026-07 감사 산출물)
 
-> 이 블록이 존재하는 동안 아래 규칙이 「코드 배포 규칙」보다 **우선한다.**
-> 감사 종료 시 이 블록 전체를 삭제한다.
+> 2026-07 코드 정합성 감사(AUDIT_0*.md, `docs/audit/`로 이관)에서 확정된 영구 규칙.
+> 백테스트 결과에 영향을 주는 코드를 수정할 때 반드시 지킨다.
 
-- **자동 master push · 서버 pull 규칙을 정지한다.**
-  세션 종료 시 자동으로 `git push origin master` 하지 마라. 서버에서 `git pull` 하지 마라.
-- 모든 작업은 `audit/{ITEM_ID}` 브랜치에서만 한다. `master` 에서 직접 작업하지 마라.
-- push 는 `git push origin audit/{ITEM_ID}` 까지만 한다.
-- master merge 와 서버 pull 은 **사용자가 수동 승인 후 직접 지시**한다.
-- 배포 순서: PR 승인 → master merge → 서버 pull → 서버 shadow run
-- `tests/baselines/` (characterization baseline) 갱신은 **별도 커밋**으로 분리하고,
-  **사용자 승인 없이 갱신하지 않는다.** 테스트가 깨졌다고 baseline 을 맞춰 고치는 것은 금지다.
-- Pass 0 · Pass 1 · Pass 2 세션에서는 **프로덕션 코드를 수정하지 않는다.**
-  `tests/`, `scripts/audit/`, 감사 문서만 추가한다.
-- 통합 테스트용 임시 PostgreSQL 은 **포트 5434 이상**에 띄운다.
-  **포트 5433(운영 DB)에 절대 접속하지 마라.**
-
-- 감사 문서 위치:
-    AUDIT_00_MASTER.md    — 원칙 · Pass 순서 · 모델 배치 (먼저 읽어라)
-    AUDIT_01_PASS0.md     — 인벤토리 · 특성화 · 오라클
-    AUDIT_02_PASS1.md     — 읽기 전용 감사
-    AUDIT_03_PASS2_3.md   — 재현 · 수정 · PR
-    TECH_DEBT.md          — 부채 대장 (산출물)
-
-- 핵심 원칙 (전 Pass 공통):
-    **기존 결과는 "보존해야 할 동작"이지 "정답"이 아니다.**
-    tests/characterization/ 은 기존 동작 기록 — 버그 수정 시 정당하게 깨진다.
-    tests/oracle/ · tests/integration/ 은 옳음의 증명 — 깨지면 수정이 틀린 것이다.
-    이 둘을 절대 혼동하지 마라.
+- `backtest/data_access.py` 의 모든 조회 함수는 docstring 첫 줄에 **정확한 반환 계약**을
+  명시한다. (예: `get_close_price`는 "종가"가 아니라 "as_of 이하 최신 거래일의 종가,
+  상폐로 끊겨도 None 이 아님 — 상폐 판정에 쓰지 마라, is_delisted_at() 사용".)
+- 조회·네트워크 실패 시 조용한 기본값(0, None, 빈 리스트)을 반환하지 않는다. 예외를 던진다.
+  (`BenchmarkDataUnavailable`, `PriceDataUnavailable`.) 기본값이 필요하면 호출자가
+  명시적으로 `allow_missing=True` 를 넘기게 한다.
+- 계산했지만 소비되지 않는 파라미터를 남기지 않는다 (weight 미소비 사고 = CORR-ENGINE-001).
+- 지표 산식(CAGR/Sharpe/MDD/turnover)은 `backtest/metrics.py` + `engine._calc_turnover`
+  단일 정의. 복제 금지. CAGR 연수는 실제 캘린더 경과일수 기준. turnover = 0.5×Σ|Δw|.
+- 상수(RF/RK/OMEGA/VB_CAP/DELISTING_HAIRCUT/거래비용)는 재선언 금지, `configs/constants.py`·
+  `engine` 에서 **import 만**. 테스트도 마찬가지.
+- 순회 순서에 의존하는 계산 금지. 불가피하면 정렬 키와 tie-break 를 명시한다
+  (`pipeline._rank_key` = `(-upside_pct, ticker)`).
+- 엔진은 `date.today()` 를 내부에서 호출하지 않는다. `run(rebalance_dates, valuation_date=...)`
+  로 주입받는다. 공식 성과 지표는 **완결 구간(closed)만**으로 계산한다 (열린 구간은 실행일·
+  가격 신선도에 종속되므로 참고 지표로만).
+- 게이트/PIT 판정은 **최초 공시값(COALESCE(original_amount, amount)) 기준**이다. 정정
+  반영값으로 판정하면 룩어헤드다. `amendment_from` 은 `is_amendment=TRUE` 공시에서만 산출한다.
+- 테스트 2종을 절대 혼동하지 않는다:
+    `tests/characterization/` 은 **기존 동작 기록** — 버그 수정 시 정당하게 깨진다.
+      깨졌다고 자동 갱신 금지. baseline 재캡처는 사용자 승인 후 **별도 커밋**.
+    `tests/oracle/` · `tests/integration/` 은 **옳음의 증명** — 깨지면 수정이 틀린 것이다.
+- 백테스트 결과에 영향을 주는 코드를 수정하면 `pytest -m "not integration"` +
+  `pytest -m integration` 전부 통과해야 한다. 통합 테스트 임시 PostgreSQL 은 포트 5434+
+  (운영 5433 접속 금지).
 
 ### 코드
 - Ubuntu 서버에서 실행되는 코드만 작성한다. Windows 전용(.bat, PowerShell 스크립트) 금지.
@@ -60,8 +60,17 @@ RIM(잔여이익모델) 기반 한국 주식 멀티팩터 백테스트 머신.
 ### 데이터 정합성
 - 백테스트 엔진의 모든 데이터 조회는 `available_from <= rebalance_date` 조건 필수 (룩어헤드 방지).
 - `financials_pit` 기준: `fallback_used=TRUE`는 법정마감+5일, 항상 실제 공시일보다 늦음.
-- `universe_gate_pit` PASS 종목만 백테스트에 사용한다.
+- **정정 PIT (2026-07 감사)**: `amendment_from > rebalance_date`면 원본값 사용. 원본이 소실된
+  (`original_amount IS NULL`) 정정 계정은 노출 창에서 제외. `amendment_from`은 `is_amendment=TRUE`
+  공시에서만 산출한다 (`MAX(rcept_dt) FILTER (WHERE is_amendment)`) — 재공시·중복접수를 정정으로
+  오탐하지 마라 (PIT-AMEND-002).
+- `universe_gate_pit` PASS 종목만 백테스트에 사용한다. 게이트 판정 입력은 **최초 공시값**
+  (`COALESCE(original_amount, amount)`) · **CFS 우선** 이다 (`dq_gate._load_accounts`).
+  단, `universe_gate_pit` PK에 시점 차원이 없어 정정 이후 시점에는 판정이 stale하다 —
+  미해결 항목 CORR-GATE-003 (SPEC_06 §24 참조).
 - `stock_listing_events` 기준으로 리밸런싱 기준일 상장 여부 판단 (stock_listing_history 사용 금지).
+- `stocks.listed_date` 백필됨(FDR **KRX-DESC** + listing_events, `ingest/backfill_listed_dates.py`).
+  NULL 잔여분은 hard_filter가 가격 이력 최초일(`get_first_price_date`) 프록시로 상장기간 판정.
 
 ### Phase 순서
 SPEC_06_phases.md의 Phase 순서를 반드시 준수한다.

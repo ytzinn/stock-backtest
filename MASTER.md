@@ -34,6 +34,10 @@ RIM(잔여이익모델) 기반 한국 주식 멀티팩터 백테스트 머신.
 | `SPEC_04_models.md` | RIM 모델, 분류기(skeleton), 포트폴리오, 엔진 | Phase 2~3 |
 | `SPEC_05_backtest.md` | Ablation Test, 성과측정, Fitness Function, 튜닝, 과최적화 방지 | Phase 2~4 |
 | `SPEC_06_phases.md` | Phase별 로드맵 + 체크리스트, 산출물 포맷, 향후 확장 메모 | 전체 |
+| `SPEC_07_regime.md` | 레짐 진단 유닛 (Phase A) | Phase A |
+| `SPEC_08_regime_phaseB.md` | 레짐 오버레이 Signal→Tilt (Phase B) | Phase B |
+| `SPEC_08_B05_timing_vs_deconcentration.md` | Phase B 타이밍 vs 분산 분해 | Phase B |
+| `docs/audit/` | 2026-07 코드 정합성 감사 아카이브 (계획·TECH_DEBT·IMPACT_MATRIX 등) | 감사 |
 
 ---
 
