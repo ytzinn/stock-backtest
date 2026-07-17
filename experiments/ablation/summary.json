@@ -552,6 +552,38 @@
       "p5_cagr": -0.007211,
       "p95_cagr": 0.112195,
       "n_repeats": 500
+    },
+    "F_pbr_nostab": {
+      "cagr": 0.132008,
+      "net_cagr": 0.121186,
+      "alpha": 0.025893,
+      "alpha_kosdaq": 0.088599,
+      "sharpe": 0.488556,
+      "net_sharpe": 0.452334,
+      "mdd": -0.409754,
+      "robustness": 0.55,
+      "benchmark_cagr": 0.106115,
+      "kosdaq_cagr": 0.043409,
+      "avg_turnover": 0.7375,
+      "cagr_optimistic": 0.1322,
+      "cagr_conservative": 0.131558,
+      "n_periods": 20
+    },
+    "F_pbr_r6only": {
+      "cagr": 0.145104,
+      "net_cagr": 0.133592,
+      "alpha": 0.038989,
+      "alpha_kosdaq": 0.101695,
+      "sharpe": 0.501033,
+      "net_sharpe": 0.466225,
+      "mdd": -0.383365,
+      "robustness": 0.6,
+      "benchmark_cagr": 0.106115,
+      "kosdaq_cagr": 0.043409,
+      "avg_turnover": 0.7775,
+      "cagr_optimistic": 0.145104,
+      "cagr_conservative": 0.145104,
+      "n_periods": 20
     }
   },
   "judgements": {
@@ -606,6 +638,10 @@
     "F_no_r3r4<F_momentum_rim": false,
     "_F_no_r3r4_cagr": 0.139118,
     "F_no_r2r3r4<F_momentum_rim": false,
-    "_F_no_r2r3r4_cagr": 0.139118
+    "_F_no_r2r3r4_cagr": 0.139118,
+    "F_pbr_no_r3r4>F_pbr_nostab (PBR 경로 stability 레이어 기여)": true,
+    "F_pbr_no_r3r4>F_pbr_r6only (R6 단독 대비 R1R2R5 추가 기여)": true,
+    "_F_pbr_nostab_cagr": 0.132008,
+    "_F_pbr_r6only_cagr": 0.145104
   }
 }
