@@ -76,6 +76,22 @@ RIM(잔여이익모델) 기반 한국 주식 멀티팩터 백테스트 머신.
 SPEC_06_phases.md의 Phase 순서를 반드시 준수한다.
 Phase 0A 게이팅 통과 전 Phase 1 코드 작성 금지.
 
+### 데이터 재현성 규칙 (DRIFT-INGEST-001, 2026-07-17)
+
+> 2026-07-15 재실행 오염 사고에서 확정. 가격·시총 크론이 매일 전체 이력을 재작성해
+> (수정주가 리베이스 + FDR 현재 주식수 소급) RIM 백테스트가 날마다 다른 결과를 냈다.
+> 규명 경위는 `experiments/runs/2026.07.16._PBR_MOMENTUM_ABLATION.md` ⚠️ 정정 섹션 참조.
+
+- ingest는 **증분이 기본**. 과거 행 재작성은 ① `--full` 명시 실행 ② price_ingest의
+  수정주가 조정 감지(겹침 구간 대조, 해당 종목만) ③ `--rebuild-from-snapshot` 세 경로뿐.
+- `market_cap_history` 신규 행은 `krx_daily_snapshot`(KRX API 날짜별 LIST_SHRS·MKTCAP,
+  PIT 정확) 유도가 1순위, FDR 현재 주식수 폴백은 `source='fdr_shares'`로 기록.
+- **크론 시간대(UTC 10:00~10:45 = KST 19:00~19:45)에 백테스트 실행 금지.**
+- 문서·설계 결정에 인용하는 **공식 백테스트 수치는 크론 동결 스냅샷 실행에서만** 뽑는다
+  (crontab 주석 → 전체 재실행 → 원복). 서로 다른 날짜의 실행 결과를 비교하지 않는다.
+- `market_cap_ingest --rebuild-from-snapshot`(과거 전체 PIT 주식수 교체)은 RIM 입력이
+  바뀌어 **백테스트 기준선이 변한다** — 사용자 승인 + 공식 수치 재발행과 함께만 실행.
+
 ## 주요 상수
 ```python
 RF, RK = 0.0263, 0.0873  # backtest/configs/constants.py (rim.py, stability_filter.py가 import)
