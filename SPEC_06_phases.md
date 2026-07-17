@@ -429,7 +429,7 @@ Phase N 설계서.md
 
 | ID | 요지 | 등급 | 후속 |
 |----|------|------|------|
-| **CORR-GATE-003** | `universe_gate_pit` PK에 시점 차원이 없어, 최초 공시값 판정이 정정 **이후** 시점엔 stale (자본잠식 해소 기업이 영구 REJECT). 방향은 보수적(잘못 제외). | P0-B(보수) | 권장: 게이트 룰(R02/R03/R09)을 백테스트 런타임에 `load_pit_series` 값으로 동적 평가. 또는 스키마에 시점 차원 추가. |
+| **CORR-GATE-003** | `universe_gate_pit` PK에 시점 차원이 없어, 최초 공시값 판정이 정정 **이후** 시점엔 stale (자본잠식 해소 기업이 영구 REJECT). 방향은 보수적(잘못 제외). | P0-B(보수) | ✅ **해소 (2026-07-18, 0e89022)** — 이중 판정: `status`(최초 공시값) + `status_amended`(정정값) + `amendment_from` 저장, `load_gate_passed_tickers`가 리밸런싱일 기준 선택. 측정: 반전 266건(전부 REJECT→PASS 보수 방향)·노출 381건·최장 13개 리밸런싱 연속 부당 제외. PIT 저장이 정정 1회 깊이(DOC-PIT-001)라 이중 판정 = 현 데이터 모델 최대 정확도. 통합 테스트 I-5b 4종. |
 | **CORR-METRIC-003** | `compute_sharpe` zero-variance 가드가 `returns.std()` 검사 후 `excess.std()`로 나눔 → 상수 시계열에서 inf. 실데이터 발생 불가. | P2 | 가드를 `excess.std()` 기준으로 교체. |
 | **OPS-CRON-001** | 가격·시총 수집 크론 부재 → `price_history` 지연(감사 시점 7주). **감사 중 처리됨** (아래 참조). | P2 | ✅ 크론 등록 완료 (2026-07-14). |
 | **DOC-PIT-001** | SPEC_02 스키마는 append-only PIT를 약속하나 실제는 단일행 upsert + original 1칸 보존(정정 1회 깊이). 연쇄 정정 시 중간 상태 소실. | P1 | 아키텍처 결정 — 시점 이력 구조 도입 시 CORR-GATE-003과 함께. |
