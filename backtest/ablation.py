@@ -84,6 +84,15 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'use_momentum': True,  'use_rim_filter': False,
                             'stability_rules': {'R1', 'R2', 'R5'},
                             'rank_mode': 'pbr'},
+    # PIT 재구축(2026-07-18) 후 stability 레이어 순감 반전(F_no_stability_clean > F)
+    # 후속 — PBR 경로에서 stability 완전 제거 / R6 단독의 두 미검증 셀.
+    'F_pbr_nostab':        {'use_hard': True,  'use_stability': False, 'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': False,
+                            'rank_mode': 'pbr'},
+    'F_pbr_r6only':        {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': False,
+                            'stability_rules': {'R6'},
+                            'rank_mode': 'pbr'},
     'G_full':              {'use_hard': True,  'use_stability': True,  'use_screener': True,
                             'use_momentum': True,  'use_rim_filter': True},
     'G_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': True,
