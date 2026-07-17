@@ -85,12 +85,13 @@ def test_gate_load_accounts_must_prefer_cfs_deterministically(conn, make_stock):
             "VALUES ('GA2001', 2023, 'FY', 'OFS', '자본총계', -100.0)")
 
     with conn.cursor() as cur:
-        accounts = _load_accounts(cur, 'GA2001', 2023, 'FY')
+        first, amended = _load_accounts(cur, 'GA2001', 2023, 'FY')
 
-    assert accounts['자본총계'] == 100.0, (
-        f"게이트 입력 자본총계가 {accounts['자본총계']} — CFS(+100)가 아니라 OFS(-100)가 "
+    assert first['자본총계'] == 100.0, (
+        f"게이트 입력 자본총계가 {first['자본총계']} — CFS(+100)가 아니라 OFS(-100)가 "
         f"이겼다. fs_div 미구분 비결정 병합 (CORR-GATE-001)"
     )
+    assert amended['자본총계'] == 100.0   # 정정값 뷰도 동일 CFS 우선 규칙
 
 
 # ── CORR-GATE-002 ───────────────────────────────────────────────────────────────
@@ -118,16 +119,22 @@ def test_gate_verdict_must_reflect_values_known_at_rebalance(conn, make_stock):
                 available_from=REBAL - timedelta(days=10),
                 original_amount=-100.0, amendment_from=REBAL + timedelta(days=30))
 
-    # 수정된 dq_gate 평가 경로를 그대로 구동 (최초 공시값 기준 판정 → upsert)
+    # 수정된 dq_gate 평가 경로를 그대로 구동 (이중 판정 → upsert, CORR-GATE-003)
     with conn.cursor() as cur:
-        accounts = _load_accounts(cur, 'GB2001', 2023, 'FY')
-    assert accounts['자본총계'] == -100.0   # PIT: 원본값이 판정 입력이어야 한다
-    run_dq_gate('GB2001', 2023, 'FY', accounts, conn=conn)
+        first, amended = _load_accounts(cur, 'GB2001', 2023, 'FY')
+    assert first['자본총계'] == -100.0    # PIT: 원본값이 최초 판정 입력이어야 한다
+    assert amended['자본총계'] == 100.0   # 정정값 뷰 (정정 공시 이후 시점용)
+    run_dq_gate('GB2001', 2023, 'FY', first,
+                accounts_cur_amended=amended,
+                amendment_from=REBAL + timedelta(days=30),
+                conn=conn)
 
     with conn.cursor() as cur:
-        cur.execute("SELECT status FROM universe_gate_pit "
+        cur.execute("SELECT status, status_amended FROM universe_gate_pit "
                     "WHERE ticker='GB2001' AND year=2023 AND report_type='FY'")
-        assert cur.fetchone()[0] == 'REJECT'   # R02: 자본총계 < 0 (원본 기준)
+        status, status_amended = cur.fetchone()
+        assert status == 'REJECT'          # R02: 자본총계 < 0 (원본 기준)
+        assert status_amended == 'PASS'    # 정정 기준 판정 — 정정일 이후에만 사용
 
     tickers = load_gate_passed_tickers(conn, REBAL, report_type='FY')
     assert 'GB2001' not in tickers, (
