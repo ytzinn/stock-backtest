@@ -109,11 +109,18 @@ def test_gate_verdict_must_reflect_values_known_at_rebalance(conn, make_stock):
     """
     make_stock('GB2001')
     # financials: 정정 후 상태 (amount=정정값 +100, original_amount=원본 -100)
+    # 매출액·영업이익도 채워 R04(핵심계정 누락)가 아니라 R02만 판정을 가르게 한다
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO financials (ticker, year, report_type, fs_div, account_nm, "
             " amount, original_amount) "
             "VALUES ('GB2001', 2023, 'FY', 'CFS', '자본총계', 100.0, -100.0)")
+        cur.execute(
+            "INSERT INTO financials (ticker, year, report_type, fs_div, account_nm, amount) "
+            "VALUES ('GB2001', 2023, 'FY', 'CFS', '매출액', 500.0)")
+        cur.execute(
+            "INSERT INTO financials (ticker, year, report_type, fs_div, account_nm, amount) "
+            "VALUES ('GB2001', 2023, 'FY', 'CFS', '영업이익', 50.0)")
     # financials_pit: 게이트 JOIN용 가용성 행 (최신 보고서 = 2023 FY)
     _insert_pit(conn, 'GB2001', 2023, '자본총계', amount=100.0,
                 available_from=REBAL - timedelta(days=10),
