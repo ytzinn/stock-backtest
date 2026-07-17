@@ -88,6 +88,8 @@ CREATE TABLE universe_gate_pit (
     year           INTEGER NOT NULL,
     report_type    TEXT NOT NULL,
     status         TEXT NOT NULL,
+    status_amended TEXT,               -- CORR-GATE-003: 정정 반영값 기준 판정
+    amendment_from DATE,               -- 게이트 계정 최초 정정 공시일 (NULL=정정 없음)
     reject_reasons JSONB DEFAULT '[]',
     flags          JSONB DEFAULT '[]',
     evaluated_at   TIMESTAMPTZ DEFAULT now(),

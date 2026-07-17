@@ -5,6 +5,20 @@ Data Quality Gate — universe_gate_pit 판정.
   R (Reject) — 조건 충족 시 status='REJECT', 백테스트 유니버스에서 제외
   P (Pass flag) — 제외하지 않고 flags 컬럼에 기록, 추가 검토용 이상 징후
 
+이중 판정 (CORR-GATE-003, 2026-07-18):
+  판정을 두 벌 저장한다 —
+    status         : **최초 공시값** COALESCE(original_amount, amount) 기준
+                     (정정 공시 **이전** 리밸런싱일에 사용 — 룩어헤드 방지, CORR-GATE-002)
+    status_amended : **정정 반영값** amount 기준
+                     (정정 공시 **이후** 리밸런싱일에 사용 — stale 판정 방지)
+    amendment_from : 게이트 관련 계정의 최초 정정 공시일 (financials_pit 기준).
+                     NULL이면 정정 없음 → status_amended = status.
+  소비자(load_gate_passed_tickers)는 rebalance_date >= amendment_from이면
+  status_amended를, 아니면 status를 쓴다. PIT 저장이 정정 1회 깊이만 보존하므로
+  (DOC-PIT-001) 두 상태가 현 데이터 모델에서 도달 가능한 최대 시점 정확도다.
+  2026-07-18 측정: 정정으로 뒤집히는 판정 266건(전부 REJECT→PASS 보수 방향),
+  리밸런싱일×종목 노출 381건, 최장 13개 리밸런싱 연속 부당 제외.
+
 실행:
     python -m ingest.dq_gate                   # 전종목 전기간 판정
     python -m ingest.dq_gate --ticker 005930   # 단일 종목
@@ -21,19 +35,14 @@ from ingest.validator import validate_period
 configure_logging('dq_gate.log')
 log = logging.getLogger(__name__)
 
+GATE_ACCOUNTS = ('자본총계', '자산총계', '매출액', '영업이익', '부채총계')
 
-def run_dq_gate(ticker: str, year: int, report_type: str,
-                accounts_cur: dict, accounts_prev: dict | None = None,
-                conn=None) -> None:
+
+def _verdict(accounts_cur: dict, accounts_prev: dict | None,
+             report_type: str) -> tuple[list[str], list[str]]:
     """
-    단일 (ticker, year, report_type) DQ Gate 판정 → universe_gate_pit upsert.
-
-    accounts_cur:  해당 기간 계정 딕셔너리 {account_nm: amount}
-                   ※ PIT 계약: _load_accounts()가 주는 **최초 공시값** 기준이어야 한다
-                   (CORR-GATE-002 — 정정 반영값으로 판정하면 정정 이전 리밸런싱일에
-                   미래 정보가 새어든다).
-    accounts_prev: 직전 기간 (V09 연속 누락 판정용, 없으면 None)
-    conn: 주입 시 그 커넥션으로 upsert (테스트·배치 재사용). None이면 자체 db_conn.
+    R02/R03/R04/R05/R09 + P01~P05 판정. 순수 함수 — 입력 dict만 보고
+    (reject_reasons, flags)를 돌려준다. 최초/정정 두 입력에 재사용.
     """
     reject_reasons: list[str] = []
     flags: list[str] = []
@@ -111,58 +120,116 @@ def run_dq_gate(ticker: str, year: int, report_type: str,
                 if ratio > 100 or ratio < 0.01:
                     flags.append(f'P05:unit_change_suspect:{acct}')
 
+    return reject_reasons, flags
+
+
+def run_dq_gate(ticker: str, year: int, report_type: str,
+                accounts_cur: dict, accounts_prev: dict | None = None,
+                accounts_cur_amended: dict | None = None,
+                accounts_prev_amended: dict | None = None,
+                amendment_from=None,
+                conn=None) -> None:
+    """
+    단일 (ticker, year, report_type) DQ Gate 판정 → universe_gate_pit upsert.
+
+    accounts_cur:  해당 기간 계정 딕셔너리 {account_nm: amount}
+                   ※ PIT 계약: _load_accounts()가 주는 **최초 공시값** 기준이어야 한다
+                   (CORR-GATE-002 — 정정 반영값으로 판정하면 정정 이전 리밸런싱일에
+                   미래 정보가 새어든다).
+    accounts_cur_amended: 정정 반영값 기준 동일 딕셔너리 (status_amended 계산용).
+                   None이면 accounts_cur와 동일 취급 (정정 없음).
+    accounts_prev / accounts_prev_amended: 직전 기간 (R05·P 플래그용, 없으면 None)
+    amendment_from: 게이트 관련 계정 최초 정정 공시일 (date | None).
+    conn: 주입 시 그 커넥션으로 upsert (테스트·배치 재사용). None이면 자체 db_conn.
+    """
+    reject_reasons, flags = _verdict(accounts_cur, accounts_prev, report_type)
     status = 'REJECT' if reject_reasons else 'PASS'
 
+    if accounts_cur_amended is not None:
+        amended_rejects, _ = _verdict(
+            accounts_cur_amended,
+            accounts_prev_amended if accounts_prev_amended is not None else accounts_prev,
+            report_type,
+        )
+        status_amended = 'REJECT' if amended_rejects else 'PASS'
+    else:
+        status_amended = status
+
     if conn is not None:
-        _upsert_gate(conn.cursor(), ticker, year, report_type, status, reject_reasons, flags)
+        _upsert_gate(conn.cursor(), ticker, year, report_type, status,
+                     status_amended, amendment_from, reject_reasons, flags)
     else:
         with db_conn() as own_conn:
             _upsert_gate(own_conn.cursor(), ticker, year, report_type, status,
-                         reject_reasons, flags)
+                         status_amended, amendment_from, reject_reasons, flags)
 
 
 def _upsert_gate(cur, ticker: str, year: int, report_type: str,
-                 status: str, reject_reasons: list, flags: list) -> None:
+                 status: str, status_amended: str, amendment_from,
+                 reject_reasons: list, flags: list) -> None:
     cur.execute(
         """
         INSERT INTO universe_gate_pit
-            (ticker, year, report_type, status, reject_reasons, flags)
-        VALUES (%s, %s, %s, %s, %s::jsonb, %s::jsonb)
+            (ticker, year, report_type, status, status_amended, amendment_from,
+             reject_reasons, flags)
+        VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb)
         ON CONFLICT (ticker, year, report_type) DO UPDATE SET
             status         = EXCLUDED.status,
+            status_amended = EXCLUDED.status_amended,
+            amendment_from = EXCLUDED.amendment_from,
             reject_reasons = EXCLUDED.reject_reasons,
             flags          = EXCLUDED.flags,
             evaluated_at   = now()
         """,
-        (ticker, year, report_type, status,
+        (ticker, year, report_type, status, status_amended, amendment_from,
          json.dumps(reject_reasons, ensure_ascii=False),
          json.dumps(flags, ensure_ascii=False)),
     )
 
 
 def _load_accounts(cur, ticker: str, year: int,
-                    report_type: str) -> dict:
+                    report_type: str) -> tuple[dict, dict]:
     """
-    게이트 판정 입력 로드. 두 가지 계약:
+    게이트 판정 입력 로드 → (최초 공시값 dict, 정정 반영값 dict).
 
-    1. PIT (CORR-GATE-002): COALESCE(original_amount, amount) — **최초 공시값** 기준.
+    1. PIT (CORR-GATE-002): 최초 dict는 COALESCE(original_amount, amount) —
        financials.amount는 정정공시로 덮어써지므로, 그걸 쓰면 정정 이전 리밸런싱일의
        게이트 판정에 미래 정보가 새어든다 (정정으로 자본총계 부호가 뒤집힌 실측 145행).
+       정정 dict는 amount 그대로 (정정 공시 이후 시점용 — CORR-GATE-003).
     2. 결정성 (CORR-GATE-001): 동일 account_nm에 CFS/OFS가 공존하면 **CFS 우선** —
        load_pit_series와 동일 규칙. ORDER BY로 OFS를 먼저 읽고 CFS가 덮어쓰게 해
        스캔 순서 비의존을 보장한다 (종전엔 ORDER BY 없이 dict 덮어쓰기 = 비결정적).
     """
     cur.execute(
         """
-        SELECT account_nm, COALESCE(original_amount, amount) AS first_disclosed
+        SELECT account_nm,
+               COALESCE(original_amount, amount) AS first_disclosed,
+               amount                            AS amended
         FROM financials
         WHERE ticker = %s AND year = %s AND report_type = %s
         ORDER BY CASE fs_div WHEN 'OFS' THEN 1 ELSE 2 END
         """,
         (ticker, year, report_type),
     )
-    return {row[0]: (float(row[1]) if row[1] is not None else None)
-            for row in cur.fetchall()}
+    first, amended = {}, {}
+    for name, v_first, v_amended in cur.fetchall():
+        first[name]   = float(v_first) if v_first is not None else None
+        amended[name] = float(v_amended) if v_amended is not None else None
+    return first, amended
+
+
+def _load_amendment_from(cur, ticker: str, year: int, report_type: str):
+    """게이트 관련 계정의 최초 정정 공시일 (financials_pit). 정정 없으면 None."""
+    cur.execute(
+        """
+        SELECT MIN(amendment_from) FROM financials_pit
+        WHERE ticker = %s AND year = %s AND report_type = %s
+          AND amendment_from IS NOT NULL AND account_nm = ANY(%s)
+        """,
+        (ticker, year, report_type, list(GATE_ACCOUNTS)),
+    )
+    row = cur.fetchone()
+    return row[0] if row else None
 
 
 def evaluate_ticker(ticker: str) -> None:
@@ -175,16 +242,23 @@ def evaluate_ticker(ticker: str) -> None:
         )
         periods = cur.fetchall()
 
-        prev_accounts: dict | None = None
+        prev_first: dict | None = None
+        prev_amended: dict | None = None
         prev_year = None
         for year, report_type in periods:
-            accounts = _load_accounts(cur, ticker, year, report_type)
-            run_dq_gate(ticker, year, report_type, accounts,
-                        accounts_prev=prev_accounts if prev_year == year - 1 else None,
+            first, amended = _load_accounts(cur, ticker, year, report_type)
+            amend_from     = _load_amendment_from(cur, ticker, year, report_type)
+            is_prev = (prev_year == year - 1)
+            run_dq_gate(ticker, year, report_type, first,
+                        accounts_prev=prev_first if is_prev else None,
+                        accounts_cur_amended=amended,
+                        accounts_prev_amended=prev_amended if is_prev else None,
+                        amendment_from=amend_from,
                         conn=conn)
             if report_type == 'FY':
-                prev_accounts = accounts
-                prev_year = year
+                prev_first   = first
+                prev_amended = amended
+                prev_year    = year
 
 
 def evaluate_all() -> None:
@@ -216,6 +290,11 @@ def print_report() -> None:
         """)
         for rtype, rate in cur.fetchall():
             log.info(f'  {rtype} PASS 비율: {rate:.1%}')
+        cur.execute("""
+            SELECT COUNT(*) FROM universe_gate_pit
+            WHERE amendment_from IS NOT NULL AND status <> status_amended
+        """)
+        log.info(f'  정정으로 판정 뒤집힘: {cur.fetchone()[0]}개')
 
 
 def main() -> None:

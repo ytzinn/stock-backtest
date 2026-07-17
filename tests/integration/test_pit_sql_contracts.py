@@ -236,3 +236,62 @@ def test_gate_excludes_is_excluded_stock(conn, make_stock):
             "VALUES ('DDD006', 2023, 'FY', 'PASS')",
         )
     assert 'DDD006' not in load_gate_passed_tickers(conn, REBAL, report_type='FY')
+
+
+# ── I-5b: 시점별 게이트 판정 (CORR-GATE-003 — status vs status_amended) ─────────
+
+def _setup_amended_gate_stock(conn, make_stock, ticker: str,
+                              status: str, status_amended: str,
+                              amendment_from: date):
+    make_stock(ticker)
+    _insert_pit(conn, ticker, 2023, '자본총계', 1000.0, date(2024, 3, 20))
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO universe_gate_pit "
+            "(ticker, year, report_type, status, status_amended, amendment_from) "
+            "VALUES (%s, 2023, 'FY', %s, %s, %s)",
+            (ticker, status, status_amended, amendment_from),
+        )
+
+
+def test_gate_stale_reject_lifted_after_amendment(conn, make_stock):
+    """
+    최초 공시 REJECT가 정정으로 PASS가 됐다면, 정정 공시일 **이후** 리밸런싱에서는
+    편입돼야 한다 — 영구 REJECT(CORR-GATE-003의 stale 판정)를 잡는 핵심 계약.
+    """
+    _setup_amended_gate_stock(conn, make_stock, 'DDG001',
+                              status='REJECT', status_amended='PASS',
+                              amendment_from=REBAL - timedelta(days=10))
+    assert 'DDG001' in load_gate_passed_tickers(conn, REBAL, report_type='FY')
+
+
+def test_gate_first_verdict_governs_before_amendment(conn, make_stock):
+    """
+    정정 공시일이 리밸런싱일보다 미래면 최초 공시값 판정(REJECT)이 유지돼야 한다 —
+    정정값 판정을 미리 쓰면 룩어헤드다 (CORR-GATE-002 방향 보존).
+    """
+    _setup_amended_gate_stock(conn, make_stock, 'DDG002',
+                              status='REJECT', status_amended='PASS',
+                              amendment_from=REBAL + timedelta(days=10))
+    assert 'DDG002' not in load_gate_passed_tickers(conn, REBAL, report_type='FY')
+
+
+def test_gate_amended_reject_applies_after_amendment(conn, make_stock):
+    """정정이 문제를 드러낸 반대 방향: PASS → 정정 후 REJECT면 정정 이후 제외."""
+    _setup_amended_gate_stock(conn, make_stock, 'DDG003',
+                              status='PASS', status_amended='REJECT',
+                              amendment_from=REBAL - timedelta(days=10))
+    assert 'DDG003' not in load_gate_passed_tickers(conn, REBAL, report_type='FY')
+
+
+def test_gate_no_amendment_uses_first_verdict(conn, make_stock):
+    """amendment_from IS NULL(정정 없음)이면 status_amended가 뭐든 status가 지배한다."""
+    make_stock('DDG004')
+    _insert_pit(conn, 'DDG004', 2023, '자본총계', 1000.0, date(2024, 3, 20))
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO universe_gate_pit "
+            "(ticker, year, report_type, status, status_amended, amendment_from) "
+            "VALUES ('DDG004', 2023, 'FY', 'PASS', NULL, NULL)",
+        )
+    assert 'DDG004' in load_gate_passed_tickers(conn, REBAL, report_type='FY')

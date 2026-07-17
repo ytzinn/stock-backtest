@@ -231,7 +231,10 @@ def load_gate_passed_tickers(
 
     조건:
       1. stocks.is_excluded = FALSE
-      2. universe_gate_pit.status = 'PASS' (rebalance_date 기준 최신 report_type)
+      2. universe_gate_pit 시점별 판정 = 'PASS' (rebalance_date 기준 최신 report_type).
+         **시점별 판정 (CORR-GATE-003)**: 게이트 계정 정정 공시일(amendment_from)이
+         rebalance_date 이하면 status_amended(정정값 판정), 아니면 status(최초 공시값
+         판정)를 쓴다 — 정정 이전엔 최초값(룩어헤드 방지), 이후엔 정정값(stale 방지).
       3. rebalance_date 이전에 상장폐지된 종목 제외 (stock_listing_events 기준)
 
     report_type: 'FY' (4월 리밸런싱) 또는 'H1' (8월 리밸런싱)
@@ -252,7 +255,12 @@ def load_gate_passed_tickers(
                   ON lr.ticker = ugp.ticker
                  AND lr.year = ugp.year
                  AND lr.report_type = ugp.report_type
-                WHERE ugp.status = 'PASS'
+                WHERE CASE
+                          WHEN ugp.amendment_from IS NOT NULL
+                               AND ugp.amendment_from <= %s
+                          THEN ugp.status_amended
+                          ELSE ugp.status
+                      END = 'PASS'
             )
             SELECT s.ticker
             FROM stocks s
@@ -266,7 +274,7 @@ def load_gate_passed_tickers(
               )
             ORDER BY s.ticker
             """,
-            (rebalance_date, report_type, rebalance_date),
+            (rebalance_date, report_type, rebalance_date, rebalance_date),
         )
         return [row[0] for row in cur.fetchall()]
 
