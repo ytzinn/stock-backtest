@@ -66,7 +66,14 @@ class BacktestPipeline:
         conn,
     ) -> list[dict]:
         """
-        valuation_model로 적정가 계산 → 밸류에이션 필터 → upside% 내림차순 정렬.
+        valuation_model로 총액 적정가 계산 → 밸류에이션 필터 → upside% 내림차순 정렬.
+
+        upside = (FV_total / 시가총액 − 1) × 100 — **총액 비교** (BASIS-RIM-001,
+        2026-07-17). 종전의 주당 FV ÷ 수정주가 비교는 폐기: price_history의
+        수정주가는 현재 기준으로 리베이스되고 market_cap_history의 PIT 주식수는
+        당시 기준이라, 분할·무상증자 종목에서 upside가 배수로 틀어진다. 총액 비교는
+        주식수·수정주가가 식에서 사라져 기저 문제가 없다. 시가총액은
+        get_market_cap(as_of 이하 최신, PIT 안전) — 없으면 해당 종목 제외.
 
         RIM 컷 후 MIN_PORTFOLIO_STOCKS 미달 시 고평가 종목을 upside 순으로 보완.
         (FV 계산 불가 종목은 어떤 경우에도 제외)
@@ -75,34 +82,36 @@ class BacktestPipeline:
             'ticker': str,
             'upside_pct': float,
             'model': str,
-            'fair_value': float,
-            'price': float,
+            'fair_value': float,   # FV_total (KRW, 총액)
+            'market_cap': float,   # 비교에 사용한 시가총액 (KRW)
+            'price': float,        # rebalance_date 종가 (참고용, 비교에 미사용)
         }
         """
-        from backtest.data_access import get_shares_outstanding, get_close_price
+        from backtest.data_access import get_market_cap, get_close_price
 
         passed   = []  # RIM 컷 통과
         rejected = []  # RIM 컷 탈락 (고평가)
 
         for ticker in universe:
             pit0   = pit_series.get(ticker, [{}])[0]
-            shares = get_shares_outstanding(conn, ticker, rebalance_date)
-            fv     = self.model.fair_value(ticker, pit0, shares or 0, beta=1.0)
+            fv     = self.model.fair_value_total(ticker, pit0, beta=1.0)
+            mktcap = get_market_cap(conn, ticker, rebalance_date)
             price  = get_close_price(conn, ticker, rebalance_date)
 
-            if fv is None or price is None or price <= 0:
+            if fv is None or not mktcap or mktcap <= 0 or price is None or price <= 0:
                 continue
 
-            upside = (fv / price - 1) * 100
+            upside = (fv / mktcap - 1) * 100
             item = {
                 'ticker':     ticker,
                 'upside_pct': upside,
                 'model':      self.model.name,
                 'fair_value': fv,
+                'market_cap': mktcap,
                 'price':      price,
             }
 
-            if price <= fv * (1 + self.rim_threshold):
+            if mktcap <= fv * (1 + self.rim_threshold):
                 passed.append(item)
             else:
                 rejected.append(item)

@@ -31,17 +31,19 @@ class RIMModel:
         self.omega    = omega
         self.vb_cap   = vb_cap
 
-    def fair_value(
+    def fair_value_total(
         self,
         ticker:   str,
         pit_data: dict,
-        shares:   float,
         beta:     float = 1.0,
     ) -> float | None:
         """
-        주당 적정가(KRW) 반환. 계산 불가 시 None.
+        기업 전체 적정가치 FV_total(KRW) 반환. 계산 불가 시 None.
 
         V = B × [1 + (adjROE - r) / (1 + r - ω)],  V/B clamped to [0, vb_cap].
+        주당 환산 없음 — 시가총액과 직접 비교하는 총액 기준
+        (BASIS-RIM-001, 2026-07-17: 주당 FV ÷ 수정주가 비교는 주식수·수정주가
+        기저 불일치를 만들므로 pipeline은 이 총액 비교만 사용한다).
         """
         ni     = pit_data.get('당기순이익')
         cfo    = pit_data.get('영업활동현금흐름')
@@ -49,7 +51,7 @@ class RIMModel:
                   or pit_data.get('지배기업소유주지분_1')
                   or pit_data.get('자본총계'))
 
-        if None in (ni, cfo, equity) or equity <= 0 or (shares or 0) <= 0:
+        if None in (ni, cfo, equity) or equity <= 0:
             return None
 
         r = RF + beta * (RK - RF) + self.beta_adj
@@ -65,6 +67,27 @@ class RIMModel:
         if fv_total <= 0:
             return None
 
+        return fv_total
+
+    def fair_value(
+        self,
+        ticker:   str,
+        pit_data: dict,
+        shares:   float,
+        beta:     float = 1.0,
+    ) -> float | None:
+        """
+        주당 적정가(KRW) 반환 = fair_value_total / shares. 계산 불가 시 None.
+
+        ⚠️ 백테스트 랭킹에는 사용하지 않는다 (BASIS-RIM-001) — price_history의
+        수정주가는 현재 기준으로 리베이스되므로 PIT 주식수로 나눈 주당 FV와
+        기저가 어긋난다. 단건 조회·리포트용.
+        """
+        if (shares or 0) <= 0:
+            return None
+        fv_total = self.fair_value_total(ticker, pit_data, beta=beta)
+        if fv_total is None:
+            return None
         return fv_total / shares
 
 
@@ -72,6 +95,9 @@ class _SkeletonModel:
     """Phase 5 멀티모델 skeleton. 구현 전까지 사용 금지."""
 
     name = 'SKELETON'
+
+    def fair_value_total(self, ticker, pit_data, beta=1.0):
+        raise NotImplementedError('Phase 5 이후 구현 예정')
 
     def fair_value(self, ticker, pit_data, shares, beta=1.0):
         raise NotImplementedError('Phase 5 이후 구현 예정')

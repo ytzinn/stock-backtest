@@ -34,12 +34,24 @@ class ValuationModel(Protocol):
     """
     name: str  # 'RIM' | 'EV_SALES' | 'FCFF' | 'ENSEMBLE' 등
 
-    def fair_value(
+    def fair_value_total(
         self,
         ticker:   str,
         pit_data: dict,   # 단일 연도 PIT dict (pit_series[ticker][0])
+        beta:     float,
+    ) -> float | None:
+        """기업 전체 적정가치 FV_total(KRW) 반환. 계산 불가 시 None.
+        BacktestPipeline은 이 값을 시가총액과 비교한다 (BASIS-RIM-001 — 주당
+        환산 금지: 수정주가 리베이스와 PIT 주식수의 기저가 어긋난다)."""
+        ...
+
+    def fair_value(
+        self,
+        ticker:   str,
+        pit_data: dict,
         shares:   float,
         beta:     float,
     ) -> float | None:
-        """주당 적정가(KRW) 반환. 계산 불가 시 None."""
+        """주당 적정가(KRW) = fair_value_total / shares. 단건 조회·리포트용 —
+        백테스트 랭킹에 사용 금지. 계산 불가 시 None."""
         ...
