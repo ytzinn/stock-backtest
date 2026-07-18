@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-17T20:22:26.375406",
+  "generated_at": "2026-07-18T06:37:19.254203",
   "scenarios": {
     "D_rim_only": {
       "cagr": 0.095373,
@@ -255,6 +255,38 @@
       "avg_turnover": 0.805,
       "cagr_optimistic": 0.132998,
       "cagr_conservative": 0.132998,
+      "n_periods": 20
+    },
+    "F_pbr_nostab": {
+      "cagr": 0.132008,
+      "net_cagr": 0.121186,
+      "alpha": 0.025893,
+      "alpha_kosdaq": 0.088599,
+      "sharpe": 0.488556,
+      "net_sharpe": 0.452334,
+      "mdd": -0.409754,
+      "robustness": 0.55,
+      "benchmark_cagr": 0.106115,
+      "kosdaq_cagr": 0.043409,
+      "avg_turnover": 0.7375,
+      "cagr_optimistic": 0.1322,
+      "cagr_conservative": 0.131558,
+      "n_periods": 20
+    },
+    "F_pbr_r6only": {
+      "cagr": 0.145104,
+      "net_cagr": 0.133592,
+      "alpha": 0.038989,
+      "alpha_kosdaq": 0.101695,
+      "sharpe": 0.501033,
+      "net_sharpe": 0.466225,
+      "mdd": -0.383365,
+      "robustness": 0.6,
+      "benchmark_cagr": 0.106115,
+      "kosdaq_cagr": 0.043409,
+      "avg_turnover": 0.7775,
+      "cagr_optimistic": 0.145104,
+      "cagr_conservative": 0.145104,
       "n_periods": 20
     },
     "G_full": {
@@ -530,67 +562,35 @@
       "n_periods": 20
     },
     "A_random": {
-      "median_cagr": 0.042833,
-      "p5_cagr": -0.015845,
-      "p95_cagr": 0.122391,
+      "median_cagr": 0.041283,
+      "p5_cagr": -0.015098,
+      "p95_cagr": 0.126188,
       "n_repeats": 500
     },
     "B_hard_random": {
-      "median_cagr": 0.044594,
-      "p5_cagr": -0.021205,
-      "p95_cagr": 0.115742,
+      "median_cagr": 0.045403,
+      "p5_cagr": -0.015229,
+      "p95_cagr": 0.11764,
       "n_repeats": 500
     },
     "C_stability_random": {
-      "median_cagr": 0.062303,
-      "p5_cagr": 0.006472,
-      "p95_cagr": 0.125848,
+      "median_cagr": 0.061131,
+      "p5_cagr": 0.00688,
+      "p95_cagr": 0.123397,
       "n_repeats": 500
     },
     "C_no_r6": {
-      "median_cagr": 0.049958,
-      "p5_cagr": -0.007211,
-      "p95_cagr": 0.112195,
+      "median_cagr": 0.047867,
+      "p5_cagr": -0.006905,
+      "p95_cagr": 0.114814,
       "n_repeats": 500
-    },
-    "F_pbr_nostab": {
-      "cagr": 0.132008,
-      "net_cagr": 0.121186,
-      "alpha": 0.025893,
-      "alpha_kosdaq": 0.088599,
-      "sharpe": 0.488556,
-      "net_sharpe": 0.452334,
-      "mdd": -0.409754,
-      "robustness": 0.55,
-      "benchmark_cagr": 0.106115,
-      "kosdaq_cagr": 0.043409,
-      "avg_turnover": 0.7375,
-      "cagr_optimistic": 0.1322,
-      "cagr_conservative": 0.131558,
-      "n_periods": 20
-    },
-    "F_pbr_r6only": {
-      "cagr": 0.145104,
-      "net_cagr": 0.133592,
-      "alpha": 0.038989,
-      "alpha_kosdaq": 0.101695,
-      "sharpe": 0.501033,
-      "net_sharpe": 0.466225,
-      "mdd": -0.383365,
-      "robustness": 0.6,
-      "benchmark_cagr": 0.106115,
-      "kosdaq_cagr": 0.043409,
-      "avg_turnover": 0.7775,
-      "cagr_optimistic": 0.145104,
-      "cagr_conservative": 0.145104,
-      "n_periods": 20
     }
   },
   "judgements": {
     "C>B (재무안정성 기여, p95 기준)": false,
     "D>C_p95 (RIM 유효성, SPEC_05 §11)": false,
     "_D_cagr": 0.095373,
-    "_C_p95": 0.125848,
+    "_C_p95": 0.123397,
     "E>D (팩터 스크리닝 기여)": false,
     "F>D (모멘텀 기여)": true,
     "G>D (전체 필터 기여)": false,
@@ -638,10 +638,6 @@
     "F_no_r3r4<F_momentum_rim": false,
     "_F_no_r3r4_cagr": 0.139118,
     "F_no_r2r3r4<F_momentum_rim": false,
-    "_F_no_r2r3r4_cagr": 0.139118,
-    "F_pbr_no_r3r4>F_pbr_nostab (PBR 경로 stability 레이어 기여)": true,
-    "F_pbr_no_r3r4>F_pbr_r6only (R6 단독 대비 R1R2R5 추가 기여)": true,
-    "_F_pbr_nostab_cagr": 0.132008,
-    "_F_pbr_r6only_cagr": 0.145104
+    "_F_no_r2r3r4_cagr": 0.139118
   }
 }
