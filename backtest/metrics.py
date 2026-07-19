@@ -13,8 +13,10 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-RF_ANNUAL = 0.0263   # 무위험수익률 연간
-PERIODS_PER_YEAR = 2  # 반기 리밸런싱
+from backtest.configs.constants import RF as RF_ANNUAL  # SSOT — 재선언 금지 (값 0.0263 동일)
+
+PERIODS_PER_YEAR = 2         # 반기 리밸런싱
+TRADING_DAYS_PER_YEAR = 252  # 일별 지표 연율화 (SPEC_09 §2)
 
 
 def compute_period_returns(
@@ -108,3 +110,106 @@ def compute_metrics(
         'benchmark_cagr':  bench_cagr,
         'n_periods':       len(strategy_returns),
     }
+
+
+# ── SPEC_09 — 일별 NAV 지표 (신규 추가만, 기존 함수 무수정) ──────────────────
+# 기존 반기 종점 MDD·Sharpe는 characterization 원칙에 따라 유지되고,
+# 리포트에 두 정의를 병기한다 (예: "MDD −30.7% (반기 종점) / −XX.X% (일별)").
+
+def compute_daily_metrics(nav: pd.Series, benchmark: pd.Series | None = None) -> dict:
+    """
+    일별 NAV 시리즈(index: 날짜 오름차순, 값: NAV 수준)로부터 SPEC_09 §2 지표 계산.
+
+    연율화·경계 규약 (계약):
+      - 일별 수익률 r_t = NAV_t/NAV_{t-1} − 1 (단순수익률).
+      - daily_vol_ann = std(로그수익률) × √252 (SPEC_09 §2 표 정의).
+      - daily_sharpe  = (mean(r_t) × 252 − RF_ANNUAL) / daily_vol_ann.
+        RF는 constants.RF SSOT.
+      - 월 경계 = 캘린더 월의 마지막 관측일. 양끝 부분월도 포함한다
+        (표본 보존 우선 — 부분월 수익률이 짧은 구간에서 계산됨을 리포트에 명기).
+      - CVaR 5% (1M): 겹치지 않는 캘린더 월간 수익률의 하위 k개 평균,
+        k = int(0.05×n). k < 3이면 k=3으로 대체하고 cvar_1m_fallback=True.
+      - CVaR 5% (3M): 월말 NAV의 롤링 3개월(월 단위 스텝, **겹침 허용**) 수익률에
+        동일 k 규칙 — 겹침 사용은 지표 정의의 일부다.
+      - tracking_error_ann: 공통 관측일의 (전략 − 벤치마크) 일별 수익률
+        std × √252. benchmark는 지수 **종가 수준** 시리즈 (수익률 아님).
+
+    반환 dict 키: daily_mdd, mdd_peak_date, mdd_trough_date, daily_vol_ann,
+      daily_sharpe, worst_month_return, worst_month, cvar_5pct_1m, cvar_1m_k,
+      cvar_1m_fallback, cvar_5pct_3m, cvar_3m_k, n_days, n_months
+      (+ benchmark 제공 시 tracking_error_ann).
+    """
+    nav = nav.dropna().astype(float).copy()
+    nav.index = pd.to_datetime(nav.index)
+    nav = nav.sort_index()
+    if len(nav) < 2:
+        raise ValueError(f'일별 NAV 관측치 부족 ({len(nav)}개) — 지표 계산 불가')
+
+    r    = nav.pct_change().dropna()
+    logr = np.log(nav).diff().dropna()
+
+    vol_ann = float(logr.std(ddof=1) * np.sqrt(TRADING_DAYS_PER_YEAR))
+    sharpe  = (
+        float((r.mean() * TRADING_DAYS_PER_YEAR - RF_ANNUAL) / vol_ann)
+        if vol_ann > 0 else 0.0
+    )
+
+    # 일별 MDD + 발생 구간 (peak일 ~ trough일)
+    peak_series = nav.cummax()
+    dd          = nav / peak_series - 1
+    mdd         = float(dd.min())
+    trough_date = dd.idxmin()
+    peak_date   = nav.loc[:trough_date].idxmax()
+
+    # 캘린더 월말 NAV → 월간 수익률 (첫 월은 시리즈 시작값 대비 부분월)
+    month_end = nav.groupby(nav.index.to_period('M')).last()
+    prev_vals = np.concatenate([[nav.iloc[0]], month_end.values[:-1]])
+    monthly_ret = pd.Series(month_end.values / prev_vals - 1, index=month_end.index)
+
+    worst_idx = monthly_ret.idxmin()
+
+    def _cvar(series: pd.Series) -> tuple[float, int, bool]:
+        n = len(series)
+        k = int(n * 0.05)
+        fallback = k < 3
+        k = min(max(k, 3), n)
+        return float(series.nsmallest(k).mean()), k, fallback
+
+    cvar_1m, k_1m, fb_1m = _cvar(monthly_ret)
+
+    r3m = (month_end / month_end.shift(3) - 1).dropna()
+    if len(r3m) > 0:
+        cvar_3m, k_3m, _ = _cvar(r3m)
+    else:
+        cvar_3m, k_3m = float('nan'), 0
+
+    out = {
+        'daily_mdd':          mdd,
+        'mdd_peak_date':      peak_date.date(),
+        'mdd_trough_date':    trough_date.date(),
+        'daily_vol_ann':      vol_ann,
+        'daily_sharpe':       sharpe,
+        'worst_month_return': float(monthly_ret.min()),
+        'worst_month':        str(worst_idx),
+        'cvar_5pct_1m':       cvar_1m,
+        'cvar_1m_k':          k_1m,
+        'cvar_1m_fallback':   fb_1m,
+        'cvar_5pct_3m':       cvar_3m,
+        'cvar_3m_k':          k_3m,
+        'n_days':             len(nav),
+        'n_months':           len(monthly_ret),
+    }
+
+    if benchmark is not None:
+        b = benchmark.dropna().astype(float).copy()
+        b.index = pd.to_datetime(b.index)
+        br = b.sort_index().pct_change().dropna()
+        common = r.index.intersection(br.index)
+        if len(common) < 2:
+            raise ValueError(
+                f'벤치마크 공통 관측일 부족 ({len(common)}개) — tracking error 계산 불가'
+            )
+        diff = r.loc[common] - br.loc[common]
+        out['tracking_error_ann'] = float(diff.std(ddof=1) * np.sqrt(TRADING_DAYS_PER_YEAR))
+
+    return out

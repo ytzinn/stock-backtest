@@ -19,12 +19,10 @@ from datetime import date
 from pathlib import Path
 
 from backtest.configs.rebalance_dates import REBALANCE_DATES
-from backtest.engine import DELISTING_HAIRCUT, _last_known_price
-from backtest.data_access import is_delisted_at
+from backtest.daily_nav import nav_path_db
 from backtest.regime.config_regime import GATE_CUTOFF_DATE, REQUIRED_HOLDINGS_TAGS
 from backtest.regime.data_access_regime import (
     kospi_return,
-    latest_close_batch,
     list_universe_tickers,
     market_cap_batch,
     month_end_dates,
@@ -97,44 +95,14 @@ def _nav_path(conn, weights: dict[str, float], rebal_date: date, obs_dates: list
     weights(합계≈1.0)로 rebal_date에 매수 후 obs_dates마다 재평가한 NAV 리스트.
     상폐 종목은 최초 감지 시점 가격(직전 종가 × DELISTING_HAIRCUT)에 동결 —
     이후 관측일에도 반복 청산하지 않는다(기존 백테스트와 동일 1회성 청산 가정).
+    진입가 없는 종목은 제외하되 남은 종목들로 비중을 재정규화한다.
 
-    ★ 진입가 없는 종목은 제외하되, 남은 종목들로 비중을 재정규화한다(engine.py
-    _calc_period_return()의 생존종목 재정규화와 동일 관례) — 그냥 빼기만 하면
-    그 비중만큼 자본이 증발해 NAV가 1.0 미만에서 출발하게 된다.
+    구현은 SPEC_09에서 backtest/daily_nav.py로 일반화·이관됐다 (NAV 경로 로직
+    SSOT — 산식 복제 금지, 2026-07-19 사용자 확정). 이 함수는 위임 래퍼로만
+    남는다. 불변식(고정수량·haircut 1회 동결·재정규화)의 단위 검증은
+    tests/oracle/test_daily_nav_oracle.py, mtm 결과 불변 검증은 A-2 복제 게이트.
     """
-    tickers = list(weights.keys())
-    p0 = latest_close_batch(conn, tickers, rebal_date)
-    valid_weights = {t: weights[t] for t in tickers if p0.get(t) and p0[t] > 0}
-    dropped = [t for t in tickers if t not in valid_weights]
-    if dropped:
-        dropped_frac = 1.0 - sum(valid_weights.values()) / sum(weights.values())
-        log.warning('rebal_date=%s: 진입가 없어 제외된 종목 %d개(비중 %.2f%%, 잔여 종목으로 재정규화) %s',
-                     rebal_date, len(dropped), dropped_frac * 100, dropped[:5])
-
-    total_valid_weight = sum(valid_weights.values())
-    if total_valid_weight <= 0:
-        return [0.0 for _ in obs_dates]
-    shares = {t: (w / total_valid_weight) / p0[t] for t, w in valid_weights.items()}
-
-    frozen: dict[str, float] = {}
-    navs: list[float] = []
-    for d in obs_dates:
-        active = [t for t in shares if t not in frozen]
-        px_now = latest_close_batch(conn, active, d) if active else {}
-        nav = 0.0
-        for t, sh in shares.items():
-            if t in frozen:
-                nav += sh * frozen[t]
-                continue
-            if is_delisted_at(conn, t, d):
-                last = _last_known_price(conn, t, d)
-                px = last * DELISTING_HAIRCUT
-                frozen[t] = px
-                nav += sh * px
-            else:
-                nav += sh * px_now.get(t, 0.0)
-        navs.append(nav)
-    return navs
+    return nav_path_db(conn, weights, rebal_date, obs_dates)
 
 
 def _build_largecap_sleeve(conn, rebal_date: date) -> tuple[dict[str, float], dict[str, float]]:
