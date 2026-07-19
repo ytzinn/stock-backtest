@@ -697,14 +697,6 @@
         "delisted": false
       },
       {
-        "ticker": "007540",
-        "name": "샘표",
-        "entry": 30200.0,
-        "exit": 31600.0,
-        "ret": 0.046358,
-        "delisted": false
-      },
-      {
         "ticker": "034730",
         "name": "SK",
         "entry": 286000.0,
@@ -734,22 +726,6 @@
         "entry": 7660.0,
         "exit": 9800.0,
         "ret": 0.279373,
-        "delisted": false
-      },
-      {
-        "ticker": "002170",
-        "name": "삼양통상",
-        "entry": 44600.0,
-        "exit": 41250.0,
-        "ret": -0.075112,
-        "delisted": false
-      },
-      {
-        "ticker": "023800",
-        "name": "인지컨트롤스",
-        "entry": 6700.0,
-        "exit": 5670.0,
-        "ret": -0.153731,
         "delisted": false
       },
       {
@@ -831,6 +807,30 @@
         "exit": 4435.0,
         "ret": 0.293003,
         "delisted": false
+      },
+      {
+        "ticker": "005490",
+        "name": "POSCO홀딩스",
+        "entry": 317500.0,
+        "exit": 321000.0,
+        "ret": 0.011024,
+        "delisted": false
+      },
+      {
+        "ticker": "078930",
+        "name": "GS",
+        "entry": 60700.0,
+        "exit": 54200.0,
+        "ret": -0.107084,
+        "delisted": false
+      },
+      {
+        "ticker": "024660",
+        "name": "하림홀딩스",
+        "entry": 4205.0,
+        "exit": 2436.0,
+        "ret": -0.42069,
+        "delisted": true
       }
     ]
   },
@@ -1127,14 +1127,6 @@
         "delisted": false
       },
       {
-        "ticker": "019540",
-        "name": "일지테크",
-        "entry": 3105.0,
-        "exit": 5520.0,
-        "ret": 0.777778,
-        "delisted": false
-      },
-      {
         "ticker": "005990",
         "name": "매일홀딩스",
         "entry": 13200.0,
@@ -1164,6 +1156,14 @@
         "entry": 12600.0,
         "exit": 10850.0,
         "ret": -0.138889,
+        "delisted": false
+      },
+      {
+        "ticker": "001800",
+        "name": "오리온홀딩스",
+        "entry": 19250.0,
+        "exit": 15850.0,
+        "ret": -0.176623,
         "delisted": false
       }
     ]
@@ -1524,14 +1524,6 @@
         "delisted": false
       },
       {
-        "ticker": "005010",
-        "name": "휴스틸",
-        "entry": 1227.0,
-        "exit": 2075.0,
-        "ret": 0.691117,
-        "delisted": false
-      },
-      {
         "ticker": "036530",
         "name": "SNT홀딩스",
         "entry": 14850.0,
@@ -1665,6 +1657,14 @@
         "entry": 138000.0,
         "exit": 232500.0,
         "ret": 0.684783,
+        "delisted": false
+      },
+      {
+        "ticker": "002220",
+        "name": "한일철강",
+        "entry": 1675.0,
+        "exit": 2520.0,
+        "ret": 0.504478,
         "delisted": false
       }
     ]
@@ -1866,14 +1866,6 @@
         "delisted": false
       },
       {
-        "ticker": "054800",
-        "name": "아이디스홀딩스",
-        "entry": 13700.0,
-        "exit": 12400.0,
-        "ret": -0.094891,
-        "delisted": false
-      },
-      {
         "ticker": "015760",
         "name": "한국전력",
         "entry": 23650.0,
@@ -1895,14 +1887,6 @@
         "entry": 12980.0,
         "exit": 12530.0,
         "ret": -0.034669,
-        "delisted": false
-      },
-      {
-        "ticker": "003830",
-        "name": "대한화섬",
-        "entry": 121000.0,
-        "exit": 124000.0,
-        "ret": 0.024793,
         "delisted": false
       },
       {
@@ -1962,14 +1946,6 @@
         "delisted": false
       },
       {
-        "ticker": "001810",
-        "name": "무림SP",
-        "entry": 3390.0,
-        "exit": 3935.0,
-        "ret": 0.160767,
-        "delisted": false
-      },
-      {
         "ticker": "015750",
         "name": "성우하이텍",
         "entry": 5850.0,
@@ -1999,6 +1975,30 @@
         "entry": 21000.0,
         "exit": 22300.0,
         "ret": 0.061905,
+        "delisted": false
+      },
+      {
+        "ticker": "039020",
+        "name": "이건홀딩스",
+        "entry": 4795.0,
+        "exit": 5620.0,
+        "ret": 0.172054,
+        "delisted": false
+      },
+      {
+        "ticker": "037350",
+        "name": "성도이엔지",
+        "entry": 5730.0,
+        "exit": 5650.0,
+        "ret": -0.013962,
+        "delisted": false
+      },
+      {
+        "ticker": "000070",
+        "name": "삼양홀딩스",
+        "entry": 67397.0,
+        "exit": 56387.0,
+        "ret": -0.16336,
         "delisted": false
       }
     ]
@@ -2153,19 +2153,19 @@
         "delisted": false
       },
       {
-        "ticker": "005810",
-        "name": "풍산홀딩스",
-        "entry": 20020.0,
-        "exit": 18735.0,
-        "ret": -0.064186,
-        "delisted": false
-      },
-      {
         "ticker": "037400",
         "name": "우리엔터프라이즈",
         "entry": 3340.0,
         "exit": 2635.0,
         "ret": -0.211078,
+        "delisted": false
+      },
+      {
+        "ticker": "093050",
+        "name": "LF",
+        "entry": 18200.0,
+        "exit": 17550.0,
+        "ret": -0.035714,
         "delisted": false
       }
     ]
@@ -2181,14 +2181,6 @@
         "entry": 80400.0,
         "exit": 108100.0,
         "ret": 0.344527,
-        "delisted": false
-      },
-      {
-        "ticker": "000150",
-        "name": "두산",
-        "entry": 84300.0,
-        "exit": 99400.0,
-        "ret": 0.179122,
         "delisted": false
       },
       {
@@ -2280,14 +2272,6 @@
         "delisted": false
       },
       {
-        "ticker": "000210",
-        "name": "DL",
-        "entry": 67100.0,
-        "exit": 53700.0,
-        "ret": -0.199702,
-        "delisted": false
-      },
-      {
         "ticker": "093050",
         "name": "LF",
         "entry": 17550.0,
@@ -2333,6 +2317,22 @@
         "entry": 2815.0,
         "exit": 3210.0,
         "ret": 0.14032,
+        "delisted": false
+      },
+      {
+        "ticker": "267290",
+        "name": "경동도시가스",
+        "entry": 25100.0,
+        "exit": 22300.0,
+        "ret": -0.111554,
+        "delisted": false
+      },
+      {
+        "ticker": "042420",
+        "name": "네오위즈홀딩스",
+        "entry": 31800.0,
+        "exit": 29300.0,
+        "ret": -0.078616,
         "delisted": false
       }
     ]
@@ -3139,14 +3139,6 @@
         "delisted": false
       },
       {
-        "ticker": "004020",
-        "name": "현대제철",
-        "entry": 24300.0,
-        "exit": 32350.0,
-        "ret": 0.331276,
-        "delisted": false
-      },
-      {
         "ticker": "021050",
         "name": "서원",
         "entry": 1235.0,
@@ -3168,6 +3160,14 @@
         "entry": 13630.0,
         "exit": 17790.0,
         "ret": 0.305209,
+        "delisted": false
+      },
+      {
+        "ticker": "002320",
+        "name": "한진",
+        "entry": 18950.0,
+        "exit": 19950.0,
+        "ret": 0.05277,
         "delisted": false
       }
     ]
@@ -3282,14 +3282,6 @@
         "delisted": false
       },
       {
-        "ticker": "024800",
-        "name": "유성티엔에스",
-        "entry": 2360.0,
-        "exit": 3845.0,
-        "ret": 0.629237,
-        "delisted": false
-      },
-      {
         "ticker": "034730",
         "name": "SK",
         "entry": 181500.0,
@@ -3335,6 +3327,14 @@
         "entry": 65900.0,
         "exit": 81600.0,
         "ret": 0.23824,
+        "delisted": false
+      },
+      {
+        "ticker": "005740",
+        "name": "크라운해태홀딩스",
+        "entry": 7300.0,
+        "exit": 6560.0,
+        "ret": -0.10137,
         "delisted": false
       }
     ]

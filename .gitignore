@@ -51,3 +51,4 @@ validate/docx_crops/
 validate/docx_crops_right/
 validate/check.txt
 *.docx
+experiments/daily_nav/*_daily_positions.csv

@@ -1,0 +1,3509 @@
+[
+  {
+    "rebalance_date": "2016-04-05",
+    "next_date": "2016-08-18",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "011160",
+        "name": "두산건설",
+        "entry": 3709.0,
+        "exit": 4522.0,
+        "ret": 0.219197,
+        "delisted": false
+      },
+      {
+        "ticker": "002030",
+        "name": "아세아",
+        "entry": 108500.0,
+        "exit": 103000.0,
+        "ret": -0.050691,
+        "delisted": false
+      },
+      {
+        "ticker": "040610",
+        "name": "SG&G",
+        "entry": 7640.0,
+        "exit": 7950.0,
+        "ret": 0.040576,
+        "delisted": false
+      },
+      {
+        "ticker": "036530",
+        "name": "SNT홀딩스",
+        "entry": 24595.0,
+        "exit": 16817.0,
+        "ret": -0.316243,
+        "delisted": false
+      },
+      {
+        "ticker": "005010",
+        "name": "휴스틸",
+        "entry": 2740.0,
+        "exit": 2585.0,
+        "ret": -0.056569,
+        "delisted": false
+      },
+      {
+        "ticker": "101680",
+        "name": "한국정밀기계",
+        "entry": 6120.0,
+        "exit": 5458.0,
+        "ret": -0.10817,
+        "delisted": false
+      },
+      {
+        "ticker": "042420",
+        "name": "네오위즈홀딩스",
+        "entry": 15000.0,
+        "exit": 15850.0,
+        "ret": 0.056667,
+        "delisted": false
+      },
+      {
+        "ticker": "007860",
+        "name": "서연",
+        "entry": 12350.0,
+        "exit": 11750.0,
+        "ret": -0.048583,
+        "delisted": false
+      },
+      {
+        "ticker": "016710",
+        "name": "대성홀딩스",
+        "entry": 9780.0,
+        "exit": 9140.0,
+        "ret": -0.06544,
+        "delisted": false
+      },
+      {
+        "ticker": "092230",
+        "name": "KPX홀딩스",
+        "entry": 63200.0,
+        "exit": 63500.0,
+        "ret": 0.004747,
+        "delisted": false
+      },
+      {
+        "ticker": "004690",
+        "name": "삼천리",
+        "entry": 106000.0,
+        "exit": 106500.0,
+        "ret": 0.004717,
+        "delisted": false
+      },
+      {
+        "ticker": "010770",
+        "name": "평화홀딩스",
+        "entry": 3585.0,
+        "exit": 3925.0,
+        "ret": 0.09484,
+        "delisted": false
+      },
+      {
+        "ticker": "015360",
+        "name": "INVENI",
+        "entry": 7400.0,
+        "exit": 8060.0,
+        "ret": 0.089189,
+        "delisted": false
+      },
+      {
+        "ticker": "023600",
+        "name": "삼보판지",
+        "entry": 6205.0,
+        "exit": 6241.0,
+        "ret": 0.005802,
+        "delisted": false
+      },
+      {
+        "ticker": "003030",
+        "name": "세아제강지주",
+        "entry": 60702.0,
+        "exit": 56354.0,
+        "ret": -0.071629,
+        "delisted": false
+      },
+      {
+        "ticker": "003240",
+        "name": "태광산업",
+        "entry": 938000.0,
+        "exit": 879000.0,
+        "ret": -0.0629,
+        "delisted": false
+      },
+      {
+        "ticker": "002200",
+        "name": "한국수출포장",
+        "entry": 2010.0,
+        "exit": 2065.0,
+        "ret": 0.027363,
+        "delisted": false
+      },
+      {
+        "ticker": "001080",
+        "name": "만호제강",
+        "entry": 1827.0,
+        "exit": 1827.0,
+        "ret": 0.0,
+        "delisted": false
+      },
+      {
+        "ticker": "017940",
+        "name": "E1",
+        "entry": 64700.0,
+        "exit": 66100.0,
+        "ret": 0.021638,
+        "delisted": false
+      },
+      {
+        "ticker": "033160",
+        "name": "엠케이전자",
+        "entry": 8790.0,
+        "exit": 10850.0,
+        "ret": 0.234357,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2016-08-18",
+    "next_date": "2017-04-05",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "058650",
+        "name": "세아홀딩스",
+        "entry": 125500.0,
+        "exit": 128500.0,
+        "ret": 0.023904,
+        "delisted": false
+      },
+      {
+        "ticker": "036530",
+        "name": "SNT홀딩스",
+        "entry": 16817.0,
+        "exit": 15359.0,
+        "ret": -0.086698,
+        "delisted": false
+      },
+      {
+        "ticker": "003480",
+        "name": "한진중공업홀딩스",
+        "entry": 5680.0,
+        "exit": 5450.0,
+        "ret": -0.040493,
+        "delisted": false
+      },
+      {
+        "ticker": "002030",
+        "name": "아세아",
+        "entry": 103000.0,
+        "exit": 96600.0,
+        "ret": -0.062136,
+        "delisted": false
+      },
+      {
+        "ticker": "037400",
+        "name": "우리엔터프라이즈",
+        "entry": 2535.0,
+        "exit": 1645.0,
+        "ret": -0.351085,
+        "delisted": false
+      },
+      {
+        "ticker": "011160",
+        "name": "두산건설",
+        "entry": 4522.0,
+        "exit": 3200.0,
+        "ret": -0.292349,
+        "delisted": false
+      },
+      {
+        "ticker": "040610",
+        "name": "SG&G",
+        "entry": 7950.0,
+        "exit": 7880.0,
+        "ret": -0.008805,
+        "delisted": false
+      },
+      {
+        "ticker": "101680",
+        "name": "한국정밀기계",
+        "entry": 5458.0,
+        "exit": 5892.0,
+        "ret": 0.079516,
+        "delisted": false
+      },
+      {
+        "ticker": "007860",
+        "name": "서연",
+        "entry": 11750.0,
+        "exit": 10050.0,
+        "ret": -0.144681,
+        "delisted": false
+      },
+      {
+        "ticker": "016710",
+        "name": "대성홀딩스",
+        "entry": 9140.0,
+        "exit": 8930.0,
+        "ret": -0.022976,
+        "delisted": false
+      },
+      {
+        "ticker": "002300",
+        "name": "한국제지",
+        "entry": 28950.0,
+        "exit": 30200.0,
+        "ret": 0.043178,
+        "delisted": false
+      },
+      {
+        "ticker": "042420",
+        "name": "네오위즈홀딩스",
+        "entry": 15850.0,
+        "exit": 16200.0,
+        "ret": 0.022082,
+        "delisted": false
+      },
+      {
+        "ticker": "023600",
+        "name": "삼보판지",
+        "entry": 6241.0,
+        "exit": 5920.0,
+        "ret": -0.051434,
+        "delisted": false
+      },
+      {
+        "ticker": "004690",
+        "name": "삼천리",
+        "entry": 106500.0,
+        "exit": 108500.0,
+        "ret": 0.018779,
+        "delisted": false
+      },
+      {
+        "ticker": "003030",
+        "name": "세아제강지주",
+        "entry": 56354.0,
+        "exit": 76133.0,
+        "ret": 0.350978,
+        "delisted": false
+      },
+      {
+        "ticker": "003240",
+        "name": "태광산업",
+        "entry": 879000.0,
+        "exit": 896000.0,
+        "ret": 0.01934,
+        "delisted": false
+      },
+      {
+        "ticker": "001390",
+        "name": "KG케미칼",
+        "entry": 2960.0,
+        "exit": 2760.0,
+        "ret": -0.067568,
+        "delisted": false
+      },
+      {
+        "ticker": "000950",
+        "name": "전방",
+        "entry": 36250.0,
+        "exit": 26800.0,
+        "ret": -0.26069,
+        "delisted": false
+      },
+      {
+        "ticker": "042370",
+        "name": "비츠로테크",
+        "entry": 4835.0,
+        "exit": 5990.0,
+        "ret": 0.238883,
+        "delisted": false
+      },
+      {
+        "ticker": "016590",
+        "name": "신대양제지",
+        "entry": 2380.0,
+        "exit": 2625.0,
+        "ret": 0.102941,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2017-04-05",
+    "next_date": "2017-08-18",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "036530",
+        "name": "SNT홀딩스",
+        "entry": 15359.0,
+        "exit": 15894.0,
+        "ret": 0.034833,
+        "delisted": false
+      },
+      {
+        "ticker": "002030",
+        "name": "아세아",
+        "entry": 96600.0,
+        "exit": 111000.0,
+        "ret": 0.149068,
+        "delisted": false
+      },
+      {
+        "ticker": "007860",
+        "name": "서연",
+        "entry": 10050.0,
+        "exit": 8640.0,
+        "ret": -0.140299,
+        "delisted": false
+      },
+      {
+        "ticker": "040610",
+        "name": "SG&G",
+        "entry": 7880.0,
+        "exit": 6760.0,
+        "ret": -0.142132,
+        "delisted": false
+      },
+      {
+        "ticker": "016710",
+        "name": "대성홀딩스",
+        "entry": 8930.0,
+        "exit": 8830.0,
+        "ret": -0.011198,
+        "delisted": false
+      },
+      {
+        "ticker": "002300",
+        "name": "한국제지",
+        "entry": 30200.0,
+        "exit": 28900.0,
+        "ret": -0.043046,
+        "delisted": false
+      },
+      {
+        "ticker": "023600",
+        "name": "삼보판지",
+        "entry": 5920.0,
+        "exit": 6093.0,
+        "ret": 0.029223,
+        "delisted": false
+      },
+      {
+        "ticker": "042420",
+        "name": "네오위즈홀딩스",
+        "entry": 16200.0,
+        "exit": 15400.0,
+        "ret": -0.049383,
+        "delisted": false
+      },
+      {
+        "ticker": "101680",
+        "name": "한국정밀기계",
+        "entry": 5892.0,
+        "exit": 3528.0,
+        "ret": -0.401222,
+        "delisted": false
+      },
+      {
+        "ticker": "001390",
+        "name": "KG케미칼",
+        "entry": 2760.0,
+        "exit": 3120.0,
+        "ret": 0.130435,
+        "delisted": false
+      },
+      {
+        "ticker": "033160",
+        "name": "엠케이전자",
+        "entry": 8680.0,
+        "exit": 10500.0,
+        "ret": 0.209677,
+        "delisted": false
+      },
+      {
+        "ticker": "017940",
+        "name": "E1",
+        "entry": 55400.0,
+        "exit": 59000.0,
+        "ret": 0.064982,
+        "delisted": false
+      },
+      {
+        "ticker": "004690",
+        "name": "삼천리",
+        "entry": 108500.0,
+        "exit": 110500.0,
+        "ret": 0.018433,
+        "delisted": false
+      },
+      {
+        "ticker": "021820",
+        "name": "세원정공",
+        "entry": 21405.0,
+        "exit": 19851.0,
+        "ret": -0.0726,
+        "delisted": false
+      },
+      {
+        "ticker": "003240",
+        "name": "태광산업",
+        "entry": 896000.0,
+        "exit": 1201000.0,
+        "ret": 0.340402,
+        "delisted": false
+      },
+      {
+        "ticker": "000320",
+        "name": "노루홀딩스",
+        "entry": 14600.0,
+        "exit": 17000.0,
+        "ret": 0.164384,
+        "delisted": false
+      },
+      {
+        "ticker": "023800",
+        "name": "인지컨트롤스",
+        "entry": 4955.0,
+        "exit": 5580.0,
+        "ret": 0.126135,
+        "delisted": false
+      },
+      {
+        "ticker": "035080",
+        "name": "그래디언트",
+        "entry": 26000.0,
+        "exit": 25050.0,
+        "ret": -0.036538,
+        "delisted": false
+      },
+      {
+        "ticker": "084690",
+        "name": "대상홀딩스",
+        "entry": 10500.0,
+        "exit": 10350.0,
+        "ret": -0.014286,
+        "delisted": false
+      },
+      {
+        "ticker": "002310",
+        "name": "아세아제지",
+        "entry": 3880.0,
+        "exit": 3900.0,
+        "ret": 0.005155,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2017-08-18",
+    "next_date": "2018-04-04",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "036530",
+        "name": "SNT홀딩스",
+        "entry": 15894.0,
+        "exit": 13700.0,
+        "ret": -0.13804,
+        "delisted": false
+      },
+      {
+        "ticker": "040610",
+        "name": "SG&G",
+        "entry": 6760.0,
+        "exit": 4710.0,
+        "ret": -0.303254,
+        "delisted": false
+      },
+      {
+        "ticker": "007860",
+        "name": "서연",
+        "entry": 8640.0,
+        "exit": 6420.0,
+        "ret": -0.256944,
+        "delisted": false
+      },
+      {
+        "ticker": "002030",
+        "name": "아세아",
+        "entry": 111000.0,
+        "exit": 125000.0,
+        "ret": 0.126126,
+        "delisted": false
+      },
+      {
+        "ticker": "101680",
+        "name": "한국정밀기계",
+        "entry": 3528.0,
+        "exit": 3550.0,
+        "ret": 0.006236,
+        "delisted": false
+      },
+      {
+        "ticker": "058650",
+        "name": "세아홀딩스",
+        "entry": 171000.0,
+        "exit": 133500.0,
+        "ret": -0.219298,
+        "delisted": false
+      },
+      {
+        "ticker": "016710",
+        "name": "대성홀딩스",
+        "entry": 8830.0,
+        "exit": 7780.0,
+        "ret": -0.118913,
+        "delisted": false
+      },
+      {
+        "ticker": "023960",
+        "name": "에쓰씨엔지니어링",
+        "entry": 2050.0,
+        "exit": 2890.0,
+        "ret": 0.409756,
+        "delisted": false
+      },
+      {
+        "ticker": "002300",
+        "name": "한국제지",
+        "entry": 28900.0,
+        "exit": 22600.0,
+        "ret": -0.217993,
+        "delisted": false
+      },
+      {
+        "ticker": "042420",
+        "name": "네오위즈홀딩스",
+        "entry": 15400.0,
+        "exit": 15500.0,
+        "ret": 0.006494,
+        "delisted": false
+      },
+      {
+        "ticker": "092230",
+        "name": "KPX홀딩스",
+        "entry": 68500.0,
+        "exit": 62700.0,
+        "ret": -0.084672,
+        "delisted": false
+      },
+      {
+        "ticker": "012320",
+        "name": "경동인베스트",
+        "entry": 52700.0,
+        "exit": 42100.0,
+        "ret": -0.201139,
+        "delisted": false
+      },
+      {
+        "ticker": "004690",
+        "name": "삼천리",
+        "entry": 110500.0,
+        "exit": 111500.0,
+        "ret": 0.00905,
+        "delisted": false
+      },
+      {
+        "ticker": "001390",
+        "name": "KG케미칼",
+        "entry": 3120.0,
+        "exit": 4800.0,
+        "ret": 0.538462,
+        "delisted": false
+      },
+      {
+        "ticker": "021820",
+        "name": "세원정공",
+        "entry": 19851.0,
+        "exit": 15824.0,
+        "ret": -0.202861,
+        "delisted": false
+      },
+      {
+        "ticker": "015360",
+        "name": "INVENI",
+        "entry": 7630.0,
+        "exit": 8210.0,
+        "ret": 0.076016,
+        "delisted": false
+      },
+      {
+        "ticker": "023600",
+        "name": "삼보판지",
+        "entry": 6093.0,
+        "exit": 8940.0,
+        "ret": 0.467258,
+        "delisted": false
+      },
+      {
+        "ticker": "033160",
+        "name": "엠케이전자",
+        "entry": 10500.0,
+        "exit": 10200.0,
+        "ret": -0.028571,
+        "delisted": false
+      },
+      {
+        "ticker": "002200",
+        "name": "한국수출포장",
+        "entry": 1860.0,
+        "exit": 2160.0,
+        "ret": 0.16129,
+        "delisted": false
+      },
+      {
+        "ticker": "005990",
+        "name": "매일홀딩스",
+        "entry": 23700.0,
+        "exit": 14200.0,
+        "ret": -0.400844,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2018-04-04",
+    "next_date": "2018-08-20",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "040610",
+        "name": "SG&G",
+        "entry": 4710.0,
+        "exit": 4900.0,
+        "ret": 0.04034,
+        "delisted": false
+      },
+      {
+        "ticker": "036530",
+        "name": "SNT홀딩스",
+        "entry": 13700.0,
+        "exit": 12850.0,
+        "ret": -0.062044,
+        "delisted": false
+      },
+      {
+        "ticker": "007860",
+        "name": "서연",
+        "entry": 6420.0,
+        "exit": 4650.0,
+        "ret": -0.275701,
+        "delisted": false
+      },
+      {
+        "ticker": "058650",
+        "name": "세아홀딩스",
+        "entry": 133500.0,
+        "exit": 128500.0,
+        "ret": -0.037453,
+        "delisted": false
+      },
+      {
+        "ticker": "009200",
+        "name": "무림페이퍼",
+        "entry": 3120.0,
+        "exit": 3560.0,
+        "ret": 0.141026,
+        "delisted": false
+      },
+      {
+        "ticker": "002030",
+        "name": "아세아",
+        "entry": 125000.0,
+        "exit": 134500.0,
+        "ret": 0.076,
+        "delisted": false
+      },
+      {
+        "ticker": "002300",
+        "name": "한국제지",
+        "entry": 22600.0,
+        "exit": 21300.0,
+        "ret": -0.057522,
+        "delisted": false
+      },
+      {
+        "ticker": "035080",
+        "name": "그래디언트",
+        "entry": 17400.0,
+        "exit": 12625.0,
+        "ret": -0.274425,
+        "delisted": false
+      },
+      {
+        "ticker": "042420",
+        "name": "네오위즈홀딩스",
+        "entry": 15500.0,
+        "exit": 13200.0,
+        "ret": -0.148387,
+        "delisted": false
+      },
+      {
+        "ticker": "000910",
+        "name": "유니온",
+        "entry": 4110.0,
+        "exit": 4320.0,
+        "ret": 0.051095,
+        "delisted": false
+      },
+      {
+        "ticker": "015760",
+        "name": "한국전력",
+        "entry": 34850.0,
+        "exit": 31250.0,
+        "ret": -0.1033,
+        "delisted": false
+      },
+      {
+        "ticker": "002320",
+        "name": "한진",
+        "entry": 21569.0,
+        "exit": 25950.0,
+        "ret": 0.203116,
+        "delisted": false
+      },
+      {
+        "ticker": "084690",
+        "name": "대상홀딩스",
+        "entry": 9400.0,
+        "exit": 8760.0,
+        "ret": -0.068085,
+        "delisted": false
+      },
+      {
+        "ticker": "002820",
+        "name": "SUN&L",
+        "entry": 6820.0,
+        "exit": 6750.0,
+        "ret": -0.010264,
+        "delisted": false
+      },
+      {
+        "ticker": "001080",
+        "name": "만호제강",
+        "entry": 1698.0,
+        "exit": 1994.0,
+        "ret": 0.174323,
+        "delisted": false
+      },
+      {
+        "ticker": "017940",
+        "name": "E1",
+        "entry": 60000.0,
+        "exit": 64100.0,
+        "ret": 0.068333,
+        "delisted": false
+      },
+      {
+        "ticker": "065130",
+        "name": "탑엔지니어링",
+        "entry": 5660.0,
+        "exit": 7140.0,
+        "ret": 0.261484,
+        "delisted": false
+      },
+      {
+        "ticker": "004690",
+        "name": "삼천리",
+        "entry": 111500.0,
+        "exit": 109000.0,
+        "ret": -0.022422,
+        "delisted": false
+      },
+      {
+        "ticker": "000320",
+        "name": "노루홀딩스",
+        "entry": 14700.0,
+        "exit": 13850.0,
+        "ret": -0.057823,
+        "delisted": false
+      },
+      {
+        "ticker": "004360",
+        "name": "세방",
+        "entry": 13700.0,
+        "exit": 12400.0,
+        "ret": -0.094891,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2018-08-20",
+    "next_date": "2019-04-03",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "007860",
+        "name": "서연",
+        "entry": 4650.0,
+        "exit": 4415.0,
+        "ret": -0.050538,
+        "delisted": false
+      },
+      {
+        "ticker": "040610",
+        "name": "SG&G",
+        "entry": 4900.0,
+        "exit": 4310.0,
+        "ret": -0.120408,
+        "delisted": false
+      },
+      {
+        "ticker": "001940",
+        "name": "KISCO홀딩스",
+        "entry": 11800.0,
+        "exit": 13500.0,
+        "ret": 0.144068,
+        "delisted": false
+      },
+      {
+        "ticker": "035080",
+        "name": "그래디언트",
+        "entry": 12625.0,
+        "exit": 12150.0,
+        "ret": -0.037624,
+        "delisted": false
+      },
+      {
+        "ticker": "009200",
+        "name": "무림페이퍼",
+        "entry": 3560.0,
+        "exit": 3350.0,
+        "ret": -0.058989,
+        "delisted": false
+      },
+      {
+        "ticker": "002030",
+        "name": "아세아",
+        "entry": 134500.0,
+        "exit": 130000.0,
+        "ret": -0.033457,
+        "delisted": false
+      },
+      {
+        "ticker": "042420",
+        "name": "네오위즈홀딩스",
+        "entry": 13200.0,
+        "exit": 14550.0,
+        "ret": 0.102273,
+        "delisted": false
+      },
+      {
+        "ticker": "092230",
+        "name": "KPX홀딩스",
+        "entry": 64500.0,
+        "exit": 60700.0,
+        "ret": -0.058915,
+        "delisted": false
+      },
+      {
+        "ticker": "200880",
+        "name": "서연이화",
+        "entry": 6140.0,
+        "exit": 6190.0,
+        "ret": 0.008143,
+        "delisted": false
+      },
+      {
+        "ticker": "010100",
+        "name": "한국무브넥스",
+        "entry": 1810.0,
+        "exit": 1620.0,
+        "ret": -0.104972,
+        "delisted": false
+      },
+      {
+        "ticker": "102280",
+        "name": "쌍방울",
+        "entry": 9650.0,
+        "exit": 8510.0,
+        "ret": -0.118135,
+        "delisted": false
+      },
+      {
+        "ticker": "006120",
+        "name": "SK디스커버리",
+        "entry": 32250.0,
+        "exit": 27550.0,
+        "ret": -0.145736,
+        "delisted": false
+      },
+      {
+        "ticker": "012320",
+        "name": "경동인베스트",
+        "entry": 50000.0,
+        "exit": 40000.0,
+        "ret": -0.2,
+        "delisted": false
+      },
+      {
+        "ticker": "004800",
+        "name": "효성",
+        "entry": 31969.0,
+        "exit": 58160.0,
+        "ret": 0.819262,
+        "delisted": false
+      },
+      {
+        "ticker": "001620",
+        "name": "케이비아이동국실업",
+        "entry": 5300.0,
+        "exit": 4385.0,
+        "ret": -0.172642,
+        "delisted": false
+      },
+      {
+        "ticker": "015760",
+        "name": "한국전력",
+        "entry": 31250.0,
+        "exit": 30300.0,
+        "ret": -0.0304,
+        "delisted": false
+      },
+      {
+        "ticker": "015750",
+        "name": "성우하이텍",
+        "entry": 4610.0,
+        "exit": 4365.0,
+        "ret": -0.053145,
+        "delisted": false
+      },
+      {
+        "ticker": "084690",
+        "name": "대상홀딩스",
+        "entry": 8760.0,
+        "exit": 8600.0,
+        "ret": -0.018265,
+        "delisted": false
+      },
+      {
+        "ticker": "004360",
+        "name": "세방",
+        "entry": 12400.0,
+        "exit": 14250.0,
+        "ret": 0.149194,
+        "delisted": false
+      },
+      {
+        "ticker": "003380",
+        "name": "하림지주",
+        "entry": 10600.0,
+        "exit": 11950.0,
+        "ret": 0.127358,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2019-04-03",
+    "next_date": "2019-08-20",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "007860",
+        "name": "서연",
+        "entry": 4415.0,
+        "exit": 3545.0,
+        "ret": -0.197055,
+        "delisted": false
+      },
+      {
+        "ticker": "058650",
+        "name": "세아홀딩스",
+        "entry": 95000.0,
+        "exit": 81300.0,
+        "ret": -0.144211,
+        "delisted": false
+      },
+      {
+        "ticker": "003030",
+        "name": "세아제강지주",
+        "entry": 51900.0,
+        "exit": 53200.0,
+        "ret": 0.025048,
+        "delisted": false
+      },
+      {
+        "ticker": "035080",
+        "name": "그래디언트",
+        "entry": 12150.0,
+        "exit": 10725.0,
+        "ret": -0.117284,
+        "delisted": false
+      },
+      {
+        "ticker": "003300",
+        "name": "한일홀딩스",
+        "entry": 10752.0,
+        "exit": 8673.0,
+        "ret": -0.193359,
+        "delisted": false
+      },
+      {
+        "ticker": "002030",
+        "name": "아세아",
+        "entry": 130000.0,
+        "exit": 109500.0,
+        "ret": -0.157692,
+        "delisted": false
+      },
+      {
+        "ticker": "002840",
+        "name": "미원상사",
+        "entry": 50490.0,
+        "exit": 47950.0,
+        "ret": -0.050307,
+        "delisted": false
+      },
+      {
+        "ticker": "016710",
+        "name": "대성홀딩스",
+        "entry": 7240.0,
+        "exit": 7730.0,
+        "ret": 0.06768,
+        "delisted": false
+      },
+      {
+        "ticker": "033160",
+        "name": "엠케이전자",
+        "entry": 8550.0,
+        "exit": 7850.0,
+        "ret": -0.081871,
+        "delisted": false
+      },
+      {
+        "ticker": "005010",
+        "name": "휴스틸",
+        "entry": 2203.0,
+        "exit": 1875.0,
+        "ret": -0.148888,
+        "delisted": false
+      },
+      {
+        "ticker": "012320",
+        "name": "경동인베스트",
+        "entry": 40000.0,
+        "exit": 32700.0,
+        "ret": -0.1825,
+        "delisted": false
+      },
+      {
+        "ticker": "042420",
+        "name": "네오위즈홀딩스",
+        "entry": 14550.0,
+        "exit": 14050.0,
+        "ret": -0.034364,
+        "delisted": false
+      },
+      {
+        "ticker": "054800",
+        "name": "아이디스홀딩스",
+        "entry": 16100.0,
+        "exit": 11350.0,
+        "ret": -0.295031,
+        "delisted": false
+      },
+      {
+        "ticker": "015750",
+        "name": "성우하이텍",
+        "entry": 4365.0,
+        "exit": 3490.0,
+        "ret": -0.200458,
+        "delisted": false
+      },
+      {
+        "ticker": "015760",
+        "name": "한국전력",
+        "entry": 30300.0,
+        "exit": 25700.0,
+        "ret": -0.151815,
+        "delisted": false
+      },
+      {
+        "ticker": "039020",
+        "name": "이건홀딩스",
+        "entry": 3290.0,
+        "exit": 2755.0,
+        "ret": -0.162614,
+        "delisted": false
+      },
+      {
+        "ticker": "004690",
+        "name": "삼천리",
+        "entry": 93600.0,
+        "exit": 83600.0,
+        "ret": -0.106838,
+        "delisted": false
+      },
+      {
+        "ticker": "004840",
+        "name": "DRB동일",
+        "entry": 6460.0,
+        "exit": 5240.0,
+        "ret": -0.188854,
+        "delisted": false
+      },
+      {
+        "ticker": "084690",
+        "name": "대상홀딩스",
+        "entry": 8600.0,
+        "exit": 6450.0,
+        "ret": -0.25,
+        "delisted": false
+      },
+      {
+        "ticker": "010690",
+        "name": "화신",
+        "entry": 2450.0,
+        "exit": 2630.0,
+        "ret": 0.073469,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2019-08-20",
+    "next_date": "2020-04-03",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "007860",
+        "name": "서연",
+        "entry": 3545.0,
+        "exit": 3280.0,
+        "ret": -0.074753,
+        "delisted": false
+      },
+      {
+        "ticker": "003030",
+        "name": "세아제강지주",
+        "entry": 53200.0,
+        "exit": 25300.0,
+        "ret": -0.524436,
+        "delisted": false
+      },
+      {
+        "ticker": "003300",
+        "name": "한일홀딩스",
+        "entry": 8673.0,
+        "exit": 6406.0,
+        "ret": -0.261386,
+        "delisted": false
+      },
+      {
+        "ticker": "001040",
+        "name": "CJ",
+        "entry": 80000.0,
+        "exit": 63400.0,
+        "ret": -0.2075,
+        "delisted": false
+      },
+      {
+        "ticker": "002030",
+        "name": "아세아",
+        "entry": 109500.0,
+        "exit": 74300.0,
+        "ret": -0.321461,
+        "delisted": false
+      },
+      {
+        "ticker": "036530",
+        "name": "SNT홀딩스",
+        "entry": 16250.0,
+        "exit": 12700.0,
+        "ret": -0.218462,
+        "delisted": false
+      },
+      {
+        "ticker": "005010",
+        "name": "휴스틸",
+        "entry": 1875.0,
+        "exit": 1052.0,
+        "ret": -0.438933,
+        "delisted": false
+      },
+      {
+        "ticker": "054800",
+        "name": "아이디스홀딩스",
+        "entry": 11350.0,
+        "exit": 10100.0,
+        "ret": -0.110132,
+        "delisted": false
+      },
+      {
+        "ticker": "012320",
+        "name": "경동인베스트",
+        "entry": 32700.0,
+        "exit": 22450.0,
+        "ret": -0.313456,
+        "delisted": false
+      },
+      {
+        "ticker": "002300",
+        "name": "한국제지",
+        "entry": 18700.0,
+        "exit": 14100.0,
+        "ret": -0.245989,
+        "delisted": false
+      },
+      {
+        "ticker": "084690",
+        "name": "대상홀딩스",
+        "entry": 6450.0,
+        "exit": 5360.0,
+        "ret": -0.168992,
+        "delisted": false
+      },
+      {
+        "ticker": "015750",
+        "name": "성우하이텍",
+        "entry": 3490.0,
+        "exit": 2530.0,
+        "ret": -0.275072,
+        "delisted": false
+      },
+      {
+        "ticker": "023960",
+        "name": "에쓰씨엔지니어링",
+        "entry": 1360.0,
+        "exit": 1095.0,
+        "ret": -0.194853,
+        "delisted": false
+      },
+      {
+        "ticker": "039020",
+        "name": "이건홀딩스",
+        "entry": 2755.0,
+        "exit": 1745.0,
+        "ret": -0.366606,
+        "delisted": false
+      },
+      {
+        "ticker": "036000",
+        "name": "예림당",
+        "entry": 3650.0,
+        "exit": 2030.0,
+        "ret": -0.443836,
+        "delisted": false
+      },
+      {
+        "ticker": "042420",
+        "name": "네오위즈홀딩스",
+        "entry": 14050.0,
+        "exit": 14100.0,
+        "ret": 0.003559,
+        "delisted": false
+      },
+      {
+        "ticker": "001390",
+        "name": "KG케미칼",
+        "entry": 2230.0,
+        "exit": 2070.0,
+        "ret": -0.071749,
+        "delisted": false
+      },
+      {
+        "ticker": "015760",
+        "name": "한국전력",
+        "entry": 25700.0,
+        "exit": 19000.0,
+        "ret": -0.2607,
+        "delisted": false
+      },
+      {
+        "ticker": "002920",
+        "name": "유성기업",
+        "entry": 2710.0,
+        "exit": 2255.0,
+        "ret": -0.167897,
+        "delisted": false
+      },
+      {
+        "ticker": "004690",
+        "name": "삼천리",
+        "entry": 83600.0,
+        "exit": 69600.0,
+        "ret": -0.167464,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2020-04-03",
+    "next_date": "2020-08-20",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "058650",
+        "name": "세아홀딩스",
+        "entry": 52600.0,
+        "exit": 72600.0,
+        "ret": 0.380228,
+        "delisted": false
+      },
+      {
+        "ticker": "003030",
+        "name": "세아제강지주",
+        "entry": 25300.0,
+        "exit": 42600.0,
+        "ret": 0.683794,
+        "delisted": false
+      },
+      {
+        "ticker": "007860",
+        "name": "서연",
+        "entry": 3280.0,
+        "exit": 10300.0,
+        "ret": 2.140244,
+        "delisted": false
+      },
+      {
+        "ticker": "005720",
+        "name": "넥센",
+        "entry": 3730.0,
+        "exit": 3700.0,
+        "ret": -0.008043,
+        "delisted": false
+      },
+      {
+        "ticker": "002030",
+        "name": "아세아",
+        "entry": 74300.0,
+        "exit": 73100.0,
+        "ret": -0.016151,
+        "delisted": false
+      },
+      {
+        "ticker": "200880",
+        "name": "서연이화",
+        "entry": 2650.0,
+        "exit": 3825.0,
+        "ret": 0.443396,
+        "delisted": false
+      },
+      {
+        "ticker": "001040",
+        "name": "CJ",
+        "entry": 63400.0,
+        "exit": 82000.0,
+        "ret": 0.293375,
+        "delisted": false
+      },
+      {
+        "ticker": "036530",
+        "name": "SNT홀딩스",
+        "entry": 12700.0,
+        "exit": 14850.0,
+        "ret": 0.169291,
+        "delisted": false
+      },
+      {
+        "ticker": "012320",
+        "name": "경동인베스트",
+        "entry": 22450.0,
+        "exit": 25950.0,
+        "ret": 0.155902,
+        "delisted": false
+      },
+      {
+        "ticker": "001940",
+        "name": "KISCO홀딩스",
+        "entry": 9550.0,
+        "exit": 11000.0,
+        "ret": 0.151832,
+        "delisted": false
+      },
+      {
+        "ticker": "004020",
+        "name": "현대제철",
+        "entry": 17200.0,
+        "exit": 25200.0,
+        "ret": 0.465116,
+        "delisted": false
+      },
+      {
+        "ticker": "039020",
+        "name": "이건홀딩스",
+        "entry": 1745.0,
+        "exit": 2200.0,
+        "ret": 0.260745,
+        "delisted": false
+      },
+      {
+        "ticker": "036000",
+        "name": "예림당",
+        "entry": 2030.0,
+        "exit": 2445.0,
+        "ret": 0.204433,
+        "delisted": false
+      },
+      {
+        "ticker": "033160",
+        "name": "엠케이전자",
+        "entry": 5720.0,
+        "exit": 9370.0,
+        "ret": 0.638112,
+        "delisted": false
+      },
+      {
+        "ticker": "001430",
+        "name": "세아베스틸지주",
+        "entry": 7930.0,
+        "exit": 9580.0,
+        "ret": 0.208071,
+        "delisted": false
+      },
+      {
+        "ticker": "002300",
+        "name": "한국제지",
+        "entry": 14100.0,
+        "exit": 13510.0,
+        "ret": -0.041844,
+        "delisted": true
+      },
+      {
+        "ticker": "003380",
+        "name": "하림지주",
+        "entry": 5360.0,
+        "exit": 6330.0,
+        "ret": 0.18097,
+        "delisted": false
+      },
+      {
+        "ticker": "035080",
+        "name": "그래디언트",
+        "entry": 8625.0,
+        "exit": 10525.0,
+        "ret": 0.22029,
+        "delisted": false
+      },
+      {
+        "ticker": "015750",
+        "name": "성우하이텍",
+        "entry": 2530.0,
+        "exit": 2775.0,
+        "ret": 0.096838,
+        "delisted": false
+      },
+      {
+        "ticker": "003200",
+        "name": "일신방직",
+        "entry": 4770.0,
+        "exit": 6610.0,
+        "ret": 0.385744,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2020-08-20",
+    "next_date": "2021-04-05",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "005720",
+        "name": "넥센",
+        "entry": 3700.0,
+        "exit": 4715.0,
+        "ret": 0.274324,
+        "delisted": false
+      },
+      {
+        "ticker": "002030",
+        "name": "아세아",
+        "entry": 73100.0,
+        "exit": 114000.0,
+        "ret": 0.559508,
+        "delisted": false
+      },
+      {
+        "ticker": "003030",
+        "name": "세아제강지주",
+        "entry": 42600.0,
+        "exit": 57500.0,
+        "ret": 0.349765,
+        "delisted": false
+      },
+      {
+        "ticker": "092230",
+        "name": "KPX홀딩스",
+        "entry": 42150.0,
+        "exit": 62300.0,
+        "ret": 0.478055,
+        "delisted": false
+      },
+      {
+        "ticker": "012320",
+        "name": "경동인베스트",
+        "entry": 25950.0,
+        "exit": 42550.0,
+        "ret": 0.639692,
+        "delisted": false
+      },
+      {
+        "ticker": "036530",
+        "name": "SNT홀딩스",
+        "entry": 14850.0,
+        "exit": 18200.0,
+        "ret": 0.225589,
+        "delisted": false
+      },
+      {
+        "ticker": "001940",
+        "name": "KISCO홀딩스",
+        "entry": 11000.0,
+        "exit": 17500.0,
+        "ret": 0.590909,
+        "delisted": false
+      },
+      {
+        "ticker": "003300",
+        "name": "한일홀딩스",
+        "entry": 8420.0,
+        "exit": 12036.0,
+        "ret": 0.429454,
+        "delisted": false
+      },
+      {
+        "ticker": "001040",
+        "name": "CJ",
+        "entry": 82000.0,
+        "exit": 92500.0,
+        "ret": 0.128049,
+        "delisted": false
+      },
+      {
+        "ticker": "200880",
+        "name": "서연이화",
+        "entry": 3825.0,
+        "exit": 9950.0,
+        "ret": 1.601307,
+        "delisted": false
+      },
+      {
+        "ticker": "003380",
+        "name": "하림지주",
+        "entry": 6330.0,
+        "exit": 9350.0,
+        "ret": 0.477093,
+        "delisted": false
+      },
+      {
+        "ticker": "009970",
+        "name": "영원무역홀딩스",
+        "entry": 32050.0,
+        "exit": 44800.0,
+        "ret": 0.397816,
+        "delisted": false
+      },
+      {
+        "ticker": "000860",
+        "name": "강남제비스코",
+        "entry": 7378.0,
+        "exit": 14581.0,
+        "ret": 0.976281,
+        "delisted": false
+      },
+      {
+        "ticker": "039020",
+        "name": "이건홀딩스",
+        "entry": 2200.0,
+        "exit": 3705.0,
+        "ret": 0.684091,
+        "delisted": false
+      },
+      {
+        "ticker": "001430",
+        "name": "세아베스틸지주",
+        "entry": 9580.0,
+        "exit": 18750.0,
+        "ret": 0.957203,
+        "delisted": false
+      },
+      {
+        "ticker": "015750",
+        "name": "성우하이텍",
+        "entry": 2775.0,
+        "exit": 6590.0,
+        "ret": 1.374775,
+        "delisted": false
+      },
+      {
+        "ticker": "023530",
+        "name": "롯데쇼핑",
+        "entry": 75800.0,
+        "exit": 125500.0,
+        "ret": 0.655673,
+        "delisted": false
+      },
+      {
+        "ticker": "015760",
+        "name": "한국전력",
+        "entry": 19950.0,
+        "exit": 24000.0,
+        "ret": 0.203008,
+        "delisted": false
+      },
+      {
+        "ticker": "005990",
+        "name": "매일홀딩스",
+        "entry": 7830.0,
+        "exit": 9330.0,
+        "ret": 0.191571,
+        "delisted": false
+      },
+      {
+        "ticker": "001390",
+        "name": "KG케미칼",
+        "entry": 4340.0,
+        "exit": 5470.0,
+        "ret": 0.260369,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2021-04-05",
+    "next_date": "2021-08-19",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "058650",
+        "name": "세아홀딩스",
+        "entry": 81700.0,
+        "exit": 100000.0,
+        "ret": 0.22399,
+        "delisted": false
+      },
+      {
+        "ticker": "005720",
+        "name": "넥센",
+        "entry": 4715.0,
+        "exit": 4780.0,
+        "ret": 0.013786,
+        "delisted": false
+      },
+      {
+        "ticker": "002030",
+        "name": "아세아",
+        "entry": 114000.0,
+        "exit": 126500.0,
+        "ret": 0.109649,
+        "delisted": false
+      },
+      {
+        "ticker": "001040",
+        "name": "CJ",
+        "entry": 92500.0,
+        "exit": 96000.0,
+        "ret": 0.037838,
+        "delisted": false
+      },
+      {
+        "ticker": "008060",
+        "name": "대덕",
+        "entry": 6970.0,
+        "exit": 7140.0,
+        "ret": 0.02439,
+        "delisted": false
+      },
+      {
+        "ticker": "003030",
+        "name": "세아제강지주",
+        "entry": 57500.0,
+        "exit": 93300.0,
+        "ret": 0.622609,
+        "delisted": false
+      },
+      {
+        "ticker": "036530",
+        "name": "SNT홀딩스",
+        "entry": 18200.0,
+        "exit": 18200.0,
+        "ret": 0.0,
+        "delisted": false
+      },
+      {
+        "ticker": "092230",
+        "name": "KPX홀딩스",
+        "entry": 62300.0,
+        "exit": 64100.0,
+        "ret": 0.028892,
+        "delisted": false
+      },
+      {
+        "ticker": "003300",
+        "name": "한일홀딩스",
+        "entry": 12036.0,
+        "exit": 12270.0,
+        "ret": 0.019442,
+        "delisted": false
+      },
+      {
+        "ticker": "005990",
+        "name": "매일홀딩스",
+        "entry": 9330.0,
+        "exit": 10150.0,
+        "ret": 0.087889,
+        "delisted": false
+      },
+      {
+        "ticker": "151860",
+        "name": "KG에코솔루션",
+        "entry": 6350.0,
+        "exit": 17050.0,
+        "ret": 1.685039,
+        "delisted": false
+      },
+      {
+        "ticker": "015760",
+        "name": "한국전력",
+        "entry": 24000.0,
+        "exit": 23650.0,
+        "ret": -0.014583,
+        "delisted": false
+      },
+      {
+        "ticker": "004690",
+        "name": "삼천리",
+        "entry": 78100.0,
+        "exit": 84500.0,
+        "ret": 0.081946,
+        "delisted": false
+      },
+      {
+        "ticker": "009970",
+        "name": "영원무역홀딩스",
+        "entry": 44800.0,
+        "exit": 44800.0,
+        "ret": 0.0,
+        "delisted": false
+      },
+      {
+        "ticker": "012320",
+        "name": "경동인베스트",
+        "entry": 42550.0,
+        "exit": 36750.0,
+        "ret": -0.13631,
+        "delisted": false
+      },
+      {
+        "ticker": "001940",
+        "name": "KISCO홀딩스",
+        "entry": 17500.0,
+        "exit": 20150.0,
+        "ret": 0.151429,
+        "delisted": false
+      },
+      {
+        "ticker": "003380",
+        "name": "하림지주",
+        "entry": 9350.0,
+        "exit": 10000.0,
+        "ret": 0.069519,
+        "delisted": false
+      },
+      {
+        "ticker": "001390",
+        "name": "KG케미칼",
+        "entry": 5470.0,
+        "exit": 6530.0,
+        "ret": 0.193784,
+        "delisted": false
+      },
+      {
+        "ticker": "000590",
+        "name": "CS홀딩스",
+        "entry": 65500.0,
+        "exit": 62300.0,
+        "ret": -0.048855,
+        "delisted": false
+      },
+      {
+        "ticker": "000850",
+        "name": "화천기공",
+        "entry": 34800.0,
+        "exit": 37250.0,
+        "ret": 0.070402,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2021-08-19",
+    "next_date": "2022-04-05",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "234080",
+        "name": "JW생명과학",
+        "entry": 17250.0,
+        "exit": 14700.0,
+        "ret": -0.147826,
+        "delisted": false
+      },
+      {
+        "ticker": "005720",
+        "name": "넥센",
+        "entry": 4780.0,
+        "exit": 4425.0,
+        "ret": -0.074268,
+        "delisted": false
+      },
+      {
+        "ticker": "058650",
+        "name": "세아홀딩스",
+        "entry": 100000.0,
+        "exit": 116500.0,
+        "ret": 0.165,
+        "delisted": false
+      },
+      {
+        "ticker": "036530",
+        "name": "SNT홀딩스",
+        "entry": 18200.0,
+        "exit": 17000.0,
+        "ret": -0.065934,
+        "delisted": false
+      },
+      {
+        "ticker": "002030",
+        "name": "아세아",
+        "entry": 126500.0,
+        "exit": 161500.0,
+        "ret": 0.27668,
+        "delisted": false
+      },
+      {
+        "ticker": "001040",
+        "name": "CJ",
+        "entry": 96000.0,
+        "exit": 85200.0,
+        "ret": -0.1125,
+        "delisted": false
+      },
+      {
+        "ticker": "008060",
+        "name": "대덕",
+        "entry": 7140.0,
+        "exit": 7760.0,
+        "ret": 0.086835,
+        "delisted": false
+      },
+      {
+        "ticker": "003300",
+        "name": "한일홀딩스",
+        "entry": 12270.0,
+        "exit": 13200.0,
+        "ret": 0.075795,
+        "delisted": false
+      },
+      {
+        "ticker": "012320",
+        "name": "경동인베스트",
+        "entry": 36750.0,
+        "exit": 36900.0,
+        "ret": 0.004082,
+        "delisted": false
+      },
+      {
+        "ticker": "005990",
+        "name": "매일홀딩스",
+        "entry": 10150.0,
+        "exit": 10250.0,
+        "ret": 0.009852,
+        "delisted": false
+      },
+      {
+        "ticker": "015760",
+        "name": "한국전력",
+        "entry": 23650.0,
+        "exit": 23000.0,
+        "ret": -0.027484,
+        "delisted": false
+      },
+      {
+        "ticker": "009970",
+        "name": "영원무역홀딩스",
+        "entry": 44800.0,
+        "exit": 57900.0,
+        "ret": 0.292411,
+        "delisted": false
+      },
+      {
+        "ticker": "025530",
+        "name": "SJM홀딩스",
+        "entry": 3850.0,
+        "exit": 4070.0,
+        "ret": 0.057143,
+        "delisted": false
+      },
+      {
+        "ticker": "004690",
+        "name": "삼천리",
+        "entry": 84500.0,
+        "exit": 106000.0,
+        "ret": 0.254438,
+        "delisted": false
+      },
+      {
+        "ticker": "000590",
+        "name": "CS홀딩스",
+        "entry": 62300.0,
+        "exit": 68100.0,
+        "ret": 0.093098,
+        "delisted": false
+      },
+      {
+        "ticker": "000860",
+        "name": "강남제비스코",
+        "entry": 12980.0,
+        "exit": 12530.0,
+        "ret": -0.034669,
+        "delisted": false
+      },
+      {
+        "ticker": "101330",
+        "name": "모베이스",
+        "entry": 3535.0,
+        "exit": 3725.0,
+        "ret": 0.053748,
+        "delisted": false
+      },
+      {
+        "ticker": "003380",
+        "name": "하림지주",
+        "entry": 10000.0,
+        "exit": 10500.0,
+        "ret": 0.05,
+        "delisted": false
+      },
+      {
+        "ticker": "005010",
+        "name": "휴스틸",
+        "entry": 2585.0,
+        "exit": 3286.0,
+        "ret": 0.27118,
+        "delisted": false
+      },
+      {
+        "ticker": "084690",
+        "name": "대상홀딩스",
+        "entry": 9940.0,
+        "exit": 9840.0,
+        "ret": -0.01006,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2022-04-05",
+    "next_date": "2022-08-18",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "066110",
+        "name": "한프",
+        "entry": 69.0,
+        "exit": 48.0,
+        "ret": -0.3,
+        "delisted": true
+      },
+      {
+        "ticker": "001040",
+        "name": "CJ",
+        "entry": 85200.0,
+        "exit": 80400.0,
+        "ret": -0.056338,
+        "delisted": false
+      },
+      {
+        "ticker": "028080",
+        "name": "휴맥스홀딩스",
+        "entry": 23315.0,
+        "exit": 17786.0,
+        "ret": -0.237143,
+        "delisted": false
+      },
+      {
+        "ticker": "008060",
+        "name": "대덕",
+        "entry": 7760.0,
+        "exit": 6750.0,
+        "ret": -0.130155,
+        "delisted": false
+      },
+      {
+        "ticker": "003300",
+        "name": "한일홀딩스",
+        "entry": 13200.0,
+        "exit": 11500.0,
+        "ret": -0.128788,
+        "delisted": false
+      },
+      {
+        "ticker": "002030",
+        "name": "아세아",
+        "entry": 161500.0,
+        "exit": 128000.0,
+        "ret": -0.20743,
+        "delisted": false
+      },
+      {
+        "ticker": "005990",
+        "name": "매일홀딩스",
+        "entry": 10250.0,
+        "exit": 9050.0,
+        "ret": -0.117073,
+        "delisted": false
+      },
+      {
+        "ticker": "005010",
+        "name": "휴스틸",
+        "entry": 3286.0,
+        "exit": 5598.0,
+        "ret": 0.703591,
+        "delisted": false
+      },
+      {
+        "ticker": "001800",
+        "name": "오리온홀딩스",
+        "entry": 14100.0,
+        "exit": 15000.0,
+        "ret": 0.06383,
+        "delisted": false
+      },
+      {
+        "ticker": "001940",
+        "name": "KISCO홀딩스",
+        "entry": 17600.0,
+        "exit": 14000.0,
+        "ret": -0.204545,
+        "delisted": false
+      },
+      {
+        "ticker": "025530",
+        "name": "SJM홀딩스",
+        "entry": 4070.0,
+        "exit": 3085.0,
+        "ret": -0.242015,
+        "delisted": false
+      },
+      {
+        "ticker": "007860",
+        "name": "서연",
+        "entry": 9050.0,
+        "exit": 7050.0,
+        "ret": -0.220994,
+        "delisted": false
+      },
+      {
+        "ticker": "017940",
+        "name": "E1",
+        "entry": 47250.0,
+        "exit": 46700.0,
+        "ret": -0.01164,
+        "delisted": false
+      },
+      {
+        "ticker": "023530",
+        "name": "롯데쇼핑",
+        "entry": 98700.0,
+        "exit": 101500.0,
+        "ret": 0.028369,
+        "delisted": false
+      },
+      {
+        "ticker": "001390",
+        "name": "KG케미칼",
+        "entry": 6110.0,
+        "exit": 5600.0,
+        "ret": -0.08347,
+        "delisted": false
+      },
+      {
+        "ticker": "084690",
+        "name": "대상홀딩스",
+        "entry": 9840.0,
+        "exit": 8710.0,
+        "ret": -0.114837,
+        "delisted": false
+      },
+      {
+        "ticker": "000860",
+        "name": "강남제비스코",
+        "entry": 12530.0,
+        "exit": 11579.0,
+        "ret": -0.075898,
+        "delisted": false
+      },
+      {
+        "ticker": "009970",
+        "name": "영원무역홀딩스",
+        "entry": 57900.0,
+        "exit": 53400.0,
+        "ret": -0.07772,
+        "delisted": false
+      },
+      {
+        "ticker": "000590",
+        "name": "CS홀딩스",
+        "entry": 68100.0,
+        "exit": 74800.0,
+        "ret": 0.098385,
+        "delisted": false
+      },
+      {
+        "ticker": "004360",
+        "name": "세방",
+        "entry": 11800.0,
+        "exit": 12800.0,
+        "ret": 0.084746,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2022-08-18",
+    "next_date": "2023-04-05",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "001040",
+        "name": "CJ",
+        "entry": 80400.0,
+        "exit": 108100.0,
+        "ret": 0.344527,
+        "delisted": false
+      },
+      {
+        "ticker": "036530",
+        "name": "SNT홀딩스",
+        "entry": 15750.0,
+        "exit": 15500.0,
+        "ret": -0.015873,
+        "delisted": false
+      },
+      {
+        "ticker": "002030",
+        "name": "아세아",
+        "entry": 128000.0,
+        "exit": 138500.0,
+        "ret": 0.082031,
+        "delisted": false
+      },
+      {
+        "ticker": "008060",
+        "name": "대덕",
+        "entry": 6750.0,
+        "exit": 6630.0,
+        "ret": -0.017778,
+        "delisted": false
+      },
+      {
+        "ticker": "001940",
+        "name": "KISCO홀딩스",
+        "entry": 14000.0,
+        "exit": 20850.0,
+        "ret": 0.489286,
+        "delisted": false
+      },
+      {
+        "ticker": "001390",
+        "name": "KG케미칼",
+        "entry": 5600.0,
+        "exit": 7760.0,
+        "ret": 0.385714,
+        "delisted": false
+      },
+      {
+        "ticker": "025530",
+        "name": "SJM홀딩스",
+        "entry": 3085.0,
+        "exit": 3350.0,
+        "ret": 0.0859,
+        "delisted": false
+      },
+      {
+        "ticker": "007860",
+        "name": "서연",
+        "entry": 7050.0,
+        "exit": 8790.0,
+        "ret": 0.246809,
+        "delisted": false
+      },
+      {
+        "ticker": "052300",
+        "name": "오션인더블유",
+        "entry": 6674.0,
+        "exit": 3908.0,
+        "ret": -0.414444,
+        "delisted": false
+      },
+      {
+        "ticker": "012320",
+        "name": "경동인베스트",
+        "entry": 34450.0,
+        "exit": 109800.0,
+        "ret": 2.187228,
+        "delisted": false
+      },
+      {
+        "ticker": "101330",
+        "name": "모베이스",
+        "entry": 3275.0,
+        "exit": 4305.0,
+        "ret": 0.314504,
+        "delisted": false
+      },
+      {
+        "ticker": "003380",
+        "name": "하림지주",
+        "entry": 8950.0,
+        "exit": 17250.0,
+        "ret": 0.927374,
+        "delisted": false
+      },
+      {
+        "ticker": "009970",
+        "name": "영원무역홀딩스",
+        "entry": 53400.0,
+        "exit": 63800.0,
+        "ret": 0.194757,
+        "delisted": false
+      },
+      {
+        "ticker": "006200",
+        "name": "한국전자홀딩스",
+        "entry": 7500.0,
+        "exit": 6155.0,
+        "ret": -0.179333,
+        "delisted": false
+      },
+      {
+        "ticker": "005740",
+        "name": "크라운해태홀딩스",
+        "entry": 7580.0,
+        "exit": 6520.0,
+        "ret": -0.139842,
+        "delisted": false
+      },
+      {
+        "ticker": "071840",
+        "name": "롯데하이마트",
+        "entry": 16800.0,
+        "exit": 11980.0,
+        "ret": -0.286905,
+        "delisted": false
+      },
+      {
+        "ticker": "139480",
+        "name": "이마트",
+        "entry": 105000.0,
+        "exit": 104000.0,
+        "ret": -0.009524,
+        "delisted": false
+      },
+      {
+        "ticker": "043370",
+        "name": "피에이치에이",
+        "entry": 7250.0,
+        "exit": 7770.0,
+        "ret": 0.071724,
+        "delisted": false
+      },
+      {
+        "ticker": "001800",
+        "name": "오리온홀딩스",
+        "entry": 15000.0,
+        "exit": 17090.0,
+        "ret": 0.139333,
+        "delisted": false
+      },
+      {
+        "ticker": "034810",
+        "name": "해성산업",
+        "entry": 11850.0,
+        "exit": 9860.0,
+        "ret": -0.167932,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2023-04-05",
+    "next_date": "2023-08-18",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "311390",
+        "name": "네오크레마",
+        "entry": 8280.0,
+        "exit": 8350.0,
+        "ret": 0.008454,
+        "delisted": false
+      },
+      {
+        "ticker": "006120",
+        "name": "SK디스커버리",
+        "entry": 31800.0,
+        "exit": 40400.0,
+        "ret": 0.27044,
+        "delisted": false
+      },
+      {
+        "ticker": "021820",
+        "name": "세원정공",
+        "entry": 7200.0,
+        "exit": 7080.0,
+        "ret": -0.016667,
+        "delisted": false
+      },
+      {
+        "ticker": "052300",
+        "name": "오션인더블유",
+        "entry": 3908.0,
+        "exit": 2910.0,
+        "ret": -0.255374,
+        "delisted": false
+      },
+      {
+        "ticker": "036530",
+        "name": "SNT홀딩스",
+        "entry": 15500.0,
+        "exit": 15900.0,
+        "ret": 0.025806,
+        "delisted": false
+      },
+      {
+        "ticker": "008060",
+        "name": "대덕",
+        "entry": 6630.0,
+        "exit": 6540.0,
+        "ret": -0.013575,
+        "delisted": false
+      },
+      {
+        "ticker": "037400",
+        "name": "우리엔터프라이즈",
+        "entry": 1720.0,
+        "exit": 1419.0,
+        "ret": -0.175,
+        "delisted": false
+      },
+      {
+        "ticker": "000150",
+        "name": "두산",
+        "entry": 99400.0,
+        "exit": 104900.0,
+        "ret": 0.055332,
+        "delisted": false
+      },
+      {
+        "ticker": "002030",
+        "name": "아세아",
+        "entry": 138500.0,
+        "exit": 176900.0,
+        "ret": 0.277256,
+        "delisted": false
+      },
+      {
+        "ticker": "001390",
+        "name": "KG케미칼",
+        "entry": 7760.0,
+        "exit": 9150.0,
+        "ret": 0.179124,
+        "delisted": false
+      },
+      {
+        "ticker": "006200",
+        "name": "한국전자홀딩스",
+        "entry": 6155.0,
+        "exit": 5320.0,
+        "ret": -0.135662,
+        "delisted": false
+      },
+      {
+        "ticker": "174880",
+        "name": "장원테크",
+        "entry": 2650.0,
+        "exit": 2650.0,
+        "ret": 0.0,
+        "delisted": false
+      },
+      {
+        "ticker": "001040",
+        "name": "CJ",
+        "entry": 108100.0,
+        "exit": 70400.0,
+        "ret": -0.348751,
+        "delisted": false
+      },
+      {
+        "ticker": "034730",
+        "name": "SK",
+        "entry": 173600.0,
+        "exit": 138800.0,
+        "ret": -0.200461,
+        "delisted": false
+      },
+      {
+        "ticker": "040610",
+        "name": "SG&G",
+        "entry": 3388.0,
+        "exit": 3336.0,
+        "ret": -0.015348,
+        "delisted": false
+      },
+      {
+        "ticker": "005740",
+        "name": "크라운해태홀딩스",
+        "entry": 6520.0,
+        "exit": 5720.0,
+        "ret": -0.122699,
+        "delisted": false
+      },
+      {
+        "ticker": "025530",
+        "name": "SJM홀딩스",
+        "entry": 3350.0,
+        "exit": 3860.0,
+        "ret": 0.152239,
+        "delisted": false
+      },
+      {
+        "ticker": "003240",
+        "name": "태광산업",
+        "entry": 730000.0,
+        "exit": 583000.0,
+        "ret": -0.20137,
+        "delisted": false
+      },
+      {
+        "ticker": "054800",
+        "name": "아이디스홀딩스",
+        "entry": 14000.0,
+        "exit": 12290.0,
+        "ret": -0.122143,
+        "delisted": false
+      },
+      {
+        "ticker": "069960",
+        "name": "현대백화점",
+        "entry": 53100.0,
+        "exit": 65100.0,
+        "ret": 0.225989,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2023-08-18",
+    "next_date": "2024-04-03",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "012630",
+        "name": "HDC",
+        "entry": 6050.0,
+        "exit": 8340.0,
+        "ret": 0.378512,
+        "delisted": false
+      },
+      {
+        "ticker": "052300",
+        "name": "오션인더블유",
+        "entry": 2910.0,
+        "exit": 3916.0,
+        "ret": 0.345704,
+        "delisted": false
+      },
+      {
+        "ticker": "021820",
+        "name": "세원정공",
+        "entry": 7080.0,
+        "exit": 8500.0,
+        "ret": 0.200565,
+        "delisted": false
+      },
+      {
+        "ticker": "006120",
+        "name": "SK디스커버리",
+        "entry": 40400.0,
+        "exit": 44750.0,
+        "ret": 0.107673,
+        "delisted": false
+      },
+      {
+        "ticker": "034730",
+        "name": "SK",
+        "entry": 138800.0,
+        "exit": 175500.0,
+        "ret": 0.264409,
+        "delisted": false
+      },
+      {
+        "ticker": "036530",
+        "name": "SNT홀딩스",
+        "entry": 15900.0,
+        "exit": 22650.0,
+        "ret": 0.424528,
+        "delisted": false
+      },
+      {
+        "ticker": "151860",
+        "name": "KG에코솔루션",
+        "entry": 10570.0,
+        "exit": 9110.0,
+        "ret": -0.138127,
+        "delisted": false
+      },
+      {
+        "ticker": "139480",
+        "name": "이마트",
+        "entry": 71100.0,
+        "exit": 67200.0,
+        "ret": -0.054852,
+        "delisted": false
+      },
+      {
+        "ticker": "008060",
+        "name": "대덕",
+        "entry": 6540.0,
+        "exit": 6360.0,
+        "ret": -0.027523,
+        "delisted": false
+      },
+      {
+        "ticker": "003380",
+        "name": "하림지주",
+        "entry": 7190.0,
+        "exit": 6550.0,
+        "ret": -0.089013,
+        "delisted": false
+      },
+      {
+        "ticker": "084690",
+        "name": "대상홀딩스",
+        "entry": 6800.0,
+        "exit": 9250.0,
+        "ret": 0.360294,
+        "delisted": false
+      },
+      {
+        "ticker": "003240",
+        "name": "태광산업",
+        "entry": 583000.0,
+        "exit": 697000.0,
+        "ret": 0.19554,
+        "delisted": false
+      },
+      {
+        "ticker": "000150",
+        "name": "두산",
+        "entry": 104900.0,
+        "exit": 138000.0,
+        "ret": 0.315539,
+        "delisted": false
+      },
+      {
+        "ticker": "007860",
+        "name": "서연",
+        "entry": 7770.0,
+        "exit": 9660.0,
+        "ret": 0.243243,
+        "delisted": false
+      },
+      {
+        "ticker": "003300",
+        "name": "한일홀딩스",
+        "entry": 11380.0,
+        "exit": 12310.0,
+        "ret": 0.081722,
+        "delisted": false
+      },
+      {
+        "ticker": "001230",
+        "name": "동국홀딩스",
+        "entry": 2446.0,
+        "exit": 1810.0,
+        "ret": -0.260016,
+        "delisted": false
+      },
+      {
+        "ticker": "040610",
+        "name": "SG&G",
+        "entry": 3336.0,
+        "exit": 3306.0,
+        "ret": -0.008993,
+        "delisted": false
+      },
+      {
+        "ticker": "023530",
+        "name": "롯데쇼핑",
+        "entry": 70800.0,
+        "exit": 72000.0,
+        "ret": 0.016949,
+        "delisted": false
+      },
+      {
+        "ticker": "001390",
+        "name": "KG케미칼",
+        "entry": 9150.0,
+        "exit": 5690.0,
+        "ret": -0.378142,
+        "delisted": false
+      },
+      {
+        "ticker": "034810",
+        "name": "해성산업",
+        "entry": 8120.0,
+        "exit": 7720.0,
+        "ret": -0.049261,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2024-04-03",
+    "next_date": "2024-08-20",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "005720",
+        "name": "넥센",
+        "entry": 4100.0,
+        "exit": 4830.0,
+        "ret": 0.178049,
+        "delisted": false
+      },
+      {
+        "ticker": "012630",
+        "name": "HDC",
+        "entry": 8340.0,
+        "exit": 10510.0,
+        "ret": 0.260192,
+        "delisted": false
+      },
+      {
+        "ticker": "001390",
+        "name": "KG케미칼",
+        "entry": 5690.0,
+        "exit": 4450.0,
+        "ret": -0.217926,
+        "delisted": false
+      },
+      {
+        "ticker": "151860",
+        "name": "KG에코솔루션",
+        "entry": 9110.0,
+        "exit": 6200.0,
+        "ret": -0.319429,
+        "delisted": false
+      },
+      {
+        "ticker": "006200",
+        "name": "한국전자홀딩스",
+        "entry": 4895.0,
+        "exit": 4085.0,
+        "ret": -0.165475,
+        "delisted": false
+      },
+      {
+        "ticker": "054800",
+        "name": "아이디스홀딩스",
+        "entry": 10530.0,
+        "exit": 9680.0,
+        "ret": -0.080722,
+        "delisted": false
+      },
+      {
+        "ticker": "139480",
+        "name": "이마트",
+        "entry": 67200.0,
+        "exit": 61500.0,
+        "ret": -0.084821,
+        "delisted": false
+      },
+      {
+        "ticker": "006120",
+        "name": "SK디스커버리",
+        "entry": 44750.0,
+        "exit": 35200.0,
+        "ret": -0.213408,
+        "delisted": false
+      },
+      {
+        "ticker": "003380",
+        "name": "하림지주",
+        "entry": 6550.0,
+        "exit": 5660.0,
+        "ret": -0.135878,
+        "delisted": false
+      },
+      {
+        "ticker": "052300",
+        "name": "오션인더블유",
+        "entry": 3916.0,
+        "exit": 3071.0,
+        "ret": -0.215781,
+        "delisted": false
+      },
+      {
+        "ticker": "008060",
+        "name": "대덕",
+        "entry": 6360.0,
+        "exit": 6250.0,
+        "ret": -0.017296,
+        "delisted": false
+      },
+      {
+        "ticker": "001230",
+        "name": "동국홀딩스",
+        "entry": 1810.0,
+        "exit": 1803.0,
+        "ret": -0.003867,
+        "delisted": false
+      },
+      {
+        "ticker": "021820",
+        "name": "세원정공",
+        "entry": 8500.0,
+        "exit": 8170.0,
+        "ret": -0.038824,
+        "delisted": false
+      },
+      {
+        "ticker": "005740",
+        "name": "크라운해태홀딩스",
+        "entry": 5950.0,
+        "exit": 6080.0,
+        "ret": 0.021849,
+        "delisted": false
+      },
+      {
+        "ticker": "040610",
+        "name": "SG&G",
+        "entry": 3306.0,
+        "exit": 3212.0,
+        "ret": -0.028433,
+        "delisted": false
+      },
+      {
+        "ticker": "034730",
+        "name": "SK",
+        "entry": 175500.0,
+        "exit": 138800.0,
+        "ret": -0.209117,
+        "delisted": false
+      },
+      {
+        "ticker": "003300",
+        "name": "한일홀딩스",
+        "entry": 12310.0,
+        "exit": 13420.0,
+        "ret": 0.090171,
+        "delisted": false
+      },
+      {
+        "ticker": "101330",
+        "name": "모베이스",
+        "entry": 3450.0,
+        "exit": 3560.0,
+        "ret": 0.031884,
+        "delisted": false
+      },
+      {
+        "ticker": "034810",
+        "name": "해성산업",
+        "entry": 7720.0,
+        "exit": 7030.0,
+        "ret": -0.089378,
+        "delisted": false
+      },
+      {
+        "ticker": "007700",
+        "name": "F&F홀딩스",
+        "entry": 15200.0,
+        "exit": 13510.0,
+        "ret": -0.111184,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2024-08-20",
+    "next_date": "2025-04-03",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "001390",
+        "name": "KG케미칼",
+        "entry": 4450.0,
+        "exit": 3550.0,
+        "ret": -0.202247,
+        "delisted": false
+      },
+      {
+        "ticker": "151860",
+        "name": "KG에코솔루션",
+        "entry": 6200.0,
+        "exit": 4800.0,
+        "ret": -0.225806,
+        "delisted": false
+      },
+      {
+        "ticker": "005440",
+        "name": "현대지에프홀딩스",
+        "entry": 4525.0,
+        "exit": 5030.0,
+        "ret": 0.111602,
+        "delisted": false
+      },
+      {
+        "ticker": "052300",
+        "name": "오션인더블유",
+        "entry": 3071.0,
+        "exit": 2094.0,
+        "ret": -0.318137,
+        "delisted": false
+      },
+      {
+        "ticker": "006120",
+        "name": "SK디스커버리",
+        "entry": 35200.0,
+        "exit": 39650.0,
+        "ret": 0.12642,
+        "delisted": false
+      },
+      {
+        "ticker": "005720",
+        "name": "넥센",
+        "entry": 4830.0,
+        "exit": 4555.0,
+        "ret": -0.056936,
+        "delisted": false
+      },
+      {
+        "ticker": "003380",
+        "name": "하림지주",
+        "entry": 5660.0,
+        "exit": 5420.0,
+        "ret": -0.042403,
+        "delisted": false
+      },
+      {
+        "ticker": "021820",
+        "name": "세원정공",
+        "entry": 8170.0,
+        "exit": 7700.0,
+        "ret": -0.057528,
+        "delisted": false
+      },
+      {
+        "ticker": "037400",
+        "name": "우리엔터프라이즈",
+        "entry": 1522.0,
+        "exit": 1013.0,
+        "ret": -0.334428,
+        "delisted": false
+      },
+      {
+        "ticker": "034730",
+        "name": "SK",
+        "entry": 138800.0,
+        "exit": 126600.0,
+        "ret": -0.087896,
+        "delisted": false
+      },
+      {
+        "ticker": "139480",
+        "name": "이마트",
+        "entry": 61500.0,
+        "exit": 82600.0,
+        "ret": 0.343089,
+        "delisted": false
+      },
+      {
+        "ticker": "007860",
+        "name": "서연",
+        "entry": 7690.0,
+        "exit": 7590.0,
+        "ret": -0.013004,
+        "delisted": false
+      },
+      {
+        "ticker": "057050",
+        "name": "현대홈쇼핑",
+        "entry": 47850.0,
+        "exit": 47000.0,
+        "ret": -0.017764,
+        "delisted": false
+      },
+      {
+        "ticker": "040610",
+        "name": "SG&G",
+        "entry": 3212.0,
+        "exit": 3008.0,
+        "ret": -0.063512,
+        "delisted": false
+      },
+      {
+        "ticker": "023530",
+        "name": "롯데쇼핑",
+        "entry": 59800.0,
+        "exit": 60300.0,
+        "ret": 0.008361,
+        "delisted": false
+      },
+      {
+        "ticker": "005740",
+        "name": "크라운해태홀딩스",
+        "entry": 6080.0,
+        "exit": 5470.0,
+        "ret": -0.100329,
+        "delisted": false
+      },
+      {
+        "ticker": "004150",
+        "name": "한솔홀딩스",
+        "entry": 2585.0,
+        "exit": 2360.0,
+        "ret": -0.087041,
+        "delisted": false
+      },
+      {
+        "ticker": "007700",
+        "name": "F&F홀딩스",
+        "entry": 13510.0,
+        "exit": 12100.0,
+        "ret": -0.104367,
+        "delisted": false
+      },
+      {
+        "ticker": "034810",
+        "name": "해성산업",
+        "entry": 7030.0,
+        "exit": 5960.0,
+        "ret": -0.152205,
+        "delisted": false
+      },
+      {
+        "ticker": "035810",
+        "name": "이지홀딩스",
+        "entry": 2760.0,
+        "exit": 3020.0,
+        "ret": 0.094203,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2025-04-03",
+    "next_date": "2025-08-20",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "001390",
+        "name": "KG케미칼",
+        "entry": 3550.0,
+        "exit": 4740.0,
+        "ret": 0.335211,
+        "delisted": false
+      },
+      {
+        "ticker": "151860",
+        "name": "KG에코솔루션",
+        "entry": 4800.0,
+        "exit": 5940.0,
+        "ret": 0.2375,
+        "delisted": false
+      },
+      {
+        "ticker": "004960",
+        "name": "한신공영",
+        "entry": 5910.0,
+        "exit": 7930.0,
+        "ret": 0.341794,
+        "delisted": false
+      },
+      {
+        "ticker": "023530",
+        "name": "롯데쇼핑",
+        "entry": 60300.0,
+        "exit": 66200.0,
+        "ret": 0.097844,
+        "delisted": false
+      },
+      {
+        "ticker": "005720",
+        "name": "넥센",
+        "entry": 4555.0,
+        "exit": 5820.0,
+        "ret": 0.277717,
+        "delisted": false
+      },
+      {
+        "ticker": "003380",
+        "name": "하림지주",
+        "entry": 5420.0,
+        "exit": 8450.0,
+        "ret": 0.559041,
+        "delisted": false
+      },
+      {
+        "ticker": "054800",
+        "name": "아이디스홀딩스",
+        "entry": 8680.0,
+        "exit": 11780.0,
+        "ret": 0.357143,
+        "delisted": false
+      },
+      {
+        "ticker": "363280",
+        "name": "티와이홀딩스",
+        "entry": 2120.0,
+        "exit": 3550.0,
+        "ret": 0.674528,
+        "delisted": false
+      },
+      {
+        "ticker": "006120",
+        "name": "SK디스커버리",
+        "entry": 39650.0,
+        "exit": 49950.0,
+        "ret": 0.259773,
+        "delisted": false
+      },
+      {
+        "ticker": "034730",
+        "name": "SK",
+        "entry": 126600.0,
+        "exit": 181500.0,
+        "ret": 0.433649,
+        "delisted": false
+      },
+      {
+        "ticker": "007860",
+        "name": "서연",
+        "entry": 7590.0,
+        "exit": 8920.0,
+        "ret": 0.175231,
+        "delisted": false
+      },
+      {
+        "ticker": "001230",
+        "name": "동국홀딩스",
+        "entry": 1515.0,
+        "exit": 1669.0,
+        "ret": 0.10165,
+        "delisted": false
+      },
+      {
+        "ticker": "011170",
+        "name": "롯데케미칼",
+        "entry": 59800.0,
+        "exit": 62200.0,
+        "ret": 0.040134,
+        "delisted": false
+      },
+      {
+        "ticker": "000210",
+        "name": "DL",
+        "entry": 31500.0,
+        "exit": 37200.0,
+        "ret": 0.180952,
+        "delisted": false
+      },
+      {
+        "ticker": "007700",
+        "name": "F&F홀딩스",
+        "entry": 12100.0,
+        "exit": 17290.0,
+        "ret": 0.428926,
+        "delisted": false
+      },
+      {
+        "ticker": "016450",
+        "name": "한세예스24홀딩스",
+        "entry": 3525.0,
+        "exit": 4005.0,
+        "ret": 0.13617,
+        "delisted": false
+      },
+      {
+        "ticker": "034810",
+        "name": "해성산업",
+        "entry": 5960.0,
+        "exit": 7780.0,
+        "ret": 0.305369,
+        "delisted": false
+      },
+      {
+        "ticker": "057050",
+        "name": "현대홈쇼핑",
+        "entry": 47000.0,
+        "exit": 52300.0,
+        "ret": 0.112766,
+        "delisted": false
+      },
+      {
+        "ticker": "092230",
+        "name": "KPX홀딩스",
+        "entry": 55300.0,
+        "exit": 65900.0,
+        "ret": 0.191682,
+        "delisted": false
+      },
+      {
+        "ticker": "101330",
+        "name": "모베이스",
+        "entry": 2980.0,
+        "exit": 3065.0,
+        "ret": 0.028523,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2025-08-20",
+    "next_date": "2026-04-03",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "001390",
+        "name": "KG케미칼",
+        "entry": 4740.0,
+        "exit": 5150.0,
+        "ret": 0.086498,
+        "delisted": false
+      },
+      {
+        "ticker": "151860",
+        "name": "KG에코솔루션",
+        "entry": 5940.0,
+        "exit": 6160.0,
+        "ret": 0.037037,
+        "delisted": false
+      },
+      {
+        "ticker": "044060",
+        "name": "조광ILI",
+        "entry": 43.0,
+        "exit": 30.0,
+        "ret": -0.3,
+        "delisted": true
+      },
+      {
+        "ticker": "023530",
+        "name": "롯데쇼핑",
+        "entry": 66200.0,
+        "exit": 99500.0,
+        "ret": 0.503021,
+        "delisted": false
+      },
+      {
+        "ticker": "005720",
+        "name": "넥센",
+        "entry": 5820.0,
+        "exit": 6410.0,
+        "ret": 0.101375,
+        "delisted": false
+      },
+      {
+        "ticker": "104480",
+        "name": "티케이케미칼",
+        "entry": 1665.0,
+        "exit": 2215.0,
+        "ret": 0.33033,
+        "delisted": false
+      },
+      {
+        "ticker": "001230",
+        "name": "동국홀딩스",
+        "entry": 1669.0,
+        "exit": 2306.0,
+        "ret": 0.381666,
+        "delisted": false
+      },
+      {
+        "ticker": "007860",
+        "name": "서연",
+        "entry": 8920.0,
+        "exit": 9130.0,
+        "ret": 0.023543,
+        "delisted": false
+      },
+      {
+        "ticker": "021820",
+        "name": "세원정공",
+        "entry": 10490.0,
+        "exit": 14190.0,
+        "ret": 0.352717,
+        "delisted": false
+      },
+      {
+        "ticker": "011170",
+        "name": "롯데케미칼",
+        "entry": 62200.0,
+        "exit": 80100.0,
+        "ret": 0.287781,
+        "delisted": false
+      },
+      {
+        "ticker": "006120",
+        "name": "SK디스커버리",
+        "entry": 49950.0,
+        "exit": 51600.0,
+        "ret": 0.033033,
+        "delisted": false
+      },
+      {
+        "ticker": "089140",
+        "name": "넥스턴앤롤코리아",
+        "entry": 2330.0,
+        "exit": 2060.0,
+        "ret": -0.11588,
+        "delisted": false
+      },
+      {
+        "ticker": "054800",
+        "name": "아이디스홀딩스",
+        "entry": 11780.0,
+        "exit": 15980.0,
+        "ret": 0.356537,
+        "delisted": false
+      },
+      {
+        "ticker": "040610",
+        "name": "SG&G",
+        "entry": 3512.0,
+        "exit": 4070.0,
+        "ret": 0.158884,
+        "delisted": false
+      },
+      {
+        "ticker": "139480",
+        "name": "이마트",
+        "entry": 76900.0,
+        "exit": 90200.0,
+        "ret": 0.172952,
+        "delisted": false
+      },
+      {
+        "ticker": "101330",
+        "name": "모베이스",
+        "entry": 3065.0,
+        "exit": 4425.0,
+        "ret": 0.443719,
+        "delisted": false
+      },
+      {
+        "ticker": "003380",
+        "name": "하림지주",
+        "entry": 8450.0,
+        "exit": 13540.0,
+        "ret": 0.602367,
+        "delisted": false
+      },
+      {
+        "ticker": "058650",
+        "name": "세아홀딩스",
+        "entry": 125000.0,
+        "exit": 158200.0,
+        "ret": 0.2656,
+        "delisted": false
+      },
+      {
+        "ticker": "034730",
+        "name": "SK",
+        "entry": 181500.0,
+        "exit": 312500.0,
+        "ret": 0.721763,
+        "delisted": false
+      },
+      {
+        "ticker": "057050",
+        "name": "현대홈쇼핑",
+        "entry": 52300.0,
+        "exit": 77800.0,
+        "ret": 0.487572,
+        "delisted": false
+      }
+    ]
+  },
+  {
+    "rebalance_date": "2026-04-03",
+    "next_date": "2026-07-19",
+    "n_portfolio": 20,
+    "holdings": [
+      {
+        "ticker": "001390",
+        "name": "KG케미칼",
+        "entry": 5150.0,
+        "exit": 4130.0,
+        "ret": -0.198058,
+        "delisted": false
+      },
+      {
+        "ticker": "151860",
+        "name": "KG에코솔루션",
+        "entry": 6160.0,
+        "exit": 5450.0,
+        "ret": -0.11526,
+        "delisted": false
+      },
+      {
+        "ticker": "006200",
+        "name": "한국전자홀딩스",
+        "entry": 4100.0,
+        "exit": 2405.0,
+        "ret": -0.413415,
+        "delisted": false
+      },
+      {
+        "ticker": "052300",
+        "name": "오션인더블유",
+        "entry": 1419.0,
+        "exit": 1510.0,
+        "ret": 0.06413,
+        "delisted": false
+      },
+      {
+        "ticker": "109960",
+        "name": "앱토크롬",
+        "entry": 3297.0,
+        "exit": 1699.0,
+        "ret": -0.484683,
+        "delisted": false
+      },
+      {
+        "ticker": "005720",
+        "name": "넥센",
+        "entry": 6410.0,
+        "exit": 5950.0,
+        "ret": -0.071763,
+        "delisted": false
+      },
+      {
+        "ticker": "006120",
+        "name": "SK디스커버리",
+        "entry": 51600.0,
+        "exit": 54500.0,
+        "ret": 0.056202,
+        "delisted": false
+      },
+      {
+        "ticker": "007860",
+        "name": "서연",
+        "entry": 9130.0,
+        "exit": 7550.0,
+        "ret": -0.173056,
+        "delisted": false
+      },
+      {
+        "ticker": "363280",
+        "name": "티와이홀딩스",
+        "entry": 2680.0,
+        "exit": 1706.0,
+        "ret": -0.363433,
+        "delisted": false
+      },
+      {
+        "ticker": "460850",
+        "name": "동국씨엠",
+        "entry": 5290.0,
+        "exit": 4760.0,
+        "ret": -0.100189,
+        "delisted": false
+      },
+      {
+        "ticker": "005740",
+        "name": "크라운해태홀딩스",
+        "entry": 6560.0,
+        "exit": 5670.0,
+        "ret": -0.135671,
+        "delisted": false
+      },
+      {
+        "ticker": "002920",
+        "name": "유성기업",
+        "entry": 1856.0,
+        "exit": 1746.0,
+        "ret": -0.059267,
+        "delisted": false
+      },
+      {
+        "ticker": "104480",
+        "name": "티케이케미칼",
+        "entry": 2215.0,
+        "exit": 1524.0,
+        "ret": -0.311964,
+        "delisted": false
+      },
+      {
+        "ticker": "040610",
+        "name": "SG&G",
+        "entry": 4070.0,
+        "exit": 3100.0,
+        "ret": -0.238329,
+        "delisted": false
+      },
+      {
+        "ticker": "023530",
+        "name": "롯데쇼핑",
+        "entry": 99500.0,
+        "exit": 140800.0,
+        "ret": 0.415075,
+        "delisted": false
+      },
+      {
+        "ticker": "001230",
+        "name": "동국홀딩스",
+        "entry": 2306.0,
+        "exit": 1698.0,
+        "ret": -0.26366,
+        "delisted": false
+      },
+      {
+        "ticker": "036090",
+        "name": "위지트",
+        "entry": 1691.0,
+        "exit": 1298.0,
+        "ret": -0.232407,
+        "delisted": false
+      },
+      {
+        "ticker": "034810",
+        "name": "해성산업",
+        "entry": 7190.0,
+        "exit": 6380.0,
+        "ret": -0.112656,
+        "delisted": false
+      },
+      {
+        "ticker": "139480",
+        "name": "이마트",
+        "entry": 90200.0,
+        "exit": 79700.0,
+        "ret": -0.116408,
+        "delisted": false
+      },
+      {
+        "ticker": "054800",
+        "name": "아이디스홀딩스",
+        "entry": 15980.0,
+        "exit": 14280.0,
+        "ret": -0.106383,
+        "delisted": false
+      }
+    ]
+  }
+]

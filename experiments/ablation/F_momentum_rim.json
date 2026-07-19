@@ -1,0 +1,19 @@
+{
+  "tag": "F_momentum_rim",
+  "run_at": "2026-07-19T14:12:38.822471",
+  "seed": null,
+  "cagr": 0.13724735124654353,
+  "net_cagr": 0.12455977437160826,
+  "alpha": 0.031132740812128024,
+  "alpha_kosdaq": 0.09383880803419498,
+  "sharpe": 0.46100440635249573,
+  "net_sharpe": 0.42351628491488325,
+  "mdd": -0.3327770012817104,
+  "robustness": 0.6,
+  "benchmark_cagr": 0.1061146104344155,
+  "kosdaq_cagr": 0.04340854321234855,
+  "avg_turnover": 0.8675,
+  "cagr_optimistic": 0.13724735124654353,
+  "cagr_conservative": 0.13724735124654353,
+  "n_periods": 20
+}

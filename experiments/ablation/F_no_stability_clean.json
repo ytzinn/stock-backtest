@@ -1,0 +1,19 @@
+{
+  "tag": "F_no_stability_clean",
+  "run_at": "2026-07-19T14:20:05.451219",
+  "seed": null,
+  "cagr": 0.1488919743697188,
+  "net_cagr": 0.1360224520882587,
+  "alpha": 0.04277736393530329,
+  "alpha_kosdaq": 0.10548343115737024,
+  "sharpe": 0.550289898142923,
+  "net_sharpe": 0.5058162192793004,
+  "mdd": -0.3227329798811157,
+  "robustness": 0.65,
+  "benchmark_cagr": 0.1061146104344155,
+  "kosdaq_cagr": 0.04340854321234855,
+  "avg_turnover": 0.875,
+  "cagr_optimistic": 0.1488919743697188,
+  "cagr_conservative": 0.1488919743697188,
+  "n_periods": 20
+}
