@@ -205,8 +205,8 @@ CREATE INDEX IF NOT EXISTS idx_universe_gate_pit_ticker_year
 > R1/R4/R5/R6만 유지. 최적 조합(R1+R5+R6만, R4도 제외) CAGR 15.35%로 기존 대비 개선되나
 > R4는 경제적 논리가 유효해 보수적으로 유지 결정.
 > **다음 과제**: classifier.py 활성화 + Bayesian 튜닝 (팩터 가중치 튜닝은 대상 소멸로 제외).
-> 참고 자료: `2026.06.21. 백테스트_검토_및_모델개선_워크플로우.md` (STEP 1~11 체크리스트),
-> `2026.06.21. 백테스트_설계검토_및_RIM산식_교체.md` (RIM 산식 교체 근거).
+> 참고 자료: `docs/검토/[검토] 2026.06.21_백테스트검토_모델개선.md` (STEP 1~11 체크리스트),
+> `docs/검토/[검토] 2026.06.21_설계검토_RIM산식교체.md` (RIM 산식 교체 근거).
 
 **미결 항목 (Phase 3 진행 중 확정 필요, 임의로 정하지 않음)**:
 - **최소 편입 종목 수 규칙**: `backtest/portfolio.py`의 `MIN_PORTFOLIO_STOCKS=5`가 여전히

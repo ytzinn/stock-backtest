@@ -23,7 +23,7 @@
 
 RIM 적정가는 Ohlson(1995) 지속성 단일단계형으로 계산한다. `RIMModel` 클래스가 `ValuationModel`
 Protocol을 준수한다. (v4.2~v4.9의 g·payout 기반 구식 산식에서 교체된 이력·근거는 MASTER 버전이력
-v5.0, `2026.06.21. 백테스트_설계검토_및_RIM산식_교체.md` §DesignBug-1 참조.)
+v5.0, `docs/검토/[검토] 2026.06.21_설계검토_RIM산식교체.md` §DesignBug-1 참조.)
 
 ```python
 # backtest/models/rim.py

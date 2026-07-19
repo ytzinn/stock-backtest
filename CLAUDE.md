@@ -2,7 +2,8 @@
 
 ## 프로젝트 개요
 RIM(잔여이익모델) 기반 한국 주식 멀티팩터 백테스트 머신.
-전체 설계는 MASTER.md → 각 SPEC_0N_*.md 순서로 읽어라.
+전체 설계는 MASTER.md → `docs/설계/SPEC_0N_*.md` 순서로 읽어라.
+(설계서는 `docs/설계/`, 검토 기록은 `docs/검토/`, 감사 아카이브는 `docs/audit/`.)
 
 ## 실행 환경
 - **코드 작성**: Windows 11 개발 PC (현재 디렉토리)
@@ -73,7 +74,7 @@ RIM(잔여이익모델) 기반 한국 주식 멀티팩터 백테스트 머신.
   NULL 잔여분은 hard_filter가 가격 이력 최초일(`get_first_price_date`) 프록시로 상장기간 판정.
 
 ### Phase 순서
-SPEC_06_phases.md의 Phase 순서를 반드시 준수한다.
+`docs/설계/SPEC_06_phases.md`의 Phase 순서를 반드시 준수한다.
 Phase 0A 게이팅 통과 전 Phase 1 코드 작성 금지.
 
 ### 데이터 재현성 규칙 (DRIFT-INGEST-001, 2026-07-17)

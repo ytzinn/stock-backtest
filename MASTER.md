@@ -26,17 +26,24 @@ RIM(잔여이익모델) 기반 한국 주식 멀티팩터 백테스트 머신.
 
 ## 세부 설계서 파일 목록
 
+> 설계서는 `docs/설계/`, 검토·워크플로우 기록은 `docs/검토/`, 감사 아카이브는 `docs/audit/`에 있다.
+> SPEC 간 상호참조(`SPEC_05 §11` 등)는 파일명·번호 기준이며 위치와 무관하다.
+
 | 파일 | 내용 | 관련 Phase |
 |------|------|-----------|
-| `SPEC_01_infra.md` | 인프라(Ubuntu/cron/Docker), 디렉토리 구조, 데이터 흐름 | 사전 준비 |
-| `SPEC_02_ingest.md` | 데이터 수집(DART/FDR), DB 공통 스키마, PIT/DQ Gate | Phase 0~1 + 공통 DB |
-| `SPEC_03_universe.md` | Universe 필터 3단계(팩터 스크리닝 2026-07-05 폐기), interfaces, BacktestPipeline, configs | Phase 1~2 |
-| `SPEC_04_models.md` | RIM 모델, 분류기(skeleton), 포트폴리오, 엔진 | Phase 2~3 |
-| `SPEC_05_backtest.md` | Ablation Test, 성과측정, Fitness Function, 튜닝, 과최적화 방지 | Phase 2~4 |
-| `SPEC_06_phases.md` | Phase별 로드맵 + 체크리스트, 산출물 포맷, 향후 확장 메모 | 전체 |
-| `SPEC_07_regime.md` | 레짐 진단 유닛 (Phase A) | Phase A |
-| `SPEC_08_regime_phaseB.md` | 레짐 오버레이 Signal→Tilt (Phase B) | Phase B |
-| `SPEC_08_B05_timing_vs_deconcentration.md` | Phase B 타이밍 vs 분산 분해 | Phase B |
+| `docs/설계/SPEC_01_infra.md` | 인프라(Ubuntu/cron/Docker), 디렉토리 구조, 데이터 흐름 | 사전 준비 |
+| `docs/설계/SPEC_02_ingest.md` | 데이터 수집(DART/FDR), DB 공통 스키마, PIT/DQ Gate | Phase 0~1 + 공통 DB |
+| `docs/설계/SPEC_03_universe.md` | Universe 필터 3단계(팩터 스크리닝 2026-07-05 폐기), interfaces, BacktestPipeline, configs | Phase 1~2 |
+| `docs/설계/SPEC_04_models.md` | RIM 모델, 분류기(skeleton), 포트폴리오, 엔진 | Phase 2~3 |
+| `docs/설계/SPEC_05_backtest.md` | Ablation Test, 성과측정, Fitness Function, 튜닝, 과최적화 방지 | Phase 2~4 |
+| `docs/설계/SPEC_05_부록A_StabilityFilter검증.md` | StabilityFilter R1~R5 독립 검증 설계 (부록) | Phase 2~4 |
+| `docs/설계/SPEC_06_phases.md` | Phase별 로드맵 + 체크리스트, 산출물 포맷, 향후 확장 메모 | 전체 |
+| `docs/설계/SPEC_07_regime.md` | 레짐 진단 유닛 (Phase A) | Phase A |
+| `docs/설계/SPEC_08_regime_phaseB.md` | 레짐 오버레이 Signal→Tilt (Phase B) | Phase B |
+| `docs/설계/SPEC_08_B05_timing_vs_deconcentration.md` | Phase B 타이밍 vs 분산 분해 | Phase B |
+| `docs/설계/[계획] XBRL_PIT_구현.md` | DART XBRL 최초공시 수집 구현 계획 (룩어헤드 해소) | Phase 0~2 |
+| `docs/설계/[이슈] DART정정_룩어헤드.md` | DART 정정공시 룩어헤드 편향 이슈 분석 | Phase 0~2 |
+| `docs/검토/` | 백테스트 검토·모델개선 워크플로우 기록 (정적 보존) | 기록 |
 | `docs/audit/` | 2026-07 코드 정합성 감사 아카이브 (계획·TECH_DEBT·IMPACT_MATRIX 등) | 감사 |
 
 ---
@@ -163,7 +170,7 @@ RF, RK = 0.0263, 0.0873   # 두 파일에서 동일 값 유지
 > **미결 항목 (2026-07-02)**: KOSPI를 1차 벤치마크로 두는 현재 순서 대신 "Hard+Stability 통과
 > 동일가중 유니버스"를 1차 KPI로 재배치하자는 제안이 검토됨 (2026년 KOSPI가 시총 상위 소수 종목
 > 쏠림으로 급등해 동일가중 소형 가치주 전략과 스타일이 안 맞는다는 문제 제기). 아직 확정 아님 —
-> 상세: SPEC_06 Phase 3 미결 항목, `2026.06.21. 백테스트_검토_및_모델개선_워크플로우.md` STEP 5.
+> 상세: SPEC_06 Phase 3 미결 항목, `docs/검토/[검토] 2026.06.21_백테스트검토_모델개선.md` STEP 5.
 
 ## 3-5. 팩터 스크리닝 — **폐기 (2026-07-05)**
 
@@ -258,6 +265,12 @@ stock-backtest/                   # 실제 서버 경로: /opt/stock-backtest/
 ├─ requirements.txt
 ├─ docker-compose.yml             # Ubuntu 서버 PostgreSQL (포트 5433)
 ├─ CLAUDE.md
+├─ MASTER.md
+│
+├─ docs/
+│   ├─ 설계/                       # SPEC_01~08 + 부록A, [계획]/[이슈] 설계·분석 문서
+│   ├─ 검토/                       # 백테스트 검토·모델개선 워크플로우 기록 (정적 보존)
+│   └─ audit/                      # 2026-07 코드 정합성 감사 아카이브
 │
 ├─ scripts/
 │   ├─ generate_rebalance_dates.py  # 리밸런싱 날짜 1회 생성 후 하드코딩
@@ -328,7 +341,7 @@ stock-backtest/                   # 실제 서버 경로: /opt/stock-backtest/
 │
 └─ experiments/
     ├─ ablation/                    # 13개 시나리오 결과 (JSON/CSV)
-    └─ (기타 실험 결과)
+    └─ runs/                        # 결과 리포트 (BACKTEST_RESULTS·REGIME_PHASE 등, 날짜별)
 ```
 
 ---
@@ -433,6 +446,13 @@ stock-backtest/                   # 실제 서버 경로: /opt/stock-backtest/
 > `active_rules={'R1','R4','R5','R6'}`로 교체. `stability_filter.py`의 R2/R3 판정 코드 자체는
 > 삭제하지 않고 `active_rules`로 비활성화만(재검토 가능하도록 보존). 상세 근거·전체 수치표는
 > SPEC_05 §11 참조.
+>
+> **v5.5** (문서 구조 정리, 2026-07-19): 루트에 흩어져 있던 설계·검토 문서를 `docs/` 하위로
+> 그룹핑. SPEC_01~08(+부록A)·PLAN·ISSUE는 `docs/설계/`, 날짜 검토노트 2건은 `docs/검토/`로
+> `git mv`(히스토리 보존). SPEC 파일명·번호는 유지하여 상호참조(`SPEC_05 §11` 등)·코드 docstring
+> 프로즈 참조는 불변. `experiments/runs/`(결과 리포트, 코드가 직접 write)는 미이동. 인덱스 표에
+> 누락됐던 `SPEC_05_부록A` 행 추가(DOC-SPEC-001 해소). MASTER 인덱스·디렉토리 트리, CLAUDE.md
+> 경로 언급만 갱신.
 >
 > **핵심 변경 철학**: "모든 모델 산식 먼저 → 구현" 순서 대신 "RIM + 모멘텀으로 Baseline 먼저 → 결과 보고 확장" 순서로 전환.
 > 멀티모델(EV/Sales, Peer PER, NAV, FCFF 등) 산식 확정은 Phase 2 Ablation Test 결과 이후로 이동.
