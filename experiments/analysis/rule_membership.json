@@ -1,0 +1,575 @@
+{
+  "generated_at": "2026-07-20T00:48:40.060709",
+  "ruleset_full": [
+    "R1",
+    "R2",
+    "R5",
+    "R6"
+  ],
+  "verdict": {
+    "r2_deterministically_removable": false,
+    "r2_diff_dates": [
+      "2025-08-20"
+    ],
+    "r4_addition_changes_top20": true,
+    "r4_diff_dates": [
+      "2022-04-05",
+      "2025-08-20"
+    ]
+  },
+  "per_date": [
+    {
+      "rebalance_date": "2016-04-05",
+      "pool_hard_momentum": 998,
+      "fail_counts": {
+        "R1": 125,
+        "R2": 56,
+        "R4": 0,
+        "R5": 152,
+        "R6": 524
+      },
+      "r1_only_fail": 69,
+      "r2_only_fail": 0,
+      "r1_and_r2_fail": 56,
+      "r2_only_fail_tickers": [],
+      "newcomers_if_removed": {
+        "R1": 37,
+        "R2": 0,
+        "R5": 6,
+        "R6": 344
+      },
+      "survivors_full": 409,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": true,
+      "top20_diff_with_r4": []
+    },
+    {
+      "rebalance_date": "2016-08-18",
+      "pool_hard_momentum": 976,
+      "fail_counts": {
+        "R1": 120,
+        "R2": 55,
+        "R4": 0,
+        "R5": 7,
+        "R6": 7
+      },
+      "r1_only_fail": 68,
+      "r2_only_fail": 3,
+      "r1_and_r2_fail": 52,
+      "r2_only_fail_tickers": [
+        "005860",
+        "005880",
+        "024880"
+      ],
+      "newcomers_if_removed": {
+        "R1": 68,
+        "R2": 3,
+        "R5": 2,
+        "R6": 2
+      },
+      "survivors_full": 844,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": true,
+      "top20_diff_with_r4": []
+    },
+    {
+      "rebalance_date": "2017-04-05",
+      "pool_hard_momentum": 750,
+      "fail_counts": {
+        "R1": 80,
+        "R2": 15,
+        "R4": 56,
+        "R5": 107,
+        "R6": 358
+      },
+      "r1_only_fail": 66,
+      "r2_only_fail": 1,
+      "r1_and_r2_fail": 14,
+      "r2_only_fail_tickers": [
+        "091580"
+      ],
+      "newcomers_if_removed": {
+        "R1": 41,
+        "R2": 0,
+        "R5": 2,
+        "R6": 239
+      },
+      "survivors_full": 342,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": true,
+      "top20_diff_with_r4": []
+    },
+    {
+      "rebalance_date": "2017-08-18",
+      "pool_hard_momentum": 675,
+      "fail_counts": {
+        "R1": 75,
+        "R2": 18,
+        "R4": 2,
+        "R5": 94,
+        "R6": 300
+      },
+      "r1_only_fail": 57,
+      "r2_only_fail": 0,
+      "r1_and_r2_fail": 18,
+      "r2_only_fail_tickers": [],
+      "newcomers_if_removed": {
+        "R1": 25,
+        "R2": 0,
+        "R5": 10,
+        "R6": 190
+      },
+      "survivors_full": 330,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": true,
+      "top20_diff_with_r4": []
+    },
+    {
+      "rebalance_date": "2018-04-04",
+      "pool_hard_momentum": 935,
+      "fail_counts": {
+        "R1": 98,
+        "R2": 28,
+        "R4": 113,
+        "R5": 193,
+        "R6": 595
+      },
+      "r1_only_fail": 70,
+      "r2_only_fail": 0,
+      "r1_and_r2_fail": 28,
+      "r2_only_fail_tickers": [],
+      "newcomers_if_removed": {
+        "R1": 27,
+        "R2": 0,
+        "R5": 5,
+        "R6": 375
+      },
+      "survivors_full": 301,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": true,
+      "top20_diff_with_r4": []
+    },
+    {
+      "rebalance_date": "2018-08-20",
+      "pool_hard_momentum": 394,
+      "fail_counts": {
+        "R1": 38,
+        "R2": 11,
+        "R4": 45,
+        "R5": 72,
+        "R6": 153
+      },
+      "r1_only_fail": 27,
+      "r2_only_fail": 0,
+      "r1_and_r2_fail": 11,
+      "r2_only_fail_tickers": [],
+      "newcomers_if_removed": {
+        "R1": 11,
+        "R2": 0,
+        "R5": 16,
+        "R6": 92
+      },
+      "survivors_full": 206,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": true,
+      "top20_diff_with_r4": []
+    },
+    {
+      "rebalance_date": "2019-04-03",
+      "pool_hard_momentum": 1208,
+      "fail_counts": {
+        "R1": 109,
+        "R2": 21,
+        "R4": 124,
+        "R5": 236,
+        "R6": 711
+      },
+      "r1_only_fail": 88,
+      "r2_only_fail": 0,
+      "r1_and_r2_fail": 21,
+      "r2_only_fail_tickers": [],
+      "newcomers_if_removed": {
+        "R1": 34,
+        "R2": 0,
+        "R5": 8,
+        "R6": 450
+      },
+      "survivors_full": 446,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": true,
+      "top20_diff_with_r4": []
+    },
+    {
+      "rebalance_date": "2019-08-20",
+      "pool_hard_momentum": 330,
+      "fail_counts": {
+        "R1": 52,
+        "R2": 11,
+        "R4": 33,
+        "R5": 59,
+        "R6": 135
+      },
+      "r1_only_fail": 41,
+      "r2_only_fail": 0,
+      "r1_and_r2_fail": 11,
+      "r2_only_fail_tickers": [],
+      "newcomers_if_removed": {
+        "R1": 26,
+        "R2": 0,
+        "R5": 6,
+        "R6": 75
+      },
+      "survivors_full": 155,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": true,
+      "top20_diff_with_r4": []
+    },
+    {
+      "rebalance_date": "2020-04-03",
+      "pool_hard_momentum": 137,
+      "fail_counts": {
+        "R1": 15,
+        "R2": 5,
+        "R4": 27,
+        "R5": 32,
+        "R6": 91
+      },
+      "r1_only_fail": 10,
+      "r2_only_fail": 0,
+      "r1_and_r2_fail": 5,
+      "r2_only_fail_tickers": [],
+      "newcomers_if_removed": {
+        "R1": 5,
+        "R2": 0,
+        "R5": 1,
+        "R6": 57
+      },
+      "survivors_full": 38,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": true,
+      "top20_diff_with_r4": []
+    },
+    {
+      "rebalance_date": "2020-08-20",
+      "pool_hard_momentum": 1285,
+      "fail_counts": {
+        "R1": 145,
+        "R2": 44,
+        "R4": 113,
+        "R5": 172,
+        "R6": 534
+      },
+      "r1_only_fail": 102,
+      "r2_only_fail": 1,
+      "r1_and_r2_fail": 43,
+      "r2_only_fail_tickers": [
+        "000520"
+      ],
+      "newcomers_if_removed": {
+        "R1": 57,
+        "R2": 1,
+        "R5": 36,
+        "R6": 369
+      },
+      "survivors_full": 629,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": true,
+      "top20_diff_with_r4": []
+    },
+    {
+      "rebalance_date": "2021-04-05",
+      "pool_hard_momentum": 1237,
+      "fail_counts": {
+        "R1": 152,
+        "R2": 33,
+        "R4": 100,
+        "R5": 153,
+        "R6": 663
+      },
+      "r1_only_fail": 120,
+      "r2_only_fail": 1,
+      "r1_and_r2_fail": 32,
+      "r2_only_fail_tickers": [
+        "011330"
+      ],
+      "newcomers_if_removed": {
+        "R1": 62,
+        "R2": 1,
+        "R5": 7,
+        "R6": 480
+      },
+      "survivors_full": 483,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": true,
+      "top20_diff_with_r4": []
+    },
+    {
+      "rebalance_date": "2021-08-19",
+      "pool_hard_momentum": 1127,
+      "fail_counts": {
+        "R1": 131,
+        "R2": 41,
+        "R4": 102,
+        "R5": 178,
+        "R6": 446
+      },
+      "r1_only_fail": 92,
+      "r2_only_fail": 2,
+      "r1_and_r2_fail": 39,
+      "r2_only_fail_tickers": [
+        "039830",
+        "082660"
+      ],
+      "newcomers_if_removed": {
+        "R1": 56,
+        "R2": 1,
+        "R5": 40,
+        "R6": 293
+      },
+      "survivors_full": 554,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": true,
+      "top20_diff_with_r4": []
+    },
+    {
+      "rebalance_date": "2022-04-05",
+      "pool_hard_momentum": 1187,
+      "fail_counts": {
+        "R1": 145,
+        "R2": 41,
+        "R4": 111,
+        "R5": 252,
+        "R6": 670
+      },
+      "r1_only_fail": 106,
+      "r2_only_fail": 2,
+      "r1_and_r2_fail": 39,
+      "r2_only_fail_tickers": [
+        "012800",
+        "136480"
+      ],
+      "newcomers_if_removed": {
+        "R1": 52,
+        "R2": 1,
+        "R5": 11,
+        "R6": 408
+      },
+      "survivors_full": 440,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": false,
+      "top20_diff_with_r4": [
+        "005810",
+        "093050"
+      ]
+    },
+    {
+      "rebalance_date": "2022-08-18",
+      "pool_hard_momentum": 949,
+      "fail_counts": {
+        "R1": 84,
+        "R2": 20,
+        "R4": 125,
+        "R5": 222,
+        "R6": 397
+      },
+      "r1_only_fail": 64,
+      "r2_only_fail": 0,
+      "r1_and_r2_fail": 20,
+      "r2_only_fail_tickers": [],
+      "newcomers_if_removed": {
+        "R1": 35,
+        "R2": 0,
+        "R5": 59,
+        "R6": 231
+      },
+      "survivors_full": 445,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": true,
+      "top20_diff_with_r4": []
+    },
+    {
+      "rebalance_date": "2023-04-05",
+      "pool_hard_momentum": 1083,
+      "fail_counts": {
+        "R1": 105,
+        "R2": 28,
+        "R4": 149,
+        "R5": 205,
+        "R6": 616
+      },
+      "r1_only_fail": 78,
+      "r2_only_fail": 1,
+      "r1_and_r2_fail": 27,
+      "r2_only_fail_tickers": [
+        "389260"
+      ],
+      "newcomers_if_removed": {
+        "R1": 41,
+        "R2": 1,
+        "R5": 11,
+        "R6": 397
+      },
+      "survivors_full": 402,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": true,
+      "top20_diff_with_r4": []
+    },
+    {
+      "rebalance_date": "2023-08-18",
+      "pool_hard_momentum": 728,
+      "fail_counts": {
+        "R1": 72,
+        "R2": 19,
+        "R4": 111,
+        "R5": 139,
+        "R6": 255
+      },
+      "r1_only_fail": 54,
+      "r2_only_fail": 1,
+      "r1_and_r2_fail": 18,
+      "r2_only_fail_tickers": [
+        "389260"
+      ],
+      "newcomers_if_removed": {
+        "R1": 23,
+        "R2": 1,
+        "R5": 37,
+        "R6": 156
+      },
+      "survivors_full": 393,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": true,
+      "top20_diff_with_r4": []
+    },
+    {
+      "rebalance_date": "2024-04-03",
+      "pool_hard_momentum": 1030,
+      "fail_counts": {
+        "R1": 123,
+        "R2": 16,
+        "R4": 133,
+        "R5": 182,
+        "R6": 526
+      },
+      "r1_only_fail": 108,
+      "r2_only_fail": 1,
+      "r1_and_r2_fail": 15,
+      "r2_only_fail_tickers": [
+        "281740"
+      ],
+      "newcomers_if_removed": {
+        "R1": 59,
+        "R2": 1,
+        "R5": 16,
+        "R6": 339
+      },
+      "survivors_full": 419,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": true,
+      "top20_diff_with_r4": []
+    },
+    {
+      "rebalance_date": "2024-08-20",
+      "pool_hard_momentum": 607,
+      "fail_counts": {
+        "R1": 96,
+        "R2": 12,
+        "R4": 93,
+        "R5": 115,
+        "R6": 222
+      },
+      "r1_only_fail": 84,
+      "r2_only_fail": 0,
+      "r1_and_r2_fail": 12,
+      "r2_only_fail_tickers": [],
+      "newcomers_if_removed": {
+        "R1": 53,
+        "R2": 0,
+        "R5": 27,
+        "R6": 131
+      },
+      "survivors_full": 290,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": true,
+      "top20_diff_with_r4": []
+    },
+    {
+      "rebalance_date": "2025-04-03",
+      "pool_hard_momentum": 1131,
+      "fail_counts": {
+        "R1": 127,
+        "R2": 17,
+        "R4": 133,
+        "R5": 179,
+        "R6": 590
+      },
+      "r1_only_fail": 110,
+      "r2_only_fail": 0,
+      "r1_and_r2_fail": 17,
+      "r2_only_fail_tickers": [],
+      "newcomers_if_removed": {
+        "R1": 64,
+        "R2": 0,
+        "R5": 6,
+        "R6": 406
+      },
+      "survivors_full": 461,
+      "top20_same_without_r2": true,
+      "top20_diff_without_r2": [],
+      "top20_same_with_r4": true,
+      "top20_diff_with_r4": []
+    },
+    {
+      "rebalance_date": "2025-08-20",
+      "pool_hard_momentum": 1422,
+      "fail_counts": {
+        "R1": 188,
+        "R2": 30,
+        "R4": 136,
+        "R5": 198,
+        "R6": 496
+      },
+      "r1_only_fail": 159,
+      "r2_only_fail": 1,
+      "r1_and_r2_fail": 29,
+      "r2_only_fail_tickers": [
+        "021050"
+      ],
+      "newcomers_if_removed": {
+        "R1": 95,
+        "R2": 1,
+        "R5": 52,
+        "R6": 337
+      },
+      "survivors_full": 747,
+      "top20_same_without_r2": false,
+      "top20_diff_without_r2": [
+        "021050",
+        "092230"
+      ],
+      "top20_same_with_r4": false,
+      "top20_diff_with_r4": [
+        "005740",
+        "024800"
+      ]
+    }
+  ]
+}

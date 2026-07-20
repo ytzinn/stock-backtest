@@ -1,0 +1,30 @@
+{
+  "n_held_tickers": 2093,
+  "n_pool_tickers": 2029,
+  "held_suspects": [
+    {
+      "ticker": "115960",
+      "corp_name": "연우",
+      "name_pattern": true,
+      "ticker_suffix": false,
+      "strong": false
+    },
+    {
+      "ticker": "294090",
+      "corp_name": "이오플로우",
+      "name_pattern": true,
+      "ticker_suffix": false,
+      "strong": false
+    },
+    {
+      "ticker": "458650",
+      "corp_name": "성우",
+      "name_pattern": true,
+      "ticker_suffix": false,
+      "strong": false
+    }
+  ],
+  "pool_only_suspects": [],
+  "strong_suspects_held": [],
+  "strong_suspects_pool": []
+}

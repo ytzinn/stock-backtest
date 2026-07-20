@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-20T00:12:28.041680",
+  "generated_at": "2026-07-20T00:46:22.552140",
   "tags": {
     "F_pbr_no_r3r4": {
       "all_gates_pass": true,
@@ -162,6 +162,60 @@
       "gross_mdd_trough": "2020-03-19",
       "tracking_error_kospi": 0.13141499528402123,
       "tracking_error_kosdaq": 0.10288893976745689
+    },
+    "D_pbr_no_r3r4": {
+      "all_gates_pass": true,
+      "n_closed_periods": 20,
+      "endpoint_mdd_gross": -0.37479948056886003,
+      "daily_mdd_gross": -0.5618104558402026,
+      "G_NAV_3": true,
+      "net": {
+        "daily_mdd": -0.5668566517062156,
+        "mdd_peak_date": "2018-05-15",
+        "mdd_trough_date": "2020-03-19",
+        "daily_vol_ann": 0.2165074712228512,
+        "daily_sharpe": 0.4576054721750781,
+        "worst_month_return": -0.14308797320290134,
+        "worst_month": "2022-09",
+        "cvar_5pct_1m": -0.12991395881841705,
+        "cvar_1m_k": 6,
+        "cvar_1m_fallback": false,
+        "cvar_5pct_3m": -0.16917204433923325,
+        "cvar_3m_k": 5,
+        "n_days": 2452,
+        "n_months": 121
+      },
+      "gross_mdd_peak": "2018-05-15",
+      "gross_mdd_trough": "2020-03-19",
+      "tracking_error_kospi": 0.15523858807708277,
+      "tracking_error_kosdaq": 0.18065841719714432
+    },
+    "F_pbr_no_r3r4_parent": {
+      "all_gates_pass": true,
+      "n_closed_periods": 20,
+      "endpoint_mdd_gross": -0.30078055374039125,
+      "daily_mdd_gross": -0.49274519524274096,
+      "G_NAV_3": true,
+      "net": {
+        "daily_mdd": -0.501490310093881,
+        "mdd_peak_date": "2018-05-31",
+        "mdd_trough_date": "2020-03-19",
+        "daily_vol_ann": 0.22415239389006078,
+        "daily_sharpe": 0.6294314104488931,
+        "worst_month_return": -0.1823908893816133,
+        "worst_month": "2018-06",
+        "cvar_5pct_1m": -0.14938562159539193,
+        "cvar_1m_k": 6,
+        "cvar_1m_fallback": false,
+        "cvar_5pct_3m": -0.17044154901473188,
+        "cvar_3m_k": 5,
+        "n_days": 2452,
+        "n_months": 121
+      },
+      "gross_mdd_peak": "2018-05-31",
+      "gross_mdd_trough": "2020-03-19",
+      "tracking_error_kospi": 0.17779155966218455,
+      "tracking_error_kosdaq": 0.19592801242018967
     }
   }
 }
