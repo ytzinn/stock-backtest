@@ -31,6 +31,17 @@ class RIMModel:
         self.omega    = omega
         self.vb_cap   = vb_cap
 
+    @staticmethod
+    def parent_equity(pit_data: dict) -> float | None:
+        """
+        주주 귀속 equity 선택 SSOT: 지배기업소유주지분 > 지배기업소유주지분_1 > 자본총계
+        (모듈 docstring의 우선순위 — `_1` suffix는 DART 이름충돌 fallback, CLAUDE.md).
+        RIM 적정가와 PBR_parent(SPEC_11 §3)가 이 함수를 공유한다 — 복제 금지.
+        """
+        return (pit_data.get('지배기업소유주지분')
+                or pit_data.get('지배기업소유주지분_1')
+                or pit_data.get('자본총계'))
+
     def fair_value_total(
         self,
         ticker:   str,
@@ -47,9 +58,7 @@ class RIMModel:
         """
         ni     = pit_data.get('당기순이익')
         cfo    = pit_data.get('영업활동현금흐름')
-        equity = (pit_data.get('지배기업소유주지분')
-                  or pit_data.get('지배기업소유주지분_1')
-                  or pit_data.get('자본총계'))
+        equity = self.parent_equity(pit_data)
 
         if None in (ni, cfo, equity) or equity <= 0:
             return None

@@ -87,12 +87,19 @@ def extract_portfolio_periods(tag: str, config: dict) -> list[dict]:
                 'delisted': delisted,
             })
 
-        results.append({
+        period_record = {
             'rebalance_date': rebal_date.isoformat(),
             'next_date':      next_date.isoformat(),
             'n_portfolio':    len(portfolio),
             'holdings':       holdings,
-        })
+        }
+        # SPEC_11 M-3 최소 확장: 모멘텀 필터가 파이프라인에 있으면 탈락 종목을 보존
+        # (D_pbr_no_r3r4 대조 분석의 "탈락 종목 이후 수익률" 원천). 기존 소비자는
+        # 추가 키를 무시하므로 시나리오 결과 불변.
+        mom_stats = univ_result['stats'].get('MomentumFilter')
+        if mom_stats is not None:
+            period_record['momentum_rejected'] = sorted(mom_stats['rejected'])
+        results.append(period_record)
         log.info(f'[{tag}] {rebal_date} → {len(portfolio)}종목')
 
     conn.close()

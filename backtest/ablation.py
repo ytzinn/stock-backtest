@@ -108,6 +108,19 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'use_momentum': True,  'use_rim_filter': False,
                             'stability_rules': {'R1', 'R2', 'R5', 'R6'},
                             'rank_mode': 'ew_all'},
+    # ── SPEC_11 분해 (2026-07-19 설계) ─────────────────────────────────────
+    # §4: 채택 후보에서 모멘텀만 제거한 정확한 대조군 — 모멘텀 독립 기여 격리.
+    # M0~M3 사전등록 실험의 기준선(M0 vs 모멘텀 부재) 겸용.
+    'D_pbr_no_r3r4':       {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': False, 'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'},
+                            'rank_mode': 'pbr'},
+    # §3: PBR 분모를 지배기업소유주지분(RIM equity SSOT 우선순위)으로 — 정의 간
+    # 안정성 확인 목적 (판정 목적 아님. 크게 갈리면 그 자체가 경고 → 사용자 상신).
+    'F_pbr_no_r3r4_parent': {'use_hard': True, 'use_stability': True,  'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'},
+                            'rank_mode': 'pbr_parent'},
     'G_full':              {'use_hard': True,  'use_stability': True,  'use_screener': True,
                             'use_momentum': True,  'use_rim_filter': True},
     'G_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': True,
@@ -202,12 +215,19 @@ class _PBRRankPipeline(BacktestPipeline):
 
     STEP 3 신호분리용 대조군 — D_no_r6(RIM 업사이드 랭킹)와 필터 구성을 동일하게 두고
     랭킹 기준만 "RIM V/B" → "순수 1/PBR"로 바꿔, RIM 알파가 사실상 저PBR 재포장인지
-    확인한다. equity 정의는 factor_screener._compute_factors의 inv_pbr과 동일하게
-    자본총계 기준(비교 가능성 우선, RIM의 지배주주지분 우선순위와는 다름).
+    확인한다. equity 정의(기본 'total')는 factor_screener._compute_factors의 inv_pbr과
+    동일하게 자본총계 기준(비교 가능성 우선, RIM의 지배주주지분 우선순위와는 다름).
+
+    equity_mode='parent' (SPEC_11 §3, F_pbr_no_r3r4_parent): 분모를 RIM SSOT
+    우선순위(RIMModel.parent_equity — 지배기업소유주지분 > _1 > 자본총계)로 교체.
+    필터별 적정 기준은 유지한다 — 전 필터 일괄 통일 아님 (SPEC_11 §3 확정).
     """
 
-    def __init__(self, filters: list, n_stocks: int = 20):
+    def __init__(self, filters: list, n_stocks: int = 20, equity_mode: str = 'total'):
         super().__init__(filters=filters, valuation_model=RIMModel(), n_stocks=n_stocks)
+        if equity_mode not in ('total', 'parent'):
+            raise ValueError(f'equity_mode는 total|parent — {equity_mode!r}')
+        self.equity_mode = equity_mode
 
     def score_and_rank(self, universe, rebalance_date, pit_series, conn) -> list[dict]:
         from backtest.data_access import get_market_cap, get_close_price
@@ -215,7 +235,8 @@ class _PBRRankPipeline(BacktestPipeline):
         scored = []
         for ticker in universe:
             pit0   = pit_series.get(ticker, [{}])[0]
-            equity = pit0.get('자본총계')
+            equity = (RIMModel.parent_equity(pit0) if self.equity_mode == 'parent'
+                      else pit0.get('자본총계'))
             mktcap = get_market_cap(conn, ticker, rebalance_date)
             price  = get_close_price(conn, ticker, rebalance_date)
 
@@ -335,6 +356,9 @@ def build_ablation_pipeline(
 
     if config.get('rank_mode') == 'pbr':
         return _PBRRankPipeline(filters=filters, n_stocks=n_stocks)
+
+    if config.get('rank_mode') == 'pbr_parent':
+        return _PBRRankPipeline(filters=filters, n_stocks=n_stocks, equity_mode='parent')
 
     if config.get('rank_mode') == 'factor_composite':
         return _FactorCompositeRankPipeline(filters=filters, n_stocks=n_stocks)
