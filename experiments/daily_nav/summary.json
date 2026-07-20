@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-19T23:39:11.129293",
+  "generated_at": "2026-07-20T00:12:28.041680",
   "tags": {
     "F_pbr_no_r3r4": {
       "all_gates_pass": true,
@@ -135,6 +135,33 @@
       "gross_mdd_trough": "2020-03-19",
       "tracking_error_kospi": 0.19305062893994687,
       "tracking_error_kosdaq": 0.20825873045482932
+    },
+    "U_pbr_path_ew": {
+      "all_gates_pass": true,
+      "n_closed_periods": 20,
+      "endpoint_mdd_gross": -0.30472293177304444,
+      "daily_mdd_gross": -0.5148648140881639,
+      "G_NAV_3": true,
+      "net": {
+        "daily_mdd": -0.5225085398704993,
+        "mdd_peak_date": "2018-06-07",
+        "mdd_trough_date": "2020-03-19",
+        "daily_vol_ann": 0.2159406869561073,
+        "daily_sharpe": 0.29467156059959493,
+        "worst_month_return": -0.1852708740066521,
+        "worst_month": "2018-10",
+        "cvar_5pct_1m": -0.1378422361828716,
+        "cvar_1m_k": 6,
+        "cvar_1m_fallback": false,
+        "cvar_5pct_3m": -0.17633074810309798,
+        "cvar_3m_k": 5,
+        "n_days": 2452,
+        "n_months": 121
+      },
+      "gross_mdd_peak": "2018-06-07",
+      "gross_mdd_trough": "2020-03-19",
+      "tracking_error_kospi": 0.13141499528402123,
+      "tracking_error_kosdaq": 0.10288893976745689
     }
   }
 }

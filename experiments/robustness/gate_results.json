@@ -1,0 +1,66 @@
+{
+  "generated_at": "2026-07-20T00:16:23.171909",
+  "pre_registered": "2026-07-19 (SPEC_10 §5) — 실행 후 수정 금지",
+  "hard_gates": {
+    "G1": {
+      "pass": true,
+      "f_cagr": 0.16282042878835012,
+      "random_p95": 0.13413275570212213,
+      "f_percentile_in_null": 0.993,
+      "n_draws": 1000
+    },
+    "G2": {
+      "pass": true,
+      "f_net_cagr": 0.15100156518047236,
+      "u_ew_net_cagr": 0.0667324096638433,
+      "margin_pp": 8.426915551662905
+    },
+    "G5": {
+      "pass": false,
+      "f_daily_mdd_net": -0.5421645777603025,
+      "limit": -0.45
+    }
+  },
+  "diagnostics": {
+    "G3_loo": {
+      "f_reversal_count": 0,
+      "f_reversal_periods": [],
+      "null_mean": 1.359,
+      "share_of_draws_more_dependent": 0.6659999999999999,
+      "warn": false
+    },
+    "G4_topk": {
+      "1": {
+        "f_margin_after_removal": 2.038122625426011,
+        "share_of_draws_below_f": 0.996,
+        "warn": false
+      },
+      "2": {
+        "f_margin_after_removal": 1.7244725571665953,
+        "share_of_draws_below_f": 0.996,
+        "warn": false
+      },
+      "3": {
+        "f_margin_after_removal": 1.6005727899040638,
+        "share_of_draws_below_f": 0.998,
+        "warn": false
+      }
+    },
+    "g4_warn": false,
+    "G6_sign_test": {
+      "positive": 16,
+      "n_effective": 20,
+      "p_value": 0.01181793212890625,
+      "note": "n=20 검정력 낮음 — 참고용 (사전 등록 명기)"
+    },
+    "G7_halves": {
+      "first_half_margin": 0.5530393293157743,
+      "last_half_margin": 0.7100569844201123,
+      "direction_consistent": true
+    }
+  },
+  "verdict_inputs": {
+    "all_hard_pass": false,
+    "any_warning": false
+  }
+}
