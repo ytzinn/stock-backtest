@@ -288,9 +288,54 @@ def _calc_period_return(
     # 앞/뒤 어디에 있느냐로 opt/cons가 달라진다 — 순회 순서는 RIM 정렬 순서라서 tie-break만
     # 바뀌어도 편입이 같은데 숫자가 바뀌는 결함(CORR-ENGINE-002)이었다. 결과는 반드시
     # 편입 집합(과 weight)에만 의존해야 한다.
-    valid: list[tuple[float, float, float, float | None]] = []
-    # (weight, price_start, price_end, last_if_delisted)
+    valid = _period_stock_data(conn, portfolio, start_date, end_date)
 
+    if not valid:
+        return 0.0, 0.0, 0.0
+
+    return _aggregate_period_return(valid)
+
+
+def _aggregate_period_return(
+    valid: list[tuple[str, float, float, float, float | None]],
+) -> tuple[float, float, float]:
+    """
+    _period_stock_data() 결과의 2-pass 집계 (SSOT — 구간 수익률 산식의 유일한 정의).
+    가격결측으로 탈락한 종목의 weight는 유효 종목에 비례 재배분 (합 1.0 재정규화).
+    등가중 1/N 포트폴리오에서는 종전 단순평균(sum/len)과 정확히 같은 값이다.
+    SPEC_10 fast-path가 풀 단위 prefetch 데이터로 이 함수를 직접 호출한다.
+    """
+    total_w = sum(w for _, w, *_ in valid)
+    gross    = 0.0
+    opt_adj  = 0.0
+    cons_adj = 0.0
+    for _ticker, weight, price_start, price_end, last in valid:
+        w = weight / total_w
+        gross += w * (price_end / price_start - 1)
+        if last is not None:
+            opt_adj  += w * last * (1.0 - DELISTING_HAIRCUT) / price_start
+            cons_adj -= w * last * DELISTING_HAIRCUT / price_start
+
+    return gross, opt_adj, cons_adj
+
+
+def _period_stock_data(
+    conn,
+    portfolio:  dict[str, float],
+    start_date: date,
+    end_date:   date,
+) -> list[tuple[str, float, float, float, float | None]]:
+    """
+    구간 수익률의 종목별 원천 데이터 (1-pass 수집, SSOT — _calc_period_return 산식의
+    유일한 가격·상폐·유효집합 판정 지점). 반환 원소:
+      (ticker, weight, price_start, price_end, last_if_delisted)
+    상폐 종목의 price_end는 last × DELISTING_HAIRCUT 적용값. 진입가 결측(≤0 포함)·
+    청산가 결측 종목은 제외 — 호출자가 유효 weight 합으로 재정규화한다.
+
+    SPEC_10 robustness fast-path(scripts/robustness/)가 종목별 기여 산출에 재사용한다
+    — 별도 가격 조회 로직 복제 금지.
+    """
+    valid: list[tuple[str, float, float, float, float | None]] = []
     for ticker, weight in portfolio.items():
         price_start = get_close_price(conn, ticker, start_date)
 
@@ -299,30 +344,13 @@ def _calc_period_return(
 
         if is_delisted_at(conn, ticker, end_date):
             last = _last_known_price(conn, ticker, end_date)
-            valid.append((weight, price_start, last * DELISTING_HAIRCUT, last))
+            valid.append((ticker, weight, price_start, last * DELISTING_HAIRCUT, last))
         else:
             price_end = get_close_price(conn, ticker, end_date)
             if price_end is None:
                 continue
-            valid.append((weight, price_start, price_end, None))
-
-    if not valid:
-        return 0.0, 0.0, 0.0
-
-    # 가격결측으로 탈락한 종목의 weight는 유효 종목에 비례 재배분 (합 1.0 재정규화).
-    # 등가중 1/N 포트폴리오에서는 종전 단순평균(sum/len)과 정확히 같은 값이다.
-    total_w = sum(w for w, *_ in valid)
-    gross    = 0.0
-    opt_adj  = 0.0
-    cons_adj = 0.0
-    for weight, price_start, price_end, last in valid:
-        w = weight / total_w
-        gross += w * (price_end / price_start - 1)
-        if last is not None:
-            opt_adj  += w * last * (1.0 - DELISTING_HAIRCUT) / price_start
-            cons_adj -= w * last * DELISTING_HAIRCUT / price_start
-
-    return gross, opt_adj, cons_adj
+            valid.append((ticker, weight, price_start, price_end, None))
+    return valid
 
 
 def _last_known_price(conn, ticker: str, before_date: date) -> float:

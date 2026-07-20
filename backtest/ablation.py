@@ -93,6 +93,21 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'use_momentum': True,  'use_rim_filter': False,
                             'stability_rules': {'R6'},
                             'rank_mode': 'pbr'},
+    # ── SPEC_10 §3 정합 대조군 (2026-07-19 사전 등록) ──────────────────────
+    # 채택 후보 F_pbr_no_r3r4와 **동일 필터 스택**(HARD + Stability{R1,R2,R5,R6} +
+    # 모멘텀) 통과 풀에서 무작위 20종목 — "필터 유니버스 축소 효과"와 "1/PBR 랭킹
+    # 고유 기여"를 분리하는 귀무 분포. 1,000회는 scripts/robustness/run_random_pool.py
+    # fast-path로 실행 (풀은 리밸런싱일당 1회 구축, 등가성 게이트 필수).
+    'C_pbr_path_random':   {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': False, 'random_n': 20,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'}},
+    # 동일 필터 통과 **전 종목** 동일가중 (랭킹 없음) — 1차 KPI 벤치마크 확정안
+    # (기존 Option 2). "같은 필터 유니버스를 다 사는 것 대비 1/PBR 상위 20 선별이
+    # 무엇을 더하는가"의 기준선 (SPEC_10 §5-1 G2).
+    'U_pbr_path_ew':       {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'},
+                            'rank_mode': 'ew_all'},
     'G_full':              {'use_hard': True,  'use_stability': True,  'use_screener': True,
                             'use_momentum': True,  'use_rim_filter': True},
     'G_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': True,
@@ -153,8 +168,9 @@ ABLATION_CONFIGS: dict[str, dict] = {
                     'stability_rules': {'R1', 'R5', 'R6'}},
 }
 
-RANDOM_TAGS    = frozenset({'A_random', 'B_hard_random', 'C_stability_random', 'C_no_r6'})
-RANDOM_REPEATS = 500
+RANDOM_TAGS    = frozenset({'A_random', 'B_hard_random', 'C_stability_random', 'C_no_r6',
+                            'C_pbr_path_random'})
+RANDOM_REPEATS = 500  # C_pbr_path_random은 1,000회 — fast-path 러너에서 별도 지정 (SPEC_10 §3-1)
 
 
 class _RandomSelectPipeline(BacktestPipeline):
@@ -258,6 +274,27 @@ class _FactorCompositeRankPipeline(BacktestPipeline):
         return result
 
 
+class _AllEqualWeightPipeline(BacktestPipeline):
+    """
+    필터 통과 **전 종목**을 동일가중 편입 (랭킹 없음) — U_pbr_path_ew 전용
+    (SPEC_10 §3-2, 적격 유니버스 동일가중 벤치마크).
+
+    n_stocks=None(상한 없음)으로 build_portfolio가 전 종목을 1/n 편입한다.
+    반환 순서는 ticker 오름차순 고정 — 결과는 집합에만 의존하지만(engine
+    _calc_period_return 순서 독립 계약) 산출물 재현성·diff 가독성을 위해 명시.
+    """
+
+    def __init__(self, filters: list):
+        super().__init__(filters=filters, valuation_model=RIMModel(), n_stocks=None)
+
+    def score_and_rank(self, universe, rebalance_date, pit_series, conn) -> list[dict]:
+        return [
+            {'ticker': t, 'upside_pct': 0.0, 'model': 'EW_ALL',
+             'fair_value': None, 'price': 0.0}
+            for t in sorted(universe)
+        ]
+
+
 def build_ablation_pipeline(
     tag:           str,
     config:        dict,
@@ -292,6 +329,9 @@ def build_ablation_pipeline(
         filters.append(MomentumFilter(
             ma_short=20, ma_long=60, confirm_days=5, slope_lookback=20,
         ))
+
+    if config.get('rank_mode') == 'ew_all':
+        return _AllEqualWeightPipeline(filters=filters)
 
     if config.get('rank_mode') == 'pbr':
         return _PBRRankPipeline(filters=filters, n_stocks=n_stocks)

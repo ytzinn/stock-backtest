@@ -289,6 +289,20 @@ def make_summary(det_results: dict[str, dict], dist_stats: dict[str, dict]) -> d
                 judgements[f'{rule_tag}<D_rim_only (R{i} 개별 기여)'] = cagr(rule_tag) < d_cagr
                 judgements[f'_{rule_tag}_cagr'] = round(cagr(rule_tag), 6)
 
+    if 'C_pbr_path_random' in s and 'F_pbr_no_r3r4' in s:
+        # SPEC_10 §5-1 G1: RIM에 요구했던 것과 동일한 분포 관문 — 채택 후보가
+        # 동일 필터 풀 무작위 추첨의 p95를 넘어야 랭킹 고유 기여 인정
+        judgements['G1: F_pbr_no_r3r4>=C_pbr_path_random_p95 (SPEC_10 §5-1)'] = (
+            cagr('F_pbr_no_r3r4') >= p95('C_pbr_path_random')
+        )
+        judgements['_C_pbr_path_random_p95'] = round(p95('C_pbr_path_random'), 6)
+    if 'U_pbr_path_ew' in s and 'F_pbr_no_r3r4' in s:
+        # SPEC_10 §5-1 G2: 랭킹이 유니버스 축소 이상의 기여를 하는가 (net 기준)
+        f_net = s.get('F_pbr_no_r3r4', {}).get('net_cagr', 0.0)
+        u_net = s.get('U_pbr_path_ew', {}).get('net_cagr', 0.0)
+        judgements['G2: F_pbr_no_r3r4_net>U_pbr_path_ew_net (SPEC_10 §5-1)'] = f_net > u_net
+        judgements['_U_pbr_path_ew_net_cagr'] = round(u_net, 6)
+
     if 'F_momentum_rim' in s:
         # R2/R3/R4 단일·조합 제외 — 채택 파이프라인(F) 기준, R1과의 중복·상호작용 확인
         f_cagr = cagr('F_momentum_rim')
