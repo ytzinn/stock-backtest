@@ -1,36 +1,20 @@
 {
-  "generated_at": "2026-07-20T00:41:16.517522",
+  "generated_at": "2026-07-20T05:13:05.226826",
   "scenarios": {
-    "D_pbr_no_r3r4": {
-      "cagr": 0.111401,
-      "net_cagr": 0.10399,
-      "alpha": 0.005286,
-      "alpha_kosdaq": 0.067992,
-      "sharpe": 0.415807,
-      "net_sharpe": 0.390337,
-      "mdd": -0.374799,
+    "F_pbr_no_r2r3r4": {
+      "cagr": 0.161687,
+      "net_cagr": 0.149876,
+      "alpha": 0.055572,
+      "alpha_kosdaq": 0.118278,
+      "sharpe": 0.569059,
+      "net_sharpe": 0.531149,
+      "mdd": -0.307264,
       "robustness": 0.55,
       "benchmark_cagr": 0.106115,
       "kosdaq_cagr": 0.043409,
-      "avg_turnover": 0.515,
-      "cagr_optimistic": 0.114551,
-      "cagr_conservative": 0.103903,
-      "n_periods": 20
-    },
-    "F_pbr_no_r3r4_parent": {
-      "cagr": 0.160678,
-      "net_cagr": 0.148627,
-      "alpha": 0.054563,
-      "alpha_kosdaq": 0.11727,
-      "sharpe": 0.544008,
-      "net_sharpe": 0.507832,
-      "mdd": -0.300781,
-      "robustness": 0.6,
-      "benchmark_cagr": 0.106115,
-      "kosdaq_cagr": 0.043409,
-      "avg_turnover": 0.82,
-      "cagr_optimistic": 0.160678,
-      "cagr_conservative": 0.160678,
+      "avg_turnover": 0.7975,
+      "cagr_optimistic": 0.161687,
+      "cagr_conservative": 0.161687,
       "n_periods": 20
     }
   },
