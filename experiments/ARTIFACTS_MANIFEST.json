@@ -1,0 +1,193 @@
+{
+    "purpose":  "git 추적 해제된 대용량 실험 산출물의 무결성 기록. 서버 /opt/stock-backtest/experiments/ 가 원본이며, 복원본이 동결 시점과 동일함을 이 sha256 으로 증명한다. 재생성 방법은 experiments/README.md 참조.",
+    "frozen_at":  "2026-07-20",
+    "frozen_at_head":  "cec21032192b03daf1262ce199bb48b937702391",
+    "note":  "히스토리는 재작성하지 않았다. 아래 last_commit 에서 git show \u003ccommit\u003e:\u003cpath\u003e 로 언제든 원본 복구 가능.",
+    "verification":  "sha256 는 git blob 기준(LF 정규화)이다. 서버 worktree 파일 중 생성 스크립트가 CRLF 로 쓴 것이 있어(예: C_pbr_path_random_draws.csv) raw sha256 이 어긋날 수 있다. 그 경우 `tr -d \u0027\\r\u0027 \u003c FILE | sha256sum` 으로 대조하면 일치한다 — 2026-07-20 26개 전수 확인 완료.",
+    "artifact_count":  26,
+    "total_bytes":  9839602,
+    "artifacts":  [
+                      {
+                          "path":  "experiments/ablation/D_pbr_no_r3r4_holdings.json",
+                          "bytes":  77688,
+                          "sha256":  "9c27e2b1061d7a5ed2dc96d10302797b34c3ef2f5ab76131f912eed1dabb6563",
+                          "last_commit":  "841bd8c2580d63e3cc107eaf70c488b4adbe57f0",
+                          "last_commit_date":  "2026-07-20"
+                      },
+                      {
+                          "path":  "experiments/ablation/D_pbr_only_holdings.json",
+                          "bytes":  77760,
+                          "sha256":  "88f0e809e715e0cc2de112ff74c72461e320cf0f95c5dd4dfee337e6387e79dd",
+                          "last_commit":  "c6ded476e800e740fc8c0479b442c6b046f943c7",
+                          "last_commit_date":  "2026-07-19"
+                      },
+                      {
+                          "path":  "experiments/ablation/F_momentum_rim_holdings.json",
+                          "bytes":  72212,
+                          "sha256":  "25dfb809c36132cf8dc2741034ddd0e26795ae48585ae4aec6160fd9aefed8ff",
+                          "last_commit":  "c6ded476e800e740fc8c0479b442c6b046f943c7",
+                          "last_commit_date":  "2026-07-19"
+                      },
+                      {
+                          "path":  "experiments/ablation/F_no_r3r4_holdings.json",
+                          "bytes":  72207,
+                          "sha256":  "7545f3d2231b1312fa85e4963d01ed04604d37342c16a885cf0e96b4b4c61fc1",
+                          "last_commit":  "c6ded476e800e740fc8c0479b442c6b046f943c7",
+                          "last_commit_date":  "2026-07-19"
+                      },
+                      {
+                          "path":  "experiments/ablation/F_no_stability_clean_holdings.json",
+                          "bytes":  74420,
+                          "sha256":  "e4dd17b7c11e69bb19e5a5999616397174a274af68b385ae3be052488e414012",
+                          "last_commit":  "c6ded476e800e740fc8c0479b442c6b046f943c7",
+                          "last_commit_date":  "2026-07-19"
+                      },
+                      {
+                          "path":  "experiments/ablation/F_pbr_no_r3r4_holdings.json",
+                          "bytes":  185276,
+                          "sha256":  "c77f0fe71fe1bdac194b16c61ce9fab5cda72e22b3360000d6b30050fb2e043a",
+                          "last_commit":  "841bd8c2580d63e3cc107eaf70c488b4adbe57f0",
+                          "last_commit_date":  "2026-07-20"
+                      },
+                      {
+                          "path":  "experiments/ablation/F_pbr_no_r3r4_parent_holdings.json",
+                          "bytes":  185289,
+                          "sha256":  "4ca3b88c03812323a0a47f5f882cb50836ca30d492d25ff302c6b3e92bfb644b",
+                          "last_commit":  "841bd8c2580d63e3cc107eaf70c488b4adbe57f0",
+                          "last_commit_date":  "2026-07-20"
+                      },
+                      {
+                          "path":  "experiments/ablation/F_pbr_only_holdings.json",
+                          "bytes":  77647,
+                          "sha256":  "2ee4e0f71d2440c21d19767ab08e02a57b4959d9a62f574fb074029727ab0c03",
+                          "last_commit":  "c6ded476e800e740fc8c0479b442c6b046f943c7",
+                          "last_commit_date":  "2026-07-19"
+                      },
+                      {
+                          "path":  "experiments/ablation/F_pbr_r6_holdings.json",
+                          "bytes":  77680,
+                          "sha256":  "6ed2bcc1e720180c7b5e4199142e4b956eda6586af14497036836e9c77662e4a",
+                          "last_commit":  "c6ded476e800e740fc8c0479b442c6b046f943c7",
+                          "last_commit_date":  "2026-07-19"
+                      },
+                      {
+                          "path":  "experiments/ablation/U_pbr_path_ew_holdings.json",
+                          "bytes":  1579546,
+                          "sha256":  "23f6ffc4e8da485afac049be1185ae05f8dc81b320542b430b608e98edf0f5b5",
+                          "last_commit":  "d5e63b06dfc7e31c069490bc33d89ee8b2574c7c",
+                          "last_commit_date":  "2026-07-20"
+                      },
+                      {
+                          "path":  "experiments/daily_nav/D_pbr_no_r3r4_daily_nav.csv",
+                          "bytes":  118938,
+                          "sha256":  "1c077d40b548f968766312c4c94bb7027beea8a8b1a4a83e161e0c5d807f7756",
+                          "last_commit":  "841bd8c2580d63e3cc107eaf70c488b4adbe57f0",
+                          "last_commit_date":  "2026-07-20"
+                      },
+                      {
+                          "path":  "experiments/daily_nav/D_pbr_only_daily_nav.csv",
+                          "bytes":  119004,
+                          "sha256":  "b36c1295942d5c29cd0225bcb25908c3d5b85d3809ad1af79499aabde3652f4a",
+                          "last_commit":  "c6ded476e800e740fc8c0479b442c6b046f943c7",
+                          "last_commit_date":  "2026-07-19"
+                      },
+                      {
+                          "path":  "experiments/daily_nav/F_momentum_rim_daily_nav.csv",
+                          "bytes":  118444,
+                          "sha256":  "38ac44fffdf91f394c830fa6bef8facdd7316c1e0d0294197a1bb7371ce29c63",
+                          "last_commit":  "c6ded476e800e740fc8c0479b442c6b046f943c7",
+                          "last_commit_date":  "2026-07-19"
+                      },
+                      {
+                          "path":  "experiments/daily_nav/F_no_stability_clean_daily_nav.csv",
+                          "bytes":  118275,
+                          "sha256":  "aef64e28cec8aed9ed4972a18a72c3b8d14e8c51405f49bc4689404834b1c325",
+                          "last_commit":  "c6ded476e800e740fc8c0479b442c6b046f943c7",
+                          "last_commit_date":  "2026-07-19"
+                      },
+                      {
+                          "path":  "experiments/daily_nav/F_pbr_no_r3r4_daily_nav.csv",
+                          "bytes":  118305,
+                          "sha256":  "275c1ba6e2f9298be1f10c6a00f900953ce22f35d65e61cbc38ad1791d370985",
+                          "last_commit":  "c6ded476e800e740fc8c0479b442c6b046f943c7",
+                          "last_commit_date":  "2026-07-19"
+                      },
+                      {
+                          "path":  "experiments/daily_nav/F_pbr_no_r3r4_parent_daily_nav.csv",
+                          "bytes":  118293,
+                          "sha256":  "06e18b755ecef33c2524aa9e7cb1dbe117bf96bfeeb1443a3335e2bdc6905406",
+                          "last_commit":  "841bd8c2580d63e3cc107eaf70c488b4adbe57f0",
+                          "last_commit_date":  "2026-07-20"
+                      },
+                      {
+                          "path":  "experiments/daily_nav/F_pbr_r6_daily_nav.csv",
+                          "bytes":  118396,
+                          "sha256":  "71de1a839a5447319961a9b64895e321f2de3c26364b8c87ea3a36e82ed69b5b",
+                          "last_commit":  "c6ded476e800e740fc8c0479b442c6b046f943c7",
+                          "last_commit_date":  "2026-07-19"
+                      },
+                      {
+                          "path":  "experiments/daily_nav/U_pbr_path_ew_daily_nav.csv",
+                          "bytes":  119104,
+                          "sha256":  "c9d8d42982abaaad12f98f424d5e5c34abca5810a97040d2eb7b4e75b17da0b1",
+                          "last_commit":  "d5e63b06dfc7e31c069490bc33d89ee8b2574c7c",
+                          "last_commit_date":  "2026-07-20"
+                      },
+                      {
+                          "path":  "experiments/robustness/C_pbr_path_random_contrib.csv.gz",
+                          "bytes":  5076453,
+                          "sha256":  "f436d476afd581990b3494439af5d93d21bdef122f923f7559361200bcda080d",
+                          "last_commit":  "d5e63b06dfc7e31c069490bc33d89ee8b2574c7c",
+                          "last_commit_date":  "2026-07-20"
+                      },
+                      {
+                          "path":  "experiments/robustness/C_pbr_path_random_draws.csv",
+                          "bytes":  44200,
+                          "sha256":  "8bef0dcc56f7312a8742e09b178426da7d3e5f5e45879d0209eba5866839fa9c",
+                          "last_commit":  "d5e63b06dfc7e31c069490bc33d89ee8b2574c7c",
+                          "last_commit_date":  "2026-07-20"
+                      },
+                      {
+                          "path":  "experiments/robustness/C_pbr_path_random_periods.csv.gz",
+                          "bytes":  382575,
+                          "sha256":  "55f6af41cfa948ecf7ed4915b5d4a30c8ff529bda596480ee28a6718d460ac1c",
+                          "last_commit":  "d5e63b06dfc7e31c069490bc33d89ee8b2574c7c",
+                          "last_commit_date":  "2026-07-20"
+                      },
+                      {
+                          "path":  "experiments/robustness/pools.json",
+                          "bytes":  100448,
+                          "sha256":  "a36177b6afad2e376efa227ff356d234185f88a61416b9e82e768b792d01b123",
+                          "last_commit":  "d5e63b06dfc7e31c069490bc33d89ee8b2574c7c",
+                          "last_commit_date":  "2026-07-20"
+                      },
+                      {
+                          "path":  "experiments/runs/2026.06.22. portfolio_holdings.xlsx",
+                          "bytes":  195642,
+                          "sha256":  "beb637d69b66b386f8a63efb760984e9bfd9a8e25cfde7aa223e72ab3ed730c3",
+                          "last_commit":  "c3e39ab3db92b27fbab4ea87e50fe2de0e3b57b9",
+                          "last_commit_date":  "2026-07-05"
+                      },
+                      {
+                          "path":  "experiments/runs/2026.06.25. portfolio_holdings.xlsx",
+                          "bytes":  223232,
+                          "sha256":  "dae54c1b4855383108705c6f993592258278149daaef4091bab8ddcefffc1ee6",
+                          "last_commit":  "c3e39ab3db92b27fbab4ea87e50fe2de0e3b57b9",
+                          "last_commit_date":  "2026-07-05"
+                      },
+                      {
+                          "path":  "experiments/runs/2026.07.04. portfolio_holdings.xlsx",
+                          "bytes":  204180,
+                          "sha256":  "8f2d35c57f66598feb74eded9b03f9c76057c537c7ab041ea0f45fa6285016a5",
+                          "last_commit":  "c3e39ab3db92b27fbab4ea87e50fe2de0e3b57b9",
+                          "last_commit_date":  "2026-07-05"
+                      },
+                      {
+                          "path":  "experiments/runs/2026.07.07. portfolio_holdings.xlsx",
+                          "bytes":  184388,
+                          "sha256":  "44b4d29e3932842e97531da312f6160e9f873fb00f50c4fc4d374ce1790c8b0c",
+                          "last_commit":  "bdc3dbc2649ddc86d4aa44bec33fd363d6cb208b",
+                          "last_commit_date":  "2026-07-07"
+                      }
+                  ]
+}

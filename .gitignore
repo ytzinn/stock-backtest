@@ -18,6 +18,16 @@ experiments/ablation/*.csv
 experiments/sensitivity/
 experiments/reports/
 
+# 대용량 실험 산출물 — git 미추적. 원본은 서버 /opt/stock-backtest/experiments/,
+# 무결성은 experiments/ARTIFACTS_MANIFEST.json (sha256), 재생성법은 experiments/README.md.
+# 로컬 사본은 working tree 에 그대로 둔다 (untracked) — `git clean -fdx` 금지.
+experiments/robustness/*.csv.gz
+experiments/robustness/*_draws.csv
+experiments/robustness/pools.json
+experiments/ablation/*_holdings.json
+experiments/daily_nav/*_daily_nav.csv
+experiments/runs/*.xlsx
+
 # 로그
 *.log
 /var/log/
