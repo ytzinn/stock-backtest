@@ -121,6 +121,13 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'use_momentum': True,  'use_rim_filter': False,
                             'stability_rules': {'R1', 'R2', 'R5', 'R6'},
                             'rank_mode': 'pbr_parent'},
+    # §2-1 후속 (2026-07-20): 멤버십 분석에서 R2 제거가 2025-08-20 1개 구간의
+    # top20만 2종목 바꿈(021050↔092230) → 사전 등록 분기 "해당 조합만 CAGR 재실행".
+    # 채택 후보에서 R2까지 제거한 {R1,R5,R6} — F_no_r2r3r4(RIM 랭킹)의 PBR 대응판.
+    'F_pbr_no_r2r3r4':     {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R5', 'R6'},
+                            'rank_mode': 'pbr'},
     'G_full':              {'use_hard': True,  'use_stability': True,  'use_screener': True,
                             'use_momentum': True,  'use_rim_filter': True},
     'G_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': True,
