@@ -93,6 +93,13 @@ Phase 0A 게이팅 통과 전 Phase 1 코드 작성 금지.
 - `market_cap_ingest --rebuild-from-snapshot`(과거 전체 PIT 주식수 교체)은 RIM 입력이
   바뀌어 **백테스트 기준선이 변한다** — 사용자 승인 + 공식 수치 재발행과 함께만 실행.
 
+### 실험 산출물 취급 (2026-07-20)
+`experiments/`의 대용량 산출물 6개 파일군(holdings.json·daily_nav.csv·robustness gz/pools/draws·
+xlsx, 9.38MB)은 **git 미추적**이다 — 지식베이스 인덱싱 한도 초과 때문. 원본은 서버,
+사본은 각 개발 PC working tree(untracked). 세부 규칙·재생성·회수 절차는 `experiments/README.md`,
+무결성 sha256은 `experiments/ARTIFACTS_MANIFEST.json`.
+**다시 커밋하려고 `git add -f` 하지 마라. 로컬에서 `git clean -fdx` 금지(사본 유실).**
+
 ## 주요 상수
 ```python
 RF, RK = 0.0263, 0.0873  # backtest/configs/constants.py (rim.py, stability_filter.py가 import)
