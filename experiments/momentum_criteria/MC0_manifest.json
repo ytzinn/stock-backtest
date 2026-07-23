@@ -1,0 +1,63 @@
+{
+  "spec": "SPEC_12 v0.3.1",
+  "committed_at": "2026-07-23",
+  "committed_before_results_viewed": true,
+  "baseline_tag": "F_pbr_no_r3r4",
+  "pipeline_positive_control_tag": "F_pbr_ma_double_adapter",
+  "pipeline_gate_result": {
+    "status": "PASS",
+    "verified_at": "2026-07-23",
+    "closed_periods_checked": 20,
+    "match": {
+      "portfolio_top20": true,
+      "period_return": true,
+      "net_return": true,
+      "turnover": true,
+      "momentum_passed_rejected_sets": true
+    },
+    "metrics_cross_check": {
+      "cagr": 0.1628,
+      "net_cagr": 0.151,
+      "sharpe": 0.5717,
+      "mdd": -0.3073,
+      "note": "F_pbr_no_r3r4 기존 공식 수치와 일치"
+    }
+  },
+  "snapshot_id": null,
+  "valuation_date": null,
+  "note_on_snapshot": "MC-6 실제 Family A/B/C/D 실행 시, 크론 동결 스냅샷 절차(CLAUDE.md)로 확정 후 여기 채운다. 지금은 실행 전이라 결정 관련 수치를 아직 보지 않은 상태.",
+  "signal_execution_convention": "legacy_same_close",
+  "benchmark_file_sha256": null,
+  "residual_method": "blitz_subset",
+  "primary_criteria": [
+    {"tag": "F_pbr_absret126",   "type": "abs_return", "formation_days": 126, "skip_days": 21, "threshold": 0.0},
+    {"tag": "F_pbr_signcount126","type": "sign_count",  "formation_days": 126, "skip_days": 21},
+    {"tag": "F_pbr_ma200",       "type": "ma200",        "ma_window": 200},
+    {"tag": "F_pbr_52w75",       "type": "52w_high",     "window": 252, "threshold": 0.75},
+    {"tag": "F_pbr_mktresid126", "type": "market_residual_blitz_subset", "status": "미구현 — coverage gate 사전 확인 후(§3-D3)"}
+  ],
+  "robustness_bands": {
+    "absret126_signcount126": {"formation_days": [105, 126, 147]},
+    "ma200": {"ma_window": [180, 200, 220]},
+    "52w75": {"threshold": [0.70, 0.75, 0.80]},
+    "mktresid126": {"formation_days": [105, 126, 147], "method": ["blitz_subset", "full_oos"], "benchmark": ["ks11_kq11_matched", "ks11_only"]}
+  },
+  "decision_thresholds": {
+    "sharpe_improvement_min": 0.05,
+    "mdd_improvement_min_pct_pts": 2.0,
+    "or_condition": true,
+    "cagr_allowed_shortfall_max_pct_pts": -1.0,
+    "coverage_min_pct": 95,
+    "coverage_warn_below_pct": 85,
+    "insufficient_pass_max_pct_of_portfolio": 10,
+    "no_op_guard_min_median_rejection_pct": 5,
+    "robust_neighbor_same_direction_min_pct": 70,
+    "robust_neighbor_median_effect_min": 0.0,
+    "conflict_rate_valid_period_min_group_size": 3,
+    "conflict_rate_min_valid_periods": 10,
+    "conflict_rate_noaggravation_max_period_increase": 1,
+    "conflict_rate_median_log_pbr_gap_max_worsening": 0.05,
+    "source": "SPEC_12 v0.3.1 §4-4/§5-3/§5-4, 사용자 확정: 스펙 기본값 그대로 사용 (2026-07-23)"
+  },
+  "primary_replacement_after_freeze": "금지 — §6-2 그리드서치/in-sample 과최적화 방지"
+}
