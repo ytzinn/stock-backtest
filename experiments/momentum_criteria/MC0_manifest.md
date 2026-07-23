@@ -13,21 +13,18 @@
   증명"이므로 사전등록 취지(결과 미열람)를 해치지 않는다.
 - **MC-5 compute_nav_cagr()**: 신설 완료.
 
-## 아직 안 본 것 (MC-6+ 결과)
-
-Family A(absret126/signcount126)·B(ma200)·C(52w75)·D(mktresid126)의 실제 성과 비교는
-**아직 실행하지 않았다.** 이 manifest는 그 실행 전에 동결한다.
-
 ## 문턱값 확정 경위
 
 사용자에게 §5-3/§5-4/§4-4/conflict_rate 문턱값 표를 제시하고 논의를 제안했으나
 "이대로 해보자"로 **스펙 v0.3.1 기본값을 그대로 채택**하기로 확정 (2026-07-23).
 표는 JSON의 `decision_thresholds`에 기계판독 형태로 고정.
 
-## 실행 조건 (MC-6+ 착수 시 확정 필요)
+## 실행 결과 (2026-07-23 완료 — 격리 스냅샷, 운영 DB/크론 무영향)
 
-- `snapshot_id` / `valuation_date` / `benchmark_file_sha256`: 크론 동결 스냅샷 절차
-  (CLAUDE.md — crontab 주석 처리 → 전체 재실행 → 원복) 진행 시 채운다. 사용자가 이
-  단계를 "별도 확인 후 진행"하기로 결정(2026-07-23) — 지금은 미실행.
-- Family D(`mktresid126`)는 coverage gate(§3-D3, HardFilter 6개월 vs 요구 13개월) 사전
-  확인 전까지 미구현.
+manifest 동결 이후 Family A/B/C/D 전체(absret126/signcount126/ma200/52w75/mktresid126) +
+52w75 OAT 밴드까지 실행 완료. **F_pbr_52w75만 §5-3 1차 문턱 통과했으나 robust(§5-4) 미충족으로
+INCONCLUSIVE, 나머지 4개 전부 FAIL.** 상세 수치·판정 근거는 SPEC_12 §9. 크론 동결 대신 운영
+DB(5433)와 완전 분리된 격리 스냅샷(포트 5435, pg_dump/restore)에서 실행 — snapshot_id·
+benchmark_file_sha256 필드는 이 방식 특성상 미기록(§9 "실행 방식" 참조), 대신 스냅샷 뜬 시각
+(2026-07-23 05:55:54 UTC)과 행수 대조 결과로 재현성 보증. 통과 primary가 없어 permutation
+귀무분포(MC-9)·전일신호 검증(MC-8)은 실행하지 않음(§6-3 연산범위 제한과 정합).

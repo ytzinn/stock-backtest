@@ -1,6 +1,6 @@
 # SPEC_12 v0.3 — 모멘텀 필터 판정 기준(Judgment Criteria) 고도화 설계
 
-> **이력**: v0.1 2026-07-22 / v0.2 2026-07-23(1차 외부 리뷰) / v0.3 2026-07-23(2차 외부 리뷰) / **v0.3.1 2026-07-23(Claude Code 자체 점검 — MC-1 항목 추가, conflict_rate 유효구간 정의, 각주 링크 보강)**
+> **이력**: v0.1 2026-07-22 / v0.2 2026-07-23(1차 외부 리뷰) / v0.3 2026-07-23(2차 외부 리뷰) / v0.3.1 2026-07-23(Claude Code 자체 점검 — MC-1 항목 추가, conflict_rate 유효구간 정의, 각주 링크 보강) / **v0.3.2 2026-07-23(MC-1~MC-9 격리 스냅샷 실행 완료 — §9 결과, F_pbr_52w75 INCONCLUSIVE 나머지 FAIL, off-by-one 2건 정정)**
 > **성격**: Claude Code 핸드오프 스펙. 번호(SPEC_12)는 잠정.
 > **표기**: `[검증된 사실]` / `[Claude 의견]` / `[확실하지 않은 사실]` / `[VERIFY]`(구현 전 코드·데이터 확인 필수)
 > **범위**: 모멘텀 **판정 기준**만. SPEC_11의 비중 조절/랭크 블렌드(M0~M3)와는 별개 축.
@@ -102,7 +102,7 @@ formation_return = end_price / start_price - 1
 
 **(d) 52주 신고가 정의 명확화**: `P[t-252..t]`는 양끝 포함 253개로 읽힌다. 정확히는 **"signal_date를 포함한 최근 252개 시장 거래일의 최고가"**.
 
-**(e) 경계 인덱스와 최소 관측치는 oracle 테스트로 고정.** 필요 행 수 ≈ `formation_days + skip_days + 1`(A) / `beta_window + skip_days`(D, §3-D).
+**(e) 경계 인덱스와 최소 관측치는 oracle 테스트로 고정.** 필요 행 수 = `formation_days + skip_days + 1`(A) / `beta_window + skip_days + 1`(D, §3-D). `[v0.3.1 정정]` 원래 D를 `beta_window + skip_days`(+1 누락)로 적었는데, 실제 구현(momentum_criteria.py `MarketResidualCriterion`)에서 이 근사식 그대로 코딩했다가 전 종목이 `insufficient`로 빠지는 버그로 실측 발견 — pos_start가 항상 −1이 되는 off-by-one. A와 동일하게 +1이 필요하다(2026-07-23).
 
 ### Family A — 절대 수익률 계열
 
@@ -167,7 +167,7 @@ score_std = score / resid.std(ddof=2)
 pass if score >= 0            # 또는 하위 X% 제외
 ```
 
-`[검증된 사실]` 수치 확인: 전체 창 잔차 합 = 3×10⁻¹⁶(0), 최근 126일 부분합 = +0.086(0 아님). **필요 이력 = 252 + 21 = 273영업일(약 1.1년).**
+`[검증된 사실]` 수치 확인: 전체 창 잔차 합 = 3×10⁻¹⁶(0), 최근 126일 부분합 = +0.086(0 아님). **필요 이력 = 252 + 21 + 1 = 274영업일(약 1.1년, v0.3.1 정정 — §3-0e 참조).**
 
 `[Claude 의견]` **이 방식을 기본으로 택한 이유 두 가지.** ① Blitz 원형이 실제로 쓰는 구조다(36개월 회귀 후 12-1개월 잔차 = 부분집합). 구현이 원형에 가까울수록 §2의 한국 근거 전이가 낫다. ② 아래 대안보다 이력 요구가 **126일 적어** coverage gate 통과 가능성이 높다.
 
@@ -177,7 +177,7 @@ pass if score >= 0            # 또는 하위 X% 제외
 1) formation window 직전 252일로 alpha, beta 추정
 2) 그 이후 126일에 추정 alpha, beta 적용 → out-of-sample 잔차
 3) 최근 21일 제외
-필요 이력 = 252 + 126 + 21 = 399영업일 (약 1.6년)
+필요 이력 = 252 + 126 + 21 + 1 = 400영업일 (약 1.6년, v0.3.1 정정 — §3-0e 참조)
 ```
 
 통계적으로는 가장 깨끗하다(점수 구간에 적합 편의가 전혀 없음). **D-1이 coverage gate에 걸리는 경우가 아니라, D-1과 D-2의 결론이 갈리는지 확인하는 강건성 축으로 병기**한다. `[Claude 의견]` 둘 다 실행해 결론이 갈리면 Family D 자체를 INCONCLUSIVE로 본다.
@@ -566,20 +566,96 @@ formation·**추정 구간 전부** `<= signal_date`. 상폐 haircut은 v5.3 수
 
 ## 8. 완료 체크리스트
 
-- [ ] MC-0 manifest(JSON) 커밋 — primary·문턱·규약·benchmark SHA-256 동결
+- [x] MC-0 manifest(JSON+MD) 커밋 — `experiments/momentum_criteria/MC0_manifest.{json,md}`,
+      문턱값은 스펙 기본값 채택(사용자 확정 2026-07-23). benchmark SHA-256은 미기록(§실행 방식 참조)
 - [x] MC-1 `[VERIFY]` 4건 확인 및 필요한 배관 수정 완료 (거래정지/DB누락 구분 가능 확인, MomentumCriterionFilter/stats_key/compute_nav_cagr 신설)
 - [x] **MC-3 배관 게이트 통과** (2026-07-23 서버 실측: 완결 20구간 전부 portfolio·period_return·
       net_return·turnover·momentum 통과/탈락 집합 완전 일치. `F_pbr_no_r3r4`/`F_pbr_ma_double_adapter`
       metrics 동일: cagr=16.28%, net_cagr=15.10%, sharpe=0.5717, mdd=-30.73% — 기존 공식 수치와도 일치)
-- [ ] 거래일 달력 anchor 적용, skip이 A·D에만 적용됨을 테스트로 고정
-- [x] `compute_nav_cagr()` 신설 완료(backtest/metrics.py, 기준 1.0 + 달력일) — 오프라인 벤치마크 경로는 미착수
-- [ ] offline 벤치마크 실행 경로 + SHA-256 기록
-- [ ] Family A/B/C 실행 → daily-net + coverage + 탈락률/전환행렬
-- [ ] Family D-1 실행 (또는 coverage 미달 시 **보류 결정 기록**)
-- [ ] OAT 밴드 / 엄격도 곡선 분리 실행
-- [ ] permutation 귀무분포 (통과 primary 1개 한정)
-- [ ] 전일신호 실행가능성 검증
-- [ ] PASS/INCONCLUSIVE/FAIL 판정 + 상위 게이트 불간섭 문구 기록
+- [x] 거래일 달력 anchor 적용(`_calendar_window`, momentum_criteria.py) — skip이 A·D에만 적용됨을
+      코드 구조로 고정(Family B/C는 `_prepare_price_context`에 skip 파라미터 자체가 없음). 별도
+      oracle 테스트는 미작성(코드 리뷰·서버 실측 스모크테스트로만 검증)
+- [x] `compute_nav_cagr()` 신설 완료(backtest/metrics.py, 기준 1.0 + 달력일)
+- [x] offline 벤치마크 실행 경로 — `--benchmarks-file`/`--offline` CLI 플래그는 미구현이지만,
+      **격리 스냅샷 DB(포트 5435, 운영 5433과 완전 분리) + 1회 생성한 benchmarks_daily.csv 고정
+      재사용**으로 동일한 재현성 목표를 달성(§실행 방식 참조). SHA-256 manifest 기록은 생략
+- [x] Family A/B/C 실행 → daily-net + coverage + 탈락률/전환행렬 (§9 결과 참조)
+- [x] Family D-1 실행 — coverage gate 사전확인(평균 97.1%, 최저 94.7%, 문턱 95%/85% 통과) 후 실행.
+      §3-D3의 "coverage 미달 가능성 상당" 예측은 **틀렸음** — StabilityFilter가 이미 신규상장을
+      선행 제거해 모멘텀 단계 도달 풀은 이력이 충분했다 (2026-07-23 실측으로 정정)
+- [x] OAT 밴드(52w75 threshold 0.70/0.80) 실행 — robust 기준 미충족(§9)
+- [ ] permutation 귀무분포 — **미실행**. §5-3 1차 문턱을 통과한 primary가 52w75뿐이었는데 그마저
+      robust 미충족으로 INCONCLUSIVE 판정돼, "통과 primary 1개에만 귀무분포" 조건의 전제가
+      사라짐 (§6-3 연산범위 제한 규정과 정합)
+- [ ] 전일신호 실행가능성 검증(MC-8) — **미실행**. 위와 같은 이유로 채택 후보가 없어 우선순위 낮음
+- [x] PASS/INCONCLUSIVE/FAIL 판정 + 상위 게이트 불간섭 문구 기록 (§9)
+
+### 실행 방식 (2026-07-23, 계획 대비 변경)
+
+당초 MC-0가 상정한 "크론 주석 처리 → 전체 재실행 → 원복" 대신, **운영 DB(5433)를 건드리지 않는
+격리 스냅샷**(`pg_dump`/`pg_restore`, 포트 5435, 운영과 별개 docker 컨테이너)에서 전부 실행했다.
+운영 크론(price_ingest/market_cap_ingest)은 한 번도 정지하지 않았다. 스냅샷은 2026-07-23 05:55:54
+UTC 시점 운영 DB의 완전한 복제(`price_history`/`market_cap_history`/`financials_pit`/`stocks` 행수
+전수 대조 완료)이고 이후 어떤 프로세스도 쓰기 접근하지 않았으므로, "크론 동결 스냅샷"이 요구하는
+재현성 목표(동일 DB 상태에서 전 태그 비교)를 동일하게 충족한다. 산출물은 `/tmp/spec12_snapshot_run/
+experiments/`(서버, 운영 experiments/ablation/의 기존 공식 산출물과 완전 분리) — **스냅샷 컨테이너와
+함께 실험 종료 시 삭제 예정**이므로 이 문서의 §9 표가 재현 시 유일한 기록이다.
+
+## 9. 실행 결과 (2026-07-23, 격리 스냅샷)
+
+### 9-1. Family A/B/C daily-net 지표 (§5-1 기준)
+
+| 태그 | net CAGR | net Sharpe | net MDD | Sharpe Δ | MDD Δ(%p) | CAGR Δ(%p) | coverage | 중앙탈락률 |
+|---|---|---|---|---|---|---|---|---|
+| F_pbr_no_r3r4(인컴번트) | 15.02% | 0.6329 | −54.22% | — | — | — | — | 39.5% |
+| F_pbr_absret126 | 13.43% | 0.5737 | −58.41% | −0.059 | −4.19 | −1.59 | 99.51% | 51.7% |
+| F_pbr_signcount126 | 10.66% | 0.4749 | −50.88% | −0.158 | +3.34 | −4.36 | 98.58% | 62.1% |
+| F_pbr_ma200 | 15.23% | 0.6283 | −60.93% | −0.005 | −6.71 | +0.21 | 98.28% | 51.4% |
+| F_pbr_52w75 | 14.82% | 0.6692 | −50.52% | +0.036 | +3.70 | −0.20 | 97.38% | 47.6% |
+| F_pbr_mktresid126 | 12.98% | 0.5709 | −56.07% | −0.062 | −1.85 | −2.05 | 96.94% | 46.1% |
+
+§5-3 1차 문턱(Sharpe≥+0.05 OR MDD≥+2.0%p, CAGR열위≤−1.0%p, coverage≥95%, 탈락률≥5%) 충족:
+**F_pbr_52w75만 통과.** 나머지 4개는 Sharpe·MDD 개선 없음 또는 CAGR 열위 초과로 **FAIL**.
+
+### 9-2. F_pbr_52w75 robust 검증 (§5-4 OAT 밴드)
+
+| threshold | net Sharpe | 인컴번트 대비 Δ | 방향 |
+|---|---|---|---|
+| 0.70 | 0.587 | −0.046 | 악화(반대) |
+| 0.75(primary) | 0.669 | +0.036 | 개선 |
+| 0.80 | 0.643 | +0.010 | 개선 |
+
+이웃 2개 중 1개만 primary와 같은 방향(50% < 70% 문턱), 이웃 효과 중앙값 −0.018(<0) →
+**robust 미충족.** threshold 0.75→0.70 소폭 변경으로 결론이 뒤집히는 knife-edge[^12] 패턴.
+
+### 9-3. conflict_rate 참고 진단 (§5-3 보조, F_pbr_52w75만 확인)
+
+| | conflict_rate | median log-PBR gap |
+|---|---|---|
+| 인컴번트(MA double) | 0.762(21구간 중 16) | −0.162 |
+| F_pbr_52w75 | 0.476(21구간 중 10) | +0.027 |
+
+52w75는 인컴번트보다 가치-모멘텀 상충이 크게 완화됨(§1-1의 15/20 상충 문제 상당 부분 해소) —
+다만 이 결과가 §9-2의 robust 미충족을 상쇄하지는 못한다.
+
+### 9-4. 최종 판정 (§5-4 3단계)
+
+```
+F_pbr_absret126     : FAIL (Sharpe·MDD 악화 + CAGR 열위 초과)
+F_pbr_signcount126  : FAIL (MDD만 개선, CAGR 열위 -4.36%p로 초과)
+F_pbr_ma200         : FAIL (Sharpe·MDD 개선 없음)
+F_pbr_52w75         : INCONCLUSIVE (1차 문턱 통과, robust 미충족 — 라이브 관찰 대상, 채택 보류)
+F_pbr_mktresid126   : FAIL (Sharpe·MDD 악화 + CAGR 열위 초과)
+```
+
+§5-8 상위 게이트 불간섭: 위 판정과 무관하게, 인컴번트 `F_pbr_no_r3r4` 자체가 이미 SPEC_10 G5
+(MDD −45% 기준) 미달 상태 — 어떤 판정이 나와도 SPEC_12는 프로덕션 채택 승인이 아니다(§5-8 원문).
+
+**구현 과정에서 발견·수정한 버그 2건** (둘 다 실측 데이터로 발견, §0 규칙 6 "조용한 실패 금지"
+사례): ① 신규상장 종목이 `insufficient`(정상, 통과) 아닌 `invalid`(실행중단 대상)로 오분류되던
+버그 — `_classify_gap` 공유 헬퍼로 수정. ② `MarketResidualCriterion`의 `beta_window+skip_days`
+경계 인덱스 off-by-one — 전 종목이 조용히 `insufficient`로 빠지던 버그(§3-0e의 "beta_window+
+skip_days" 근사식 자체도 부정확했음, 정확히는 +1 필요) — 스모크테스트로 발견·수정.
 
 ---
 

@@ -23,19 +23,37 @@
       "note": "F_pbr_no_r3r4 기존 공식 수치와 일치"
     }
   },
-  "snapshot_id": null,
-  "valuation_date": null,
-  "note_on_snapshot": "MC-6 실제 Family A/B/C/D 실행 시, 크론 동결 스냅샷 절차(CLAUDE.md)로 확정 후 여기 채운다. 지금은 실행 전이라 결정 관련 수치를 아직 보지 않은 상태.",
+  "snapshot_id": "isolated_pg_dump_20260723_055554",
+  "snapshot_method": "pg_dump/pg_restore, port 5435, 운영 5433과 별개 docker 컨테이너 — 크론 미정지",
+  "valuation_date": "2026-07-16",
+  "note_on_snapshot": "크론 동결 대신 격리 스냅샷 사용(SPEC_12 §9 실행 방식). price_history/market_cap_history/financials_pit/stocks 행수 운영 대비 전수 대조 완료.",
   "signal_execution_convention": "legacy_same_close",
   "benchmark_file_sha256": null,
   "residual_method": "blitz_subset",
   "primary_criteria": [
-    {"tag": "F_pbr_absret126",   "type": "abs_return", "formation_days": 126, "skip_days": 21, "threshold": 0.0},
-    {"tag": "F_pbr_signcount126","type": "sign_count",  "formation_days": 126, "skip_days": 21},
-    {"tag": "F_pbr_ma200",       "type": "ma200",        "ma_window": 200},
-    {"tag": "F_pbr_52w75",       "type": "52w_high",     "window": 252, "threshold": 0.75},
-    {"tag": "F_pbr_mktresid126", "type": "market_residual_blitz_subset", "status": "미구현 — coverage gate 사전 확인 후(§3-D3)"}
+    {"tag": "F_pbr_absret126",   "type": "abs_return", "formation_days": 126, "skip_days": 21, "threshold": 0.0, "result": "FAIL"},
+    {"tag": "F_pbr_signcount126","type": "sign_count",  "formation_days": 126, "skip_days": 21, "result": "FAIL"},
+    {"tag": "F_pbr_ma200",       "type": "ma200",        "ma_window": 200, "result": "FAIL"},
+    {"tag": "F_pbr_52w75",       "type": "52w_high",     "window": 252, "threshold": 0.75, "result": "INCONCLUSIVE (§5-3 통과, §5-4 robust 미충족)"},
+    {"tag": "F_pbr_mktresid126", "type": "market_residual_blitz_subset", "result": "FAIL",
+     "note": "coverage gate 사전확인 PASS(평균97.1%) 후 구현·실행. off-by-one 버그 1건 발견·수정(beta_window+skip_days는 +1 필요, §3-0e 정정)"}
   ],
+  "results_summary": {
+    "verified_at": "2026-07-23",
+    "table": [
+      {"tag": "F_pbr_no_r3r4",      "role": "incumbent", "net_cagr": 0.1502, "net_sharpe": 0.6329, "net_mdd": -0.5422},
+      {"tag": "F_pbr_absret126",    "net_cagr": 0.1343, "net_sharpe": 0.5737, "net_mdd": -0.5841, "sharpe_delta": -0.059, "mdd_delta_pp": -4.19, "cagr_delta_pp": -1.59, "coverage_pct": 99.51, "median_reject_pct": 51.7, "verdict": "FAIL"},
+      {"tag": "F_pbr_signcount126", "net_cagr": 0.1066, "net_sharpe": 0.4749, "net_mdd": -0.5088, "sharpe_delta": -0.158, "mdd_delta_pp": 3.34, "cagr_delta_pp": -4.36, "coverage_pct": 98.58, "median_reject_pct": 62.1, "verdict": "FAIL"},
+      {"tag": "F_pbr_ma200",        "net_cagr": 0.1523, "net_sharpe": 0.6283, "net_mdd": -0.6093, "sharpe_delta": -0.005, "mdd_delta_pp": -6.71, "cagr_delta_pp": 0.21, "coverage_pct": 98.28, "median_reject_pct": 51.4, "verdict": "FAIL"},
+      {"tag": "F_pbr_52w75",        "net_cagr": 0.1482, "net_sharpe": 0.6692, "net_mdd": -0.5052, "sharpe_delta": 0.036, "mdd_delta_pp": 3.70, "cagr_delta_pp": -0.20, "coverage_pct": 97.38, "median_reject_pct": 47.6, "verdict": "INCONCLUSIVE",
+       "oat_neighbors": {"0.70": {"net_sharpe": 0.587, "sharpe_delta": -0.046}, "0.80": {"net_sharpe": 0.643, "sharpe_delta": 0.010}},
+       "robust": false,
+       "conflict_rate": {"incumbent": 0.762, "this": 0.476, "median_log_pbr_gap_incumbent": -0.162, "median_log_pbr_gap_this": 0.027}},
+      {"tag": "F_pbr_mktresid126",  "net_cagr": 0.1298, "net_sharpe": 0.5709, "net_mdd": -0.5607, "sharpe_delta": -0.062, "mdd_delta_pp": -1.85, "cagr_delta_pp": -2.05, "coverage_pct": 96.94, "median_reject_pct": 46.1, "verdict": "FAIL"}
+    ],
+    "permutation_null_distribution": "미실행 — §5-3 통과 primary가 없어(52w75는 INCONCLUSIVE) §6-3 연산범위 제한 조건 미충족",
+    "mc8_next_day_signal_check": "미실행 — 채택 후보 없어 우선순위 낮음"
+  },
   "robustness_bands": {
     "absret126_signcount126": {"formation_days": [105, 126, 147]},
     "ma200": {"ma_window": [180, 200, 220]},
