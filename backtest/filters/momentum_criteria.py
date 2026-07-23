@@ -18,6 +18,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Protocol
 
+import numpy as np
 import pandas as pd
 
 from backtest.daily_nav import trading_dates
@@ -309,6 +310,118 @@ class Week52HighCriterion:
         )
 
 
+# ── Family D — 시장잔차 추세, Blitz식 부분합 (§3-D1) ─────────────────────────
+
+class MarketResidualCriterion:
+    """`market_residual_trend_126` — 절편 포함 OLS를 beta_window(기본 252일)에 적합하고,
+    점수는 그 창의 최근 formation_days(기본 126일) 부분합(전체 합은 항상 0이므로
+    부분집합이어야 0이 아니다, §3-D0). coverage gate 사전 확인(2026-07-23, 평균
+    97.1%) 후 구현.
+
+    벤치마크는 동결 CSV(run_daily_nav.py가 생성하는 benchmarks_daily.csv, §7 MC-5) —
+    매 실행 FDR 재조회 금지. 시장구분은 stocks.market(현재값) 사용 — market_transfer
+    이벤트의 PIT 정합성은 미해결 `[VERIFY]`이나, 2026-07-23 확인 시 DB에 해당 이벤트가
+    0건이라 현재 데이터셋에서는 실무 영향이 낮다.
+    """
+    name = 'market_residual_blitz_subset'
+
+    def __init__(
+        self,
+        beta_window:     int = 252,
+        formation_days:  int = 126,
+        skip_days:       int = 21,
+        benchmarks_csv:  str = 'experiments/daily_nav/benchmarks_daily.csv',
+        standardize:     bool = False,
+    ):
+        self.beta_window = beta_window
+        self.formation_days = formation_days
+        self.skip_days = skip_days
+        self.standardize = standardize
+        self._benchmarks_csv = benchmarks_csv
+        self._benchmarks = None
+
+    def _load_benchmarks(self) -> pd.DataFrame:
+        if self._benchmarks is None:
+            path = Path(self._benchmarks_csv)
+            if not path.exists():
+                raise FileNotFoundError(
+                    f'{path} 없음 — scripts.run_daily_nav 먼저 실행해 동결 벤치마크'
+                    f' 생성 필요 (SPEC_12 §7 MC-5). 매 실행 FDR 재조회는 금지.'
+                )
+            self._benchmarks = pd.read_csv(path, index_col=0, parse_dates=True)
+        return self._benchmarks
+
+    def prepare(self, tickers, signal_date, conn) -> CriterionContext:
+        need = self.beta_window + self.skip_days
+        ctx = _prepare_price_context(tickers, signal_date, conn, need)
+        if not ctx.calendar_anchor:
+            return ctx
+
+        with conn.cursor() as cur:
+            cur.execute("SELECT ticker, market FROM stocks WHERE ticker = ANY(%s)", (tickers,))
+            market_map = dict(cur.fetchall())
+
+        bench = self._load_benchmarks()
+        cal_idx = pd.to_datetime(ctx.calendar_anchor)
+        bench_ret = {}
+        for col, mkt in [('kospi', 'KOSPI'), ('kosdaq', 'KOSDAQ')]:
+            if col not in bench.columns:
+                raise ValueError(f'{self._benchmarks_csv}에 {col!r} 컬럼 없음 — 스키마 확인 필요')
+            s = bench[col].reindex(cal_idx).astype(float)
+            bench_ret[mkt] = s.pct_change()
+
+        ctx.extra['market_map'] = market_map
+        ctx.extra['bench_ret'] = bench_ret
+        return ctx
+
+    def evaluate(self, ticker, ctx: CriterionContext) -> CriterionResult:
+        need = self.beta_window + self.skip_days
+        cal = ctx.calendar_anchor
+        if len(cal) < need:
+            return CriterionResult(True, None, 'passed_insufficient_data', len(cal), 'insufficient')
+        pos_end = len(cal) - 1 - self.skip_days
+        pos_start = pos_end - self.beta_window
+        if pos_start < 0:
+            return CriterionResult(True, None, 'passed_insufficient_data', len(cal), 'insufficient')
+        window_dates = cal[pos_start:pos_end + 1]   # beta_window+1개 날짜(수익률 beta_window개)
+
+        px = ctx.prices.get(ticker)
+        gap = _classify_gap(px, window_dates)
+        if gap is not None:
+            return gap
+
+        market = ctx.extra['market_map'].get(ticker)
+        if market not in ('KOSPI', 'KOSDAQ'):
+            return CriterionResult(True, None, 'invalid_data', 0, 'invalid')
+        mkt_ret_full = ctx.extra['bench_ret'][market]
+
+        closes = px.reindex(window_dates)
+        stock_ret = closes.pct_change().dropna()
+        mkt_ret = mkt_ret_full.reindex(stock_ret.index)
+        valid = stock_ret.notna() & mkt_ret.notna()
+        stock_ret, mkt_ret = stock_ret[valid], mkt_ret[valid]
+
+        if len(stock_ret) < self.beta_window * 0.9:
+            return CriterionResult(True, None, 'passed_insufficient_data', len(stock_ret), 'insufficient')
+        if mkt_ret.empty or mkt_ret.std() == 0:
+            return CriterionResult(True, None, 'invalid_data', len(stock_ret), 'invalid')
+
+        x, y = mkt_ret.to_numpy(), stock_ret.to_numpy()
+        beta, alpha = np.polyfit(x, y, 1)   # 절편 포함 OLS 고정(§3-D4)
+        resid = y - (alpha + beta * x)      # 전체 합은 기계 오차 수준으로 0 (§3-D0)
+
+        n_form = min(self.formation_days, len(resid))
+        score = float(resid[-n_form:].sum())
+        if self.standardize:
+            sd = float(np.std(resid, ddof=2)) if len(resid) > 2 else 0.0
+            if sd > 0:
+                score = score / sd
+
+        passed = score >= 0.0
+        reason = 'passed_by_signal' if passed else 'rejected_by_signal'
+        return CriterionResult(passed, score, reason, len(resid), 'ok', cutoff_distance=score)
+
+
 # ── §4-5 배관 양성 대조군 — 기존 _momentum_filter() 어댑터 ────────────────────
 
 class MADoubleAdapterCriterion:
@@ -344,6 +457,7 @@ CRITERION_REGISTRY = {
     'ma200':              MA200Criterion,
     '52w_high':           Week52HighCriterion,
     'ma_double_adapter':  MADoubleAdapterCriterion,
+    'market_residual_blitz_subset': MarketResidualCriterion,
 }
 
 

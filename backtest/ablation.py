@@ -130,6 +130,15 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'rank_mode': 'pbr',
                             'momentum_criterion': {'type': '52w_high', 'tag': 'F_pbr_52w80',
                                                    'window': 252, 'threshold': 0.80}},
+    # SPEC_12 §3-D1 Family D — coverage gate 사전확인(2026-07-23, 평균 97.1%) 통과 후 실행.
+    'F_pbr_mktresid126':   {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'},
+                            'rank_mode': 'pbr',
+                            'momentum_criterion': {'type': 'market_residual_blitz_subset',
+                                                   'tag': 'F_pbr_mktresid126',
+                                                   'beta_window': 252, 'formation_days': 126,
+                                                   'skip_days': 21}},
     # F_pbr_no_r3r4에서 R6까지 제외 — R6은 PBR 경로에서 음의 기여(F_pbr_r6 14.70 <
     # F_pbr_only 14.96)였으므로, 신기록 구성 {R1,R2,R5,R6}에서도 빼면 개선되는지 확인.
     'F_pbr_no_r3r4r6':     {'use_hard': True,  'use_stability': True,  'use_screener': False,
