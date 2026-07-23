@@ -213,3 +213,22 @@ def compute_daily_metrics(nav: pd.Series, benchmark: pd.Series | None = None) ->
         out['tracking_error_ann'] = float(diff.std(ddof=1) * np.sqrt(TRADING_DAYS_PER_YEAR))
 
     return out
+
+
+def compute_nav_cagr(nav: pd.Series, initial_capital: float = 1.0) -> float:
+    """일별 NAV 시리즈의 CAGR (SPEC_12 §5-1 SSOT).
+
+    기준 자본은 nav.iloc[0]이 아니라 initial_capital(기본 1.0) — stitch_periods()의
+    첫 net NAV는 이미 거래비용 차감 후라 1보다 작다. nav.iloc[0]을 쓰면 첫 리밸런싱
+    거래비용이 CAGR에서 통째로 빠진다. 연수는 실제 캘린더 경과일수(365.25일=1년) 기준
+    — compute_cagr()의 CORR-METRIC-002 수정과 동일한 정의를 daily-NAV 경로에도 적용한다.
+    """
+    nav = nav.dropna().astype(float)
+    if len(nav) < 2:
+        raise ValueError(f'일별 NAV 관측치 부족 ({len(nav)}개) — CAGR 계산 불가')
+    nav.index = pd.to_datetime(nav.index)
+    nav = nav.sort_index()
+    years = (nav.index[-1] - nav.index[0]).days / 365.25
+    if years <= 0:
+        raise ValueError(f'NAV 구간 길이가 0 이하 (years={years}) — CAGR 계산 불가')
+    return float((nav.iloc[-1] / initial_capital) ** (1 / years) - 1)
