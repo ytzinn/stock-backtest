@@ -127,7 +127,7 @@ zero-return 비율     → 별도 기록 (사후 유동성 교란 진단용)
 
 `[VERIFY]` Sim et al.(2022)의 sign 정의가 정확히 이 형태인지 원문 확인. **다만 정의가 달라도 A-2는 A-1과 구별되는 독립 신호이므로 실험 가치는 유지된다.**
 
-`[VERIFY 최우선] (v0.3.1 추가, MC-1에 4번째 항목으로 편입)` 위 3분류는 가격 테이블이 "거래정지일"과 "DB 행 자체 누락"을 **서로 다른 방식으로** 기록한다는 전제 위에 있다. `price_history`(또는 동등 소스)가 거래정지일을 별도 플래그 없이 그냥 행 부재로 기록한다면, 두 상태는 조회 시점에 구분 불가능하고 A-2는 조용히 다음 둘 중 하나로 붕괴한다: ① 거래정지를 전부 `invalid_data`로 오분류해 `insufficient` 문턱을 부풀리거나, ② 거래정지를 `n_valid` 분모에서 빠뜨린 채 나머지만으로 계산해 실제로는 관측치가 부족한 종목을 정상 판정한다. 이 구분이 현재 스키마로 가능한지 MC-2 착수 전에 확인한다.
+`[검증된 사실] (v0.3.1 MC-1 확인 완료, 2026-07-23)` `price_history.is_suspended BOOLEAN`이 ingest 단계(`price_ingest.py`, `is_suspended = volume is None`)에서 실제로 채워진다. 서버 DB 실측: 전체 7,271,912행 중 `is_suspended=TRUE` 273,102행. 샘플 종목(258830, 2026-04-01~07-16)의 구간 내 행 수(73)가 그 기간 시장 전체 거래일수(73)와 **정확히 일치** — 거래정지일도 행이 빠지지 않고 `is_suspended=TRUE`·`volume=NULL`·`adj_close`는 직전가 유지로 기록된다. 따라서 "거래정지일"과 "DB 행 자체 누락"은 `is_suspended` 컬럼과 KRX 거래일 달력(§3-0c) 대조로 구분 가능하며, §3-A의 3분류를 그대로 구현한다. (2분류 축소 방지책은 불필요 — MC-1(d) 조건부 폐기.)
 
 ### Family B — 이동평균 추세
 
@@ -230,9 +230,9 @@ class CriterionResult:
     cutoff_distance: float | None  # 임계값 근접도
 ```
 
-**진단이 파이프라인 밖으로 나가야 한다 (v0.3 신설) `[VERIFY 최우선]`**
+**진단이 파이프라인 밖으로 나가야 한다 (v0.3 신설)**
 
-`[확실하지 않은 사실]` `UniverseFilter.apply()`의 반환은 `(passed_tickers, rejected_dict)` 뿐이고, `BacktestPipeline`의 stats는 필터 **클래스명**을 키로 쓰며 `export_portfolios.py`는 정확히 `'MomentumFilter'` 키만 조회한다고 한다. 사실이라면 신규 클래스명이 `MomentumCriterionFilter`인 순간 **`momentum_rejected`가 holdings tape에서 조용히 사라지고**, SPEC_11 거부권 진단(§5-6)이 통째로 불가능해진다. 에러 없이 결과만 바뀌는 유형이므로 §0 규칙 6의 대상이다.
+`[검증된 사실] (v0.3.1 MC-1 확인 완료)` `scripts/export_portfolios.py`가 정확히 `univ_result['stats'].get('MomentumFilter')`(하드코딩된 클래스명 키)로 조회하고 있음을 코드로 확인했다. 신규 클래스명이 `MomentumCriterionFilter`인 순간 **`momentum_rejected`가 holdings tape에서 조용히 사라지고**, SPEC_11 거부권 진단(§5-6)이 통째로 불가능해진다. 아래 `stats_key = "MomentumFilter"` 어댑터가 **필수**다 (선택 사항 아님). 에러 없이 결과만 바뀌는 유형이므로 §0 규칙 6의 대상.
 
 ```python
 class MomentumCriterionFilter:
@@ -268,9 +268,9 @@ holdings tape → 기존 호환용 momentum_rejected 만 유지
 
 **성능**: 종목별 SQL 반복은 300~700종목 × 태그 × 밴드에서 폭증. 리밸런싱일별 최대 lookback 가격을 **일괄 조회 → 점수 테이블 → 임계값별 pass/fail** 캐시 재사용.
 
-### 4-2. 설정 전달부 `[VERIFY 최우선]`
+### 4-2. 설정 전달부
 
-`[확실하지 않은 사실]` 현행 `build_ablation_pipeline()`이 config를 읽지 않고 `ma_short=20, ma_long=60, confirm_days=5, slope_lookback=20`을 하드코딩한다면, config에 `momentum_criterion`을 추가해도 **아무 효과 없이 기존 MA 필터가 실행된다** — 스펙 전체가 조용한 no-op이 된다.
+`[검증된 사실] (v0.3.1 MC-1 확인 완료)` `backtest/ablation.py:356-359`에서 `build_ablation_pipeline()`은 `config.get('use_momentum', False)`로 필터 포함 여부만 토글하고, 포함 시 항상 `MomentumFilter(ma_short=20, ma_long=60, confirm_days=5, slope_lookback=20)`을 하드코딩 생성한다. `momentum_criterion` 같은 신규 키를 config에 추가해도 **읽는 코드가 없어 아무 효과 없이 기존 MA 필터가 실행된다** — 아래 분기를 MC-2에서 반드시 신설해야 한다(그냥 있으면 되는 게 아니라 없다).
 
 ```python
 momentum_config = config.get('momentum')
@@ -345,7 +345,7 @@ F_pbr_ma_double_adapter == F_pbr_no_r3r4  (완결 20구간 전부)
 
 **규약**: 의사결정 지표는 **전부 daily-net NAV에서** 산출. 엔진 `net_cagr`는 reconciliation용 병기.
 
-**`[VERIFY]` `compute_daily_metrics()`에 CAGR가 없다면 §5-1은 구현 불가.** SSOT 함수를 추가한다:
+**`[검증된 사실] (v0.3.1 MC-1 확인 완료)`** `backtest/metrics.py:119-215`의 `compute_daily_metrics()` 반환 dict(`daily_mdd, daily_sharpe, cvar_* , ...`)에 **CAGR 키가 없음을 확인**했다. §5-1은 구현 불가 상태이므로 아래 SSOT 함수를 신규 추가한다(기존 함수 무수정 — `compute_period_returns` 기반의 `compute_metrics()`가 있는 반기-CAGR와는 별개):
 
 ```python
 def compute_nav_cagr(nav: pd.Series, initial_capital: float = 1.0) -> float:
@@ -513,13 +513,17 @@ formation·**추정 구간 전부** `<= signal_date`. 상폐 haircut은 v5.3 수
         decision_thresholds, residual_method: "blitz_subset"}
        결과 열람 전 커밋. 이후 primary 교체 금지.
 
-[MC-1] [VERIFY 최우선] 4건 동시 확인 — 하나라도 사실이면 해당 수정/보완 선행:
-       (a) build_ablation_pipeline() 이 모멘텀 config 를 읽는가? (§4-2)
-       (b) export_portfolios.py 가 'MomentumFilter' 키만 조회하는가? (§4-1)
-       (c) compute_daily_metrics() 에 CAGR 가 있는가? (§5-1)
-       (d) 가격 소스가 "거래정지일"과 "DB 행 자체 누락"을 구분 가능한 형태로
-           기록하는가? 구분 불가하면 A-2 sign_count 의 3분류(§3-A)를 실행
-           가능한 2분류로 축소하고 그 사실을 diagnostics 에 명시한다.
+[MC-1] `[완료 — 2026-07-23]` 4건 전부 코드/DB 실측으로 확인됨. 전부 "사실"로
+       확정되어 아래 수정이 전부 필요하다 (하나도 생략 불가):
+       (a) build_ablation_pipeline() 은 모멘텀 config 를 읽지 않는다(ablation.py:356-359,
+           use_momentum 토글만 존재) → §4-2 분기 신설 필요.
+       (b) export_portfolios.py 는 'MomentumFilter' 키만 조회한다(하드코딩 확인) →
+           §4-1 stats_key 어댑터 필수.
+       (c) compute_daily_metrics() 에 CAGR 없음(metrics.py:119-215 확인) →
+           §5-1 compute_nav_cagr() 신설 필요.
+       (d) is_suspended 컬럼이 ingest에서 채워짐, 거래정지일도 행 누락 없이 기록됨
+           (서버 실측: TRUE 273,102행, 샘플종목 행수=시장거래일수 정확히 일치) →
+           §3-A 3분류 그대로 구현 가능, 축소 불필요.
        기존 MomentumFilter / _momentum_filter 는 절대 수정 금지.
 
 [MC-2] MomentumCriterionFilter 신설 — prepare→evaluate, CriterionResult,

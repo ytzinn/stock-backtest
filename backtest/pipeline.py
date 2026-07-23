@@ -52,10 +52,15 @@ class BacktestPipeline:
         stats   = {}
         for f in self.filters:
             tickers, rejected = f.apply(tickers, rebalance_date, pit_series, conn)
-            stats[f.__class__.__name__] = {
+            # SPEC_12 §4-1: stats_key로 위장 가능(MomentumCriterionFilter가 기존
+            # 'MomentumFilter' 키를 유지해야 export_portfolios.py 조회가 안 깨진다).
+            key = getattr(f, 'stats_key', f.__class__.__name__)
+            stats[key] = {
                 'passed':   len(tickers),
                 'rejected': rejected,
             }
+            if hasattr(f, 'last_diagnostics'):
+                stats[key]['diagnostics'] = f.last_diagnostics
         return {'universe': tickers, 'stats': stats}
 
     def score_and_rank(

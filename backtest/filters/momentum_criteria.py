@@ -1,0 +1,420 @@
+"""
+SPEC_12 v0.3.1 — 모멘텀 판정 기준 고도화 (신규 배관).
+
+기존 MomentumFilter / _momentum_filter()는 절대 수정하지 않는다 (SPEC_12 §0 규칙 3,
+가산형 구현). MADoubleAdapterCriterion만 예외적으로 _momentum_filter()를 그대로
+호출한다 (§4-5 배관 양성 대조군 — 산식 재작성 금지).
+
+용어: formation_days=점수 구간, skip_days=형성 구간과 신호일 사이 공백(Family A만
+적용, §3-0b). anchor는 KRX 공통 거래일 달력 기준 signal_date (§3-0c) — 종목별
+마지막 N개 non-null 행이 아니다 (get_adj_close_range()의 알려진 한계, 회피).
+"""
+from __future__ import annotations
+
+import json
+import logging
+from dataclasses import dataclass, field
+from datetime import date, timedelta
+from pathlib import Path
+from typing import Protocol
+
+import pandas as pd
+
+from backtest.daily_nav import trading_dates
+from backtest.filters.momentum_filter import _momentum_filter
+
+log = logging.getLogger(__name__)
+
+DIAG_DIR = Path('experiments/momentum_criteria')
+
+
+@dataclass(frozen=True)
+class CriterionResult:
+    passed:          bool
+    score:            float | None
+    reason_code:      str    # passed_by_signal | passed_insufficient_data |
+                              # rejected_by_signal | invalid_data
+    n_obs:            int
+    data_status:      str    # ok | insufficient | invalid
+    zero_ratio:       float | None = None   # sign_count 유동성 교란 진단 (§3-A)
+    cutoff_distance:  float | None = None   # 임계값 근접도
+
+
+@dataclass
+class CriterionContext:
+    """prepare()가 일괄 조회로 만들어 evaluate()에 넘기는 공유 상태."""
+    calendar_anchor: list           # KRX 공통 거래일 달력, 오름차순, signal_date 이하
+    prices:           dict          # ticker -> pd.Series(adj_close, index=date)
+    suspended:        dict          # ticker -> pd.Series(is_suspended bool, index=date)
+    signal_date:      date
+    extra:            dict = field(default_factory=dict)
+
+
+class MomentumCriterion(Protocol):
+    name: str
+
+    def prepare(self, tickers: list, signal_date: date, conn) -> CriterionContext: ...
+    def evaluate(self, ticker: str, ctx: CriterionContext) -> CriterionResult: ...
+
+
+# ── 공통 헬퍼 ────────────────────────────────────────────────────────────────
+
+def _calendar_window(conn, signal_date: date, n_back: int, margin_days: int = 30) -> list:
+    """signal_date 이하 KRX 공통 거래일을 오름차순으로 최대 n_back개 반환 (§3-0c).
+
+    trading_dates()는 (start, end] 구간 — 룩어헤드 없음(§0 규칙 2).
+    margin_days: 공휴일 보정 여유 캘린더일 (n_back의 ~1.6배 + margin이 기본 lookback).
+    """
+    lookback_calendar_days = int(n_back * 1.6) + margin_days
+    start = signal_date - timedelta(days=lookback_calendar_days)
+    all_dates = trading_dates(conn, start, signal_date)
+    return all_dates[-n_back:] if len(all_dates) >= n_back else all_dates
+
+
+def _fetch_price_panel(conn, tickers: list, start: date, end: date) -> dict:
+    """[start, end] 구간 tickers의 adj_close/is_suspended 일괄 조회 (§4-1 성능).
+
+    반환: ticker -> {'adj_close': Series, 'is_suspended': Series} (index=date).
+    is_suspended가 채워져 있으면(2026-07-23 MC-1 확인: ingest에서 실제로 채워짐,
+    거래정지일도 행 누락 없이 기록) 정지일을 명시적으로 구분할 수 있다.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT ticker, date, adj_close, is_suspended
+            FROM price_history
+            WHERE ticker = ANY(%s) AND date > %s AND date <= %s
+            ORDER BY ticker, date
+            """,
+            (tickers, start, end),
+        )
+        rows = cur.fetchall()
+    grouped: dict = {}
+    for ticker, d, adj_close, is_susp in rows:
+        grouped.setdefault(ticker, []).append((d, adj_close, is_susp))
+    panels = {}
+    for ticker, recs in grouped.items():
+        idx = [r[0] for r in recs]
+        panels[ticker] = {
+            'adj_close':    pd.Series([r[1] for r in recs], index=idx, dtype=float),
+            'is_suspended': pd.Series([bool(r[2]) for r in recs], index=idx, dtype=bool),
+        }
+    return panels
+
+
+def _prepare_price_context(tickers: list, signal_date: date, conn, n_back: int) -> CriterionContext:
+    calendar = _calendar_window(conn, signal_date, n_back)
+    if not calendar:
+        return CriterionContext(calendar_anchor=[], prices={}, suspended={}, signal_date=signal_date)
+    lookback_calendar_days = int(n_back * 1.6) + 30
+    panels = _fetch_price_panel(
+        conn, tickers, signal_date - timedelta(days=lookback_calendar_days), signal_date,
+    )
+    return CriterionContext(
+        calendar_anchor=calendar,
+        prices={t: p['adj_close'] for t, p in panels.items()},
+        suspended={t: p['is_suspended'] for t, p in panels.items()},
+        signal_date=signal_date,
+    )
+
+
+# ── Family A — 절대 수익률 계열 (§3-0a, skip 적용) ───────────────────────────
+
+class AbsReturnCriterion:
+    """A-1 abs_return(크기). formation_return >= threshold 통과."""
+    name = 'abs_return'
+
+    def __init__(self, formation_days: int = 126, skip_days: int = 21, threshold: float = 0.0):
+        self.formation_days = formation_days
+        self.skip_days = skip_days
+        self.threshold = threshold
+
+    def prepare(self, tickers, signal_date, conn) -> CriterionContext:
+        need = self.formation_days + self.skip_days + 1
+        return _prepare_price_context(tickers, signal_date, conn, need)
+
+    def evaluate(self, ticker, ctx: CriterionContext) -> CriterionResult:
+        need = self.formation_days + self.skip_days + 1
+        cal = ctx.calendar_anchor
+        if len(cal) < need:
+            return CriterionResult(True, None, 'passed_insufficient_data', len(cal), 'insufficient')
+        pos_end = len(cal) - 1 - self.skip_days
+        pos_start = pos_end - self.formation_days
+        if pos_start < 0:
+            return CriterionResult(True, None, 'passed_insufficient_data', len(cal), 'insufficient')
+        end_date, start_date = cal[pos_end], cal[pos_start]
+
+        px = ctx.prices.get(ticker)
+        if px is None or end_date not in px.index or start_date not in px.index:
+            return CriterionResult(True, None, 'invalid_data', 0 if px is None else len(px), 'invalid')
+        p_end, p_start = px.loc[end_date], px.loc[start_date]
+        if pd.isna(p_end) or pd.isna(p_start) or p_start <= 0:
+            return CriterionResult(True, None, 'invalid_data', len(px), 'invalid')
+
+        formation_return = float(p_end / p_start - 1)
+        passed = formation_return >= self.threshold
+        reason = 'passed_by_signal' if passed else 'rejected_by_signal'
+        return CriterionResult(
+            passed, formation_return, reason, need, 'ok',
+            cutoff_distance=formation_return - self.threshold,
+        )
+
+
+class SignCountCriterion:
+    """A-2 sign_count(비모수 부호). 0%는 0.5 가중, 거래정지일 제외 (§3-A, v0.3 확정)."""
+    name = 'sign_count'
+
+    def __init__(self, formation_days: int = 126, skip_days: int = 21):
+        self.formation_days = formation_days
+        self.skip_days = skip_days
+
+    def prepare(self, tickers, signal_date, conn) -> CriterionContext:
+        need = self.formation_days + self.skip_days + 1
+        return _prepare_price_context(tickers, signal_date, conn, need)
+
+    def evaluate(self, ticker, ctx: CriterionContext) -> CriterionResult:
+        need = self.formation_days + self.skip_days + 1
+        cal = ctx.calendar_anchor
+        if len(cal) < need:
+            return CriterionResult(True, None, 'passed_insufficient_data', len(cal), 'insufficient')
+        pos_end = len(cal) - 1 - self.skip_days
+        pos_start = pos_end - self.formation_days
+        if pos_start < 0:
+            return CriterionResult(True, None, 'passed_insufficient_data', len(cal), 'insufficient')
+        window_dates = cal[pos_start:pos_end + 1]   # formation_days+1개 날짜(수익률 formation_days개)
+
+        px = ctx.prices.get(ticker)
+        susp = ctx.suspended.get(ticker)
+        if px is None:
+            return CriterionResult(True, None, 'invalid_data', 0, 'invalid')
+
+        closes = px.reindex(window_dates)
+        n_missing_rows = int(closes.isna().sum())
+        if n_missing_rows > 0:
+            # 달력상 거래일인데 DB 행 자체가 없음 — 거래정지(is_suspended=TRUE 행 존재)와
+            # 구분되는 진짜 결손. 결손 비율이 크면 insufficient, 있으되 적으면 invalid로
+            # 표시해 조용히 넘어가지 않는다 (§0 규칙 6).
+            if n_missing_rows > self.formation_days * 0.5:
+                return CriterionResult(True, None, 'passed_insufficient_data',
+                                       len(window_dates) - n_missing_rows, 'insufficient')
+            return CriterionResult(True, None, 'invalid_data',
+                                   len(window_dates) - n_missing_rows, 'invalid')
+
+        susp_flags = (susp.reindex(window_dates).fillna(False).astype(bool)
+                      if susp is not None else pd.Series(False, index=window_dates))
+        daily_ret = closes.pct_change().dropna()
+        susp_on_ret_day = susp_flags.reindex(daily_ret.index).fillna(False).astype(bool)
+        valid_ret = daily_ret[~susp_on_ret_day]   # 거래정지일 → 점수 계산에서 제외
+
+        n_valid = len(valid_ret)
+        if n_valid < self.formation_days * 0.9:
+            return CriterionResult(True, None, 'passed_insufficient_data', n_valid, 'insufficient')
+
+        n_pos = int((valid_ret > 0).sum())
+        n_zero = int((valid_ret == 0).sum())
+        score = (n_pos + 0.5 * n_zero) / n_valid
+        zero_ratio = n_zero / n_valid
+        passed = score >= 0.5
+        reason = 'passed_by_signal' if passed else 'rejected_by_signal'
+        return CriterionResult(
+            passed, score, reason, n_valid, 'ok',
+            zero_ratio=zero_ratio, cutoff_distance=score - 0.5,
+        )
+
+
+# ── Family B — 이동평균 추세 (skip 미적용, §3-0b) ────────────────────────────
+
+class MA200Criterion:
+    """B1 price < MA200 제외 (primary)."""
+    name = 'ma200'
+
+    def __init__(self, ma_window: int = 200):
+        self.ma_window = ma_window
+
+    def prepare(self, tickers, signal_date, conn) -> CriterionContext:
+        return _prepare_price_context(tickers, signal_date, conn, self.ma_window)
+
+    def evaluate(self, ticker, ctx: CriterionContext) -> CriterionResult:
+        cal = ctx.calendar_anchor
+        if len(cal) < self.ma_window:
+            return CriterionResult(True, None, 'passed_insufficient_data', len(cal), 'insufficient')
+        window_dates = cal[-self.ma_window:]
+
+        px = ctx.prices.get(ticker)
+        if px is None:
+            return CriterionResult(True, None, 'invalid_data', 0, 'invalid')
+        window = px.reindex(window_dates)
+        n_obs = int(window.notna().sum())
+        if window.isna().sum() > self.ma_window * 0.1:
+            return CriterionResult(True, None, 'invalid_data', n_obs, 'invalid')
+
+        ma = float(window.dropna().mean())
+        last_price = window.iloc[-1]
+        if pd.isna(last_price) or ma <= 0:
+            return CriterionResult(True, None, 'invalid_data', n_obs, 'invalid')
+
+        score = float(last_price / ma - 1)
+        passed = score >= 0.0
+        reason = 'passed_by_signal' if passed else 'rejected_by_signal'
+        return CriterionResult(passed, score, reason, n_obs, 'ok', cutoff_distance=score)
+
+
+class Week52HighCriterion:
+    """C 52주 신고가 근접도. pth = P[t]/max(최근 252거래일 종가) < threshold 제외."""
+    name = '52w_high'
+
+    def __init__(self, window: int = 252, threshold: float = 0.75):
+        self.window = window
+        self.threshold = threshold
+
+    def prepare(self, tickers, signal_date, conn) -> CriterionContext:
+        return _prepare_price_context(tickers, signal_date, conn, self.window)
+
+    def evaluate(self, ticker, ctx: CriterionContext) -> CriterionResult:
+        cal = ctx.calendar_anchor
+        if len(cal) < self.window:
+            return CriterionResult(True, None, 'passed_insufficient_data', len(cal), 'insufficient')
+        window_dates = cal[-self.window:]
+
+        px = ctx.prices.get(ticker)
+        if px is None:
+            return CriterionResult(True, None, 'invalid_data', 0, 'invalid')
+        window = px.reindex(window_dates)
+        n_obs = int(window.notna().sum())
+        if window.isna().sum() > self.window * 0.1:
+            return CriterionResult(True, None, 'invalid_data', n_obs, 'invalid')
+
+        high = float(window.dropna().max())
+        last_price = window.iloc[-1]
+        if pd.isna(last_price) or high <= 0:
+            return CriterionResult(True, None, 'invalid_data', n_obs, 'invalid')
+
+        pth = float(last_price / high)
+        passed = pth >= self.threshold
+        reason = 'passed_by_signal' if passed else 'rejected_by_signal'
+        return CriterionResult(
+            passed, pth, reason, n_obs, 'ok', cutoff_distance=pth - self.threshold,
+        )
+
+
+# ── §4-5 배관 양성 대조군 — 기존 _momentum_filter() 어댑터 ────────────────────
+
+class MADoubleAdapterCriterion:
+    """F_pbr_ma_double_adapter 전용. 산식은 기존 _momentum_filter() 그대로 호출
+    (재작성 금지) — 신규 배관(prepare→evaluate→stats_key→tape)만 검증한다."""
+    name = 'ma_double_adapter'
+
+    def __init__(self, ma_short: int = 20, ma_long: int = 60,
+                 confirm_days: int = 5, slope_lookback: int = 20):
+        self.ma_short = ma_short
+        self.ma_long = ma_long
+        self.confirm_days = confirm_days
+        self.slope_lookback = slope_lookback
+
+    def prepare(self, tickers, signal_date, conn) -> CriterionContext:
+        # _momentum_filter()가 conn으로 직접 조회하므로 배치 컨텍스트가 필요 없다.
+        return CriterionContext(calendar_anchor=[], prices={}, suspended={},
+                                signal_date=signal_date, extra={'conn': conn})
+
+    def evaluate(self, ticker, ctx: CriterionContext) -> CriterionResult:
+        conn = ctx.extra['conn']
+        passed = _momentum_filter(
+            ticker, ctx.signal_date, conn,
+            self.ma_short, self.ma_long, self.confirm_days, self.slope_lookback,
+        )
+        reason = 'passed_by_signal' if passed else 'rejected_by_signal'
+        return CriterionResult(passed, None, reason, 0, 'ok')
+
+
+CRITERION_REGISTRY = {
+    'abs_return':        AbsReturnCriterion,
+    'sign_count':        SignCountCriterion,
+    'ma200':              MA200Criterion,
+    '52w_high':           Week52HighCriterion,
+    'ma_double_adapter':  MADoubleAdapterCriterion,
+}
+
+
+# ── UniverseFilter 어댑터 (§4-1) ─────────────────────────────────────────────
+
+class MomentumCriterionFilter:
+    """UniverseFilter Protocol 구현체. stats 키는 기존 tape 호환을 위해 항상
+    'MomentumFilter'로 위장한다 — export_portfolios.py가 이 키만 조회하기 때문
+    (2026-07-23 MC-1 코드 확인). 진단은 last_diagnostics + 별도 JSON 파일 이중 기록."""
+
+    stats_key = 'MomentumFilter'
+
+    def __init__(self, criterion: MomentumCriterion, tag: str, legacy_adapter: bool = False):
+        self.criterion = criterion
+        self.tag = tag
+        self.legacy_adapter = legacy_adapter
+        self.last_diagnostics: dict = {}
+
+    def apply(self, tickers, rebalance_date, pit_series, conn):
+        ctx = self.criterion.prepare(tickers, rebalance_date, conn)
+        passed, rejected, diagnostics = [], {}, {}
+        for ticker in tickers:
+            result = self.criterion.evaluate(ticker, ctx)
+            diagnostics[ticker] = result
+            if result.passed:
+                passed.append(ticker)
+            else:
+                rejected[ticker] = f'{self.criterion.name}: {result.reason_code} (score={result.score})'
+        self.last_diagnostics = diagnostics
+        self._write_diagnostics(rebalance_date, diagnostics)
+        return passed, rejected
+
+    def _write_diagnostics(self, rebalance_date, diagnostics: dict) -> None:
+        DIAG_DIR.mkdir(parents=True, exist_ok=True)
+        summary_path = DIAG_DIR / f'{self.tag}_diagnostics_summary.json'
+        status_counts: dict = {}
+        for r in diagnostics.values():
+            status_counts[r.data_status] = status_counts.get(r.data_status, 0) + 1
+        record = {
+            'rebalance_date':      rebalance_date.isoformat(),
+            'implementation':      'MomentumCriterionFilter',
+            'criterion':           self.criterion.name,
+            'legacy_adapter':      self.legacy_adapter,
+            'n_passed':            sum(1 for r in diagnostics.values() if r.passed),
+            'n_rejected':          sum(1 for r in diagnostics.values() if not r.passed),
+            'data_status_counts':  status_counts,
+        }
+        existing = []
+        if summary_path.exists():
+            try:
+                existing = json.loads(summary_path.read_text(encoding='utf-8'))
+            except json.JSONDecodeError:
+                log.warning(f'[{self.tag}] 진단 파일 손상 — 새로 시작: {summary_path}')
+                existing = []
+        existing.append(record)
+        summary_path.write_text(
+            json.dumps(existing, ensure_ascii=False, indent=2, default=str), encoding='utf-8',
+        )
+
+
+def build_momentum_criterion_filter(config: dict) -> MomentumCriterionFilter:
+    """§4-2 fail-fast 팩토리. config: {'type': str, 'tag': str, **criterion_kwargs}.
+
+    알 수 없는 criterion / 소비되지 않는 파라미터는 즉시 예외 (ghost parameter 금지).
+    """
+    config = dict(config)
+    ctype = config.pop('type', None)
+    tag = config.pop('tag', None)
+    if ctype is None:
+        raise ValueError("momentum_criterion.type 필수 (예: 'abs_return')")
+    if tag is None:
+        raise ValueError("momentum_criterion.tag 필수 — 진단 파일명에 사용")
+    cls = CRITERION_REGISTRY.get(ctype)
+    if cls is None:
+        raise ValueError(f"알 수 없는 momentum criterion: {ctype!r} — 등록: {list(CRITERION_REGISTRY)}")
+
+    import inspect
+    valid_params = set(inspect.signature(cls.__init__).parameters) - {'self'}
+    unknown = set(config) - valid_params
+    if unknown:
+        raise ValueError(f"{ctype} criterion이 소비하지 않는 파라미터: {unknown}")
+
+    criterion = cls(**config)
+    return MomentumCriterionFilter(
+        criterion=criterion, tag=tag, legacy_adapter=(ctype == 'ma_double_adapter'),
+    )

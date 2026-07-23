@@ -16,7 +16,8 @@ import random
 from backtest.configs.constants        import OMEGA
 from backtest.filters.factor_screener  import FactorScreener
 from backtest.filters.hard_filter      import HardFilter
-from backtest.filters.momentum_filter  import MomentumFilter
+from backtest.filters.momentum_filter    import MomentumFilter
+from backtest.filters.momentum_criteria  import build_momentum_criterion_filter
 from backtest.filters.stability_filter import StabilityFilter
 from backtest.models.rim               import RIMModel
 from backtest.pipeline                 import BacktestPipeline
@@ -78,6 +79,16 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'use_momentum': True,  'use_rim_filter': False,
                             'stability_rules': {'R1', 'R2', 'R5', 'R6'},
                             'rank_mode': 'pbr'},
+    # SPEC_12 §4-5 배관 양성 대조군 — F_pbr_no_r3r4와 나머지 스택 완전 동일, 모멘텀만
+    # 신규 MomentumCriterionFilter(ma_double_adapter)로 교체. criterion은 기존
+    # _momentum_filter()를 그대로 호출하므로(§0 규칙 3), 완결 20구간에서 F_pbr_no_r3r4와
+    # 100% 일치해야 한다 — 불일치 시 신규 배관(prepare→evaluate→stats_key→tape) 결함.
+    'F_pbr_ma_double_adapter': {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'},
+                            'rank_mode': 'pbr',
+                            'momentum_criterion': {'type': 'ma_double_adapter',
+                                                   'tag': 'F_pbr_ma_double_adapter'}},
     # F_pbr_no_r3r4에서 R6까지 제외 — R6은 PBR 경로에서 음의 기여(F_pbr_r6 14.70 <
     # F_pbr_only 14.96)였으므로, 신기록 구성 {R1,R2,R5,R6}에서도 빼면 개선되는지 확인.
     'F_pbr_no_r3r4r6':     {'use_hard': True,  'use_stability': True,  'use_screener': False,
@@ -353,7 +364,12 @@ def build_ablation_pipeline(
             ),
             top_pct=top_pct,
         ))
-    if config.get('use_momentum', False):
+    # SPEC_12 §4-2: momentum_criterion이 있으면 신규 배관, 없으면 기존 레거시 경로.
+    # 레거시 MomentumFilter/_momentum_filter()는 이 분기 신설로도 전혀 수정되지 않는다.
+    momentum_config = config.get('momentum_criterion')
+    if momentum_config is not None:
+        filters.append(build_momentum_criterion_filter(momentum_config))
+    elif config.get('use_momentum', False):
         filters.append(MomentumFilter(
             ma_short=20, ma_long=60, confirm_days=5, slope_lookback=20,
         ))
