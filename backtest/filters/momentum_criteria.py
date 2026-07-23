@@ -352,7 +352,7 @@ class MarketResidualCriterion:
         return self._benchmarks
 
     def prepare(self, tickers, signal_date, conn) -> CriterionContext:
-        need = self.beta_window + self.skip_days
+        need = self.beta_window + self.skip_days + 1
         ctx = _prepare_price_context(tickers, signal_date, conn, need)
         if not ctx.calendar_anchor:
             return ctx
@@ -375,7 +375,7 @@ class MarketResidualCriterion:
         return ctx
 
     def evaluate(self, ticker, ctx: CriterionContext) -> CriterionResult:
-        need = self.beta_window + self.skip_days
+        need = self.beta_window + self.skip_days + 1
         cal = ctx.calendar_anchor
         if len(cal) < need:
             return CriterionResult(True, None, 'passed_insufficient_data', len(cal), 'insufficient')
