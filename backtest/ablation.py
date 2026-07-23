@@ -173,6 +173,33 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'rank_mode': 'pbr',
                             'momentum_criterion': {'type': 'ma_double_adapter', 'tag': 'F_pbr_ma60_120',
                                                    'ma_short': 60, 'ma_long': 120}},
+    # 사용자 요청(2026-07-23) 후속 — 20/60 그리드 로컬 우승 고정, confirm_days·
+    # slope_lookback만 OAT(한 번에 하나씩)로 흔들어 진짜 로컬 최적인지 확인.
+    # 마찬가지로 비-사전등록 진단용(§6-2).
+    'F_pbr_ma2060_cd3':    {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'},
+                            'rank_mode': 'pbr',
+                            'momentum_criterion': {'type': 'ma_double_adapter', 'tag': 'F_pbr_ma2060_cd3',
+                                                   'confirm_days': 3}},
+    'F_pbr_ma2060_cd7':    {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'},
+                            'rank_mode': 'pbr',
+                            'momentum_criterion': {'type': 'ma_double_adapter', 'tag': 'F_pbr_ma2060_cd7',
+                                                   'confirm_days': 7}},
+    'F_pbr_ma2060_sl10':   {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'},
+                            'rank_mode': 'pbr',
+                            'momentum_criterion': {'type': 'ma_double_adapter', 'tag': 'F_pbr_ma2060_sl10',
+                                                   'slope_lookback': 10}},
+    'F_pbr_ma2060_sl30':   {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'},
+                            'rank_mode': 'pbr',
+                            'momentum_criterion': {'type': 'ma_double_adapter', 'tag': 'F_pbr_ma2060_sl30',
+                                                   'slope_lookback': 30}},
     # F_pbr_no_r3r4에서 R6까지 제외 — R6은 PBR 경로에서 음의 기여(F_pbr_r6 14.70 <
     # F_pbr_only 14.96)였으므로, 신기록 구성 {R1,R2,R5,R6}에서도 빼면 개선되는지 확인.
     'F_pbr_no_r3r4r6':     {'use_hard': True,  'use_stability': True,  'use_screener': False,
