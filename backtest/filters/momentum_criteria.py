@@ -102,6 +102,29 @@ def _fetch_price_panel(conn, tickers: list, start: date, end: date) -> dict:
     return panels
 
 
+def _classify_gap(px: 'pd.Series | None', window_dates: list, max_invalid_frac: float = 0.1):
+    """window_dates 구간의 가격 결손을 분류. 결손 없으면 None(정상 진행).
+
+    신규상장 등으로 종목 이력 자체가 창 시작일보다 늦게 시작하면 §4-4의
+    `insufficient`(정상적 이력 부족 — 통과)로, 이력이 창 전체를 덮는데도 중간에
+    행이 빠지면 `invalid`(§4-4 — 조용히 통과시키지 않는다)로 구분한다.
+    (2026-07-23 서버 실측: 이 구분 없이는 신규상장 종목이 전부 invalid로
+    오분류됨 — 41~150일치 이력뿐인 종목이 200일 MA 창에서 결손 다수로 잡힘.)
+    """
+    if px is None or len(px.index) == 0:
+        return CriterionResult(True, None, 'passed_insufficient_data', 0, 'insufficient')
+    window = px.reindex(window_dates)
+    n_missing = int(window.isna().sum())
+    if n_missing == 0:
+        return None
+    n_obs = len(window_dates) - n_missing
+    if px.index.min() > window_dates[0]:
+        return CriterionResult(True, None, 'passed_insufficient_data', n_obs, 'insufficient')
+    if n_missing > len(window_dates) * max_invalid_frac:
+        return CriterionResult(True, None, 'invalid_data', n_obs, 'invalid')
+    return None
+
+
 def _prepare_price_context(tickers: list, signal_date: date, conn, n_back: int) -> CriterionContext:
     calendar = _calendar_window(conn, signal_date, n_back)
     if not calendar:
@@ -145,8 +168,9 @@ class AbsReturnCriterion:
         end_date, start_date = cal[pos_end], cal[pos_start]
 
         px = ctx.prices.get(ticker)
-        if px is None or end_date not in px.index or start_date not in px.index:
-            return CriterionResult(True, None, 'invalid_data', 0 if px is None else len(px), 'invalid')
+        gap = _classify_gap(px, [start_date, end_date])
+        if gap is not None:
+            return gap
         p_end, p_start = px.loc[end_date], px.loc[start_date]
         if pd.isna(p_end) or pd.isna(p_start) or p_start <= 0:
             return CriterionResult(True, None, 'invalid_data', len(px), 'invalid')
@@ -185,20 +209,10 @@ class SignCountCriterion:
 
         px = ctx.prices.get(ticker)
         susp = ctx.suspended.get(ticker)
-        if px is None:
-            return CriterionResult(True, None, 'invalid_data', 0, 'invalid')
-
+        gap = _classify_gap(px, window_dates, max_invalid_frac=0.5)
+        if gap is not None:
+            return gap
         closes = px.reindex(window_dates)
-        n_missing_rows = int(closes.isna().sum())
-        if n_missing_rows > 0:
-            # 달력상 거래일인데 DB 행 자체가 없음 — 거래정지(is_suspended=TRUE 행 존재)와
-            # 구분되는 진짜 결손. 결손 비율이 크면 insufficient, 있으되 적으면 invalid로
-            # 표시해 조용히 넘어가지 않는다 (§0 규칙 6).
-            if n_missing_rows > self.formation_days * 0.5:
-                return CriterionResult(True, None, 'passed_insufficient_data',
-                                       len(window_dates) - n_missing_rows, 'insufficient')
-            return CriterionResult(True, None, 'invalid_data',
-                                   len(window_dates) - n_missing_rows, 'invalid')
 
         susp_flags = (susp.reindex(window_dates).fillna(False).astype(bool)
                       if susp is not None else pd.Series(False, index=window_dates))
@@ -241,12 +255,11 @@ class MA200Criterion:
         window_dates = cal[-self.ma_window:]
 
         px = ctx.prices.get(ticker)
-        if px is None:
-            return CriterionResult(True, None, 'invalid_data', 0, 'invalid')
+        gap = _classify_gap(px, window_dates)
+        if gap is not None:
+            return gap
         window = px.reindex(window_dates)
         n_obs = int(window.notna().sum())
-        if window.isna().sum() > self.ma_window * 0.1:
-            return CriterionResult(True, None, 'invalid_data', n_obs, 'invalid')
 
         ma = float(window.dropna().mean())
         last_price = window.iloc[-1]
@@ -277,12 +290,11 @@ class Week52HighCriterion:
         window_dates = cal[-self.window:]
 
         px = ctx.prices.get(ticker)
-        if px is None:
-            return CriterionResult(True, None, 'invalid_data', 0, 'invalid')
+        gap = _classify_gap(px, window_dates)
+        if gap is not None:
+            return gap
         window = px.reindex(window_dates)
         n_obs = int(window.notna().sum())
-        if window.isna().sum() > self.window * 0.1:
-            return CriterionResult(True, None, 'invalid_data', n_obs, 'invalid')
 
         high = float(window.dropna().max())
         last_price = window.iloc[-1]
