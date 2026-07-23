@@ -531,8 +531,10 @@ formation·**추정 구간 전부** `<= signal_date`. 상폐 haircut은 v5.3 수
        ma_double adapter 는 기존 _momentum_filter() 호출로 구현(재작성 금지).
        미사용·오타 파라미터 즉시 예외.
 
-[MC-3] ★배관 게이트: F_pbr_ma_double_adapter == F_pbr_no_r3r4 완전 일치 증명(§4-5).
-       불일치 시 여기서 중단. 이 게이트 전에는 신규 criterion 결과를 신뢰하지 않는다.
+[MC-3] `[완료 — 2026-07-23]` ★배관 게이트: F_pbr_ma_double_adapter == F_pbr_no_r3r4
+       완전 일치 증명(§4-5). 완결 20구간 전부 portfolio/period_return/net_return/
+       turnover/모멘텀 통과·탈락 집합 완전 일치. metrics도 cagr=16.28%로 기존
+       공식 수치와 일치 — 신규 배관(prepare→evaluate→stats_key→tape) 신뢰 확보.
 
 [MC-4] 거래일 달력 anchor + 가격 일괄 조회 + 점수 precompute 캐시(§3-0c).
 
@@ -565,10 +567,12 @@ formation·**추정 구간 전부** `<= signal_date`. 상폐 haircut은 v5.3 수
 ## 8. 완료 체크리스트
 
 - [ ] MC-0 manifest(JSON) 커밋 — primary·문턱·규약·benchmark SHA-256 동결
-- [ ] MC-1 `[VERIFY]` 4건 확인 및 필요한 배관 수정 (거래정지/DB누락 구분 가능성 포함)
-- [ ] **MC-3 배관 게이트 통과** (adapter == 인컴번트 완전 일치)
+- [x] MC-1 `[VERIFY]` 4건 확인 및 필요한 배관 수정 완료 (거래정지/DB누락 구분 가능 확인, MomentumCriterionFilter/stats_key/compute_nav_cagr 신설)
+- [x] **MC-3 배관 게이트 통과** (2026-07-23 서버 실측: 완결 20구간 전부 portfolio·period_return·
+      net_return·turnover·momentum 통과/탈락 집합 완전 일치. `F_pbr_no_r3r4`/`F_pbr_ma_double_adapter`
+      metrics 동일: cagr=16.28%, net_cagr=15.10%, sharpe=0.5717, mdd=-30.73% — 기존 공식 수치와도 일치)
 - [ ] 거래일 달력 anchor 적용, skip이 A·D에만 적용됨을 테스트로 고정
-- [ ] `compute_nav_cagr()` — 기준 1.0 + 달력일, 기존 CAGR 부채와 동시 해결
+- [x] `compute_nav_cagr()` 신설 완료(backtest/metrics.py, 기준 1.0 + 달력일) — 오프라인 벤치마크 경로는 미착수
 - [ ] offline 벤치마크 실행 경로 + SHA-256 기록
 - [ ] Family A/B/C 실행 → daily-net + coverage + 탈락률/전환행렬
 - [ ] Family D-1 실행 (또는 coverage 미달 시 **보류 결정 기록**)
