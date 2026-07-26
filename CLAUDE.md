@@ -7,7 +7,10 @@ RIM(잔여이익모델) 기반 한국 주식 멀티팩터 백테스트 머신.
 
 ## 실행 환경
 - **코드 작성**: Windows 11 개발 PC (현재 디렉토리)
-- **실행**: Ubuntu 26.04 서버 `/opt/stock-backtest/` (SSH: milmelmul@172.30.1.96)
+- **실행**: Ubuntu 26.04 서버 `/opt/stock-backtest/`. SSH 접속 IP는 개발 PC 위치에 따라 다르다:
+  - 사무실 LAN 안: `milmelmul@172.30.1.96` (사설 IP, 같은 네트워크에서만 유효)
+  - 그 외 어디서든: `milmelmul@100.120.62.97` (Tailscale tailnet IP, `ytzinn@gmail.com` 계정. 2026-07 구성 —
+    서버·개발 PC 둘 다 Tailscale 클라이언트 필요, `tailscale status`로 두 노드 확인 가능)
 - **DB**: PostgreSQL 16, 포트 5433 (docker-compose.yml)
 - **Python**: `/opt/stock-backtest/venv/bin/python` (cron에서 절대경로 사용)
 
@@ -161,6 +164,8 @@ id, ticker, corp_code, year, report_type, fs_div, account_nm, amount, frmtrm_amo
 
 - **서버 SSH/SCP 명령은 반드시 PowerShell 툴로만 실행.** Bash 툴은 `$env:USERPROFILE` 구문을 인식 못 해 SSH 키 경로가 깨지고 `Host key verification failed`로 항상 실패한다.
 - **SSH**: 항상 `-i "$env:USERPROFILE\.ssh\id_ed25519"` 포함. 생략 시 인증 실패.
+- **접속 IP 선택**: 사무실 LAN 안이면 `172.30.1.96`, 그 외(원격) 이면 Tailscale IP `100.120.62.97` 사용.
+  둘 다 안 붙으면 개발 PC의 Tailscale 클라이언트가 꺼져 있거나 로그아웃된 상태일 수 있음 — `tailscale status`로 확인.
 - **psql 금지**: 서버 호스트 PATH에 psql 없음(Docker 내부 전용). DB 조회는 psycopg2 스크립트로.
 - **멀티라인 Python**: PowerShell→SSH 직접 전달 시 따옴표 3중 충돌로 항상 실패.
   패턴: `$script=@'...'@ | Out-File "$env:TEMP\t.py"` → `scp -i ... t.py :/tmp/t.py` → `ssh ... "venv/bin/python /tmp/t.py"`
