@@ -40,10 +40,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from backtest.configs.constants import COST_BUY, COST_SELL
 from backtest.configs.rebalance_dates import REBALANCE_DATES
 from backtest.daily_nav import daily_nav_for_period, stitch_periods
-from backtest.engine import BenchmarkDataUnavailable, _calc_turnover
+from backtest.engine import BenchmarkDataUnavailable, _calc_transaction_cost
 from backtest.metrics import compute_daily_metrics, compute_mdd
 from ingest.connection import get_connection
 
@@ -148,10 +147,11 @@ def run_tag(conn, tag: str, benchmarks: pd.DataFrame) -> dict:
         eng_tc    = float(eng['transaction_cost'])
         endpoint_returns.append(eng_gross)
 
-        # G-NAV-2: tape에서 turnover 재계산 → engine tc와 대조
-        turnover_re = _calc_turnover(prev_weights, weights)
-        tc_re       = turnover_re * (COST_SELL + COST_BUY)
-        pass2       = abs(tc_re - eng_tc) < TOL_TC
+        # G-NAV-2: tape에서 거래비용 재계산 → engine tc와 대조
+        # 엔진과 동일한 CORR-COST-001 산식(매수/매도 분리 + 시장별 매도요율)을 써야
+        # eng_tc와 일치한다. 구 combined 공식으로 재계산하면 신모델 tc와 어긋난다.
+        tc_re        = _calc_transaction_cost(conn, prev_weights, weights, rebal)
+        pass2        = abs(tc_re - eng_tc) < TOL_TC
         prev_weights = weights
 
         obs, nav, values = daily_nav_for_period(conn, weights, rebal, nxt)

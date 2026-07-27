@@ -183,6 +183,41 @@ def get_shares_outstanding(conn, ticker: str, as_of: date) -> int | None:
 
 # ── 종목 메타 ───────────────────────────────────────────────────────────────────
 
+def get_markets(conn, tickers, as_of: date) -> dict[str, str]:
+    """as_of 이하 최신 거래일 기준 종목별 시장 구분 ('KOSPI'|'KOSDAQ'). PIT.
+
+    1순위 `krx_daily_snapshot`(일별 PIT — 시장 이동을 실제 반영, 미래 앵커 포함),
+    누락분은 `stocks.market`(현재값) fallback. 둘 다 없으면 반환 dict에서 키 누락 →
+    호출자가 시장 미상으로 보고 sell_cost() 기본(KOSPI 상한)을 적용한다.
+    거래비용 산출(CORR-COST-001)의 시장별 매도요율 결정에만 쓴다 — 상폐 판정 금지.
+    """
+    tickers = list(dict.fromkeys(tickers))  # 중복 제거, 순서 보존
+    if not tickers:
+        return {}
+    out: dict[str, str] = {}
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT DISTINCT ON (ticker) ticker, market
+            FROM krx_daily_snapshot
+            WHERE ticker = ANY(%s) AND date <= %s AND market IS NOT NULL
+            ORDER BY ticker, date DESC
+            """,
+            (tickers, as_of),
+        )
+        for tk, mk in cur.fetchall():
+            out[tk] = mk
+        missing = [t for t in tickers if t not in out]
+        if missing:
+            cur.execute(
+                "SELECT ticker, market FROM stocks WHERE ticker = ANY(%s) AND market IS NOT NULL",
+                (missing,),
+            )
+            for tk, mk in cur.fetchall():
+                out[tk] = mk
+    return out
+
+
 def get_listed_date(conn, ticker: str) -> date | None:
     """stocks.listed_date 반환. 없으면 None (운영 DB의 92%가 NULL — CORR-HARD-001,
     백필 전까지 호출자는 get_first_price_date 프록시로 보완해야 한다)."""

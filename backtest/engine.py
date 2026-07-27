@@ -17,9 +17,10 @@ from datetime import date
 
 import pandas as pd
 
-from backtest.configs.constants import COST_BUY, COST_SELL, MIN_STOCKS_WARN
+from backtest.configs.constants import BUY_COST, MIN_STOCKS_WARN, sell_cost
 from backtest.data_access import (
     get_close_price,
+    get_markets,
     is_delisted_at,
     load_gate_passed_tickers,
     load_pit_series_ttm,
@@ -144,9 +145,11 @@ class BacktestEngine:
                 kospi_return  = _calc_kospi_return(rebal_date, next_date)
                 kosdaq_return = _calc_kosdaq_return(rebal_date, next_date)
 
-                # 거래비용 계산 (Gap-4·6)
-                turnover = _calc_turnover(prev_portfolio, portfolio)
-                tc       = turnover * (COST_SELL + COST_BUY)
+                # 거래비용 계산 (CORR-COST-001 — 매수/매도 분리 + 시장별 매도요율)
+                turnover = _calc_turnover(prev_portfolio, portfolio)  # 리포트용 combined 지표
+                tc       = _calc_transaction_cost(
+                    conn, prev_portfolio, portfolio, rebal_date
+                )
                 net_ret  = gross_ret - tc
 
                 period_results.append({
@@ -254,6 +257,37 @@ def _calc_turnover(prev: dict[str, float], curr: dict[str, float]) -> float:
         return 1.0 if curr else 0.0
     tickers = set(prev) | set(curr)
     return 0.5 * sum(abs(curr.get(t, 0.0) - prev.get(t, 0.0)) for t in tickers)
+
+
+def _calc_transaction_cost(
+    conn,
+    prev:    dict[str, float],
+    curr:    dict[str, float],
+    as_of:   date,
+) -> float:
+    """구간 거래비용 (CORR-COST-001, SPEC_04 §9-2).
+
+    매수/매도 회전율을 분리해 서로 다른 요율을 적용한다:
+      tc = buy_turnover × BUY_COST + Σ_t sell_turnover[t] × sell_cost(market[t])
+    - buy_turnover  = Σ max(w_new − w_old, 0)   — 매수 요율(양시장 공통).
+    - sell_turnover = 종목별 max(w_old − w_new, 0) — 시장별 매도 요율(as_of PIT 시장).
+    - **첫 진입(prev 없음)은 팔 종목이 없으므로 매수비용만** 부과된다(구 모델의 첫 진입
+      매도비용 오부과 = DEBT-4 수정). prev∪curr에 대해 Σw=1이면 buy=sell=0.5×Σ|Δw|.
+
+    시장 미상 종목은 sell_cost() 기본(KOSPI 상한)으로 보수 처리(get_markets 계약).
+    """
+    tickers = set(prev) | set(curr)
+    buy_turnover = sum(max(curr.get(t, 0.0) - prev.get(t, 0.0), 0.0) for t in tickers)
+    sell_deltas = {
+        t: prev.get(t, 0.0) - curr.get(t, 0.0)
+        for t in tickers
+        if prev.get(t, 0.0) > curr.get(t, 0.0)
+    }
+    markets = get_markets(conn, list(sell_deltas), as_of) if sell_deltas else {}
+    sell_cost_total = sum(
+        delta * sell_cost(markets.get(t)) for t, delta in sell_deltas.items()
+    )
+    return buy_turnover * BUY_COST + sell_cost_total
 
 
 def _calc_period_return(

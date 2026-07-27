@@ -32,6 +32,8 @@
 
 **처리 (TC-PRE)**: 요율을 사용자 확정. 코드를 바꾸면 인컴번트 `F_pbr_no_r3r4`를 동일 스냅샷에서 재실행해 **기준 net CAGR을 재고정**하고 그 값을 게이트 비교 대상으로 삼는다. **본 실행 전 완료 필수.**
 
+> **`[확정 2026-07-27]` M1 = SPEC_04 방향 (시장구분).** 매수 0.35%(양시장) / 매도 KOSPI 0.68%·KOSDAQ 0.53%. 코드 구현은 **CORR-COST-001**로 완료(핵심 경로: `constants.py`·`data_access.get_markets`·`engine._calc_transaction_cost`·`run_daily_nav` 교차검증). 시장 소스는 `krx_daily_snapshot`(PIT 일별) 1순위 + `stocks.market` fallback, 미상은 KOSPI 상한. **인컴번트 net CAGR 재고정(동결 스냅샷 재실행)은 TC-PRE(Q-A 승인 후 프로즌 단계)에서 수행** — 지금은 코드만. `run_random_pool`(§9-1 Q-G 승법 재작성)·`freeze_rebalance`(#24)·`scripts/audit`는 legacy combined 상수 유지로 미변경.
+
 `[Claude 의견]` 재기준화는 **QG1·QG2·QG3 전체의 선행 조건**이다 — 후보·랜덤·EW의 회전율이 서로 달라 비용모델이 세 게이트를 전부 바꾼다.
 
 ### DEBT-2. TTM 연도 위치 정렬 `[검증된 코드 사실]` — §4의 핵심
@@ -909,7 +911,7 @@ QG5-PROD는 "캘린더가 좋은가"의 증거가 아니라 "프로덕션 후보
 
 | # | 항목 | 선택지 | 결정 시점 |
 |---|---|---|---|
-| M1 | **TC-PRE 요율** | 현 0.68%(characterization) 유지 / SPEC_04 방향(왕복~1.03%, 시장구분) | **DEBT-1/4. Q-A 승인 후 본 실행 전.** 확정 시 인컴번트 재기준화 |
+| M1 | **TC-PRE 요율** | **`[확정 2026-07-27]` SPEC_04 방향(왕복 KOSPI 1.03%/KOSDAQ 0.88%, 시장구분)** — CORR-COST-001 핵심경로 코드 구현 완료. 인컴번트 재고정만 TC-PRE(프로즌) 대기 | 확정됨 |
 | M2 | fixture `thstrm_add_amount` 결측 시 fallback 정책 | `thstrm_amount` 사용 / 결측 처리 | Q-A 착수 전 (§4-2b) |
 | M3 | 원문 대조 임계치 | 99% / 다른 값 | Q-A 착수 전 (중단 조건) |
 | M4 | 공통 기간 `S`·`E` 실제 날짜 | — | **Q-B 완료 직후, 성과 산출 전** 기계적 대입 (§9-2b) |
