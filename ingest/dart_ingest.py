@@ -41,8 +41,10 @@ REPRT_CODE = {
     'Q3': '11014',
 }
 
-# 수집 대상 보고서 (Phase 0: FY + H1만, Q1/Q3는 Phase 1 이후)
-TARGET_REPORTS = ('FY', 'H1')
+# 명시적 요청(only_reports) 없을 때의 기본 수집 범위. Q1/Q3는 _get_valid_collection_targets가
+# 유효 대상으로 잡더라도 여기 없으면 수집하지 않는다 — 코드 배포만으로 조용히 쿼터 소모가
+# 2배로 늘어나는 것을 막는 안전장치(SPEC_13 §10 M5, Q-A 실제 착수는 별도 명시 요청 필요).
+DEFAULT_REPORTS = ('FY', 'H1')
 
 # 표준 계정명 매핑 — DART account_nm → 내부 표준명
 # 순서가 중요: 더 구체적인 패턴을 먼저 배치
@@ -569,6 +571,24 @@ def _classify_disclosure(report_nm: str, rcept_date):
     return None, None
 
 
+def _years_needing_disclosures(
+    collect_targets: list[tuple[int, str]],
+    have_types_by_year: dict[int, set[str]],
+) -> list[int]:
+    """collect_targets 중 DB에 이미 확보된 report_type로 전부 커버되지 않는 연도만 반환.
+
+    VERIFY-INGEST-005 수정의 핵심 판단 로직 — only_reports가 지정돼도 그 연도의
+    report_type 공시를 아직 한 번도 못 받았으면 스킵하지 않는다.
+    """
+    needed_by_year: dict[int, set[str]] = {}
+    for yr, rt in collect_targets:
+        needed_by_year.setdefault(yr, set()).add(rt)
+    return sorted(
+        yr for yr, needed in needed_by_year.items()
+        if not needed <= have_types_by_year.get(yr, set())
+    )
+
+
 def _upsert_disclosures(cur, ticker: str, items: list[dict]) -> None:
     """공시 목록 → disclosures 테이블 upsert."""
     for item in items:
@@ -622,6 +642,13 @@ def _get_valid_collection_targets(ticker: str, conn) -> list[tuple[int, str]]:
     날짜 매핑:
       4월 snapshot → ('FY', snapshot_year - 1)  # 사업보고서
       8월 snapshot → ('H1', snapshot_year)       # 반기보고서
+
+    Q1/Q3는 대응하는 snapshot 월(5월·11월)이 존재하지 않는다
+    [검증된 사실 — 2026-07-27 서버 DB 조회: krx_listing_snapshots는 4월·8월만 존재].
+    스냅샷 월 기반 생성이 불가능하므로 **상장 구간 ∩ 연도 범위** 방식으로 파생한다:
+    해당 연도에 FY 또는 H1 스냅샷이 있으면(=그 사업연도에 상장 상태였음이 확인되면)
+    같은 연도의 Q1·Q3도 유효 수집 대상으로 본다. Q1/Q3가 실제로 존재하는지(공시 여부)는
+    여기서 판정하지 않는다 — DART가 없으면 get_financial_statement이 빈 응답을 반환할 뿐이다.
     """
     cur = conn.cursor()
     cur.execute(
@@ -632,15 +659,21 @@ def _get_valid_collection_targets(ticker: str, conn) -> list[tuple[int, str]]:
     if not rows:
         return []
 
-    targets: set[tuple[int, str]] = set()
+    fy_h1_targets: set[tuple[int, str]] = set()
     for (d,) in rows:
         if d.month == 4:
-            targets.add((d.year - 1, 'FY'))
+            fy_h1_targets.add((d.year - 1, 'FY'))
         elif d.month == 8:
-            targets.add((d.year, 'H1'))
+            fy_h1_targets.add((d.year, 'H1'))
         else:
             log.warning(f'{ticker}: 예상치 못한 snapshot_date {d} — FY fallback')
-            targets.add((d.year - 1, 'FY'))
+            fy_h1_targets.add((d.year - 1, 'FY'))
+
+    listed_years = {yr for yr, _ in fy_h1_targets}
+    targets = set(fy_h1_targets)
+    for yr in listed_years:
+        targets.add((yr, 'Q1'))
+        targets.add((yr, 'Q3'))
 
     return sorted(targets)
 
@@ -650,7 +683,9 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
                     only_reports: tuple[str, ...] = ()) -> None:
     """단일 회사 재무제표 + 공시 수집.
 
-    only_reports: 비어있으면 전체(FY+H1), 지정하면 해당 report_type만 수집.
+    only_reports: 비어있으면 DEFAULT_REPORTS(FY+H1), 지정하면 해당 report_type만 수집.
+                  Q1/Q3는 _get_valid_collection_targets가 유효 대상으로 잡아도 여기서
+                  명시(예: ('Q1','Q3'))해야 실제로 수집된다(DEFAULT_REPORTS 안전장치).
                   H1-only 재수집 시 fs_div를 DB에서 읽어 probe API 콜 절약.
     """
     end_year = date.today().year
@@ -675,33 +710,48 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
             )
             return
 
-        # only_reports 필터 적용
-        if only_reports:
-            collect_targets = [(yr, rt) for yr, rt in valid_targets if rt in only_reports]
-        else:
-            collect_targets = valid_targets
+        # only_reports 필터 적용 — 비어있으면 DEFAULT_REPORTS(FY+H1)로 제한.
+        # valid_targets에는 Q1/Q3가 포함되지만 명시 요청 없이는 수집하지 않는다.
+        active_report_types = only_reports if only_reports else DEFAULT_REPORTS
+        collect_targets = [(yr, rt) for yr, rt in valid_targets if rt in active_report_types]
 
         if not collect_targets:
             return
 
-        # H1-only 모드: FY 데이터 없는 종목은 건너뜀 (status 유지 → 전체 재수집 대상으로 남김)
+        # FY 미포함 모드(H1-only, Q1/Q3-only 등): fs_div 결정이 기존 FY 데이터에 의존하므로
+        # FY 없는 종목은 건너뜀 (status 유지 → 전체 재수집 대상으로 남김)
         if only_reports and 'FY' not in only_reports:
             cur.execute(
                 "SELECT 1 FROM financials WHERE ticker=%s AND report_type='FY' LIMIT 1",
                 (ticker,),
             )
             if not cur.fetchone():
-                log.info(f'{ticker}: H1-only 모드 — FY 데이터 없음, 건너뜀 (전체 재수집 필요)')
+                log.info(f'{ticker}: only_reports={only_reports} — FY 데이터 없음, 건너뜀 (전체 재수집 필요)')
                 return
 
-        valid_years = sorted({yr for yr, _ in valid_targets})
+        # 공시 목록 수집.
+        # 전체 수집(only_reports 없음)은 기존과 동일하게 매번 재수집 — 정정공시 갱신 포착 목적.
+        # only_reports 모드는 예전엔 무조건 스킵했는데(API 콜 절약), 그러면 한 번도
+        # disclosures를 수집한 적 없는 report_type(예: Q1/Q3 최초 도입)에서 공시일이 영영
+        # 저장 안 돼 fallback_used=TRUE가 대량 발생한다 — H1 52% 누락 사태의 재현
+        # (VERIFY-INGEST-005). 이미 확보한 연도만 정확히 걸러내 그 위험만 없앤다.
+        if only_reports:
+            target_years = sorted({yr for yr, _ in collect_targets})
+            have_types_by_year: dict[int, set[str]] = {}
+            for year in target_years:
+                cur.execute(
+                    "SELECT DISTINCT report_type FROM disclosures WHERE ticker=%s AND year=%s",
+                    (ticker, year),
+                )
+                have_types_by_year[year] = {row[0] for row in cur.fetchall()}
+            years_to_fetch = _years_needing_disclosures(collect_targets, have_types_by_year)
+        else:
+            years_to_fetch = sorted({yr for yr, _ in collect_targets})
 
-        # 공시 목록 수집 — only_reports 지정 시 스킵 (API 콜 절약)
-        if not only_reports:
-            for year in valid_years:
-                disclosures = dart.get_disclosures(corp_code, year)
-                _upsert_disclosures(cur, ticker, disclosures)
-                time.sleep(0.05)
+        for year in years_to_fetch:
+            disclosures = dart.get_disclosures(corp_code, year)
+            _upsert_disclosures(cur, ticker, disclosures)
+            time.sleep(0.05)
 
         # fs_div 결정
         # only_reports 지정 시: DB 기존 FY 데이터에서 읽어 probe 콜 절약
@@ -785,7 +835,8 @@ def ingest_all(skip_if_done: bool = False, max_tickers: int = 0,
     """stocks 테이블 전종목 DART 수집 (14일+ 분산 실행).
 
     max_tickers > 0 이면 해당 수만큼만 처리하고 중단 (파일럿/일별 분산용).
-    only_reports: 비어있으면 전체, ('H1',) 이면 H1만 재수집 (FY 보존).
+    only_reports: 비어있으면 DEFAULT_REPORTS(FY+H1), ('H1',) 이면 H1만 재수집 (FY 보존),
+                  ('Q1','Q3') 이면 분기만 명시 수집 (Q-A1, SPEC_13 §5-7).
     """
     dart = DartAPI()
 
@@ -853,11 +904,20 @@ def main() -> None:
     parser.add_argument('--ticker', help='단일 종목 테스트')
     parser.add_argument('--h1-only', action='store_true',
                         help='H1(반기) 데이터만 재수집. FY 보존, fs_div는 DB에서 읽음')
+    parser.add_argument('--only-reports', nargs='+', choices=['FY', 'H1', 'Q1', 'Q3'],
+                        help='명시한 report_type만 수집 (예: --only-reports Q1 Q3). '
+                             'DEFAULT_REPORTS(FY+H1) 안전장치를 우회하는 유일한 경로 — '
+                             'Q1/Q3 실제 수집(쿼터 소모)은 반드시 이 플래그로 명시한다.')
     args = parser.parse_args()
     if args.skip_if_done:
         configure_logging('dart_retry.log')
 
-    only_reports: tuple[str, ...] = ('H1',) if args.h1_only else ()
+    if args.only_reports:
+        only_reports: tuple[str, ...] = tuple(args.only_reports)
+    elif args.h1_only:
+        only_reports = ('H1',)
+    else:
+        only_reports = ()
 
     dart = DartAPI()
 
