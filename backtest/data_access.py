@@ -314,22 +314,24 @@ def load_gate_passed_tickers(
         return [row[0] for row in cur.fetchall()]
 
 
-def load_pit_series(
+def load_pit_by_year(
     conn,
     rebalance_date: date,
     n_years: int = 3,
     report_type: str = 'FY',
-) -> dict[str, list[dict]]:
+) -> dict[str, dict[int, dict]]:
     """
-    universe_gate_pit PASS 종목 전체에 대해 rebalance_date 기준
-    최신 n_years 개 PIT 데이터를 로드.
+    universe_gate_pit PASS 종목 전체에 대해 rebalance_date 기준 최신 n_years 개
+    PIT 데이터를 **연도 키 dict**로 로드 (DEBT-2 — 위치 정렬 버그 방지).
 
-    반환: {ticker: [현재dict, t-1dict, t-2dict]}
+    반환: {ticker: {year: {account_nm: amount}}}
       - available_from <= rebalance_date 조건 (룩어헤드 방지)
-      - report_type: 'FY' (4월 리밸런싱) 또는 'H1' (8월 리밸런싱)
+      - report_type: 'FY'|'H1'|'Q1'|'Q3'
       - CFS(연결) 우선, OFS(별도) fallback
-      - 각 dict는 {account_nm: amount} flat dict
-      - 연도가 부족한 종목은 리스트 길이가 짧아짐
+      - 정정 PIT(amendment_from/original_amount) 규칙은 SQL에서 적용
+
+    load_pit_series_ttm 이 위치가 아니라 명시적 연도로 조회하기 위한 내부 SSOT.
+    외부 계약(위치 리스트)은 load_pit_series 가 이 dict를 collapse해 유지한다.
     """
     with conn.cursor() as cur:
         cur.execute(
@@ -386,12 +388,26 @@ def load_pit_series(
     for ticker, year, account_nm, amount in rows:
         if amount is not None:
             raw[ticker][year][account_nm] = float(amount)
+    return {ticker: dict(year_dict) for ticker, year_dict in raw.items()}
 
+
+def load_pit_series(
+    conn,
+    rebalance_date: date,
+    n_years: int = 3,
+    report_type: str = 'FY',
+) -> dict[str, list[dict]]:
+    """
+    최신 n_years 개 PIT 데이터를 **위치 리스트**로 로드 (외부 계약 유지).
+
+    반환: {ticker: [현재dict, t-1dict, t-2dict]}  (연도 내림차순, 연도가 부족하면 짧아짐)
+    load_pit_by_year 를 collapse한 얇은 뷰다. 계약·PIT 규칙은 load_pit_by_year 참조.
+    """
+    by_year = load_pit_by_year(conn, rebalance_date, n_years=n_years, report_type=report_type)
     result: dict[str, list[dict]] = {}
-    for ticker, year_dict in raw.items():
+    for ticker, year_dict in by_year.items():
         sorted_years = sorted(year_dict.keys(), reverse=True)[:n_years]
         result[ticker] = [year_dict[yr] for yr in sorted_years]
-
     return result
 
 
@@ -401,59 +417,58 @@ def load_pit_series_ttm(
     report_type: str = 'FY',
 ) -> dict[str, list[dict]]:
     """
-    TTM(Trailing Twelve Months) 적용 PIT 시계열 로드.
+    TTM(Trailing Twelve Months) 적용 PIT 시계열 — 외부 계약 [current, prev, prev2].
 
-    FY 리밸런싱(4월): load_pit_series(n_years=3) 그대로 반환.
-    H1 리밸런싱(8월): TTM = FY_prev − H1_prev + H1_curr 공식 적용.
-      반환 리스트: [ttm_curr, ttm_prev, ttm_pp] — 3개 (stability_filter series[2] 사용)
-      BS 계정(자산·부채·자본)은 H1_curr 그대로 사용.
+    **DEBT-2 (§4-2): 위치가 아니라 명시적 사업연도로 조회한다.** 완전 데이터 종목은
+    종전과 동일값(QG0 오라클 대상). 중간 연도 결측 종목은 종전의 조용한 오조합
+    (예: FY_2021 − H1_2020 + H1_2022) 대신 해당 연도의 TTM 계정을 비운다.
+    중간보고서 연율화(H1×2 등)는 전면 폐지 — _make_ttm 참조.
+
+    - FY 리밸런싱(4월): 최신 FY 연도 y_f 앵커. [FY_{y_f}, FY_{y_f-1}, FY_{y_f-2}].
+    - H1 리밸런싱(8월): 최신 H1 연도 y_c 앵커. [TTM_{y_c}, TTM_{y_c-1}, TTM_{y_c-2}],
+      TTM_y = FY_{y-1} − H1_{y-1} + H1_y (IS/CF), BS는 H1_y 스냅샷.
+    각 원소는 항상 그 연도에 대응 — 결측 연도는 빈 dict(소비처가 .get으로 흡수).
     """
     if report_type == 'FY':
-        return load_pit_series(conn, rebalance_date, n_years=3, report_type='FY')
+        # 갭이 있어도 y_f-2 까지 닿도록 여유분(n_years=4) 확보
+        fy_by_year = load_pit_by_year(conn, rebalance_date, n_years=4, report_type='FY')
+        result: dict[str, list[dict]] = {}
+        for ticker, year_dict in fy_by_year.items():
+            y_f = max(year_dict)
+            result[ticker] = [year_dict.get(y_f - k, {}) for k in range(3)]
+        return result
 
-    # H1: TTM 3개 생성하려면 h1 4개, fy 3개 필요
-    h1_series = load_pit_series(conn, rebalance_date, n_years=4, report_type='H1')
-    fy_series = load_pit_series(conn, rebalance_date, n_years=3, report_type='FY')
+    # H1: TTM_{y_c..y_c-2} 를 만들려면 H1 는 y_c..y_c-3, FY 는 y_c-1..y_c-3 필요
+    fy_by_year = load_pit_by_year(conn, rebalance_date, n_years=4, report_type='FY')
+    h1_by_year = load_pit_by_year(conn, rebalance_date, n_years=4, report_type='H1')
 
-    result: dict[str, list[dict]] = {}
-    for ticker, h1_list in h1_series.items():
-        h1c   = h1_list[0] if len(h1_list) > 0 else {}
-        h1p   = h1_list[1] if len(h1_list) > 1 else {}
-        h1pp  = h1_list[2] if len(h1_list) > 2 else {}
-        h1ppp = h1_list[3] if len(h1_list) > 3 else {}
-        fy    = fy_series.get(ticker, [])
-        fyp   = fy[0] if len(fy) > 0 else {}
-        fypp  = fy[1] if len(fy) > 1 else {}
-        fyppp = fy[2] if len(fy) > 2 else {}
-
+    result = {}
+    for ticker, h1_years in h1_by_year.items():
+        y_c = max(h1_years)
+        fy_years = fy_by_year.get(ticker, {})
         result[ticker] = [
-            _make_ttm(fyp,   h1c,  h1p,   ticker),
-            _make_ttm(fypp,  h1p,  h1pp,  ticker),
-            _make_ttm(fyppp, h1pp, h1ppp, ticker),
+            _make_ttm(fy_years.get(y - 1, {}), h1_years.get(y, {}), h1_years.get(y - 1, {}), ticker)
+            for y in (y_c, y_c - 1, y_c - 2)
         ]
-
     return result
 
 
-def _make_ttm(fy_d: dict, h1_curr: dict, h1_prev: dict, ticker: str) -> dict:
+def _make_ttm(fy_prev: dict, h1_curr: dict, h1_prev: dict, ticker: str) -> dict:
     """
-    TTM = FY_prev − H1_prev + H1_curr (IS/CF 계정만).
-    BS 계정은 h1_curr 그대로.
-    FY 없으면 H1×2 fallback.
+    TTM_y = FY_{y-1} − H1_{y-1} + H1_y (IS/CF 계정만). BS 계정은 H1_y 스냅샷 그대로.
+
+    **DEBT-2: 연율화 fallback 전면 폐지.** FY_{y-1}·H1_{y-1}·H1_y 세 값 중 하나라도
+    없으면 그 TTM 계정을 만들지 않는다(계정 없음). 종전의 'FY 없으면 H1×2'는
+    회계 계절성을 왜곡하는 오류였다(§4-2b). 소비처(필터)가 계정 부재를 흡수한다.
+    인자명 fy_prev/h1_curr/h1_prev = 각각 FY_{y-1}/H1_y/H1_{y-1}.
     """
     result = dict(h1_curr)
     for acct in _IS_CF_ACCOUNTS:
-        fy_val  = fy_d.get(acct)
+        fy_val  = fy_prev.get(acct)
         h1c_val = h1_curr.get(acct)
         h1p_val = h1_prev.get(acct)
-        if fy_val is not None:
-            if h1c_val is not None and h1p_val is not None:
-                result[acct] = fy_val - h1p_val + h1c_val
-            else:
-                result.pop(acct, None)
-        elif h1c_val is not None:
-            log.debug('%s %s: FY 없어 H1×2 fallback', ticker, acct)
-            result[acct] = h1c_val * 2
+        if fy_val is not None and h1c_val is not None and h1p_val is not None:
+            result[acct] = fy_val - h1p_val + h1c_val
         else:
             result.pop(acct, None)
     return result

@@ -47,6 +47,8 @@ load_pit_series_ttm()  → 외부용 {ticker: [current, previous, previous2]}  (
 ```
 현재 필터들이 `[현재, t-1, t-2]` 위치 계약에 의존하므로 **공개 인터페이스를 바꾸면 수정 범위가 폭증한다.** 내부만 연도 키로 정확 조회하고 외부 계약은 그대로 둔다. `TTM_y = FY_{y-1} − interim_{y-1} + interim_y`를 명시적 연도 조회로 계산. 이 리팩터링도 인컴번트 H1 수치를 바꿀 수 있으므로 선행 PR로 분리하고, QG0은 이 위에서 돈다(§8).
 
+> **`[구현 완료 2026-07-27]` CORR-TTM-001.** `load_pit_by_year()`(연도 키 내부 SSOT) 신설, `load_pit_series()`는 그 위의 위치 뷰(외부 계약 유지), `load_pit_series_ttm()`은 명시적 연도 앵커(FY=`y_f..y_f-2`, H1=`TTM_{y_c..y_c-2}`)로 재작성. `_make_ttm` 연율화(H1×2) 폐지. FY·H1 모두 연도 앵커라 **완전 데이터 종목은 종전과 비트 동일**(QG0 오라클 #1·#3 대상), 갭 종목만 오조합 제거. 오라클 `tests/oracle/test_ttm_oracle.py` 8건 추가. 인컴번트 재고정은 TC-PRE(프로즌)와 함께.
+
 ### DEBT-3. 게이트 시점 선택 — `fiscal_year` 부재 `[검증된 코드 사실]`
 
 `load_gate_passed_tickers`는 `DISTINCT ON (ticker) ... ORDER BY year DESC`로 **"available한 것 중 최신 연도"**를 고른다(테스트 I-5 통과). 최신 연도 선택·PIT 인지 자체는 정상이다.
