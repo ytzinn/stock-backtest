@@ -10,6 +10,7 @@ import argparse
 import io
 import logging
 import os
+import re
 import time
 import xml.etree.ElementTree as ET
 import zipfile
@@ -529,33 +530,67 @@ def _check_frmtrm_consistency(cur, ticker: str, year: int,
             )
 
 
+def _classify_disclosure(report_nm: str, rcept_date):
+    """공시 report_nm → (report_type, period_year|None).
+
+    VERIFY-INGEST-001 (2026-07-27 서버 DART API 실호출 확정): DART list.json의 분기보고서
+    report_nm은 Q1·Q3 모두 리터럴이 동일한 "분기보고서 (YYYY.MM)"이고 괄호 안 대상월로만
+    구분된다. "1분기보고서"/"3분기보고서" 문자열은 존재하지 않는다.
+
+    - 사업보고서 → FY, 반기보고서 → H1 (기존과 동일. period_year=None → 호출부가 rcept_dt 역산 유지).
+    - 분기보고서 → Q1/Q3. 1순위 (YYYY.MM) 대상월 파싱(.03→Q1, .09→Q3, 12월 결산 가정),
+      파싱 실패 시 rcept_dt 접수 구간 fallback(Q1=4~8월, Q3=10~익2월). 이때 period_year를
+      대상월 파싱값으로 반환해 지연·정정 접수의 연도 오분류를 막는다.
+    - 카테고리 substring 매칭이라 '[기재정정]사업보고서' 등 정정 접두는 자동 흡수된다.
+    """
+    if '사업보고서' in report_nm:
+        return 'FY', None
+    if '반기보고서' in report_nm:
+        return 'H1', None
+    if '분기보고서' not in report_nm:
+        return None, None
+
+    # 분기보고서 — 대상월 (YYYY.MM) 파싱 우선
+    m = re.search(r'\((\d{4})\.(\d{2})\)', report_nm)
+    if m:
+        period_year, period_month = int(m.group(1)), int(m.group(2))
+        if period_month == 3:
+            return 'Q1', period_year
+        if period_month == 9:
+            return 'Q3', period_year
+        # {3,9} 밖 = 비12월 결산 분기보고서 → §5-6(VERIFY-INGEST-004)에서 별도 처리
+    # 파싱 실패/비표준 — rcept_dt 접수 구간 fallback (stock-analysis _REPRT_DATE_RANGES 이식)
+    if rcept_date is not None:
+        mo = rcept_date.month
+        if 4 <= mo <= 8:
+            return 'Q1', None
+        if mo >= 10 or mo <= 2:
+            return 'Q3', None
+    return None, None
+
+
 def _upsert_disclosures(cur, ticker: str, items: list[dict]) -> None:
     """공시 목록 → disclosures 테이블 upsert."""
-    reprt_nm_map = {
-        '사업보고서': 'FY', '반기보고서': 'H1',
-        '1분기보고서': 'Q1', '3분기보고서': 'Q3',
-    }
     for item in items:
         rcept_no  = (item.get('rcept_no')  or '').strip()
         report_nm = (item.get('report_nm') or '').strip()
         rcept_dt  = (item.get('rcept_dt')  or '').strip()
         bsns_year = item.get('bsns_year')
 
-        report_type = None
-        for k, v in reprt_nm_map.items():
-            if k in report_nm:
-                report_type = v
-                break
-        if not rcept_no or not report_type:
-            continue
-
         try:
             rcept_date = datetime.strptime(rcept_dt, '%Y%m%d').date() if rcept_dt else None
         except ValueError:
             rcept_date = None
 
+        report_type, period_year = _classify_disclosure(report_nm, rcept_date)
+        if not rcept_no or not report_type:
+            continue
+
         if bsns_year:
             year = int(bsns_year)
+        elif period_year is not None:
+            # 분기보고서: (YYYY.MM) 대상월 파싱 연도 우선 (지연·정정 접수 연도 오분류 방지)
+            year = period_year
         elif rcept_date:
             # list.json API는 bsns_year를 반환하지 않으므로 rcept_dt에서 역산
             # FY: 3~6월 접수 → 전년도 결산, H1/Q1/Q3: 접수연도 = 사업연도
