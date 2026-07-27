@@ -649,6 +649,14 @@ def _get_valid_collection_targets(ticker: str, conn) -> list[tuple[int, str]]:
     해당 연도에 FY 또는 H1 스냅샷이 있으면(=그 사업연도에 상장 상태였음이 확인되면)
     같은 연도의 Q1·Q3도 유효 수집 대상으로 본다. Q1/Q3가 실제로 존재하는지(공시 여부)는
     여기서 판정하지 않는다 — DART가 없으면 get_financial_statement이 빈 응답을 반환할 뿐이다.
+
+    현재 연도(올해) 보정: 사업연도 Y의 FY 스냅샷은 Y+1년 4월에야 찍히므로, 스냅샷만
+    쓰면 가장 최근 연도(예: 2026)가 항상 한 해 늦게 listed_years에 들어온다. 그 사이
+    2026년 Q1(예: SPEC_13 §7-1 2026-05-20 앵커) 같은 최신 앵커가 데이터 공백이 된다
+    [파일럿 확인 2026-07-27: 005930 Q1/Q3가 2016~2025만 채워지고 2026 Q1은 disclosures에
+    있는데도 financials가 비어 있었음]. 그래서 스냅샷 존재가 확인된 종목이면(=상장 이력
+    자체는 있음) 올해도 항상 후보에 포함한다 — 실제 상폐 등으로 데이터가 없으면
+    get_financial_statement이 빈 응답을 반환할 뿐이라 과잉수집 위험은 없다.
     """
     cur = conn.cursor()
     cur.execute(
@@ -670,6 +678,7 @@ def _get_valid_collection_targets(ticker: str, conn) -> list[tuple[int, str]]:
             fy_h1_targets.add((d.year - 1, 'FY'))
 
     listed_years = {yr for yr, _ in fy_h1_targets}
+    listed_years.add(date.today().year)
     targets = set(fy_h1_targets)
     for yr in listed_years:
         targets.add((yr, 'Q1'))

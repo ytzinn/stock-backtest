@@ -56,12 +56,38 @@ def test_collection_targets_derives_q1_q3_from_fy_h1_years():
     # 있고 H1(2024) 스냅샷이 없는 경우에도 그 연도의 Q1/Q3는 파생돼야 한다(상장 구간 가정).
 
 
-def test_collection_targets_only_fy_year_still_derives_that_years_q1_q3():
+def test_collection_targets_only_fy_year_still_derives_that_years_q1_q3(monkeypatch):
     """H1 스냅샷 없이 FY 스냅샷만 있는 연도도 Q1/Q3가 파생된다(신규상장 초년도 등)."""
+    _freeze_today(monkeypatch, 2019, 6, 1)  # 현재연도 보정과 fy_h1 연도가 겹치게 고정
     conn = _FakeConn([(date(2020, 4, 6),)])
     targets = _get_valid_collection_targets('123456', conn)
 
     assert targets == sorted([(2019, 'FY'), (2019, 'Q1'), (2019, 'Q3')])
+
+
+def test_collection_targets_always_includes_current_year(monkeypatch):
+    """§5-4 파일럿(2026-07-27, 005930)에서 실제로 발견된 갭의 회귀 방지.
+
+    사업연도 Y의 FY 스냅샷은 Y+1년 4월에야 찍히므로, 스냅샷 기반 연도만 쓰면 가장 최근
+    연도(예: 2026)의 Q1/Q3가 영원히 대상에서 빠진다(2026 Q1은 실제로 disclosures에 있는데
+    financials 수집 대상에서는 누락됐었음). 현재 연도는 항상 포함해야 한다.
+    """
+    _freeze_today(monkeypatch, 2026, 7, 27)
+    # 가장 최신 FY 스냅샷은 2026-04-03 → FY 대상 연도는 2025까지만 (2026은 미도래)
+    conn = _FakeConn([(date(2025, 4, 3),), (date(2025, 8, 19),)])
+    targets = _get_valid_collection_targets('005930', conn)
+
+    assert (2026, 'Q1') in targets
+    assert (2026, 'Q3') in targets
+
+
+def _freeze_today(monkeypatch, year, month, day):
+    class _FixedDate(date):
+        @classmethod
+        def today(cls):
+            return date(year, month, day)
+
+    monkeypatch.setattr('ingest.dart_ingest.date', _FixedDate)
 
 
 def test_collection_targets_empty_snapshot_returns_empty():
