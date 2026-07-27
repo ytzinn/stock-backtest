@@ -727,6 +727,23 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
         if not collect_targets:
             return
 
+        # only_reports 모드는 skip_if_done을 쓰지 않는다(ingest_all 참조 — ticker 단위
+        # ingest_status가 FY+H1 최초 수집 시점에 이미 'done'이라 그걸 기준으로 스킵하면
+        # only_reports 요청 자체가 전부 걸러진다). 그 대신 ingest_status_reports(migration v9,
+        # report_type 단위)로 완료 여부를 직접 판단한다.
+        # financials 테이블 내용으로 "대상이 다 있는지" 추론하는 방식은 쓰지 않는다 — 오래된
+        # 연도(DART에 원래 데이터 없음)·아직 마감 안 된 최신 분기 때문에 그 방식은 영원히
+        # "미완료"로 잡혀 매번 처음부터 재수집하게 된다(2026-07-27 파일럿에서 확인).
+        if only_reports:
+            cur.execute(
+                "SELECT report_type FROM ingest_status_reports WHERE ticker=%s AND report_type = ANY(%s)",
+                (ticker, list(only_reports)),
+            )
+            done_types = {row[0] for row in cur.fetchall()}
+            if set(only_reports) <= done_types:
+                log.info(f'{ticker}: only_reports={only_reports} 전부 이전에 완료됨 — 건너뜀')
+                return
+
         # FY 미포함 모드(H1-only, Q1/Q3-only 등): fs_div 결정이 기존 FY 데이터에 의존하므로
         # FY 없는 종목은 건너뜀 (status 유지 → 전체 재수집 대상으로 남김)
         if only_reports and 'FY' not in only_reports:
@@ -819,6 +836,23 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
             """,
             (ticker,),
         )
+
+        # only_reports 모드는 report_type 단위 완료도 기록 (다일 분산 실행 재개용, migration v9).
+        # collect_targets에 실제로 등장한 report_type만 완료 처리 — only_reports에 있어도
+        # 이 종목에 해당 report_type의 유효 대상 자체가 없었으면 완료로 잘못 기록하지 않는다.
+        if only_reports:
+            attempted_types = sorted({rt for _, rt in collect_targets})
+            cur.executemany(
+                """
+                INSERT INTO ingest_status_reports (ticker, report_type, status, last_attempt)
+                VALUES (%s, %s, 'done', now())
+                ON CONFLICT (ticker, report_type) DO UPDATE SET
+                    status       = 'done',
+                    last_attempt = now()
+                """,
+                [(ticker, rt) for rt in attempted_types],
+            )
+
         log.info(f'{ticker} 완료: {total}개 계정 저장 ({len(collect_targets)}쌍 대상)')
 
 
