@@ -340,10 +340,16 @@
 - **Pass 1 판정**: P1 유지 — 실측 핵심 계정 CFS/OFS 값 충돌 0건으로 현재 무해 [검증된 사실].
   계약 명문화(재무제표 단위 vs 계정 단위)만 필요.
 
-### CORR-METRIC-003 — compute_sharpe zero-variance 가드가 잘못된 변수 검사
-- **Pass 1 판정**: **P2로 확정** (Pass 0C 잠정 P2~P1 → P2). 상수 수익률 시계열은 실데이터에서
+### CORR-METRIC-003 — compute_sharpe zero-variance 가드가 잘못된 변수 검사 — **해소됨 (2026-07-27, SPEC_13 세션)**
+- **Pass 1 판정**: P2로 확정 (Pass 0C 잠정 P2~P1 → P2). 상수 수익률 시계열은 실데이터에서
   발생 불가, inf는 조용하지 않고 요란함. 가드 결함 자체는 사실 [검증된 사실].
-- **Evidence**: `tests/oracle/test_metrics_oracle.py::test_sharpe_zero_variance_returns_zero`(의도적 실패)
+- **원인**: 가드가 `returns.std() == 0`을 검사하지만 나눗셈은 `excess.std()`(RF 시프트 후)로
+  수행. `[0.05, 0.05, 0.05]` 같은 상수 입력에서 `returns.std()`는 부동소수점 잔차(~8.5e-18,
+  비영)를, `excess.std()`는 정확히 0.0을 내 가드를 피해가며 0으로 나눠 inf 발생.
+- **수정**: `backtest/metrics.py::compute_sharpe` — 가드를 실제 나누는 변수(`excess_std`)로
+  교체. `tests/oracle/test_metrics_oracle.py::test_sharpe_zero_variance_returns_zero` green.
+  fast 스위트 164개 전부 통과(회귀 없음). 순수 함수(DB 미의존)라 통합 테스트 대상 아님 —
+  로컬 Docker 미가동으로 실행도 미수행.
 
 ### 기타 P1 (Pass 0A 발견, 재검토 유지)
 - DOC-ABL-002: CANONICAL 오라벨 (phase2_rim.py:55 주석 "F_momentum_rim" → 실제 F_no_r2r3).

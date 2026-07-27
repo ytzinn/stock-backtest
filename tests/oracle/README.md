@@ -15,9 +15,7 @@ AUDIT_01 Pass 0C 지시에 따라, 아래 테스트는 **현재 구현의 결함
 xfail 처리하지 않고 실패 상태 그대로 둔다. **이 테스트를 통과시키려고 오라클을 고치지 마라 —
 Pass 3에서 프로덕션 코드를 고치면 저절로 통과한다.**
 
-| 실패 테스트 | 재현하는 결함 | TECH_DEBT ID |
-|---|---|---|
-| `test_metrics_oracle.py::test_sharpe_zero_variance_returns_zero` | zero-variance 가드가 returns.std()를 검사하고 나눗셈은 excess.std()로 → inf 가능 (오라클 작성 중 신규 발견) | CORR-METRIC-003 |
+(현재 없음 — CORR-METRIC-003은 아래 "해소됨"으로 이동)
 
 ### Pass 2 추가분 (2026-07-12)
 
@@ -38,6 +36,7 @@ Pass 3에서 프로덕션 코드를 고치면 저절로 통과한다.**
 | `test_amended_row_without_original_must_not_leak_amended_value` | PIT-AMEND-001 (P0-A) | audit/PIT-AMEND-001 (원본 미상 계정 노출창 제외 + XBRL 백필 런북) |
 | `test_unknown_listed_date_must_not_bypass_seasoning_filter` | CORR-HARD-001 (P0-A) | audit/CORR-HARD-001 (가격이력 프록시 가드 + listed_date 백필 스크립트) |
 | `test_pass2_pit_gate.py` GATE 2건 | CORR-GATE-001/002 | audit/CORR-GATE-001 (CFS 우선 결정적 병합 + 최초 공시값 PIT 판정) |
+| `test_metrics_oracle.py::test_sharpe_zero_variance_returns_zero` | CORR-METRIC-003 | SPEC_13 세션(2026-07-27) — 가드를 실제 나누는 변수(excess_std)로 교체 |
 
 **정상 상태 요약**: fast suite = 통과 다수 + **의도적 실패 1개(sharpe P2 — Pass 3 비대상)** + **characterization 정당 깨짐 5개(METRIC-001, baseline 승인 대기)**. xfail 0 (CONTRACT-PF-001 확정).
 integration suite = **34개 전부 통과** (P0 의도적 실패 전량 해소).

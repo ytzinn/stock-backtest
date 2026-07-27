@@ -55,11 +55,14 @@ def compute_cagr(
 
 def compute_sharpe(returns: pd.Series, periods_per_year: int = PERIODS_PER_YEAR) -> float:
     """연환산 Sharpe Ratio."""
-    if returns.empty or returns.std() == 0:
+    if returns.empty:
         return 0.0
     rf_per_period = RF_ANNUAL / periods_per_year
     excess = returns - rf_per_period
-    return float(excess.mean() / excess.std() * np.sqrt(periods_per_year))
+    excess_std = excess.std()
+    if excess_std == 0:
+        return 0.0
+    return float(excess.mean() / excess_std * np.sqrt(periods_per_year))
 
 
 def compute_mdd(returns: pd.Series) -> float:
