@@ -348,7 +348,7 @@ def main() -> None:
             log.error(f'{ticker} {year} {report_type} 처리 실패: {e}')
             stats['error'] += 1
 
-        time.sleep(0.5)  # DART API 일일 10,000콜 한도 (dart-watcher 공유)
+        time.sleep(0.5)  # DART API 일일 한도 (dart-watcher 공유, 실측 ~36,000~40,000콜/일 — CLAUDE.md 참조)
 
     log.info(
         f'완료: original_amount {total_updated}개 저장 | '

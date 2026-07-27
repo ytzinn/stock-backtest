@@ -142,7 +142,10 @@ VB_CAP = 5.0              # V/B 상한 새니티 캡. FV = equity × clamp(V/B, 
 - **주의**: `ISU_CD`는 6자리 숫자 코드. 우선주·스팩·리츠 포함 → 필터링 필요 시 `ISU_NM`으로 구분
 
 **DART API**
-- 일일 한도: 10,000콜, stock-analysis `dart-watcher`와 API 키 공유 중
+- 일일 한도: **약 36,000~40,000콜** (구 "10,000콜" 표기는 SPEC_02 §3-1 자체 모순 수치였음 —
+  2026-05 FY+H1 실측 600종목/일×60콜=36,000콜/일과 2026-07-27 Q1/Q3 재검증(123분간
+  ~40,000콜 소진)으로 정정, SPEC_02·SPEC_13 §5-2 참조), stock-analysis `dart-watcher`와
+  API 키 공유 중
 - 에러 status `020` = 쿼터 초과 → `QuotaExceededError` 즉시 발생, retry 없이 배치 중단
 - `fnlttSinglAcnt.json`(주요계정) 사용 금지 → CF 계정 제외됨. 반드시 `fnlttSinglAcntAll.json` 사용
 
