@@ -39,14 +39,13 @@ import pandas as pd
 
 from backtest.ablation import ABLATION_CONFIGS, build_ablation_pipeline
 from backtest.configs.constants import COST_BUY, COST_SELL
-from backtest.configs.rebalance_dates import REBALANCE_DATES
+from backtest.configs.schedule import REBALANCE_POINTS, RebalancePoint
 from backtest.data_access import load_gate_passed_tickers, load_pit_series_ttm
 from backtest.engine import (
     BacktestEngine,
     _aggregate_period_return,
     _calc_turnover,
     _period_stock_data,
-    _report_type,
 )
 from backtest.metrics import compute_cagr
 from backtest.portfolio import build_portfolio
@@ -70,10 +69,10 @@ def _abort_if_cron_window() -> None:
         raise SystemExit('DRIFT-INGEST-001: 크론 시간대(UTC 10:00~10:45) — 실행 금지.')
 
 
-def _closed_period_pairs() -> list[tuple[date, date]]:
-    """완결 구간 (rebal, next) 쌍 — 마지막(열린) 구간 제외."""
-    return [(REBALANCE_DATES[i], REBALANCE_DATES[i + 1])
-            for i in range(len(REBALANCE_DATES) - 1)]
+def _closed_period_pairs() -> list[tuple[RebalancePoint, RebalancePoint]]:
+    """완결 구간 (rebal, next) RebalancePoint 쌍 — 마지막(열린) 구간 제외."""
+    return [(REBALANCE_POINTS[i], REBALANCE_POINTS[i + 1])
+            for i in range(len(REBALANCE_POINTS) - 1)]
 
 
 def build_pools(conn) -> tuple[dict[date, list[str]], dict[date, dict]]:
@@ -85,15 +84,20 @@ def build_pools(conn) -> tuple[dict[date, list[str]], dict[date, dict]]:
     pools:      dict[date, list[str]] = {}
     stock_data: dict[date, dict[str, tuple]] = {}
 
-    for rebal, nxt in _closed_period_pairs():
-        rtype       = _report_type(rebal)
-        gate_passed = load_gate_passed_tickers(conn, rebal, report_type=rtype)
+    for rebal_rp, nxt_rp in _closed_period_pairs():
+        rebal, nxt  = rebal_rp.date, nxt_rp.date
+        rtype       = rebal_rp.report_type
+        gate_passed = load_gate_passed_tickers(
+            conn, rebal, report_type=rtype, fiscal_year=rebal_rp.fiscal_year
+        )
         if not gate_passed:
             log.info('%s: gate=0 (TTM 미충족) — 빈 구간', rebal)
             pools[rebal] = []
             stock_data[rebal] = {}
             continue
-        pit_series = load_pit_series_ttm(conn, rebal, report_type=rtype)
+        pit_series = load_pit_series_ttm(
+            conn, rebal, report_type=rtype, fiscal_year=rebal_rp.fiscal_year
+        )
         universe   = pipeline.build_universe(gate_passed, rebal, pit_series, conn)['universe']
         pools[rebal] = universe
 
@@ -119,7 +123,7 @@ def _draw_portfolio(pool: list[str], seed: int, rebal: date) -> dict[str, float]
 
 def run_draws(pools, stock_data, n_draws: int):
     """전 시드 추첨 실행 (DB 무접촉 — prefetch 데이터만 사용)."""
-    pairs = _closed_period_pairs()
+    pairs = [(r.date, n.date) for r, n in _closed_period_pairs()]
     span = None
     active_pairs = [(r, n) for r, n in pairs if pools.get(r)]
     if active_pairs:
@@ -166,12 +170,12 @@ def verify_against_engine(conn, pools, stock_data, seed: int, valuation_date: da
     log.info('[등가성 게이트] seed=%d 전체 엔진 대조 실행 시작', seed)
     pipeline = build_ablation_pipeline(TAG, ABLATION_CONFIGS[TAG], seed=seed)
     engine   = BacktestEngine(pipeline)
-    result   = engine.run(REBALANCE_DATES, run_name=f'{TAG}_verify', ablation_tag=TAG,
+    result   = engine.run(REBALANCE_POINTS, run_name=f'{TAG}_verify', ablation_tag=TAG,
                           valuation_date=valuation_date)
     engine_closed = [r for r in result['period_results']
                     if r['n_gate'] > 0 and not r['is_open_period']]
 
-    pairs = [(r, n) for r, n in _closed_period_pairs() if pools.get(r)]
+    pairs = [(r.date, n.date) for r, n in _closed_period_pairs() if pools.get(r.date)]
     if len(engine_closed) != len(pairs):
         raise SystemExit(
             f'[등가성 게이트 실패] 완결 구간 수 불일치: engine={len(engine_closed)} fast={len(pairs)}'

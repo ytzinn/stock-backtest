@@ -260,29 +260,50 @@ def load_gate_passed_tickers(
     conn,
     rebalance_date: date,
     report_type: str = 'FY',
+    fiscal_year: int | None = None,
 ) -> list[str]:
     """
     리밸런싱 기준일에 투자 가능한 종목 목록.
 
     조건:
       1. stocks.is_excluded = FALSE
-      2. universe_gate_pit 시점별 판정 = 'PASS' (rebalance_date 기준 최신 report_type).
+      2. universe_gate_pit 시점별 판정 = 'PASS'.
+         **fiscal_year 미지정(기본, 기존 동작)** — rebalance_date 기준 **최신 가용
+         연도**(DISTINCT ON ... ORDER BY year DESC)를 쓴다.
+         **fiscal_year 지정 (DEBT-3, SPEC_13 §0-A)** — 정확히 그 사업연도만 매칭한다.
+         원하는 연도 보고서가 아직 available_from 이전(미공개)이면 그 종목은 조용히
+         다른 연도로 대체되지 않고 결과에서 그냥 빠진다 — late/missing 집계는 이
+         함수의 책임이 아니라 호출부(Q-H 판정 보고서)가 신청 유니버스와의 차집합으로
+         계산한다.
          **시점별 판정 (CORR-GATE-003)**: 게이트 계정 정정 공시일(amendment_from)이
          rebalance_date 이하면 status_amended(정정값 판정), 아니면 status(최초 공시값
          판정)를 쓴다 — 정정 이전엔 최초값(룩어헤드 방지), 이후엔 정정값(stale 방지).
       3. rebalance_date 이전에 상장폐지된 종목 제외 (stock_listing_events 기준)
 
-    report_type: 'FY' (4월 리밸런싱) 또는 'H1' (8월 리밸런싱)
+    report_type: 'FY'|'H1'|'Q1'|'Q3'
+    fiscal_year: 지정 시 (ticker, fiscal_year, report_type) 정확 매칭.
     """
+    if fiscal_year is None:
+        latest_report_sql = """
+            SELECT DISTINCT ON (ticker) ticker, year, report_type
+            FROM financials_pit
+            WHERE available_from <= %s AND report_type = %s
+            ORDER BY ticker, year DESC
+        """
+        latest_report_params: tuple = (rebalance_date, report_type)
+    else:
+        latest_report_sql = """
+            SELECT DISTINCT ON (ticker) ticker, year, report_type
+            FROM financials_pit
+            WHERE available_from <= %s AND report_type = %s AND year = %s
+            ORDER BY ticker
+        """
+        latest_report_params = (rebalance_date, report_type, fiscal_year)
+
     with conn.cursor() as cur:
         cur.execute(
-            """
-            WITH latest_report AS (
-                SELECT DISTINCT ON (ticker) ticker, year, report_type
-                FROM financials_pit
-                WHERE available_from <= %s AND report_type = %s
-                ORDER BY ticker, year DESC
-            ),
+            f"""
+            WITH latest_report AS ({latest_report_sql}),
             gate_pass AS (
                 SELECT lr.ticker
                 FROM latest_report lr
@@ -309,7 +330,7 @@ def load_gate_passed_tickers(
               )
             ORDER BY s.ticker
             """,
-            (rebalance_date, report_type, rebalance_date, rebalance_date),
+            (*latest_report_params, rebalance_date, rebalance_date),
         )
         return [row[0] for row in cur.fetchall()]
 
@@ -415,6 +436,7 @@ def load_pit_series_ttm(
     conn,
     rebalance_date: date,
     report_type: str = 'FY',
+    fiscal_year: int | None = None,
 ) -> dict[str, list[dict]]:
     """
     TTM(Trailing Twelve Months) 적용 PIT 시계열 — 외부 계약 [current, prev, prev2].
@@ -430,13 +452,19 @@ def load_pit_series_ttm(
       (IS/CF), BS는 interim_y 스냅샷. Q1/Q3 확장(§6-2, Q-D) — H1과 동일 산식, interim
       report_type만 다르다.
     각 원소는 항상 그 연도에 대응 — 결측 연도는 빈 dict(소비처가 .get으로 흡수).
+
+    fiscal_year (DEBT-3, SPEC_13 §0-A): 지정하면 y_f/y_c를 "가용한 것 중 최신"이
+    아니라 **정확히 이 값**으로 고정한다. 목표 연도 보고서가 아직 없는 종목은 그
+    자리가 조용히 다른 연도로 대체되지 않고 빈 dict가 된다(late/missing report가
+    다른 연도로 둔갑하는 걸 막는다) — 미지정(기본)이면 기존처럼 `max(...)`(가용
+    최신 연도)를 쓴다.
     """
     if report_type == 'FY':
         # 갭이 있어도 y_f-2 까지 닿도록 여유분(n_years=4) 확보
         fy_by_year = load_pit_by_year(conn, rebalance_date, n_years=4, report_type='FY')
         result: dict[str, list[dict]] = {}
         for ticker, year_dict in fy_by_year.items():
-            y_f = max(year_dict)
+            y_f = fiscal_year if fiscal_year is not None else max(year_dict)
             result[ticker] = [year_dict.get(y_f - k, {}) for k in range(3)]
         return result
 
@@ -449,7 +477,7 @@ def load_pit_series_ttm(
 
     result = {}
     for ticker, interim_years in interim_by_year.items():
-        y_c = max(interim_years)
+        y_c = fiscal_year if fiscal_year is not None else max(interim_years)
         fy_years = fy_by_year.get(ticker, {})
         result[ticker] = [
             _make_ttm(fy_years.get(y - 1, {}), interim_years.get(y, {}), interim_years.get(y - 1, {}), ticker)

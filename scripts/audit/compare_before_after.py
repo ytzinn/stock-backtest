@@ -20,7 +20,7 @@ from datetime import date
 from pathlib import Path
 
 from backtest.ablation import ABLATION_CONFIGS, build_ablation_pipeline
-from backtest.configs.rebalance_dates import REBALANCE_DATES
+from backtest.configs.schedule import REBALANCE_POINTS
 from backtest.engine import BacktestEngine
 
 BASE = Path('tests/baselines')
@@ -35,7 +35,7 @@ def jaccard(a: set, b: set) -> float:
 def run_after(tag: str, valuation_date: date) -> dict:
     pipeline = build_ablation_pipeline(tag, ABLATION_CONFIGS[tag], seed=None)
     result = BacktestEngine(pipeline).run(
-        REBALANCE_DATES, run_name=tag, ablation_tag=tag, valuation_date=valuation_date
+        REBALANCE_POINTS, run_name=tag, ablation_tag=tag, valuation_date=valuation_date
     )
     return result
 

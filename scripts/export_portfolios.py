@@ -17,14 +17,14 @@ from datetime import date
 from pathlib import Path
 
 from backtest.ablation import ABLATION_CONFIGS, RANDOM_TAGS, build_ablation_pipeline
-from backtest.configs.rebalance_dates import REBALANCE_DATES
+from backtest.configs.schedule import REBALANCE_POINTS
 from backtest.data_access import (
     get_close_price,
     is_delisted_at,
     load_gate_passed_tickers,
     load_pit_series_ttm,
 )
-from backtest.engine import DELISTING_HAIRCUT, _last_known_price, _report_type
+from backtest.engine import DELISTING_HAIRCUT, _last_known_price
 from ingest.connection import get_connection
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s', datefmt='%H:%M:%S')
@@ -47,15 +47,20 @@ def extract_portfolio_periods(tag: str, config: dict) -> list[dict]:
     names = get_stock_names(conn)
     results = []
 
-    dates = [d for d in REBALANCE_DATES if START_DATE <= d <= END_DATE]
+    for idx, rp in enumerate(REBALANCE_POINTS):
+        if not (START_DATE <= rp.date <= END_DATE):
+            continue
+        rebal_date = rp.date
+        next_date  = (REBALANCE_POINTS[idx + 1].date
+                      if idx + 1 < len(REBALANCE_POINTS) else date.today())
+        rtype      = rp.report_type
 
-    for i, rebal_date in enumerate(dates):
-        idx = REBALANCE_DATES.index(rebal_date)
-        next_date = REBALANCE_DATES[idx + 1] if idx + 1 < len(REBALANCE_DATES) else date.today()
-        rtype     = _report_type(rebal_date)
-
-        gate_passed = load_gate_passed_tickers(conn, rebal_date, report_type=rtype)
-        pit_series  = load_pit_series_ttm(conn, rebal_date, report_type=rtype)
+        gate_passed = load_gate_passed_tickers(
+            conn, rebal_date, report_type=rtype, fiscal_year=rp.fiscal_year
+        )
+        pit_series  = load_pit_series_ttm(
+            conn, rebal_date, report_type=rtype, fiscal_year=rp.fiscal_year
+        )
         univ_result = pipeline.build_universe(gate_passed, rebal_date, pit_series, conn)
         candidates  = pipeline.score_and_rank(univ_result['universe'], rebal_date, pit_series, conn)
 

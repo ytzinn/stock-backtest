@@ -26,7 +26,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from backtest.ablation import ABLATION_CONFIGS, RANDOM_TAGS, build_ablation_pipeline
-from backtest.configs.rebalance_dates import REBALANCE_DATES
+from backtest.configs.schedule import REBALANCE_POINTS
 from backtest.data_access import get_close_price, is_delisted_at
 from backtest.engine import BacktestEngine, DELISTING_HAIRCUT, _last_known_price
 from ingest.connection import get_connection
@@ -34,9 +34,9 @@ from ingest.connection import get_connection
 OUT_SELECTION = Path('tests/baselines/selection')
 OUT_AGGREGATE = Path('tests/baselines/aggregate')
 
-# 마지막 리밸런싱 날짜(REBALANCE_DATES[-1])는 next_date가 date.today()로 결정되는
+# 마지막 리밸런싱 날짜(REBALANCE_POINTS[-1])는 next_date가 date.today()로 결정되는
 # 열린 구간이다 (CORR-ENGINE-003, engine.py:69). closed_period baseline은 이를 제외한다.
-OPEN_PERIOD_REBAL_DATE = REBALANCE_DATES[-1]
+OPEN_PERIOD_REBAL_DATE = REBALANCE_POINTS[-1].date
 
 
 def _get_delisted_date(conn, ticker: str, as_of: date) -> str | None:
@@ -157,7 +157,7 @@ def run_one(tag: str) -> None:
     engine   = BacktestEngine(pipeline)
 
     print(f'[{tag}] engine.run() 실행 중 (23개 구간)...')
-    result = engine.run(REBALANCE_DATES, run_name=tag, ablation_tag=tag,
+    result = engine.run(REBALANCE_POINTS, run_name=tag, ablation_tag=tag,
                         valuation_date=date.today())
     captured_at = datetime.now().isoformat()
 

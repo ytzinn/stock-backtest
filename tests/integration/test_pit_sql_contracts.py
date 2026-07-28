@@ -238,6 +238,55 @@ def test_gate_excludes_is_excluded_stock(conn, make_stock):
     assert 'DDD006' not in load_gate_passed_tickers(conn, REBAL, report_type='FY')
 
 
+# ── I-5c: fiscal_year 정확 매칭 (DEBT-3, SPEC_13 §0-A) ──────────────────────────
+
+def test_gate_fiscal_year_none_keeps_latest_available_default(conn, make_stock):
+    """fiscal_year 미지정 — 기존 test_gate_uses_latest_available_year_not_oldest와
+    동일 결과(회귀 없음): 최신 연도(2023) REJECT면 과거 연도 PASS여도 탈락."""
+    _setup_gate_stock(conn, make_stock, 'DDD007',
+                      gate_by_year={2022: 'PASS', 2023: 'REJECT'},
+                      pit_available={2022: date(2023, 3, 20), 2023: date(2024, 3, 20)})
+
+    assert 'DDD007' not in load_gate_passed_tickers(conn, REBAL, report_type='FY')
+
+
+def test_gate_fiscal_year_exact_match_overrides_latest(conn, make_stock):
+    """fiscal_year 지정 시 최신 가용 연도(2023, REJECT)가 아니라 지정 연도(2022,
+    PASS)를 정확히 매칭한다 — "최신 것으로 대체" 없이 원하는 사업연도만 본다."""
+    _setup_gate_stock(conn, make_stock, 'DDD008',
+                      gate_by_year={2022: 'PASS', 2023: 'REJECT'},
+                      pit_available={2022: date(2023, 3, 20), 2023: date(2024, 3, 20)})
+
+    assert 'DDD008' in load_gate_passed_tickers(
+        conn, REBAL, report_type='FY', fiscal_year=2022
+    )
+
+
+def test_gate_fiscal_year_late_report_excludes_not_falls_back(conn, make_stock):
+    """목표 사업연도(2023) 보고서가 아직 없으면(전기 2022만 존재), 다른 연도로
+    조용히 대체되지 않고 그냥 제외된다 — DEBT-3가 막으려는 "묵은 분기를 최신처럼
+    쓰는" stale 오류의 반대 방향(최신을 못 쓰면 결측 처리, 대체 금지)을 확인."""
+    _setup_gate_stock(conn, make_stock, 'DDD009',
+                      gate_by_year={2022: 'PASS'},
+                      pit_available={2022: date(2023, 3, 20)})
+
+    assert 'DDD009' not in load_gate_passed_tickers(
+        conn, REBAL, report_type='FY', fiscal_year=2023
+    )
+
+
+def test_gate_fiscal_year_respects_pit_availability(conn, make_stock):
+    """fiscal_year를 지정해도 available_from <= rebalance_date 룩어헤드 금지는 그대로
+    적용된다 — 목표 연도 데이터가 미래에 공개될 예정이어도 그 전엔 안 보인다."""
+    _setup_gate_stock(conn, make_stock, 'DDD010',
+                      gate_by_year={2023: 'PASS'},
+                      pit_available={2023: REBAL + timedelta(days=10)})   # 미공개
+
+    assert 'DDD010' not in load_gate_passed_tickers(
+        conn, REBAL, report_type='FY', fiscal_year=2023
+    )
+
+
 # ── I-5b: 시점별 게이트 판정 (CORR-GATE-003 — status vs status_amended) ─────────
 
 def _setup_amended_gate_stock(conn, make_stock, ticker: str,

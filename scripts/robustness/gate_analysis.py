@@ -28,7 +28,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-from backtest.configs.rebalance_dates import REBALANCE_DATES
+from backtest.configs.schedule import REBALANCE_POINTS
 from scripts.robustness.robustness_lib import (
     loo_reversal_count,
     margin,
@@ -52,7 +52,7 @@ F_TAG, U_TAG = 'F_pbr_no_r3r4', 'U_pbr_path_ew'
 
 
 def _closed_dates() -> list[str]:
-    rebal_set = {d.isoformat() for d in REBALANCE_DATES}
+    rebal_set = {rp.date.isoformat() for rp in REBALANCE_POINTS}
     return rebal_set
 
 

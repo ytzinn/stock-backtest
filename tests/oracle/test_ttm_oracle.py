@@ -154,3 +154,34 @@ def test_ttm_invalid_report_type_raises():
     """미지원 report_type은 조용히 넘어가지 않고 예외를 던진다."""
     with pytest.raises(ValueError):
         load_pit_series_ttm(None, date(2024, 1, 1), report_type='H2')
+
+
+# ── fiscal_year 정확 매칭 (DEBT-3, SPEC_13 §0-A) ─────────────────────────────
+
+def test_ttm_fiscal_year_none_keeps_latest_available_default(monkeypatch):
+    """fiscal_year 미지정 — 기존처럼 가용 최신 연도(max)를 앵커로 쓴다(회귀 없음)."""
+    fy = {2023: {'매출액': 2000.0}, 2022: {'매출액': 1800.0}, 2021: {'매출액': 1600.0}}
+    _patch(monkeypatch, fy, {})
+    out = load_pit_series_ttm(None, date(2024, 4, 3), report_type='FY')['X']
+    assert out[0]['매출액'] == 2000.0   # max(연도)=2023 앵커, fiscal_year 없어도 종전과 동일
+
+
+def test_ttm_fiscal_year_overrides_latest_available(monkeypatch):
+    """fiscal_year 지정 시 가용 최신 연도(2023)가 아니라 지정값(2022)을 정확히 앵커로 쓴다."""
+    fy = {2023: {'매출액': 2000.0}, 2022: {'매출액': 1800.0}, 2021: {'매출액': 1600.0}}
+    _patch(monkeypatch, fy, {})
+    out = load_pit_series_ttm(None, date(2024, 4, 3), report_type='FY', fiscal_year=2022)['X']
+    assert out[0]['매출액'] == 1800.0   # 2023(최신 가용)이 아니라 지정된 2022
+
+
+def test_ttm_fiscal_year_late_report_yields_empty_not_silent_substitution(monkeypatch):
+    """목표 연도 보고서가 아직 없으면(late/missing) 다른 연도로 대체되지 않고 빈 dict.
+
+    DEBT-3의 핵심: 앵커가 원하는 사업연도(fiscal_year)의 보고서가 아직 안 들어왔을 때
+    "가용한 것 중 최신"(예: 작년 동일 분기)으로 조용히 대체하면 stale 판정이 된다.
+    """
+    h1 = {2023: {'매출액': 900.0}}   # 2024년 H1 보고서 아직 없음(지연/미공개)
+    fy = {2023: {'매출액': 2000.0}}
+    _patch(monkeypatch, fy, h1)
+    out = load_pit_series_ttm(None, date(2024, 8, 20), report_type='H1', fiscal_year=2024)['X']
+    assert '매출액' not in out[0]   # H1_2024 없음 → 결측, H1_2023으로 조용히 대체되지 않음

@@ -18,6 +18,7 @@ from datetime import date
 import pandas as pd
 
 from backtest.configs.constants import BUY_COST, MIN_STOCKS_WARN, sell_cost
+from backtest.configs.schedule import RebalancePoint
 from backtest.data_access import (
     get_close_price,
     get_markets,
@@ -43,24 +44,25 @@ class BenchmarkDataUnavailable(RuntimeError):
     """
 
 
-def _report_type(d: date) -> str:
-    """8월 리밸런싱 → H1 반기보고서, 나머지 → FY 연간보고서."""
-    return 'H1' if d.month == 8 else 'FY'
-
-
 class BacktestEngine:
     def __init__(self, pipeline: BacktestPipeline):
         self.pipeline = pipeline
 
     def run(
         self,
-        rebalance_dates: list[date],
+        rebalance_points: list[RebalancePoint],
         run_name:        str = '',
         ablation_tag:    str = 'F_full',
         valuation_date:  date | None = None,
     ) -> dict:
         """
         전체 백테스트 실행.
+
+        rebalance_points: 리밸런싱 앵커 스케줄. report_type·fiscal_year를 각 앵커가
+          명시(SPEC_13 §7-3, DEBT-3) — 엔진은 더 이상 날짜의 월(月)로 report_type을
+          추론하지 않는다(구 `_report_type()` 제거, 분기 캘린더에서 5월/11월이 FY로
+          잘못 분류되던 문제). 기존 반기 캘린더는 `backtest.configs.schedule.
+          REBALANCE_POINTS`로 이미 감싸져 있다.
 
         valuation_date: 마지막(열린) 구간의 평가 기준일. **주입 필수** — 엔진은 재현성을
           위해 내부에서 date.today()를 호출하지 않는다 (CORR-ENGINE-003). 호출부(CLI)가
@@ -86,7 +88,7 @@ class BacktestEngine:
         if valuation_date is None:
             raise ValueError(
                 'valuation_date 주입 필수 — 엔진은 date.today()를 내부 호출하지 않는다 '
-                '(재현성, CORR-ENGINE-003). 예: engine.run(dates, valuation_date=date.today())'
+                '(재현성, CORR-ENGINE-003). 예: engine.run(points, valuation_date=date.today())'
             )
 
         conn = get_connection()
@@ -103,16 +105,22 @@ class BacktestEngine:
             kospi_returns:  list[float]       = []
             prev_portfolio: dict[str, float]  = {}
 
-            for i, rebal_date in enumerate(rebalance_dates):
-                is_open   = i + 1 >= len(rebalance_dates)
-                next_date = rebalance_dates[i + 1] if not is_open else valuation_date
+            for i, rp in enumerate(rebalance_points):
+                rebal_date = rp.date
+                is_open    = i + 1 >= len(rebalance_points)
+                next_date  = rebalance_points[i + 1].date if not is_open else valuation_date
 
-                log.info(f'[{i+1}/{len(rebalance_dates)}] rebal_date={rebal_date}')
+                log.info(f'[{i+1}/{len(rebalance_points)}] rebal_date={rebal_date} '
+                         f'report_type={rp.report_type} fiscal_year={rp.fiscal_year}')
 
                 # 1-2. 데이터 로드
-                rtype       = _report_type(rebal_date)
-                gate_passed = load_gate_passed_tickers(conn, rebal_date, report_type=rtype)
-                pit_series  = load_pit_series_ttm(conn, rebal_date, report_type=rtype)
+                rtype       = rp.report_type
+                gate_passed = load_gate_passed_tickers(
+                    conn, rebal_date, report_type=rtype, fiscal_year=rp.fiscal_year
+                )
+                pit_series  = load_pit_series_ttm(
+                    conn, rebal_date, report_type=rtype, fiscal_year=rp.fiscal_year
+                )
 
                 # 3. 유니버스 구성
                 universe_result = self.pipeline.build_universe(

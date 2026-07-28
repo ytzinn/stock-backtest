@@ -18,13 +18,13 @@ import argparse
 import csv
 import json
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 import pandas as pd
 
 from backtest.ablation import ABLATION_CONFIGS, build_ablation_pipeline
-from backtest.configs.rebalance_dates import REBALANCE_DATES
+from backtest.configs.schedule import REBALANCE_POINTS
 from backtest.engine import BacktestEngine
 from backtest.metrics import compute_metrics
 
@@ -43,7 +43,7 @@ def run_one_omega(omega: float) -> dict:
     config   = ABLATION_CONFIGS['D_rim_only']
     pipeline = build_ablation_pipeline('D_rim_only', config, omega=omega)
     engine   = BacktestEngine(pipeline)
-    result   = engine.run(REBALANCE_DATES, run_name=f'D_omega_{omega:.2f}',
+    result   = engine.run(REBALANCE_POINTS, run_name=f'D_omega_{omega:.2f}',
                           valuation_date=date.today())
     m        = result['metrics']
     log.info(

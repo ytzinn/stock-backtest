@@ -31,9 +31,16 @@ from backtest.ablation import ABLATION_CONFIGS, build_ablation_pipeline
 from backtest.configs.constants import (COST_BUY, COST_SELL, OMEGA, RF, RK, VB_CAP)
 from backtest.data_access import (get_max_price_date, load_gate_passed_tickers,
                                   load_pit_series_ttm)
-from backtest.engine import DELISTING_HAIRCUT, _calc_turnover, _report_type
+from backtest.engine import DELISTING_HAIRCUT, _calc_turnover
 from backtest.portfolio import build_portfolio
 from ingest.connection import get_connection
+
+
+def _report_type(d: date) -> str:
+    """8월 리밸런싱 → H1 반기보고서, 나머지 → FY 연간보고서. #24 라이브 포워드는
+    반기 기준 그대로 실행(SPEC_13 불변식 6) — engine.py의 RebalancePoint 전환과
+    무관하게 로컬로 유지."""
+    return 'H1' if d.month == 8 else 'FY'
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s',
                     datefmt='%H:%M:%S')

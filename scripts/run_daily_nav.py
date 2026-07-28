@@ -40,7 +40,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from backtest.configs.rebalance_dates import REBALANCE_DATES
+from backtest.configs.schedule import REBALANCE_POINTS
 from backtest.daily_nav import daily_nav_for_period, stitch_periods
 from backtest.engine import BenchmarkDataUnavailable, _calc_transaction_cost
 from backtest.metrics import compute_daily_metrics, compute_mdd
@@ -97,8 +97,8 @@ def _load_periods_csv(tag: str) -> dict[str, dict]:
 
 
 def _closed_tape_periods(tape: list[dict]) -> list[dict]:
-    """완결 구간만 — next_date가 REBALANCE_DATES에 있는 구간 (열린 구간은 today라 없음)."""
-    rebal_set = {d.isoformat() for d in REBALANCE_DATES}
+    """완결 구간만 — next_date가 REBALANCE_POINTS에 있는 구간 (열린 구간은 today라 없음)."""
+    rebal_set = {rp.date.isoformat() for rp in REBALANCE_POINTS}
     return [p for p in tape if p['next_date'] in rebal_set and p['n_portfolio'] > 0]
 
 

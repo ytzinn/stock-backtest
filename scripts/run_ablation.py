@@ -28,7 +28,7 @@ from backtest.ablation import (
     RANDOM_TAGS,
     build_ablation_pipeline,
 )
-from backtest.configs.rebalance_dates import REBALANCE_DATES
+from backtest.configs.schedule import REBALANCE_POINTS, RebalancePoint
 from backtest.engine import BacktestEngine
 from backtest.metrics import compute_metrics
 
@@ -43,11 +43,11 @@ OUT_DIR = Path('experiments/ablation')
 
 
 def _run_one(args: tuple) -> dict:
-    """멀티프로세싱 워커. (tag, config, seed, rebalance_dates, valuation_date) → metrics dict."""
-    tag, config, seed, rebalance_dates, valuation_date = args
+    """멀티프로세싱 워커. (tag, config, seed, rebalance_points, valuation_date) → metrics dict."""
+    tag, config, seed, rebalance_points, valuation_date = args
     pipeline = build_ablation_pipeline(tag, config, seed=seed)
     engine   = BacktestEngine(pipeline)
-    result   = engine.run(rebalance_dates, run_name=tag, ablation_tag=tag,
+    result   = engine.run(rebalance_points, run_name=tag, ablation_tag=tag,
                           valuation_date=valuation_date)
     m        = result['metrics']
     return {
@@ -69,13 +69,13 @@ def _run_one(args: tuple) -> dict:
     }
 
 
-def run_deterministic(tag: str, config: dict, rebalance_dates: list[date],
+def run_deterministic(tag: str, config: dict, rebalance_points: list[RebalancePoint],
                       valuation_date: date | None = None) -> tuple[dict, list[dict]]:
     """단일 실행 (D/E/F/G). (metrics_dict, period_results) 반환."""
     log.info(f'[{tag}] 실행 시작')
     pipeline = build_ablation_pipeline(tag, config, seed=None)
     engine   = BacktestEngine(pipeline)
-    result   = engine.run(rebalance_dates, run_name=tag, ablation_tag=tag,
+    result   = engine.run(rebalance_points, run_name=tag, ablation_tag=tag,
                           valuation_date=valuation_date or date.today())
     m        = result['metrics']
     metrics  = {
@@ -105,18 +105,18 @@ def run_deterministic(tag: str, config: dict, rebalance_dates: list[date],
 
 
 def run_random_distribution(
-    tag:             str,
-    config:          dict,
-    rebalance_dates: list[date],
-    valuation_date:  date | None = None,
-    n_repeats:       int = RANDOM_REPEATS,
-    n_workers:       int | None = None,
+    tag:              str,
+    config:           dict,
+    rebalance_points: list[RebalancePoint],
+    valuation_date:   date | None = None,
+    n_repeats:        int = RANDOM_REPEATS,
+    n_workers:        int | None = None,
 ) -> list[dict]:
     """500회 반복 실행 (A/B/C). 분포 리스트 반환."""
     workers = n_workers or max(1, cpu_count() - 1)
     log.info(f'[{tag}] 랜덤 {n_repeats}회 반복 — workers={workers}')
 
-    tasks = [(tag, config, seed, rebalance_dates, valuation_date) for seed in range(n_repeats)]
+    tasks = [(tag, config, seed, rebalance_points, valuation_date) for seed in range(n_repeats)]
     with Pool(processes=workers) as pool:
         results = pool.map(_run_one, tasks)
 
@@ -336,8 +336,8 @@ def main() -> None:
     if args.det_only:
         tags_to_run -= RANDOM_TAGS
 
-    rebalance_dates = REBALANCE_DATES
-    valuation_date  = (date.fromisoformat(args.valuation_date)
+    rebalance_points = REBALANCE_POINTS
+    valuation_date   = (date.fromisoformat(args.valuation_date)
                        if args.valuation_date else date.today())
     log.info(f'valuation_date = {valuation_date}')
 
@@ -350,7 +350,7 @@ def main() -> None:
         config = ABLATION_CONFIGS[tag]
 
         if tag in RANDOM_TAGS:
-            results  = run_random_distribution(tag, config, rebalance_dates, valuation_date,
+            results  = run_random_distribution(tag, config, rebalance_points, valuation_date,
                                                n_repeats=args.repeats, n_workers=args.workers)
             save_distribution(tag, results)
             cagrs = sorted(r['cagr'] for r in results)
@@ -362,7 +362,7 @@ def main() -> None:
                 'n_repeats':    n,
             }
         else:
-            result, period_results = run_deterministic(tag, config, rebalance_dates, valuation_date)
+            result, period_results = run_deterministic(tag, config, rebalance_points, valuation_date)
             save_deterministic(tag, result)
             save_periods(tag, period_results)
             det_results[tag] = result

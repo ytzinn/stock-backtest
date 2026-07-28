@@ -25,9 +25,14 @@ from pathlib import Path
 from backtest.ablation import ABLATION_CONFIGS, _PBRRankPipeline, build_ablation_pipeline
 from backtest.configs.rebalance_dates import REBALANCE_DATES
 from backtest.data_access import load_gate_passed_tickers, load_pit_series_ttm
-from backtest.engine import _report_type
 from backtest.filters.stability_filter import StabilityFilter
 from backtest.portfolio import build_portfolio
+
+
+def _report_type(d: date) -> str:
+    """8월 리밸런싱 → H1 반기보고서, 나머지 → FY 연간보고서. 이 스크립트는 반기 전용
+    분석 도구라 engine.py의 RebalancePoint 전환과 무관하게 로컬로 유지(SPEC_13 §7-3)."""
+    return 'H1' if d.month == 8 else 'FY'
 from ingest.connection import get_connection
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s',
