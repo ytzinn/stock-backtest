@@ -161,6 +161,54 @@ DART 쿼터 소모(§5, **`[재보정 2026-07-27]` 2~3일** — 원래 15\~25일
 
 동결 내용: DB dump → 별도 포트 restore → 가격 cutoff·공시 cutoff 고정 → migration hash · git commit · 캘린더 manifest hash · 비용모델 버전(TC-PRE 확정값) 기록. `backtest_runs` 테이블에 이 메타(git commit·data cutoff·schema version)를 남기는 컬럼이 이미 있다.
 
+### 3-2. `[완료 2026-07-28]` 실행 결과 — before/after 비트 대조 + 인컴번트 baseline 재고정
+
+**절차**: 운영 DB(5433, 5.5GB)를 `pg_dump`/`pg_restore`로 격리 포트 5435(SPEC_12 선례)에 복제
+(2026-07-28 07:55 UTC 동결). 8개 핵심 테이블(`stocks`·`price_history`·`market_cap_history`·
+`financials`·`financials_pit`·`disclosures`·`universe_gate_pit`·`stock_listing_events`) 행수
+전수 대조 — 전부 완전 일치, 스냅샷 무결성 확인. `git worktree`로 `de0455b`(RebalancePoint
+이전, before)와 `43eb8b5`(1단계 완료 HEAD, after) 두 체크아웃을 만들어 **동일 스냅샷** 위에서
+인컴번트 `F_pbr_no_r3r4`를 각각 재실행(export_portfolios → run_ablation --det-only →
+run_daily_nav).
+
+**결과: 완결 20구간 중 18구간 완전 일치, 2구간 실차이 발견** (2017-04-05→08-18,
+2020-04-03→08-20). 원인 진단:
+- 모든 구간에서 `n_gate`(게이트 통과 수)가 after 쪽이 일관되게 40\~80개(2\~4%) 적다.
+- `before`(최신 가용 연도 폴백)는 앵커가 원하는 fiscal_year 보고서가 아직 미공시면
+  **조용히 더 오래된 연도로 대체**해 게이트를 통과시켰다(예: 티커 000220은 2017-04-05
+  앵커에서 FY2016 `available_from=2017-06-29`로 앵커일보다 늦어 미가용인데, before는
+  FY2015로 대체해 포함).
+- `after`(DEBT-3 fiscal_year 정확매칭)는 이 대체를 막고 **목표 연도 미공시 종목을
+  앵커에서 제외**한다 — §7-3에 사전등록된 설계 그대로.
+- 2개 구간 각각에서 이 제외가 랭킹 20위 경계선에 걸린 종목 정확히 1개씩과 맞물려
+  **1:1 스왑**이 발생(2017-04-05: `000910`→`010690`, 2020-04-03: `017650`→`215380`) —
+  두 스왑 모두 게이트 제외 목록에 있던 바로 그 티커로 인과관계 완전 추적됨. 순회순서
+  의존·TTM 연도정렬 버그·가격 데이터 차이 등 다른 원인의 흔적은 없음.
+- **판정**: 리팩터링 버그가 아니라 §7-3·라인 896에 사전등록된 "DEBT-2/3/4가 고친 기존
+  오류" 시나리오 그대로. 사용자 확인 후(2026-07-28) after를 공식 baseline으로 확정.
+
+**재고정된 인컴번트 baseline (`F_pbr_no_r3r4`, 완결 20구간, 2016-04-05\~2026-04-03)**:
+
+| 지표 | 엔진 arithmetic (참고) | 일별 NAV 승법 (§9-1 SSOT, QG1\~3 공식 기준) |
+|---|---|---|
+| gross CAGR | 15.8196% | 15.8196%(compute_nav_cagr, 잔차 1e-9 이내 일치) |
+| net CAGR | 14.1794% | **14.0799%** ← QG3 비교 기준값 |
+| Sharpe | 0.5500 (반기) | 0.5943 (일별, net) |
+| MDD | −31.83%(반기 종점) | −54.61%(일별, net) / −53.35%(일별, gross) |
+| Turnover(avg) | 80% | — |
+| Tracking Error | — | KOSPI 17.17% / KOSDAQ 18.88% |
+
+SPEC_09 §4 게이트(G-NAV-1\~4) 전부 PASS. before 쪽 수치는 [[spec13_cost_model_m1]]
+메모리에 대조용으로 보존(gross 15.7144%/net 14.0753%, 2개 구간 차이 반영 전).
+
+`backtest_runs.run_id=1`(최초 INSERT, `scripts/audit/record_backtest_run.py` 신규)에
+`phase='Q-C2_baseline_freeze'`, `git_commit=43eb8b5`, `data_cutoff_date=2026-07-28`로
+영구 기록. 공식 산출물(`experiments/ablation/F_pbr_no_r3r4*`,
+`experiments/daily_nav/F_pbr_no_r3r4*`)을 스냅샷 실행분으로 갱신(운영 DB 5433에는
+쓰기 없음 — 전부 격리 스냅샷에서 읽기만). 스냅샷 컨테이너·worktree는 기록 완료 후 정리.
+
+**Q-C2 전체(1\~2단계) 완료.**
+
 ---
 
 ## 4. TTM 정의 확정 (핵심)
@@ -1089,7 +1137,7 @@ QG5-PROD는 "캘린더가 좋은가"의 증거가 아니라 "프로덕션 후보
 
 | # | 항목 | 선택지 | 결정 시점 |
 |---|---|---|---|
-| M1 | **TC-PRE 요율** | **`[확정 2026-07-27]` SPEC_04 방향(왕복 KOSPI 1.03%/KOSDAQ 0.88%, 시장구분)** — CORR-COST-001 핵심경로 코드 구현 완료. 인컴번트 재고정만 TC-PRE(프로즌) 대기 | 확정됨 |
+| M1 | **TC-PRE 요율** | **`[확정 2026-07-27]` SPEC_04 방향(왕복 KOSPI 1.03%/KOSDAQ 0.88%, 시장구분)** — CORR-COST-001 코드 구현 + **`[재고정 완료 2026-07-28]` 인컴번트 baseline은 §3-1 결과 참조** | 확정됨 |
 | M2 | fixture `thstrm_add_amount` 결측 시 fallback 정책 | **`[확정 2026-07-27]`** 아래 참조 | 확정됨 |
 | M3 | 원문 대조 임계치 | **`[확정 2026-07-27]` 99%(초안 유지)** | 확정됨 |
 | M4 | 공통 기간 `S`·`E` 실제 날짜 | **`[확정 2026-07-28]`** 3페어링 표 — §9-2b 참조 | 확정됨 |
@@ -1115,7 +1163,7 @@ QG5-PROD는 "캘린더가 좋은가"의 증거가 아니라 "프로덕션 후보
 
 **P0 — 선행 PR (인컴번트 수치 변경 → 각각 CORR 번호 + baseline 갱신)**
 1. ✅ **DEBT-4** 거래비용 산식 buy/sell 분리 + 첫 진입 buy-only (§0-A) — **CORR-COST-001 완료(2026-07-27, ed2856e)**
-2. ✅ **DEBT-1** TC-PRE 요율 확정(SPEC_04 시장구분) (§0-A) — **CORR-COST-001 완료.** 인컴번트 net CAGR 재고정만 아래 프로즌 단계 대기
+2. ✅ **DEBT-1** TC-PRE 요율 확정(SPEC_04 시장구분) (§0-A) — **CORR-COST-001 완료 + 인컴번트 net CAGR 재고정 완료(§3-1, 2026-07-28)**
 3. ✅ **DEBT-2** TTM 내부 로더 연도 키 전환 + 중간보고서 연율화 봉쇄 (§4) — **CORR-TTM-001 완료(f1d2935), 오라클 8건**
 4. ✅ `RebalancePoint` 스케줄(+`fiscal_year`) 도입, `_report_type()` 및 복제본 제거 (§7-3) — **완료(2026-07-28, 커밋 29b8321)**
 5. ✅ **DEBT-3** 게이트 `(ticker, fiscal_year, report_type)` 정확 조회 (§0-A) — **완료(2026-07-28, 커밋 29b8321)**
@@ -1141,10 +1189,9 @@ QG5-PROD는 "캘린더가 좋은가"의 증거가 아니라 "프로덕션 후보
 > fiscal_year 일치 확인) + TTM/게이트 fiscal_year 테스트 7건. **fast 196개 +
 > integration 45개(서버 임시 PG 5434) 전부 통과, 회귀 없음.**
 >
-> **아직 안 한 것**: 이 리팩터링이 실제 DB에서 반기 20~21구간 결과를 비트 단위로
-> 안 바꿨는지는 오라클(모킹 기반)로는 증명 못 한다 — §3-1 공식 스냅샷 동결 위에서
-> 실제 엔진을 반기 캘린더로 재실행해 마지막 baseline과 대조해야 한다(2단계). 이건
-> 별도 진행 승인 필요 — 실행에 시간이 걸리고 결과가 QG1~3 공식 기준선이 된다.
+> **`[2단계 완료 2026-07-28]`** 격리 스냅샷 재실행 결과 20구간 중 2구간에서 실차이
+> 발견 — DEBT-3가 설계대로 미공시 연도 대체를 막은 효과로 확인(리팩터링 버그 아님).
+> 상세·재고정 baseline 수치는 §3-2 참조. **Q-C2 전체 완료.**
 
 **P1 — Q-A(수집) 단계에서**
 1. Q-A1(재무)·Q-A2(공시 백필) 분리 (§5-7)
@@ -1166,6 +1213,6 @@ TTM을 판정 기준으로 삼자는 방향은 두 안 모두에서 정확하고
 
 **확정 사항은 §10 표에 집약**(사전등록). 남은 것은 실행 파라미터(TC-PRE 요율·fixture fallback·원문 임계치·공통기간 날짜)뿐이며 Q-A/Q-B 시점에 채워진다.
 
-**진행 현황(2026-07-28): P0 항목 1~3(CORR-COST-001·CORR-TTM-001) + VERIFY-INGEST-001 완료·배포. Q-A(재무+공시+검증)·Q-D(load_pit_series_ttm Q1/Q3 확장, 조기 착수)·Q-B(공통 기간 S·E 확정)·Q-C(dq_gate Q1/Q3 재판정) 전부 완료. Q-C2 프로즌 단계의 1단계(코드 — RebalancePoint 도입 + DEBT-3 fiscal_year 정확매칭)도 완료(커밋 29b8321, fast 196+integration 45 전부 통과).** 2단계(공식 스냅샷 동결 + 반기 baseline 비트 대조 + DEBT-1/2 재고정)는 별도 진행 승인 대기.
+**진행 현황(2026-07-28): P0 항목 1~3(CORR-COST-001·CORR-TTM-001) + VERIFY-INGEST-001 완료·배포. Q-A(재무+공시+검증)·Q-D(load_pit_series_ttm Q1/Q3 확장, 조기 착수)·Q-B(공통 기간 S·E 확정)·Q-C(dq_gate Q1/Q3 재판정)·Q-C2(RebalancePoint 도입+DEBT-3 fiscal_year 정확매칭, 커밋 29b8321 + 격리 스냅샷 before/after 비트대조·인컴번트 baseline 재고정) 전부 완료.** 재고정된 공식 인컴번트 baseline(§3-2): `F_pbr_no_r3r4` 일별 net CAGR **14.0799%**(Sharpe 0.5943, MDD −54.61%) — QG1~3 비교 기준값. `backtest_runs.run_id=1` 최초 기록.
 
-**다음 순서: Q-C2 2단계(공식 스냅샷 동결·재실행·baseline 재고정, 별도 승인 필요) → Q-E~H(RebalancePoint 스케줄 안 A/안 C 생성·QG0·대조군·본 실행) → 판정(§9-4)(§3 로드맵).** #24(8/19) 라이브는 SPEC_13과 무관하게 반기 기준 그대로 별도 진행(불변식 6). 안 A·안 C를 함께 사전등록 후보로 검정하며, 둘 다 통과해도 자동 선택하지 않고 라이브 포워드로 구분한다.
+**다음 순서: Q-E(RebalancePoint 스케줄 안 A 46개 + 안 C 파생 23개 생성) → Q-F(QG0) → Q-G(대조군 재생성) → Q-H(본 실행 + 판정 보고서)(§3 로드맵).** #24(8/19) 라이브는 SPEC_13과 무관하게 반기 기준 그대로 별도 진행(불변식 6). 안 A·안 C를 함께 사전등록 후보로 검정하며, 둘 다 통과해도 자동 선택하지 않고 라이브 포워드로 구분한다.
