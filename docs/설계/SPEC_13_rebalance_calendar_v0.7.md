@@ -1117,9 +1117,9 @@ QG5-PROD는 "캘린더가 좋은가"의 증거가 아니라 "프로덕션 후보
 1. ✅ **DEBT-4** 거래비용 산식 buy/sell 분리 + 첫 진입 buy-only (§0-A) — **CORR-COST-001 완료(2026-07-27, ed2856e)**
 2. ✅ **DEBT-1** TC-PRE 요율 확정(SPEC_04 시장구분) (§0-A) — **CORR-COST-001 완료.** 인컴번트 net CAGR 재고정만 아래 프로즌 단계 대기
 3. ✅ **DEBT-2** TTM 내부 로더 연도 키 전환 + 중간보고서 연율화 봉쇄 (§4) — **CORR-TTM-001 완료(f1d2935), 오라클 8건**
-4. ⬜ `RebalancePoint` 스케줄(+`fiscal_year`) 도입, `_report_type()` 및 복제본 제거 (§7-3)
-5. ⬜ **DEBT-3** 게이트 `(ticker, fiscal_year, report_type)` 정확 조회 (§0-A)
-6. ⬜ 공통 기간 warm-up 정규화 규칙 동결 (§9-2b) — 규칙 자체는 §9-2b에 사전등록됨
+4. ✅ `RebalancePoint` 스케줄(+`fiscal_year`) 도입, `_report_type()` 및 복제본 제거 (§7-3) — **완료(2026-07-28, 커밋 29b8321)**
+5. ✅ **DEBT-3** 게이트 `(ticker, fiscal_year, report_type)` 정확 조회 (§0-A) — **완료(2026-07-28, 커밋 29b8321)**
+6. ⬜ 공통 기간 warm-up 정규화 규칙 동결 (§9-2b) — 규칙 자체는 §9-2b에 사전등록됨, 실제 정규화 적용은 본 실행(Q-H)에서
 
 > **`[순서 결정 2026-07-27]` 항목 4·5는 프로즌 단계(TC-PRE 인컴번트 재실행)와 묶어서 처리.**
 > `RebalancePoint`는 `engine.run()` 시그니처(→ 전 소비처)를 바꾸는 최대 구조 변경인데,
@@ -1127,6 +1127,24 @@ QG5-PROD는 "캘린더가 좋은가"의 증거가 아니라 "프로덕션 후보
 > 엔진 루프 미실행). 유일한 검증은 동결 스냅샷 백테스트 재실행이다. 따라서 항목 4·5는
 > **코드 변경 즉시 재실행으로 확인할 수 있는 프로즌 단계**로 미뤄, DEBT-1/2 baseline 재고정과
 > 한 번에 검증한다. 항목 1~3은 캡처 tape에 무영향(gross+turnover만)이라 지금 선행 가능했다.
+
+> **`[1단계 완료 2026-07-28]` 코드는 끝났다 — 검증(2단계, 스냅샷 재실행)은 별도.**
+> `backtest/configs/schedule.py` 신규(`RebalancePoint`+`REBALANCE_POINTS`, 기존
+> `REBALANCE_DATES` 23개를 옛 `_report_type()`과 동일 규칙으로 감싼 파생값 — 새
+> 하드코딩 아님). `engine.py::_report_type()` 삭제, `run()`이 `list[RebalancePoint]`를
+> 받는다. `load_gate_passed_tickers`·`load_pit_series_ttm`에 `fiscal_year: int|None=None`
+> 옵션 추가(미지정 시 기존 "최신 가용 연도" 동작 그대로 — 기존 통합테스트 I-5 무변경
+> 통과 확인됨). Q-E~H 공식 파이프라인 5개 스크립트(`run_ablation`·`export_portfolios`·
+> `run_random_pool`·`gate_analysis`·`run_daily_nav`) + 감사 스크립트 3개(`engine.run()`
+> 직접 호출) 전환, semi-annual 전용 보조 스크립트 3개는 로컬 `_report_type` 헬퍼로 대체.
+> 오라클 신규 `test_rebalance_point_oracle.py`(반기 23개 전부 옛 로직과 report_type·
+> fiscal_year 일치 확인) + TTM/게이트 fiscal_year 테스트 7건. **fast 196개 +
+> integration 45개(서버 임시 PG 5434) 전부 통과, 회귀 없음.**
+>
+> **아직 안 한 것**: 이 리팩터링이 실제 DB에서 반기 20~21구간 결과를 비트 단위로
+> 안 바꿨는지는 오라클(모킹 기반)로는 증명 못 한다 — §3-1 공식 스냅샷 동결 위에서
+> 실제 엔진을 반기 캘린더로 재실행해 마지막 baseline과 대조해야 한다(2단계). 이건
+> 별도 진행 승인 필요 — 실행에 시간이 걸리고 결과가 QG1~3 공식 기준선이 된다.
 
 **P1 — Q-A(수집) 단계에서**
 1. Q-A1(재무)·Q-A2(공시 백필) 분리 (§5-7)
@@ -1148,6 +1166,6 @@ TTM을 판정 기준으로 삼자는 방향은 두 안 모두에서 정확하고
 
 **확정 사항은 §10 표에 집약**(사전등록). 남은 것은 실행 파라미터(TC-PRE 요율·fixture fallback·원문 임계치·공통기간 날짜)뿐이며 Q-A/Q-B 시점에 채워진다.
 
-**진행 현황(2026-07-28): P0 항목 1~3(CORR-COST-001·CORR-TTM-001) + VERIFY-INGEST-001 완료·배포. Q-A(재무+공시+검증)·Q-D(load_pit_series_ttm Q1/Q3 확장, 조기 착수)·Q-B(공통 기간 S·E 확정)·Q-C(dq_gate Q1/Q3 재판정) 전부 완료.** P0 항목 4·5(RebalancePoint·DEBT-3)는 검증 한계로 프로즌 단계에 묶음(위 순서 결정). M5(Q-A 착수 타이밍)는 병행으로 확정 — #24(8/19) 대기 폐지.
+**진행 현황(2026-07-28): P0 항목 1~3(CORR-COST-001·CORR-TTM-001) + VERIFY-INGEST-001 완료·배포. Q-A(재무+공시+검증)·Q-D(load_pit_series_ttm Q1/Q3 확장, 조기 착수)·Q-B(공통 기간 S·E 확정)·Q-C(dq_gate Q1/Q3 재판정) 전부 완료. Q-C2 프로즌 단계의 1단계(코드 — RebalancePoint 도입 + DEBT-3 fiscal_year 정확매칭)도 완료(커밋 29b8321, fast 196+integration 45 전부 통과).** 2단계(공식 스냅샷 동결 + 반기 baseline 비트 대조 + DEBT-1/2 재고정)는 별도 진행 승인 대기.
 
-**다음 순서: Q-C2(공식 스냅샷 동결, 여기서 프로즌 단계 [DEBT-1/2 baseline 재고정 + 항목 4·5(RebalancePoint·DEBT-3)] 처리) → Q-E~H(RebalancePoint 스케줄·QG0·대조군·본 실행) → 판정(§9-4)(§3 로드맵).** #24(8/19) 라이브는 SPEC_13과 무관하게 반기 기준 그대로 별도 진행(불변식 6). 안 A·안 C를 함께 사전등록 후보로 검정하며, 둘 다 통과해도 자동 선택하지 않고 라이브 포워드로 구분한다.
+**다음 순서: Q-C2 2단계(공식 스냅샷 동결·재실행·baseline 재고정, 별도 승인 필요) → Q-E~H(RebalancePoint 스케줄 안 A/안 C 생성·QG0·대조군·본 실행) → 판정(§9-4)(§3 로드맵).** #24(8/19) 라이브는 SPEC_13과 무관하게 반기 기준 그대로 별도 진행(불변식 6). 안 A·안 C를 함께 사전등록 후보로 검정하며, 둘 다 통과해도 자동 선택하지 않고 라이브 포워드로 구분한다.
