@@ -119,3 +119,30 @@ REBALANCE_DATES_C: tuple[date, ...] = tuple(p.date for p in REBALANCE_SCHEDULE_C
 # 불변식 assert (import 시 — §7-4)
 assert set(REBALANCE_DATES) <= set(REBALANCE_DATES_Q), '안 A 상위집합 위반'
 assert set(REBALANCE_DATES_C) <= set(REBALANCE_DATES_Q), '안 C ⊂ 안 A 위반'
+
+
+# ── CLI 캘린더 선택 (Q-G — 소비 스크립트 공용, 복제 금지) ──────────────────────
+
+CALENDAR_CHOICES: tuple[CalendarId, ...] = ('SEMIANNUAL', 'A', 'C')
+
+_SCHEDULES: dict[str, tuple[RebalancePoint, ...]] = {
+    'SEMIANNUAL': tuple(REBALANCE_POINTS),
+    'A':          REBALANCE_SCHEDULE_A,
+    'C':          REBALANCE_SCHEDULE_C,
+}
+
+
+def get_schedule(calendar_id: str) -> tuple[RebalancePoint, ...]:
+    """`--calendar` 값 → 해당 RebalancePoint 스케줄. 알 수 없는 값이면 예외."""
+    try:
+        return _SCHEDULES[calendar_id]
+    except KeyError:
+        raise ValueError(
+            f'알 수 없는 캘린더: {calendar_id!r} (가능: {", ".join(CALENDAR_CHOICES)})'
+        ) from None
+
+
+def tag_suffix(calendar_id: str) -> str:
+    """산출물 태그 접미사. 반기(기존 공식 산출물)는 무접미사로 유지해 덮어쓰기를 막는다."""
+    get_schedule(calendar_id)          # 유효성 검증 (오타로 조용히 무접미사가 되는 것 방지)
+    return '' if calendar_id == 'SEMIANNUAL' else f'_{calendar_id}'

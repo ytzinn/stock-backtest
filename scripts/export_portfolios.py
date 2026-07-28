@@ -17,7 +17,12 @@ from datetime import date
 from pathlib import Path
 
 from backtest.ablation import ABLATION_CONFIGS, RANDOM_TAGS, build_ablation_pipeline
-from backtest.configs.schedule import REBALANCE_POINTS
+from backtest.configs.schedule import (
+    CALENDAR_CHOICES,
+    RebalancePoint,
+    get_schedule,
+    tag_suffix,
+)
 from backtest.data_access import (
     get_close_price,
     is_delisted_at,
@@ -31,6 +36,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(mess
 log = logging.getLogger(__name__)
 
 OUT_DIR = Path('experiments/ablation')
+# 반기 캘린더 전용 유효 구간 — 앞 2구간(2015년, TTM 미충족으로 gate=0)과 열린 구간을
+# 잘라내던 하드코딩. 안 A·안 C에는 적용하지 않는다(해당 캘린더의 유효 시작일을 새로
+# 추정할 필요 없이, gate=0 구간은 n_portfolio=0으로 나와 다운스트림이 자동 스킵한다).
 START_DATE = date(2016, 4, 5)   # 유효 시작 (처음 2구간 제외)
 END_DATE   = date(2026, 4, 3)   # 마지막 유효 리밸런싱일
 
@@ -41,18 +49,23 @@ def get_stock_names(conn) -> dict[str, str]:
     return {r[0]: r[1] for r in cur.fetchall()}
 
 
-def extract_portfolio_periods(tag: str, config: dict) -> list[dict]:
+def extract_portfolio_periods(
+    tag:              str,
+    config:           dict,
+    rebalance_points: list[RebalancePoint],
+    date_filter:      bool = True,
+) -> list[dict]:
     pipeline = build_ablation_pipeline(tag, config, seed=None)
     conn = get_connection()
     names = get_stock_names(conn)
     results = []
 
-    for idx, rp in enumerate(REBALANCE_POINTS):
-        if not (START_DATE <= rp.date <= END_DATE):
+    for idx, rp in enumerate(rebalance_points):
+        if date_filter and not (START_DATE <= rp.date <= END_DATE):
             continue
         rebal_date = rp.date
-        next_date  = (REBALANCE_POINTS[idx + 1].date
-                      if idx + 1 < len(REBALANCE_POINTS) else date.today())
+        next_date  = (rebalance_points[idx + 1].date
+                      if idx + 1 < len(rebalance_points) else date.today())
         rtype      = rp.report_type
 
         gate_passed = load_gate_passed_tickers(
@@ -115,6 +128,9 @@ def main() -> None:
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--tags', nargs='+', help='추출할 태그 목록 (기본: 전체 결정론적 시나리오)')
+    parser.add_argument('--calendar', choices=CALENDAR_CHOICES, default='SEMIANNUAL',
+                        help='리밸런싱 캘린더 (SPEC_13 §7). 기본 SEMIANNUAL = 기존 동작·'
+                             '기존 파일명. A/C는 산출물에 _A/_C 접미사가 붙는다.')
     args = parser.parse_args()
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -122,11 +138,17 @@ def main() -> None:
     if args.tags:
         det_tags = [t for t in det_tags if t in args.tags]
 
+    rebalance_points = list(get_schedule(args.calendar))
+    suffix           = tag_suffix(args.calendar)
+    log.info(f'calendar = {args.calendar} ({len(rebalance_points)}개 앵커)')
+
     for tag in det_tags:
         config = ABLATION_CONFIGS[tag]
-        log.info(f'=== {tag} 추출 시작 ===')
-        periods = extract_portfolio_periods(tag, config)
-        out = OUT_DIR / f'{tag}_holdings.json'
+        log.info(f'=== {tag}{suffix} 추출 시작 ===')
+        periods = extract_portfolio_periods(
+            tag, config, rebalance_points, date_filter=(args.calendar == 'SEMIANNUAL')
+        )
+        out = OUT_DIR / f'{tag}{suffix}_holdings.json'
         out.write_text(json.dumps(periods, ensure_ascii=False, indent=2), encoding='utf-8')
         log.info(f'  → {out}')
 

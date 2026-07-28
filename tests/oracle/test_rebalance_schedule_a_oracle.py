@@ -10,12 +10,18 @@ from __future__ import annotations
 
 from datetime import date
 
+import pytest
+
 from backtest.configs.rebalance_dates import REBALANCE_DATES
 from backtest.configs.schedule import (
+    CALENDAR_CHOICES,
     REBALANCE_DATES_C,
     REBALANCE_DATES_Q,
+    REBALANCE_POINTS,
     REBALANCE_SCHEDULE_A,
     REBALANCE_SCHEDULE_C,
+    get_schedule,
+    tag_suffix,
 )
 
 
@@ -100,3 +106,36 @@ def test_fiscal_year_rule_q1_h1_q3_use_current_year_fy_uses_prior_year():
             assert rp.fiscal_year == rp.date.year - 1
         else:
             assert rp.fiscal_year == rp.date.year
+
+
+# ── get_schedule / tag_suffix (Q-G 소비 스크립트 공용 셀렉터) ────────────────
+
+def test_get_schedule_returns_the_right_calendar():
+    assert get_schedule('SEMIANNUAL') == tuple(REBALANCE_POINTS)
+    assert get_schedule('A') == REBALANCE_SCHEDULE_A
+    assert get_schedule('C') == REBALANCE_SCHEDULE_C
+
+
+def test_get_schedule_rejects_unknown_calendar():
+    """오타가 조용히 반기로 폴백하면 안 된다 — 잘못된 캘린더로 대조군이 생성됨."""
+    with pytest.raises(ValueError):
+        get_schedule('QUARTERLY')
+
+
+def test_tag_suffix_keeps_semiannual_unsuffixed():
+    """반기 산출물은 기존 파일명 유지 — 접미사가 붙으면 기존 공식 산출물과 갈라진다."""
+    assert tag_suffix('SEMIANNUAL') == ''
+    assert tag_suffix('A') == '_A'
+    assert tag_suffix('C') == '_C'
+
+
+def test_tag_suffix_rejects_unknown_calendar():
+    """유효성 검증 없이 무접미사를 돌려주면 A/C 실행이 반기 산출물을 덮어쓴다."""
+    with pytest.raises(ValueError):
+        tag_suffix('SEMI')
+
+
+def test_calendar_choices_cover_all_schedules():
+    assert set(CALENDAR_CHOICES) == {'SEMIANNUAL', 'A', 'C'}
+    for cid in CALENDAR_CHOICES:
+        assert len(get_schedule(cid)) > 0

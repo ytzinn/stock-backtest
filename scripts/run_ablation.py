@@ -28,7 +28,12 @@ from backtest.ablation import (
     RANDOM_TAGS,
     build_ablation_pipeline,
 )
-from backtest.configs.schedule import REBALANCE_POINTS, RebalancePoint
+from backtest.configs.schedule import (
+    CALENDAR_CHOICES,
+    RebalancePoint,
+    get_schedule,
+    tag_suffix,
+)
 from backtest.engine import BacktestEngine
 from backtest.metrics import compute_metrics
 
@@ -129,20 +134,21 @@ def run_random_distribution(
     return results
 
 
-def save_deterministic(tag: str, result: dict) -> None:
-    path = OUT_DIR / f'{tag}.json'
+def save_deterministic(tag: str, result: dict, out_tag: str | None = None) -> None:
+    out_tag = out_tag or tag
+    path = OUT_DIR / f'{out_tag}.json'
     path.write_text(
-        json.dumps({'tag': tag, 'run_at': datetime.now().isoformat(), **result}, indent=2),
+        json.dumps({'tag': out_tag, 'run_at': datetime.now().isoformat(), **result}, indent=2),
         encoding='utf-8',
     )
     log.info(f'  → {path}')
 
 
-def save_periods(tag: str, period_results: list[dict]) -> None:
+def save_periods(tag: str, period_results: list[dict], out_tag: str | None = None) -> None:
     """구간별 수익률 및 필터 통과 수를 CSV로 저장."""
     import csv
     FILTER_KEYS = ['HardFilter', 'StabilityFilter', 'FactorScreener', 'MomentumFilter']
-    path = OUT_DIR / f'{tag}_periods.csv'
+    path = OUT_DIR / f'{out_tag or tag}_periods.csv'
     with path.open('w', newline='', encoding='utf-8') as f:
         w = csv.writer(f)
         w.writerow([
@@ -173,9 +179,9 @@ def save_periods(tag: str, period_results: list[dict]) -> None:
     log.info(f'  → {path}')
 
 
-def save_distribution(tag: str, results: list[dict]) -> None:
+def save_distribution(tag: str, results: list[dict], out_tag: str | None = None) -> None:
     import csv
-    path = OUT_DIR / f'{tag}_dist.csv'
+    path = OUT_DIR / f'{out_tag or tag}_dist.csv'
     fields = [
         'seed', 'cagr', 'net_cagr', 'alpha', 'alpha_kosdaq',
         'sharpe', 'net_sharpe', 'mdd', 'robustness',
@@ -326,6 +332,9 @@ def main() -> None:
     parser.add_argument('--valuation-date', default=None,
                         help='열린 구간 평가 기준일 YYYY-MM-DD (기본: 오늘 — CLI에서 결정, '
                              '엔진은 date.today()를 내부 호출하지 않는다)')
+    parser.add_argument('--calendar', choices=CALENDAR_CHOICES, default='SEMIANNUAL',
+                        help='리밸런싱 캘린더 (SPEC_13 §7). 기본 SEMIANNUAL = 기존 동작·'
+                             '기존 파일명. A/C는 산출물에 _A/_C 접미사가 붙는다.')
     args = parser.parse_args()
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -336,10 +345,12 @@ def main() -> None:
     if args.det_only:
         tags_to_run -= RANDOM_TAGS
 
-    rebalance_points = REBALANCE_POINTS
+    rebalance_points = list(get_schedule(args.calendar))
+    suffix           = tag_suffix(args.calendar)
     valuation_date   = (date.fromisoformat(args.valuation_date)
                        if args.valuation_date else date.today())
-    log.info(f'valuation_date = {valuation_date}')
+    log.info(f'valuation_date = {valuation_date}  calendar = {args.calendar} '
+             f'({len(rebalance_points)}개 앵커)')
 
     det_results:  dict[str, dict] = {}
     dist_stats:   dict[str, dict] = {}
@@ -347,12 +358,13 @@ def main() -> None:
     for tag in ABLATION_CONFIGS:   # 정해진 순서 유지
         if tag not in tags_to_run:
             continue
-        config = ABLATION_CONFIGS[tag]
+        config  = ABLATION_CONFIGS[tag]
+        out_tag = f'{tag}{suffix}'
 
         if tag in RANDOM_TAGS:
             results  = run_random_distribution(tag, config, rebalance_points, valuation_date,
                                                n_repeats=args.repeats, n_workers=args.workers)
-            save_distribution(tag, results)
+            save_distribution(tag, results, out_tag)
             cagrs = sorted(r['cagr'] for r in results)
             n     = len(cagrs)
             dist_stats[tag] = {
@@ -363,12 +375,14 @@ def main() -> None:
             }
         else:
             result, period_results = run_deterministic(tag, config, rebalance_points, valuation_date)
-            save_deterministic(tag, result)
-            save_periods(tag, period_results)
+            save_deterministic(tag, result, out_tag)
+            save_periods(tag, period_results, out_tag)
             det_results[tag] = result
 
     summary = make_summary(det_results, dist_stats)
-    summary_path = OUT_DIR / 'summary.json'
+    # 캘린더별 분리 저장 — summary.json은 매 실행 전체 재작성이라 접미사 없이 쓰면
+    # 기존 공식 산출물(반기) 기록이 통째로 유실된다.
+    summary_path = OUT_DIR / f'summary{suffix}.json'
     summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding='utf-8')
     log.info(f'\n판정 결과:')
     for k, v in summary.get('judgements', {}).items():

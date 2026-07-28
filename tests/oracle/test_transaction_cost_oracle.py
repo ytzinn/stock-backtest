@@ -5,6 +5,10 @@ CORR-COST-001(매수/매도 분리 + 시장별 매도요율 + 첫 진입 buy-onl
 지금까지 이 함수를 직접 검증하는 오라클이 없었다(daily_nav 오라클은 stitch_periods가
 주어진 transaction_cost를 승법으로 적용하는지만 검증 — tc 계산 자체는 미검증).
 DB 미접속 — `get_markets`를 monkeypatch로 대체.
+
+Q-G에서 산식부가 순수 함수 `_transaction_cost_from_markets()`로 분리됐다
+(run_random_pool이 1,000회 추첨마다 DB를 치지 않도록). 아래 기존 5건은 리팩터링
+회귀 게이트를 겸한다 — `_calc_transaction_cost` 호출 계약은 불변이어야 한다.
 """
 from __future__ import annotations
 
@@ -12,6 +16,7 @@ from datetime import date
 
 import backtest.engine as engine_mod
 from backtest.configs.constants import BUY_COST, SELL_COST_KOSDAQ, SELL_COST_KOSPI
+from backtest.engine import _transaction_cost_from_markets
 
 AS_OF = date(2024, 4, 5)
 
@@ -77,3 +82,34 @@ def test_unchanged_weights_yield_zero_cost(monkeypatch):
     w = {'005930': 0.5, '000660': 0.5}
     tc = engine_mod._calc_transaction_cost(conn=None, prev=w, curr=w, as_of=AS_OF)
     assert tc == 0.0
+
+
+# ── _transaction_cost_from_markets (Q-G 순수 함수 분리) ──────────────────────
+
+def test_pure_function_matches_db_path_given_same_markets(monkeypatch):
+    """순수 함수와 DB 경유 함수가 **같은 시장 정보에서 같은 값**을 내야 한다.
+
+    run_random_pool이 날짜당 1회 prefetch한 시장으로 순수 함수만 호출하는 근거 —
+    두 경로가 갈리면 대조군 거래비용이 후보와 다른 산식이 된다.
+    """
+    markets = {'005930': 'KOSPI', '250000': 'KOSDAQ'}
+    monkeypatch.setattr(engine_mod, 'get_markets', lambda conn, tickers, as_of: markets)
+
+    prev = {'005930': 0.5, '250000': 0.5}
+    curr = {'005930': 0.2, '250000': 0.3, '000660': 0.5}
+    via_db   = engine_mod._calc_transaction_cost(conn=None, prev=prev, curr=curr, as_of=AS_OF)
+    via_pure = _transaction_cost_from_markets(prev, curr, markets)
+    assert via_db == via_pure
+
+
+def test_pure_function_first_entry_buy_only():
+    """prev 없음 → 매도비용 0. 시장 정보가 있어도 매수비용만."""
+    tc = _transaction_cost_from_markets({}, {'005930': 0.5, '000660': 0.5},
+                                        {'005930': 'KOSPI', '000660': 'KOSDAQ'})
+    assert tc == BUY_COST
+
+
+def test_pure_function_missing_market_key_defaults_to_kospi():
+    """prefetch 딕셔너리에 키가 없어도 예외 없이 KOSPI 상한으로 보수 처리."""
+    tc = _transaction_cost_from_markets({'999999': 1.0}, {}, {})
+    assert abs(tc - SELL_COST_KOSPI) < 1e-12

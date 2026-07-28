@@ -267,6 +267,38 @@ def _calc_turnover(prev: dict[str, float], curr: dict[str, float]) -> float:
     return 0.5 * sum(abs(curr.get(t, 0.0) - prev.get(t, 0.0)) for t in tickers)
 
 
+def _sell_deltas(prev: dict[str, float], curr: dict[str, float]) -> dict[str, float]:
+    """비중이 줄어든 종목의 감소분 {ticker: w_old − w_new} (> 0 인 것만)."""
+    return {
+        t: prev.get(t, 0.0) - curr.get(t, 0.0)
+        for t in set(prev) | set(curr)
+        if prev.get(t, 0.0) > curr.get(t, 0.0)
+    }
+
+
+def _transaction_cost_from_markets(
+    prev:    dict[str, float],
+    curr:    dict[str, float],
+    markets: dict[str, str | None],
+) -> float:
+    """구간 거래비용 산식 (DB 무접촉 순수 함수) — `_calc_transaction_cost`의 계산부.
+
+    `markets`는 **매도 대상 종목**의 as_of PIT 시장 매핑({ticker: 'KOSPI'|'KOSDAQ'|None}).
+    누락 키는 `sell_cost()` 기본(KOSPI 상한)으로 보수 처리된다.
+
+    호출자가 시장 정보를 미리 확보한 경우(예: `run_random_pool`이 리밸런싱일당 1회
+    prefetch 후 1,000회 추첨에 재사용) DB 왕복 없이 이 함수만 쓴다 — 산식을 복제하지
+    말고 반드시 이 함수를 경유할 것.
+    """
+    buy_turnover = sum(
+        max(curr.get(t, 0.0) - prev.get(t, 0.0), 0.0) for t in set(prev) | set(curr)
+    )
+    sell_cost_total = sum(
+        delta * sell_cost(markets.get(t)) for t, delta in _sell_deltas(prev, curr).items()
+    )
+    return buy_turnover * BUY_COST + sell_cost_total
+
+
 def _calc_transaction_cost(
     conn,
     prev:    dict[str, float],
@@ -283,19 +315,11 @@ def _calc_transaction_cost(
       매도비용 오부과 = DEBT-4 수정). prev∪curr에 대해 Σw=1이면 buy=sell=0.5×Σ|Δw|.
 
     시장 미상 종목은 sell_cost() 기본(KOSPI 상한)으로 보수 처리(get_markets 계약).
+    산식 자체는 `_transaction_cost_from_markets()` SSOT — 여기서는 시장 조회만 담당한다.
     """
-    tickers = set(prev) | set(curr)
-    buy_turnover = sum(max(curr.get(t, 0.0) - prev.get(t, 0.0), 0.0) for t in tickers)
-    sell_deltas = {
-        t: prev.get(t, 0.0) - curr.get(t, 0.0)
-        for t in tickers
-        if prev.get(t, 0.0) > curr.get(t, 0.0)
-    }
+    sell_deltas = _sell_deltas(prev, curr)
     markets = get_markets(conn, list(sell_deltas), as_of) if sell_deltas else {}
-    sell_cost_total = sum(
-        delta * sell_cost(markets.get(t)) for t, delta in sell_deltas.items()
-    )
-    return buy_turnover * BUY_COST + sell_cost_total
+    return _transaction_cost_from_markets(prev, curr, markets)
 
 
 def _calc_period_return(

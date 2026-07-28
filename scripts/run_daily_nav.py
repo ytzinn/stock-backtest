@@ -40,10 +40,15 @@ from pathlib import Path
 
 import pandas as pd
 
-from backtest.configs.schedule import REBALANCE_POINTS
+from backtest.configs.schedule import (
+    CALENDAR_CHOICES,
+    RebalancePoint,
+    get_schedule,
+    tag_suffix,
+)
 from backtest.daily_nav import daily_nav_for_period, stitch_periods
 from backtest.engine import BenchmarkDataUnavailable, _calc_transaction_cost
-from backtest.metrics import compute_daily_metrics, compute_mdd
+from backtest.metrics import compute_daily_metrics, compute_mdd, compute_nav_cagr
 from ingest.connection import get_connection
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s',
@@ -96,9 +101,9 @@ def _load_periods_csv(tag: str) -> dict[str, dict]:
     return out
 
 
-def _closed_tape_periods(tape: list[dict]) -> list[dict]:
-    """완결 구간만 — next_date가 REBALANCE_POINTS에 있는 구간 (열린 구간은 today라 없음)."""
-    rebal_set = {rp.date.isoformat() for rp in REBALANCE_POINTS}
+def _closed_tape_periods(tape: list[dict], rebalance_points: list[RebalancePoint]) -> list[dict]:
+    """완결 구간만 — next_date가 해당 캘린더 앵커에 있는 구간 (열린 구간은 today라 없음)."""
+    rebal_set = {rp.date.isoformat() for rp in rebalance_points}
     return [p for p in tape if p['next_date'] in rebal_set and p['n_portfolio'] > 0]
 
 
@@ -117,10 +122,11 @@ def _fetch_benchmarks() -> pd.DataFrame:
     return pd.DataFrame(out)
 
 
-def run_tag(conn, tag: str, benchmarks: pd.DataFrame) -> dict:
+def run_tag(conn, tag: str, benchmarks: pd.DataFrame,
+            rebalance_points: list[RebalancePoint]) -> dict:
     tape       = _load_tape(tag)
     engine_csv = _load_periods_csv(tag)
-    closed     = _closed_tape_periods(tape)
+    closed     = _closed_tape_periods(tape, rebalance_points)
     if not closed:
         raise RuntimeError(f'{tag}: 완결 구간이 tape에 없음')
 
@@ -219,6 +225,11 @@ def run_tag(conn, tag: str, benchmarks: pd.DataFrame) -> dict:
         'position_rows': position_rows, 'all_pass': bool(all_pass),
         'metrics': {
             'n_closed_periods':   len(closed),
+            # QG1~3 metric SSOT (SPEC_13 §9-1) — 일별 NAV 승법 정의 CAGR.
+            # compute_nav_cagr는 initial_capital=1.0 기준이라 첫 리밸런싱 거래비용이
+            # net에 정상 반영된다(nav.iloc[0]을 쓰면 그 비용이 통째로 빠짐).
+            'net_cagr':           compute_nav_cagr(nav_df['nav_net']),
+            'gross_cagr':         compute_nav_cagr(nav_df['nav_gross']),
             'endpoint_mdd_gross': endpoint_mdd,
             'daily_mdd_gross':    m_gross['daily_mdd'],
             'G_NAV_3':            bool(pass3),
@@ -234,10 +245,18 @@ def run_tag(conn, tag: str, benchmarks: pd.DataFrame) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description='SPEC_09 일별 NAV 생성 + 게이트')
     parser.add_argument('--tags', nargs='+', default=DEFAULT_TAGS)
+    parser.add_argument('--calendar', choices=CALENDAR_CHOICES, default='SEMIANNUAL',
+                        help='완결 구간 판정에 쓸 리밸런싱 캘린더 (SPEC_13 §7). '
+                             '기본 SEMIANNUAL = 기존 동작. --tags에는 접미사가 붙은 '
+                             '태그명(예: U_pbr_path_ew_A)을 직접 넘긴다.')
     args = parser.parse_args()
 
     _abort_if_cron_window()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    rebalance_points = list(get_schedule(args.calendar))
+    suffix           = tag_suffix(args.calendar)
+    log.info('calendar = %s (%d개 앵커)', args.calendar, len(rebalance_points))
 
     benchmarks = _fetch_benchmarks()
     benchmarks.to_csv(OUT_DIR / 'benchmarks_daily.csv', encoding='utf-8')
@@ -249,7 +268,7 @@ def main() -> None:
     try:
         for tag in args.tags:
             log.info('=== %s ===', tag)
-            r = run_tag(conn, tag, benchmarks)
+            r = run_tag(conn, tag, benchmarks, rebalance_points)
 
             r['nav_df'].to_csv(OUT_DIR / f'{tag}_daily_nav.csv',
                                index_label='date', encoding='utf-8')
@@ -262,18 +281,22 @@ def main() -> None:
             any_fail |= not r['all_pass']
 
             m = r['metrics']
-            log.info('[%s] 일별 MDD(net)=%.2f%% (종점 %.2f%%) Sharpe(일별)=%.3f '
-                     '최악월=%.2f%% CVaR1M=%.2f%% TE(KS)=%.2f%% 게이트=%s',
-                     tag, m['net']['daily_mdd'] * 100, m['endpoint_mdd_gross'] * 100,
+            log.info('[%s] net CAGR=%.4f%% 일별 MDD(net)=%.2f%% (종점 %.2f%%) '
+                     'Sharpe(일별)=%.3f 최악월=%.2f%% CVaR1M=%.2f%% TE(KS)=%.2f%% 게이트=%s',
+                     tag, m['net_cagr'] * 100,
+                     m['net']['daily_mdd'] * 100, m['endpoint_mdd_gross'] * 100,
                      m['net']['daily_sharpe'], m['net']['worst_month_return'] * 100,
                      m['net']['cvar_5pct_1m'] * 100, m['tracking_error_kospi'] * 100,
                      'PASS' if r['all_pass'] else 'FAIL')
     finally:
         conn.close()
 
-    (OUT_DIR / 'summary.json').write_text(
+    # 캘린더별 분리 — summary는 매 실행 전체 재작성이라 접미사 없이 쓰면 기존
+    # 공식 산출물(반기) 기록이 통째로 유실된다.
+    summary_path = OUT_DIR / f'summary{suffix}.json'
+    summary_path.write_text(
         json.dumps(summary, indent=2, ensure_ascii=False), encoding='utf-8')
-    log.info('요약 저장: %s', OUT_DIR / 'summary.json')
+    log.info('요약 저장: %s', summary_path)
 
     if any_fail:
         log.error('게이트 실패 구간 존재 — reconciliation CSV 확인 후 사용자 승인 대기 (SPEC_09 §4)')
