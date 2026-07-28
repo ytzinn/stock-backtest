@@ -3,15 +3,18 @@
 load_pit_series_ttm 은 위치가 아니라 명시적 사업연도로 TTM을 조립해야 한다.
 중간 연도가 결측되면 종전 구현은 리스트 위치가 당겨져 FY_2022 − H1_2021(엉뚱)
 + H1_2023 같은 조합을 조용히 만들었다. 이 오라클은:
-  1. _make_ttm 이 TTM = FY_{y-1} − H1_{y-1} + H1_y 를 정확히 계산하는지
+  1. _make_ttm 이 TTM = FY_{y-1} − interim_{y-1} + interim_y 를 정확히 계산하는지
   2. 연율화 fallback(H1×2 등)이 완전히 제거됐는지
   3. 중간 연도 결측 시 오조합 대신 계정 부재로 처리되는지
   4. 완전 데이터 종목은 종전과 동일한 [current, prev, prev2] 를 내는지
+  5. Q1/Q3 확장(§6-2, Q-D)이 H1과 동일 산식으로 동작하는지
 를 고정한다. DB 접근 없음 — fast suite 대상 (load_pit_by_year 몽키패치).
 """
 from __future__ import annotations
 
 from datetime import date
+
+import pytest
 
 import backtest.data_access as da
 from backtest.data_access import _make_ttm, load_pit_series_ttm
@@ -105,3 +108,49 @@ def test_ttm_fy_anchor_missing_middle_year_pads_empty(monkeypatch):
     assert out[0]['매출액'] == 2000.0
     assert out[1] == {}                 # 2022 결측 → 빈 dict (종전: 2021을 당겨옴)
     assert out[2]['매출액'] == 1600.0   # 2021 은 정확히 y_f-2 자리
+
+
+# ── Q1/Q3 확장 (§6-2, Q-D) — H1과 동일 산식, interim report_type만 다르다 ────────
+
+def test_ttm_q1_anchor_same_formula_as_h1(monkeypatch):
+    """Q1 리밸런싱: TTM_y = FY_{y-1} − Q1_{y-1} + Q1_y — H1과 동일 산식."""
+    q1 = {2024: {'매출액': 1000.0}, 2023: {'매출액': 900.0},
+          2022: {'매출액': 800.0},  2021: {'매출액': 700.0}}
+    fy = {2023: {'매출액': 2000.0}, 2022: {'매출액': 1800.0},
+          2021: {'매출액': 1600.0}, 2020: {'매출액': 1400.0}}
+    _patch(monkeypatch, fy, q1)
+    out = load_pit_series_ttm(None, date(2024, 5, 20), report_type='Q1')['X']
+    assert out[0]['매출액'] == 2000.0 - 900.0 + 1000.0  # TTM_2024 = 2100
+    assert out[1]['매출액'] == 1800.0 - 800.0 + 900.0   # TTM_2023 = 1900
+    assert out[2]['매출액'] == 1600.0 - 700.0 + 800.0   # TTM_2022 = 1700
+
+
+def test_ttm_q3_anchor_same_formula_as_h1(monkeypatch):
+    """Q3 리밸런싱: TTM_y = FY_{y-1} − Q3_{y-1} + Q3_y — H1과 동일 산식."""
+    q3 = {2024: {'매출액': 1000.0}, 2023: {'매출액': 900.0},
+          2022: {'매출액': 800.0},  2021: {'매출액': 700.0}}
+    fy = {2023: {'매출액': 2000.0}, 2022: {'매출액': 1800.0},
+          2021: {'매출액': 1600.0}, 2020: {'매출액': 1400.0}}
+    _patch(monkeypatch, fy, q3)
+    out = load_pit_series_ttm(None, date(2024, 11, 19), report_type='Q3')['X']
+    assert out[0]['매출액'] == 2000.0 - 900.0 + 1000.0  # TTM_2024 = 2100
+    assert out[1]['매출액'] == 1800.0 - 800.0 + 900.0   # TTM_2023 = 1900
+    assert out[2]['매출액'] == 1600.0 - 700.0 + 800.0   # TTM_2022 = 1700
+
+
+def test_ttm_q3_missing_middle_year_no_silent_miscombination(monkeypatch):
+    """Q3_2023 결측: TTM_2024는 interim_{y-1} 부재로 계정 없음 — 위치 당김 오조합 금지."""
+    q3 = {2024: {'매출액': 1000.0}, 2022: {'매출액': 800.0}, 2021: {'매출액': 700.0}}
+    fy = {2023: {'매출액': 2000.0}, 2022: {'매출액': 1800.0},
+          2021: {'매출액': 1600.0}, 2020: {'매출액': 1400.0}}
+    _patch(monkeypatch, fy, q3)
+    out = load_pit_series_ttm(None, date(2024, 11, 19), report_type='Q3')['X']
+    assert '매출액' not in out[0]                       # TTM_2024: Q3_2023 결측 → 부재
+    assert '매출액' not in out[1]                       # TTM_2023: Q3_2023 결측 → 부재
+    assert out[2]['매출액'] == 1600.0 - 700.0 + 800.0   # TTM_2022 = 1700 (전부 존재)
+
+
+def test_ttm_invalid_report_type_raises():
+    """미지원 report_type은 조용히 넘어가지 않고 예외를 던진다."""
+    with pytest.raises(ValueError):
+        load_pit_series_ttm(None, date(2024, 1, 1), report_type='H2')

@@ -425,8 +425,10 @@ def load_pit_series_ttm(
     중간보고서 연율화(H1×2 등)는 전면 폐지 — _make_ttm 참조.
 
     - FY 리밸런싱(4월): 최신 FY 연도 y_f 앵커. [FY_{y_f}, FY_{y_f-1}, FY_{y_f-2}].
-    - H1 리밸런싱(8월): 최신 H1 연도 y_c 앵커. [TTM_{y_c}, TTM_{y_c-1}, TTM_{y_c-2}],
-      TTM_y = FY_{y-1} − H1_{y-1} + H1_y (IS/CF), BS는 H1_y 스냅샷.
+    - H1/Q1/Q3 리밸런싱(§4-1 표): 최신 interim 연도 y_c 앵커.
+      [TTM_{y_c}, TTM_{y_c-1}, TTM_{y_c-2}], TTM_y = FY_{y-1} − interim_{y-1} + interim_y
+      (IS/CF), BS는 interim_y 스냅샷. Q1/Q3 확장(§6-2, Q-D) — H1과 동일 산식, interim
+      report_type만 다르다.
     각 원소는 항상 그 연도에 대응 — 결측 연도는 빈 dict(소비처가 .get으로 흡수).
     """
     if report_type == 'FY':
@@ -438,37 +440,41 @@ def load_pit_series_ttm(
             result[ticker] = [year_dict.get(y_f - k, {}) for k in range(3)]
         return result
 
-    # H1: TTM_{y_c..y_c-2} 를 만들려면 H1 는 y_c..y_c-3, FY 는 y_c-1..y_c-3 필요
+    if report_type not in ('H1', 'Q1', 'Q3'):
+        raise ValueError(f'지원하지 않는 report_type: {report_type!r}')
+
+    # H1/Q1/Q3: TTM_{y_c..y_c-2} 를 만들려면 interim 은 y_c..y_c-3, FY 는 y_c-1..y_c-3 필요
     fy_by_year = load_pit_by_year(conn, rebalance_date, n_years=4, report_type='FY')
-    h1_by_year = load_pit_by_year(conn, rebalance_date, n_years=4, report_type='H1')
+    interim_by_year = load_pit_by_year(conn, rebalance_date, n_years=4, report_type=report_type)
 
     result = {}
-    for ticker, h1_years in h1_by_year.items():
-        y_c = max(h1_years)
+    for ticker, interim_years in interim_by_year.items():
+        y_c = max(interim_years)
         fy_years = fy_by_year.get(ticker, {})
         result[ticker] = [
-            _make_ttm(fy_years.get(y - 1, {}), h1_years.get(y, {}), h1_years.get(y - 1, {}), ticker)
+            _make_ttm(fy_years.get(y - 1, {}), interim_years.get(y, {}), interim_years.get(y - 1, {}), ticker)
             for y in (y_c, y_c - 1, y_c - 2)
         ]
     return result
 
 
-def _make_ttm(fy_prev: dict, h1_curr: dict, h1_prev: dict, ticker: str) -> dict:
+def _make_ttm(fy_prev: dict, interim_curr: dict, interim_prev: dict, ticker: str) -> dict:
     """
-    TTM_y = FY_{y-1} − H1_{y-1} + H1_y (IS/CF 계정만). BS 계정은 H1_y 스냅샷 그대로.
+    TTM_y = FY_{y-1} − interim_{y-1} + interim_y (IS/CF 계정만). BS 계정은 interim_y
+    스냅샷 그대로. interim은 H1/Q1/Q3 중 하나(§4-1, §6-2 Q1/Q3 확장) — 산식은 동일.
 
-    **DEBT-2: 연율화 fallback 전면 폐지.** FY_{y-1}·H1_{y-1}·H1_y 세 값 중 하나라도
-    없으면 그 TTM 계정을 만들지 않는다(계정 없음). 종전의 'FY 없으면 H1×2'는
+    **DEBT-2: 연율화 fallback 전면 폐지.** FY_{y-1}·interim_{y-1}·interim_y 세 값 중
+    하나라도 없으면 그 TTM 계정을 만들지 않는다(계정 없음). 종전의 'FY 없으면 H1×2'는
     회계 계절성을 왜곡하는 오류였다(§4-2b). 소비처(필터)가 계정 부재를 흡수한다.
-    인자명 fy_prev/h1_curr/h1_prev = 각각 FY_{y-1}/H1_y/H1_{y-1}.
+    인자명 fy_prev/interim_curr/interim_prev = 각각 FY_{y-1}/interim_y/interim_{y-1}.
     """
-    result = dict(h1_curr)
+    result = dict(interim_curr)
     for acct in _IS_CF_ACCOUNTS:
-        fy_val  = fy_prev.get(acct)
-        h1c_val = h1_curr.get(acct)
-        h1p_val = h1_prev.get(acct)
-        if fy_val is not None and h1c_val is not None and h1p_val is not None:
-            result[acct] = fy_val - h1p_val + h1c_val
+        fy_val   = fy_prev.get(acct)
+        curr_val = interim_curr.get(acct)
+        prev_val = interim_prev.get(acct)
+        if fy_val is not None and curr_val is not None and prev_val is not None:
+            result[acct] = fy_val - prev_val + curr_val
         else:
             result.pop(acct, None)
     return result
