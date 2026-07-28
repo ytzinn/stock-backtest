@@ -55,7 +55,7 @@ from backtest.configs.schedule import (
     get_schedule,
     tag_suffix,
 )
-from backtest.daily_nav import daily_nav_for_period
+from backtest.daily_nav import daily_nav_for_period, stitch_periods
 from backtest.data_access import (
     get_markets,
     load_gate_passed_tickers,
@@ -110,15 +110,19 @@ def build_pools(
     """
     리밸런싱일별 풀(필터 통과 종목, build_universe 반환 순서 그대로 — 셔플 재현에
     순서가 필요) + 풀 종목별 (price_start, price_end, last) prefetch
-    + 풀 종목별 PIT 시장 prefetch.
+    + 리밸런싱일별 PIT 시장 prefetch.
 
     시장은 리밸런싱일에만 의존하고 어떤 종목이 추첨됐는지와 무관하므로, 날짜당 1회
     조회해 1,000회 추첨 전체가 공유한다 (거래비용 계산 시 DB 왕복 제거).
+
+    **매도 종목은 이번 풀에 없을 수 있다** — 리밸런싱일 t에 파는 종목은 t-1 구간의
+    보유분이고, 그 종목이 t 시점 유니버스에서 탈락했으면 pools[t]에 없다. 따라서
+    시장 조회 대상은 pools[t]가 아니라 **전 구간 풀의 합집합**이어야 한다(누락 시
+    sell_cost가 KOSPI 기본값으로 조용히 대체돼 tc가 틀린다).
     """
     pipeline = build_ablation_pipeline(TAG, ABLATION_CONFIGS[TAG], seed=None)
     pools:      dict[date, list[str]] = {}
     stock_data: dict[date, dict[str, tuple]] = {}
-    markets:    dict[date, dict[str, str | None]] = {}
 
     for rebal_rp, nxt_rp in _closed_period_pairs(rebalance_points):
         rebal, nxt  = rebal_rp.date, nxt_rp.date
@@ -130,7 +134,6 @@ def build_pools(
             log.info('%s: gate=0 (TTM 미충족) — 빈 구간', rebal)
             pools[rebal] = []
             stock_data[rebal] = {}
-            markets[rebal] = {}
             continue
         pit_series = load_pit_series_ttm(
             conn, rebal, report_type=rtype, fiscal_year=rebal_rp.fiscal_year
@@ -141,8 +144,15 @@ def build_pools(
         # 풀 전체의 종목별 가격·상폐 데이터 1회 prefetch (weight 값은 미사용 자리)
         data = _period_stock_data(conn, {t: 1.0 for t in universe}, rebal, nxt)
         stock_data[rebal] = {t: (ps, pe, last) for t, _w, ps, pe, last in data}
-        markets[rebal] = get_markets(conn, universe, rebal) if universe else {}
         log.info('%s: pool=%d (가격 유효 %d)', rebal, len(universe), len(stock_data[rebal]))
+
+    # 시장은 전 구간 풀 합집합에 대해 날짜별로 조회 (위 docstring 참조)
+    all_tickers = sorted({t for pool in pools.values() for t in pool})
+    markets: dict[date, dict[str, str | None]] = {
+        rebal: (get_markets(conn, all_tickers, rebal) if all_tickers else {})
+        for rebal in pools
+    }
+    log.info('시장 prefetch: %d종목 × %d일', len(all_tickers), len(markets))
 
     return pools, stock_data, markets
 
@@ -247,8 +257,8 @@ def verify_against_engine(conn, pools, stock_data, markets, seed: int,
 
     prev: dict[str, float] = {}
     fast_growth = 1.0     # fast-path 승법 net (run_draws와 동일 산식)
-    ref_growth  = 1.0     # EQ-1 참조: stitch_periods 정의 그대로
     nav_growth  = 1.0     # EQ-2 참조: 실제 일별 NAV 경로
+    stitch_inputs: list[dict] = []   # EQ-1 참조: 실제 stitch_periods()에 투입
     any_delisted = False
 
     for er, (rebal, nxt) in zip(engine_closed, pairs):
@@ -282,8 +292,13 @@ def verify_against_engine(conn, pools, stock_data, markets, seed: int,
             )
 
         fast_growth *= (1.0 + ((1.0 - tc_fast) * (1.0 + gross) - 1.0))
-        ref_growth  *= (1.0 - tc_fast)        # stitch_periods: 리밸런싱일 승법 차감
-        ref_growth  *= (1.0 + gross)          #                 후 구간 성장
+        # EQ-1 참조: 엔진 gross를 1구간 경로로 넣어 **실제 stitch_periods()** 를 태운다.
+        # (인라인으로 재구현하면 항등식이라 무조건 통과 — 정의가 바뀌어도 못 잡는다.
+        #  실제 함수를 경유해야 daily_nav 쪽 net 정의 변경을 교차 검출할 수 있다.)
+        stitch_inputs.append({
+            'rebalance_date': rebal, 'obs_dates': [nxt],
+            'nav_path': [1.0 + gross], 'transaction_cost': tc_fast,
+        })
         # EQ-2: 실제 일별 NAV 경로 (가격·상폐 처리 전부 daily_nav 엔진 경유)
         _obs, nav, _values = daily_nav_for_period(conn, portfolio, rebal, nxt)
         nav_growth *= (1.0 - tc_fast) * float(nav.iloc[-1])
@@ -291,10 +306,11 @@ def verify_against_engine(conn, pools, stock_data, markets, seed: int,
         any_delisted |= any(last is not None for *_rest, last in valid)
         prev = portfolio
 
+    ref_growth = float(stitch_periods(stitch_inputs)['nav_net'].iloc[-1])
     if abs(fast_growth - ref_growth) > TOL_EQ1:
         raise SystemExit(
-            f'[EQ-1 실패] 승법 net 산식 불일치 (tol {TOL_EQ1:g}): '
-            f'fast={fast_growth!r} stitch정의={ref_growth!r}'
+            f'[EQ-1 실패] 승법 net 산식이 stitch_periods 정의와 불일치 '
+            f'(tol {TOL_EQ1:g}): fast={fast_growth!r} stitch={ref_growth!r}'
         )
     tol2 = TOL_EQ2_DELIST if any_delisted else TOL_EQ2_CLEAN
     if abs(fast_growth - nav_growth) > tol2:

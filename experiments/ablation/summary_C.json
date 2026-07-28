@@ -1,0 +1,22 @@
+{
+  "generated_at": "2026-07-28T11:31:16.872664",
+  "scenarios": {
+    "U_pbr_path_ew": {
+      "cagr": 0.086258,
+      "net_cagr": 0.073152,
+      "alpha": -0.052971,
+      "alpha_kosdaq": 0.041864,
+      "sharpe": 0.384442,
+      "net_sharpe": 0.320523,
+      "mdd": -0.193709,
+      "robustness": 0.5,
+      "benchmark_cagr": 0.139229,
+      "kosdaq_cagr": 0.044394,
+      "avg_turnover": 0.697042,
+      "cagr_optimistic": 0.087807,
+      "cagr_conservative": 0.08264,
+      "n_periods": 20
+    }
+  },
+  "judgements": {}
+}

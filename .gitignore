@@ -24,6 +24,7 @@ experiments/reports/
 experiments/robustness/*.csv.gz
 experiments/robustness/*_draws.csv
 experiments/robustness/pools.json
+experiments/robustness/pools_*.json
 experiments/ablation/*_holdings.json
 experiments/daily_nav/*_daily_nav.csv
 experiments/runs/*.xlsx

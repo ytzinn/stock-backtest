@@ -23,8 +23,10 @@ def sell_cost(market: str | None) -> float:
 
 
 # ── [LEGACY] CORR-COST-001 이전 combined 모델 (왕복 0.68%, 시장 미구분) ────────
-# characterization 값. run_random_pool(§9-1 Q-G 승법 재작성)·freeze_rebalance(#24)·
-# scripts/audit 가 각자 스케줄에서 신모델로 옮기기 전까지만 사용한다.
+# characterization 값. 남은 소비처는 freeze_rebalance(#24 라이브)·
+# scripts/audit/turnover_impact_scan·tests/oracle/test_turnover_oracle 뿐이며,
+# 각자 스케줄에서 신모델로 옮기기 전까지만 사용한다.
+# (run_random_pool은 SPEC_13 Q-G에서 신모델로 이전 완료 — 2026-07-28.)
 # 신규 코드는 반드시 BUY_COST / sell_cost() 를 쓴다 — 이 두 상수를 새로 참조하지 마라.
 COST_SELL = 0.00505  # 구 TAX(0.33%) + COMMISSION/2 + SLIPPAGE/2
 COST_BUY  = 0.00175  # COMMISSION/2 + SLIPPAGE/2
