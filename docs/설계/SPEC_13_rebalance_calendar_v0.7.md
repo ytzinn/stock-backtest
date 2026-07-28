@@ -151,7 +151,7 @@ DART 쿼터 소모(§5, **`[재보정 2026-07-27]` 2~3일** — 원래 15\~25일
 | Q-C | `dq_gate` Q1/Q3 재판정 (§6-3) | **`[완료 2026-07-28]`** — `fiscal_year` 정확 조회(DEBT-3)는 항목5로 프로즌 단계(Q-C2)에 유지 |
 | **Q-C2** | **공식 실험 스냅샷 동결** (§3-1) — 이후 전 단계가 이 스냅샷에서 실행 | **`[완료 2026-07-28]`** |
 | Q-E | `RebalancePoint` 스케줄 생성 (안 A 46 + 안 C 파생 23) (§7-3~4) | **`[완료 2026-07-28]`** |
-| Q-F | **배관 게이트 QG0** (§8) | 1세션 |
+| Q-F | **배관 게이트 QG0** (§8) | **`[완료 2026-07-28]` PASS (§8-1)** |
 | Q-G | 후보 캘린더별(A·C) 대조군 재생성 (랜덤 1,000 + U_ew, 승법 net §9-1) | 수 시간 |
 | Q-H | 본 실행 + 판정 보고서 (§9) | 1세션 |
 
@@ -963,6 +963,25 @@ SPEC_12 MC-3(`F_pbr_ma_double_adapter`)에서 검증된 방식을 재사용한�
 
 **추가 검증 (DEBT-3)**: 각 앵커에서 실제 선택된 `(ticker, fiscal_year, report_type)` 행을 로그로 남기고, **원하는 `fiscal_year`가 정확 조회되는지**(available하면) + 미공개 시 `late_or_missing_current_report`로 제외되는지 확인. 원문 대조 임계치는 M3.
 
+### 8-1. `[완료 2026-07-28]` QG0 판정 — PASS
+
+**1·2단계 통과 조건(§8 본문)은 Q-C2 §3-2에서 이미 실측 완료**: `F_pbr_no_r3r4`를 격리 스냅샷에서 반기 스케줄 그대로(`RebalancePoint` 경로) 재실행 → 완결 20구간 중 18구간 **비트 동일**(1단계 조건 충족), 2구간은 **명시적으로 목록화되어** DEBT-3가 고친 기존 오류로 판명(2단계 조건 충족, 배관 실패 아님). 별도 재실행 불필요 — Q-C2가 곧 `F_pbr_no_r3r4_scheduleadapter` 실행이었다.
+
+**추가 오라클 4건 신규 작성**(그동안 없던 것 확인 후 채움):
+
+| # | 대상 | 파일 | 결과 |
+|---|---|---|---|
+| 1 | §4-2 연도 정렬(DEBT-2 회귀 방지) | `test_ttm_oracle.py::test_ttm_missing_middle_year_no_silent_miscombination` 외 — **기존 커버됨** | PASS |
+| 2 | §4-2b 누적/구간 fixture(M2) | `test_dart_ingest_oracle.py`에 4건 신규(`thstrm_add_amount=900 vs thstrm_amount=300` → IS는 900 우선·BS는 항상 300·FY는 add_amount 무시) | **PASS (100%)** |
+| 3 | `load_pit_series_ttm` 외부계약 불변 | `test_ttm_oracle.py::test_ttm_fiscal_year_none_keeps_latest_available_default` 외 — **기존 커버됨** | PASS |
+| 4 | DEBT-4 비용(buy-only·시장별 매도요율) | `test_transaction_cost_oracle.py` 신규 5건(첫 진입 buy-only·전량교체 시장분리·부분리밸런싱 매도측만 조회·시장미상 KOSPI 기본·무변동 0비용) — **`_calc_transaction_cost()` 직접 검증 오라클이 이제껏 없었음, 이번에 채움** | PASS |
+
+**DEBT-3 추가 검증**: Q-C2 §3-2에서 실측된 fiscal_year 정확 조회·미공시 제외 메커니즘(티커 000220 등 실사례)이 이 요구사항의 실질 증거. `late_or_missing_current_report` 집계 자체는 로더가 아니라 Q-H 판정 보고서 단계 책임(Q-C2 1단계에서 이미 확정한 역할 분리).
+
+오라클 9건 신규, **fast 217개(208+9) + integration 45개 전부 통과, 회귀 없음.**
+
+**판정: QG0 PASS.** 안 A(`REBALANCE_SCHEDULE_A`)·안 C(`REBALANCE_SCHEDULE_C`)를 실제 성과 실행(Q-G/Q-H)에 투입해도 되는 배관 무결성이 확인됐다.
+
 ---
 
 ## 9. 판정 기준 — 사전등록 (2026-07-24 확정, 결과 열람 후 수정 금지)
@@ -1225,6 +1244,6 @@ TTM을 판정 기준으로 삼자는 방향은 두 안 모두에서 정확하고
 
 **확정 사항은 §10 표에 집약**(사전등록). 남은 것은 실행 파라미터(TC-PRE 요율·fixture fallback·원문 임계치·공통기간 날짜)뿐이며 Q-A/Q-B 시점에 채워진다.
 
-**진행 현황(2026-07-28): P0 항목 1~3(CORR-COST-001·CORR-TTM-001) + VERIFY-INGEST-001 완료·배포. Q-A(재무+공시+검증)·Q-D(load_pit_series_ttm Q1/Q3 확장, 조기 착수)·Q-B(공통 기간 S·E 확정)·Q-C(dq_gate Q1/Q3 재판정)·Q-C2(RebalancePoint 도입+DEBT-3 fiscal_year 정확매칭, 커밋 29b8321 + 격리 스냅샷 before/after 비트대조·인컴번트 baseline 재고정)·Q-E(RebalancePoint 스케줄 안 A 46개 + 안 C 파생 23개 생성, §7-4b) 전부 완료.** 재고정된 공식 인컴번트 baseline(§3-2): `F_pbr_no_r3r4` 일별 net CAGR **14.0799%**(Sharpe 0.5943, MDD −54.61%) — QG1~3 비교 기준값. `backtest_runs.run_id=1` 최초 기록. 안 A `REBALANCE_SCHEDULE_A`(46개)·안 C `REBALANCE_SCHEDULE_C`(23개)는 `backtest/configs/schedule.py`에 확정, 아직 엔진·소비 스크립트에는 미배선(Q-F 몫).
+**진행 현황(2026-07-28): P0 항목 1~3(CORR-COST-001·CORR-TTM-001) + VERIFY-INGEST-001 완료·배포. Q-A(재무+공시+검증)·Q-D(load_pit_series_ttm Q1/Q3 확장, 조기 착수)·Q-B(공통 기간 S·E 확정)·Q-C(dq_gate Q1/Q3 재판정)·Q-C2(RebalancePoint 도입+DEBT-3 fiscal_year 정확매칭, 커밋 29b8321 + 격리 스냅샷 before/after 비트대조·인컴번트 baseline 재고정)·Q-E(RebalancePoint 스케줄 안 A 46개 + 안 C 파생 23개 생성, §7-4b)·Q-F(배관 게이트 QG0 PASS, §8-1) 전부 완료.** 재고정된 공식 인컴번트 baseline(§3-2): `F_pbr_no_r3r4` 일별 net CAGR **14.0799%**(Sharpe 0.5943, MDD −54.61%) — QG1~3 비교 기준값. `backtest_runs.run_id=1` 최초 기록. 안 A `REBALANCE_SCHEDULE_A`(46개)·안 C `REBALANCE_SCHEDULE_C`(23개)는 `backtest/configs/schedule.py`에 확정. QG0 추가 오라클 9건(§4-2b 누적/구간 fixture 4건 + DEBT-4 비용 오라클 5건, 그동안 없던 것 확인 후 신규 작성) 포함 fast 217+integration 45 전부 통과.
 
-**다음 순서: Q-F(배관 게이트 QG0 — RebalancePoint 스케줄을 실제 파이프라인에 배선하고 report_type 주입 검증) → Q-G(대조군 재생성) → Q-H(본 실행 + 판정 보고서)(§3 로드맵).** #24(8/19) 라이브는 SPEC_13과 무관하게 반기 기준 그대로 별도 진행(불변식 6). 안 A·안 C를 함께 사전등록 후보로 검정하며, 둘 다 통과해도 자동 선택하지 않고 라이브 포워드로 구분한다.
+**다음 순서: Q-G(후보 캘린더별 대조군 재생성 — 랜덤 1,000회 + EW, 승법 net) → Q-H(본 실행 + 판정 보고서)(§3 로드맵).** #24(8/19) 라이브는 SPEC_13과 무관하게 반기 기준 그대로 별도 진행(불변식 6). 안 A·안 C를 함께 사전등록 후보로 검정하며, 둘 다 통과해도 자동 선택하지 않고 라이브 포워드로 구분한다.

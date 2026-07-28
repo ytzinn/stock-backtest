@@ -12,6 +12,7 @@ from ingest.dart_ingest import (
     DEFAULT_REPORTS,
     _classify_disclosure,
     _get_valid_collection_targets,
+    _upsert_financials,
     _years_needing_disclosures,
 )
 
@@ -171,3 +172,61 @@ def test_classify_q3_rcept_fallback_when_parse_fails():
 
 def test_classify_unrecognized_returns_none():
     assert _classify_disclosure('첨부정정신고서', None) == (None, None)
+
+
+# ── _upsert_financials 누적/구간 fixture (SPEC_13 §4-2b·§8 QG0, M2 확정) ────
+# thstrm_add_amount(누적) vs thstrm_amount(구간) 우선순위 — 100% 통과 요구(항등식 아님).
+
+class _CaptureCursor:
+    """execute() 호출의 params만 리스트로 쌓는다 — SQL 문자열은 검증 대상 아님."""
+    def __init__(self):
+        self.calls: list[tuple] = []
+
+    def execute(self, sql, params=None):
+        self.calls.append(params)
+
+    def fetchall(self):
+        return []
+
+
+def _run_upsert(items: list[dict], report_type: str) -> float:
+    cur = _CaptureCursor()
+    _upsert_financials(cur, '000000', '00000000', 2024, report_type, 'CFS', items)
+    assert len(cur.calls) == 1, 'fixture 계정 1개는 정확히 1행 저장돼야 함'
+    amount_idx = 6  # (ticker, corp_code, year, report_type, fs_div, account_nm, amount, frmtrm_amount)
+    return cur.calls[0][amount_idx]
+
+
+def test_upsert_is_account_prefers_cumulative_add_amount_over_interval_q3():
+    """§4-2b M2: IS 계정(H1/Q1/Q3)은 thstrm_add_amount(누적)를 thstrm_amount(구간)보다 우선."""
+    item = {
+        'account_nm': '매출액', 'sj_nm': '손익계산서',
+        'thstrm_add_amount': '900', 'thstrm_amount': '300', 'frmtrm_amount': '500',
+    }
+    assert _run_upsert([item], 'Q3') == 900.0
+
+
+def test_upsert_is_account_falls_back_to_interval_when_cumulative_missing():
+    item = {
+        'account_nm': '매출액', 'sj_nm': '손익계산서',
+        'thstrm_add_amount': '', 'thstrm_amount': '300', 'frmtrm_amount': '500',
+    }
+    assert _run_upsert([item], 'Q3') == 300.0
+
+
+def test_upsert_bs_account_ignores_cumulative_add_amount_even_if_present():
+    """BS 계정(스톡 변수)은 report_type과 무관하게 항상 thstrm_amount 스냅샷 그대로."""
+    item = {
+        'account_nm': '자본총계', 'sj_nm': '재무상태표',
+        'thstrm_add_amount': '900', 'thstrm_amount': '300', 'frmtrm_amount': '500',
+    }
+    assert _run_upsert([item], 'Q3') == 300.0
+
+
+def test_upsert_fy_report_uses_interval_amount_regardless_of_add_amount():
+    """FY는 report_type 분기 조건(H1/Q1/Q3)에 안 걸려 add_amount를 아예 안 본다."""
+    item = {
+        'account_nm': '매출액', 'sj_nm': '손익계산서',
+        'thstrm_add_amount': '900', 'thstrm_amount': '300', 'frmtrm_amount': '500',
+    }
+    assert _run_upsert([item], 'FY') == 300.0
