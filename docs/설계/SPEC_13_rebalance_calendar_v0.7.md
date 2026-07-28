@@ -149,8 +149,8 @@ DART 쿼터 소모(§5, **`[재보정 2026-07-27]` 2~3일** — 원래 15\~25일
 | Q-D* | `load_pit_series_ttm()` Q1/Q3 확장 + 오라클 (§6-2) — **완료 2026-07-28, Q-B 선행조건이라 조기 착수** | 완료 |
 | Q-B | `pit_loader` Q1/Q3 재빌드·fallback률 검증 + 공통 기간 규칙 동결 (§6, §9-2b) | **`[완료 2026-07-28]`** |
 | Q-C | `dq_gate` Q1/Q3 재판정 (§6-3) | **`[완료 2026-07-28]`** — `fiscal_year` 정확 조회(DEBT-3)는 항목5로 프로즌 단계(Q-C2)에 유지 |
-| **Q-C2** | **공식 실험 스냅샷 동결** (§3-1) — 이후 전 단계가 이 스냅샷에서 실행 | 수 시간 |
-| Q-E | `RebalancePoint` 스케줄 생성 (안 A 46 + 안 C 파생 23) (§7-3~4) | 0.5일 |
+| **Q-C2** | **공식 실험 스냅샷 동결** (§3-1) — 이후 전 단계가 이 스냅샷에서 실행 | **`[완료 2026-07-28]`** |
+| Q-E | `RebalancePoint` 스케줄 생성 (안 A 46 + 안 C 파생 23) (§7-3~4) | **`[완료 2026-07-28]`** |
 | Q-F | **배관 게이트 QG0** (§8) | 1세션 |
 | Q-G | 후보 캘린더별(A·C) 대조군 재생성 (랜덤 1,000 + U_ew, 승법 net §9-1) | 수 시간 |
 | Q-H | 본 실행 + 판정 보고서 (§9) | 1세션 |
@@ -806,6 +806,18 @@ assert set(REBALANCE_DATES_C) <= set(REBALANCE_DATES_Q), '안 C ⊂ 안 A 위반
 
 **핵심**: 날짜와 report_type·fiscal_year가 **한 곳(스케줄)에서만** 정의된다. 파생 뷰는 스케줄에서 계산되므로 둘이 어긋날 수 없다. §7-1 산출 날짜(오라클 통과)와 §4-1 TTM 매핑이 스케줄 리터럴에 함께 박힌다.
 
+### 7-4b. `[완료 2026-07-28]` Q-E 실행 결과
+
+`scripts/generate_rebalance_dates.py`를 `--freq`·`--as-of`·`--verify`로 확장(운영 DB `price_history` 기반, §7-3b 설계 그대로). `--as-of 2026-07-28`로 실행한 결과:
+
+- **반기 재현 오라클 통과** — 기존 `REBALANCE_DATES` 23개와 완전 일치(먼저 항상 이걸 확인 후 quarterly로 진행하는 안전장치가 실제로 작동함 확인).
+- **안 A 46개 생성, 상위집합 검증 통과**(반기 23개 전부 포함). report_type 분포 FY 12·H1 11·Q1 12·Q3 11 = 46, §7-1 기대값과 정확히 일치.
+- Q1/Q3 날짜 23개 전부 §7-1 독립 구현 산출 테이블과 **1건도 틀리지 않고 일치** — 두 개의 서로 다른 산출 경로(문서의 독립 구현, DB 생성기)가 교차검증됨.
+- 2026 Q3는 `as_of` 시점에 아직 도래하지 않아 46개에서 제외(설계대로) — `nth_trading_day_after`가 미래 마감일에 대해 예외를 던지던 것을 `build()`에서 사전 스킵하도록 보정(기존 스크립트가 `yr < 2026` 하드코딩 가드로 처리하던 것을 `as_of` 기반 범용 처리로 대체).
+- 생성기 출력을 `backtest/configs/schedule.py`에 `REBALANCE_SCHEDULE_A`(46개 리터럴)로 하드코딩. `REBALANCE_SCHEDULE_C`(안 C, `Q1`·`Q3`만 23개)·`REBALANCE_DATES_Q`·`REBALANCE_DATES_C` 파생 뷰 + 상위집합 assert 2건 추가.
+- 오라클 신규 `tests/oracle/test_rebalance_schedule_a_oracle.py`(12건 — 개수·분포·정렬·상위집합·안C 부분집합·fiscal_year 규칙·§7-1 표본대조). DB 접근 없음(리터럴 검증). **fast 208개(196+12) + integration 45개 전부 통과, 회귀 없음.**
+- 엔진·소비 스크립트는 아직 `REBALANCE_SCHEDULE_A/C`를 쓰지 않는다 — 실제 배관 연결(QG0)은 Q-F에서.
+
 ### 7-5. 주입 구조 (불변식 1 준수)
 
 - `engine.py`·`ablation.py`·`pipeline.py`는 `rebalance_dates`를 **생성자/인자로 주입**받는다. 기본값 = `REBALANCE_DATES` → **기존 동작 완전 불변**.
@@ -1213,6 +1225,6 @@ TTM을 판정 기준으로 삼자는 방향은 두 안 모두에서 정확하고
 
 **확정 사항은 §10 표에 집약**(사전등록). 남은 것은 실행 파라미터(TC-PRE 요율·fixture fallback·원문 임계치·공통기간 날짜)뿐이며 Q-A/Q-B 시점에 채워진다.
 
-**진행 현황(2026-07-28): P0 항목 1~3(CORR-COST-001·CORR-TTM-001) + VERIFY-INGEST-001 완료·배포. Q-A(재무+공시+검증)·Q-D(load_pit_series_ttm Q1/Q3 확장, 조기 착수)·Q-B(공통 기간 S·E 확정)·Q-C(dq_gate Q1/Q3 재판정)·Q-C2(RebalancePoint 도입+DEBT-3 fiscal_year 정확매칭, 커밋 29b8321 + 격리 스냅샷 before/after 비트대조·인컴번트 baseline 재고정) 전부 완료.** 재고정된 공식 인컴번트 baseline(§3-2): `F_pbr_no_r3r4` 일별 net CAGR **14.0799%**(Sharpe 0.5943, MDD −54.61%) — QG1~3 비교 기준값. `backtest_runs.run_id=1` 최초 기록.
+**진행 현황(2026-07-28): P0 항목 1~3(CORR-COST-001·CORR-TTM-001) + VERIFY-INGEST-001 완료·배포. Q-A(재무+공시+검증)·Q-D(load_pit_series_ttm Q1/Q3 확장, 조기 착수)·Q-B(공통 기간 S·E 확정)·Q-C(dq_gate Q1/Q3 재판정)·Q-C2(RebalancePoint 도입+DEBT-3 fiscal_year 정확매칭, 커밋 29b8321 + 격리 스냅샷 before/after 비트대조·인컴번트 baseline 재고정)·Q-E(RebalancePoint 스케줄 안 A 46개 + 안 C 파생 23개 생성, §7-4b) 전부 완료.** 재고정된 공식 인컴번트 baseline(§3-2): `F_pbr_no_r3r4` 일별 net CAGR **14.0799%**(Sharpe 0.5943, MDD −54.61%) — QG1~3 비교 기준값. `backtest_runs.run_id=1` 최초 기록. 안 A `REBALANCE_SCHEDULE_A`(46개)·안 C `REBALANCE_SCHEDULE_C`(23개)는 `backtest/configs/schedule.py`에 확정, 아직 엔진·소비 스크립트에는 미배선(Q-F 몫).
 
-**다음 순서: Q-E(RebalancePoint 스케줄 안 A 46개 + 안 C 파생 23개 생성) → Q-F(QG0) → Q-G(대조군 재생성) → Q-H(본 실행 + 판정 보고서)(§3 로드맵).** #24(8/19) 라이브는 SPEC_13과 무관하게 반기 기준 그대로 별도 진행(불변식 6). 안 A·안 C를 함께 사전등록 후보로 검정하며, 둘 다 통과해도 자동 선택하지 않고 라이브 포워드로 구분한다.
+**다음 순서: Q-F(배관 게이트 QG0 — RebalancePoint 스케줄을 실제 파이프라인에 배선하고 report_type 주입 검증) → Q-G(대조군 재생성) → Q-H(본 실행 + 판정 보고서)(§3 로드맵).** #24(8/19) 라이브는 SPEC_13과 무관하게 반기 기준 그대로 별도 진행(불변식 6). 안 A·안 C를 함께 사전등록 후보로 검정하며, 둘 다 통과해도 자동 선택하지 않고 라이브 포워드로 구분한다.
