@@ -112,3 +112,66 @@ def percentile_below(value: float, null_values: list[float]) -> float:
     below = sum(1 for v in null_values if v < value)
     ties  = sum(1 for v in null_values if v == value)
     return (below + 0.5 * ties) / len(null_values)
+
+
+# ── paired moving block bootstrap (SPEC_13 §9-3a 사전등록) ────────────────────
+
+def paired_block_bootstrap_cagr_diff(
+    monthly_a:    list[float],
+    monthly_b:    list[float],
+    *,
+    block_months: int = 12,
+    n_resamples:  int = 10_000,
+    seed:         int = 13,
+    months_per_year: float = 12.0,
+) -> dict:
+    """후보(A) − 인컴번트(B) ΔCAGR 의 paired moving block bootstrap (SPEC_13 §9-3a).
+
+    안 A/안 C와 인컴번트는 **앵커 교집합이 0** 이라 구간 단위 페어링이 정의 불가하므로,
+    공통 시간축인 **월간 수익률**에서 정의한다. 두 시리즈를 **같은 블록 인덱스로 동시
+    추출**해 paired 구조(동일 기간 대응)를 보존한다 — 각자 독립 리샘플하면 짝이 깨져
+    차이의 분산이 과대추정된다.
+
+    겹침 허용 moving block: 시작점을 0..n-block 에서 균등 추출해 길이 block 블록을
+    이어붙이고 **원 길이 n 으로 절단**한다(마지막 블록 초과분 버림 — 표본 길이 불변).
+
+    반환 dict: delta_cagr_point(원표본 ΔCAGR), p_gt_0, p_gt_delta(δ=0.1%p 초과 확률),
+      ci_low/ci_high(2.5/97.5 백분위), n_months, n_resamples, block_months, seed.
+    """
+    import numpy as np
+
+    if len(monthly_a) != len(monthly_b):
+        raise ValueError(f'월 수 불일치: A={len(monthly_a)} B={len(monthly_b)} — paired 전제 위반')
+    n = len(monthly_a)
+    if n < block_months:
+        raise ValueError(f'표본 월 수({n})가 블록 길이({block_months})보다 짧다')
+
+    a = np.asarray(monthly_a, dtype=float)
+    b = np.asarray(monthly_b, dtype=float)
+
+    def _cagr(x: np.ndarray) -> float:
+        return float(np.prod(1.0 + x) ** (months_per_year / len(x)) - 1.0)
+
+    point = _cagr(a) - _cagr(b)
+
+    rng = np.random.default_rng(seed)
+    n_blocks = int(np.ceil(n / block_months))
+    max_start = n - block_months            # 겹침 허용 시작점 상한 (inclusive)
+
+    diffs = np.empty(n_resamples, dtype=float)
+    for i in range(n_resamples):
+        starts = rng.integers(0, max_start + 1, size=n_blocks)
+        idx = np.concatenate([np.arange(s, s + block_months) for s in starts])[:n]
+        diffs[i] = _cagr(a[idx]) - _cagr(b[idx])
+
+    return {
+        'delta_cagr_point': point,
+        'p_gt_0':           float(np.mean(diffs > 0.0)),
+        'p_gt_delta':       float(np.mean(diffs > 0.001)),   # δ = +0.1%p
+        'ci_low':           float(np.percentile(diffs, 2.5)),
+        'ci_high':          float(np.percentile(diffs, 97.5)),
+        'n_months':         n,
+        'n_resamples':      n_resamples,
+        'block_months':     block_months,
+        'seed':             seed,
+    }

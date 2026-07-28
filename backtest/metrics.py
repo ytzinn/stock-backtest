@@ -218,6 +218,36 @@ def compute_daily_metrics(nav: pd.Series, benchmark: pd.Series | None = None) ->
     return out
 
 
+def slice_common_period(nav: pd.Series, start, end) -> pd.Series:
+    """일별 NAV를 공통 평가 구간 `[start, end]`로 절단 (SPEC_13 §9-2b).
+
+    §9-2b는 "S에서 **거래하지 않고** 보유 포트폴리오·NAV를 그대로 승계, NAV(S)=1.0으로
+    **정규화만**" 을 요구한다. 여기서는 절단만 하고 정규화는 하지 않는다 —
+      - CAGR: `compute_nav_cagr(sliced, initial_capital=sliced.iloc[0])` 이 곧
+        `(NAV(E)/NAV(S))^(1/years) − 1` 로, 정규화한 것과 **수학적으로 동일**하다.
+      - MDD·Sharpe·vol: `compute_daily_metrics` 는 전부 비율 기반이라 **스케일 불변**.
+    즉 시리즈를 다시 쓰지 않아도 §9-2b 규약이 그대로 성립한다(강제 매수 없음).
+
+    `start`는 시리즈에 실제로 존재하는 관측일이어야 한다 — 없으면 그 전략이 해당
+    시점에 아직 시작하지 않았거나 관측일 규약이 어긋난 것이므로 **예외**를 던진다
+    (조용히 가까운 날짜로 대체하면 전략마다 다른 구간을 비교하게 된다).
+    """
+    nav = nav.dropna().astype(float).copy()
+    nav.index = pd.to_datetime(nav.index)
+    nav = nav.sort_index()
+
+    s, e = pd.Timestamp(start), pd.Timestamp(end)
+    if s not in nav.index:
+        raise ValueError(
+            f'공통 시작일 {s.date()} 이 NAV 관측일에 없다 — 전략 시작 시점 또는 '
+            f'관측일 규약 불일치 (시리즈 범위 {nav.index[0].date()}~{nav.index[-1].date()})'
+        )
+    out = nav.loc[s:e]
+    if len(out) < 2:
+        raise ValueError(f'절단 후 관측치 부족 ({len(out)}개) — 구간 [{s.date()}, {e.date()}]')
+    return out
+
+
 def compute_nav_cagr(nav: pd.Series, initial_capital: float = 1.0) -> float:
     """일별 NAV 시리즈의 CAGR (SPEC_12 §5-1 SSOT).
 
