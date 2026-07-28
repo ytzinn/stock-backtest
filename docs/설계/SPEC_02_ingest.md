@@ -38,12 +38,22 @@
 > 이 오선택이 SPEC_13 §5-2의 "Q1/Q3 15~25일" 추정을 약 4배 부풀린 근본 원인이었다
 > (SPEC_13 §5-2 정정 참조). 다른 곳의 "10,000콜" 언급(`CLAUDE.md`,
 > `ingest/xbrl_historical_ingest.py` 주석 등)도 같은 오류를 물려받은 것이므로 함께 정정.
-> 단 하루치 재검증이라 페이스가 안정적인지는 Q-A1 완료 후 재확인한다.
+> **`[Q-A1 완료 2026-07-28]`** 2일차(2026-07-28, stock-analysis 키 병행)에 남은 전량을
+> 쿼터 초과 없이 완주 — 페이스 안정성 재확인 완료. 결과적으로 전체 2,855종목 중
+> 2,807종목(98.3%) 완료. §6-1 fallback_used 비율 전부 목표 통과(SPEC_13 참조).
 
-> ⚠️ **DART API 키 공유 주의 (2026-05 확인)**: stock-analysis 프로젝트와 동일한 DART API 키를 사용 중.
-> stock-analysis의 dart-watcher(Railway)가 매분 폴링하며 일일 쿼터 일부를 소비한다.
-> stock-backtest의 `dart_ingest`는 **KST 00:05 (쿼터 리셋 직후)** 에 실행해야 최대 쿼터를 확보할 수 있다.
-> 근본 해결책: 별도 API 키 발급 또는 dart-watcher 폴링 간격 확대.
+> ⚠️ **DART API 키 공유 주의 (2026-05 확인)** — **`[정정 2026-07-28]` 이 경고 자체가
+> 틀렸다.** stock-analysis `.env`와 stock-backtest `.env`의 `DART_API_KEY`를 직접
+> 대조한 결과 **서로 다른 키**였다. stock-analysis 키로 병렬 수집해 쿼터 초과 없이
+> 완주한 것으로, **DART 쿼터는 사업자 계정이 아니라 키 단위로 할당됨**을 실측 확인
+> (SPEC_13 §10 M5). 즉 stock-backtest·stock-analysis는 이미 독립 쿼터를 쓰고 있었고,
+> "KST 00:05 실행" 권고·"근본 해결책: 별도 키 발급"은 애초에 불필요했다 — 아래 원문은
+> 이력으로만 남긴다.
+>
+> ~~stock-analysis 프로젝트와 동일한 DART API 키를 사용 중. stock-analysis의
+> dart-watcher(Railway)가 매분 폴링하며 일일 쿼터 일부를 소비한다. stock-backtest의
+> `dart_ingest`는 KST 00:05(쿼터 리셋 직후)에 실행해야 최대 쿼터를 확보할 수 있다.
+> 근본 해결책: 별도 API 키 발급 또는 dart-watcher 폴링 간격 확대.~~
 
 > ⚠️ **DART API 전환 (2026-05-12)**: `fnlttSinglAcnt.json`(주요계정)은 현금흐름(CF) 계정을 제외함 → `adj_roe = (0.5×NI + 0.5×CFO) / equity` 계산 불가.
 > 반드시 `fnlttSinglAcntAll.json`(전체계정) 사용. 기존 주요계정으로 수집된 종목은 `ingest/supplement_cf.py`로 CF만 보완 수집.
