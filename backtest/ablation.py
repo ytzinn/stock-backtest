@@ -250,6 +250,25 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'use_momentum': True,  'use_rim_filter': False,
                             'stability_rules': {'R1', 'R5', 'R6'},
                             'rank_mode': 'pbr'},
+    # ── `[진단 전용 2026-07-29]` R1 사다리 — 판정 비사용 ────────────────────
+    # CORR-TTM-001 재발행에서 F_pbr_no_r2r3r4({R1,R5,R6} 15.9276%)가
+    # F_pbr_no_r3r4({R1,R2,R5,R6} 15.8196%)를 역전한 뒤 사용자 요청으로 추가.
+    # **결과를 보고 나서 추가한 셀이므로 채택 후보가 될 수 없다** (사후 탐색·
+    # 다중검정. SPEC_13 §9-6 자동선택 금지와 같은 취지). 규칙 사다리가 단조가
+    # 아님(F_pbr_nostab {} = 14.4557% < {R1,R5,R6})이 이미 확인돼 내부 최적점이
+    # 존재하므로, 아래 두 셀은 그 형태를 읽기 위한 진단값이다.
+    #   R1까지 제거 = {R5,R6} — 사용자가 요청한 다음 단.
+    'F_pbr_no_r1r2r3r4':   {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': False,
+                            'stability_rules': {'R5', 'R6'},
+                            'rank_mode': 'pbr'},
+    #   채택 후보에서 R1만 제거 = {R2,R5,R6} — R1 주효과를 R1×R2 상호작용과
+    #   분리하기 위한 leave-one-out. 이게 없으면 위 셀의 개선이 R1 때문인지
+    #   R2와의 조합 때문인지 구분할 수 없다.
+    'F_pbr_no_r1r3r4':     {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': False,
+                            'stability_rules': {'R2', 'R5', 'R6'},
+                            'rank_mode': 'pbr'},
     'G_full':              {'use_hard': True,  'use_stability': True,  'use_screener': True,
                             'use_momentum': True,  'use_rim_filter': True},
     'G_no_r6':             {'use_hard': True,  'use_stability': True,  'use_screener': True,
