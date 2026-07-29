@@ -195,18 +195,28 @@ def save_distribution(tag: str, results: list[dict], out_tag: str | None = None)
     log.info(f'  → {path} ({len(results)}행)')
 
 
-def make_summary(det_results: dict[str, dict], dist_stats: dict[str, dict]) -> dict:
-    """비교 요약 (판정 기준 포함)."""
-    summary: dict = {'generated_at': datetime.now().isoformat(), 'scenarios': {}}
+def make_summary(det_results: dict[str, dict], dist_stats: dict[str, dict],
+                 prior_scenarios: dict[str, dict] | None = None) -> dict:
+    """비교 요약 (판정 기준 포함).
+
+    `prior_scenarios`가 주어지면 그 위에 이번 실행분을 **덮어쓰기 병합**한다.
+    통째로 새로 쓰면 이번에 안 돌린 태그의 기록이 조용히 사라진다 — 실제로
+    2026-07-18 공표본(39태그)이 이후 부분 실행들에 이렇게 지워졌다.
+    태그별 `run_at`을 함께 적어 어느 항목이 오래된 코드 산출인지 추적 가능하게 한다.
+    """
+    now = datetime.now().isoformat()
+    summary: dict = {'generated_at': now, 'scenarios': dict(prior_scenarios or {})}
 
     for tag, r in det_results.items():
-        summary['scenarios'][tag] = {
+        entry = {
             k: round(v, 6) for k, v in r.items()
             if k != 'seed' and isinstance(v, (int, float))
         }
+        entry['run_at'] = now
+        summary['scenarios'][tag] = entry
 
     for tag, s in dist_stats.items():
-        summary['scenarios'][tag] = s
+        summary['scenarios'][tag] = {**s, 'run_at': now}
 
     # 판정 기준 평가
     s = summary['scenarios']
@@ -379,10 +389,16 @@ def main() -> None:
             save_periods(tag, period_results, out_tag)
             det_results[tag] = result
 
-    summary = make_summary(det_results, dist_stats)
-    # 캘린더별 분리 저장 — summary.json은 매 실행 전체 재작성이라 접미사 없이 쓰면
-    # 기존 공식 산출물(반기) 기록이 통째로 유실된다.
+    # 캘린더별 분리 저장 — 접미사 없이 쓰면 기존 공식 산출물(반기) 기록이 유실된다.
+    # 캘린더 분리는 캘린더 간 유실만 막으므로, 같은 캘린더 안 태그 간 유실은
+    # 아래 병합으로 막는다 (run_daily_nav.py와 동일 패턴).
     summary_path = OUT_DIR / f'summary{suffix}.json'
+    prior_scenarios: dict[str, dict] = {}
+    if summary_path.exists():
+        prior_scenarios = json.loads(
+            summary_path.read_text(encoding='utf-8')).get('scenarios', {})
+
+    summary = make_summary(det_results, dist_stats, prior_scenarios)
     summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding='utf-8')
     log.info(f'\n판정 결과:')
     for k, v in summary.get('judgements', {}).items():
