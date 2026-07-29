@@ -1,0 +1,97 @@
+{
+  "spec": "SPEC_13 Q-H",
+  "calendar": "A",
+  "common_period": {
+    "S": "2016-05-18",
+    "E": "2026-04-03",
+    "n_obs": 2424,
+    "first_obs": "2016-05-18",
+    "last_obs": "2026-04-03"
+  },
+  "pre_registered": {
+    "delta_pp": 0.001,
+    "qg5_mdd_limit": -0.45,
+    "superior_margin": 0.003,
+    "superior_p_gt_0": 0.9,
+    "note": "§9-2·§9-2b·§9-3a·§9-4a — 결과 열람 후 수정 금지"
+  },
+  "metrics_common_period": {
+    "candidate": {
+      "tag": "F_pbr_no_r3r4_A",
+      "net_cagr": 0.07636001485785138,
+      "daily_mdd": -0.5695477551050383,
+      "daily_sharpe": 0.3338785856157951,
+      "n_obs": 2424,
+      "first_obs": "2016-05-18",
+      "last_obs": "2026-04-03"
+    },
+    "incumbent": {
+      "tag": "F_pbr_no_r3r4",
+      "net_cagr": 0.1427290409119395,
+      "daily_mdd": -0.5460574396101376,
+      "daily_sharpe": 0.5991033627088667,
+      "n_obs": 2424,
+      "first_obs": "2016-05-18",
+      "last_obs": "2026-04-03"
+    },
+    "ew": {
+      "tag": "U_pbr_path_ew_A",
+      "net_cagr": 0.060880701288734906,
+      "daily_mdd": -0.5308954212275241,
+      "daily_sharpe": 0.26633266565624253,
+      "n_obs": 2424,
+      "first_obs": "2016-05-18",
+      "last_obs": "2026-04-03"
+    },
+    "random": {
+      "p95_net_cagr": 0.11331453131723679,
+      "median_net_cagr": 0.03768137258050541,
+      "p5_net_cagr": -0.019267030634952165,
+      "n_draws": 1000,
+      "n_periods_used": 39,
+      "first_period": "2016-05-18",
+      "last_period": "2025-11-19",
+      "years": 9.875427789185489
+    }
+  },
+  "hard_gates": {
+    "QG1": {
+      "pass": false,
+      "candidate_net_cagr": 0.07636001485785138,
+      "random_p95": 0.11331453131723679,
+      "percentile_in_null": 0.824
+    },
+    "QG2": {
+      "pass": true,
+      "candidate_net_cagr": 0.07636001485785138,
+      "ew_net_cagr": 0.060880701288734906,
+      "margin_pp": 1.547931356911647
+    },
+    "QG3": {
+      "pass": false,
+      "candidate_net_cagr": 0.07636001485785138,
+      "incumbent_net_cagr": 0.1427290409119395,
+      "threshold": 0.1437290409119395,
+      "margin_pp": -6.636902605408812
+    },
+    "QG5_PROD": {
+      "pass": false,
+      "candidate_daily_mdd_net": -0.5695477551050383,
+      "limit": -0.45
+    }
+  },
+  "bootstrap": {
+    "delta_cagr_point": -0.06545755828808142,
+    "p_gt_0": 0.0045,
+    "p_gt_delta": 0.0039,
+    "ci_low": -0.12531492043247955,
+    "ci_high": -0.013798780401324753,
+    "n_months": 120,
+    "n_resamples": 10000,
+    "block_months": 12,
+    "seed": 13
+  },
+  "QG3_SCREEN_PASS": false,
+  "evidence_label": "INFERIOR",
+  "all_hard_gates_pass": false
+}

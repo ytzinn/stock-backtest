@@ -262,7 +262,16 @@ def main() -> None:
     benchmarks.to_csv(OUT_DIR / 'benchmarks_daily.csv', encoding='utf-8')
     log.info('벤치마크 일별 시리즈 저장: %s행', len(benchmarks))
 
-    summary: dict = {'generated_at': datetime.now().isoformat(), 'tags': {}}
+    # 기존 summary가 있으면 **병합**한다 — 통째로 새로 쓰면 이번에 안 돌린 태그의
+    # 기록이 조용히 사라진다(같은 캘린더 안에서 태그를 나눠 실행하는 경우가 실제로 있다).
+    # 캘린더별 파일 분리(suffix)는 캘린더 간 유실만 막고 태그 간 유실은 못 막았다.
+    summary_path = OUT_DIR / f'summary{suffix}.json'
+    if summary_path.exists():
+        summary = json.loads(summary_path.read_text(encoding='utf-8'))
+        summary.setdefault('tags', {})
+    else:
+        summary = {'tags': {}}
+    summary['generated_at'] = datetime.now().isoformat()
     any_fail = False
     conn = get_connection()
     try:
@@ -277,7 +286,11 @@ def main() -> None:
             pd.DataFrame(r['position_rows']).to_csv(
                 OUT_DIR / f'{tag}_daily_positions.csv', index=False, encoding='utf-8')
 
-            summary['tags'][tag] = {'all_gates_pass': r['all_pass'], **r['metrics']}
+            summary['tags'][tag] = {
+                'all_gates_pass': r['all_pass'],
+                'generated_at': datetime.now().isoformat(),   # 병합 시 태그별 신선도 추적
+                **r['metrics'],
+            }
             any_fail |= not r['all_pass']
 
             m = r['metrics']
@@ -291,9 +304,7 @@ def main() -> None:
     finally:
         conn.close()
 
-    # 캘린더별 분리 — summary는 매 실행 전체 재작성이라 접미사 없이 쓰면 기존
-    # 공식 산출물(반기) 기록이 통째로 유실된다.
-    summary_path = OUT_DIR / f'summary{suffix}.json'
+    # 캘린더별 분리(suffix) + 태그별 병합 — 둘 다 있어야 기록 유실을 막는다.
     summary_path.write_text(
         json.dumps(summary, indent=2, ensure_ascii=False), encoding='utf-8')
     log.info('요약 저장: %s', summary_path)
