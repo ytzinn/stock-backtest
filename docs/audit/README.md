@@ -28,6 +28,8 @@
 - **수정된 P0**: CORR-ENGINE-001/002/003, CORR-METRIC-001/002, CORR-FRESH-001,
   CORR-BENCH-001, CORR-DA-001, CORR-HARD-001, CORR-GATE-001/002, PIT-AMEND-001/002 (PR #1~#14)
 - **공표 수치 변경**: CANONICAL CAGR 15.27% → 16.45% (완결 구간 공식 기준 전환 주도).
+  `[정정 2026-07-30]` 이 16.45%를 포함해 2026-07 감사 당시 수치는 전부 **버그 TTM 기준**이다
+  (`CORR-TTM-001` f1d2935 이전). 재발행 결과는 SPEC_13 §9-9 — 채택안 gross **15.8196%**.
   전후 비교: `experiments/runs/2026.07.14._AUDIT_BEFORE_AFTER.md`
 - **자기 반증 기록**: PIT-AMEND-001의 P0-A 승격 근거가 amendment_from 오탐에 오염됐음을
   배포 검증 중 발견 → P0-B 환원 + PIT-AMEND-002 신규 수정 (TECH_DEBT.md 해당 항목 참조)
