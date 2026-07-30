@@ -1,0 +1,19 @@
+{
+  "tag": "F_pbr_ma_double_adapter",
+  "run_at": "2026-07-29T13:19:52.830613",
+  "seed": null,
+  "cagr": 0.15819563103474055,
+  "net_cagr": 0.14179424530572504,
+  "alpha": 0.052081020600325045,
+  "alpha_kosdaq": 0.114787087822392,
+  "sharpe": 0.5499860320507022,
+  "net_sharpe": 0.498348556698653,
+  "mdd": -0.318349445296643,
+  "robustness": 0.55,
+  "benchmark_cagr": 0.1061146104344155,
+  "kosdaq_cagr": 0.04340854321234855,
+  "avg_turnover": 0.8,
+  "cagr_optimistic": 0.15819563103474055,
+  "cagr_conservative": 0.15819563103474055,
+  "n_periods": 20
+}

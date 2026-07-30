@@ -1,0 +1,251 @@
+[
+  {
+    "rebalance_date": "2015-04-03",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 0,
+    "n_rejected": 0,
+    "data_status_counts": {}
+  },
+  {
+    "rebalance_date": "2015-08-19",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 0,
+    "n_rejected": 0,
+    "data_status_counts": {}
+  },
+  {
+    "rebalance_date": "2016-04-05",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 407,
+    "n_rejected": 114,
+    "data_status_counts": {
+      "ok": 521
+    }
+  },
+  {
+    "rebalance_date": "2016-08-18",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 845,
+    "n_rejected": 314,
+    "data_status_counts": {
+      "ok": 1159
+    }
+  },
+  {
+    "rebalance_date": "2017-04-05",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 335,
+    "n_rejected": 228,
+    "data_status_counts": {
+      "ok": 563
+    }
+  },
+  {
+    "rebalance_date": "2017-08-18",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 313,
+    "n_rejected": 291,
+    "data_status_counts": {
+      "ok": 604
+    }
+  },
+  {
+    "rebalance_date": "2018-04-04",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 297,
+    "n_rejected": 208,
+    "data_status_counts": {
+      "ok": 505
+    }
+  },
+  {
+    "rebalance_date": "2018-08-20",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 195,
+    "n_rejected": 456,
+    "data_status_counts": {
+      "ok": 651
+    }
+  },
+  {
+    "rebalance_date": "2019-04-03",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 437,
+    "n_rejected": 75,
+    "data_status_counts": {
+      "ok": 512
+    }
+  },
+  {
+    "rebalance_date": "2019-08-20",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 143,
+    "n_rejected": 543,
+    "data_status_counts": {
+      "ok": 686
+    }
+  },
+  {
+    "rebalance_date": "2020-04-03",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 36,
+    "n_rejected": 560,
+    "data_status_counts": {
+      "ok": 596
+    }
+  },
+  {
+    "rebalance_date": "2020-08-20",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 627,
+    "n_rejected": 181,
+    "data_status_counts": {
+      "ok": 808
+    }
+  },
+  {
+    "rebalance_date": "2021-04-05",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 472,
+    "n_rejected": 192,
+    "data_status_counts": {
+      "ok": 664
+    }
+  },
+  {
+    "rebalance_date": "2021-08-19",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 516,
+    "n_rejected": 355,
+    "data_status_counts": {
+      "ok": 871
+    }
+  },
+  {
+    "rebalance_date": "2022-04-05",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 433,
+    "n_rejected": 248,
+    "data_status_counts": {
+      "ok": 681
+    }
+  },
+  {
+    "rebalance_date": "2022-08-18",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 440,
+    "n_rejected": 409,
+    "data_status_counts": {
+      "ok": 849
+    }
+  },
+  {
+    "rebalance_date": "2023-04-05",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 389,
+    "n_rejected": 257,
+    "data_status_counts": {
+      "ok": 646
+    }
+  },
+  {
+    "rebalance_date": "2023-08-18",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 387,
+    "n_rejected": 548,
+    "data_status_counts": {
+      "ok": 935
+    }
+  },
+  {
+    "rebalance_date": "2024-04-03",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 409,
+    "n_rejected": 278,
+    "data_status_counts": {
+      "ok": 687
+    }
+  },
+  {
+    "rebalance_date": "2024-08-20",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 292,
+    "n_rejected": 645,
+    "data_status_counts": {
+      "ok": 937
+    }
+  },
+  {
+    "rebalance_date": "2025-04-03",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 457,
+    "n_rejected": 207,
+    "data_status_counts": {
+      "ok": 664
+    }
+  },
+  {
+    "rebalance_date": "2025-08-20",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 720,
+    "n_rejected": 240,
+    "data_status_counts": {
+      "ok": 960
+    }
+  },
+  {
+    "rebalance_date": "2026-04-03",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma_double_adapter",
+    "legacy_adapter": true,
+    "n_passed": 433,
+    "n_rejected": 260,
+    "data_status_counts": {
+      "ok": 693
+    }
+  }
+]

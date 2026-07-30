@@ -1,20 +1,20 @@
 {
-  "generated_at": "2026-07-28T11:31:16.872664",
+  "generated_at": "2026-07-28T13:42:28.193902",
   "scenarios": {
-    "U_pbr_path_ew": {
-      "cagr": 0.086258,
-      "net_cagr": 0.073152,
-      "alpha": -0.052971,
-      "alpha_kosdaq": 0.041864,
-      "sharpe": 0.384442,
-      "net_sharpe": 0.320523,
-      "mdd": -0.193709,
-      "robustness": 0.5,
+    "F_pbr_no_r3r4": {
+      "cagr": 0.115688,
+      "net_cagr": 0.101968,
+      "alpha": -0.023541,
+      "alpha_kosdaq": 0.071294,
+      "sharpe": 0.471904,
+      "net_sharpe": 0.415584,
+      "mdd": -0.189592,
+      "robustness": 0.55,
       "benchmark_cagr": 0.139229,
       "kosdaq_cagr": 0.044394,
-      "avg_turnover": 0.697042,
-      "cagr_optimistic": 0.087807,
-      "cagr_conservative": 0.08264,
+      "avg_turnover": 0.685,
+      "cagr_optimistic": 0.120022,
+      "cagr_conservative": 0.105302,
       "n_periods": 20
     }
   },

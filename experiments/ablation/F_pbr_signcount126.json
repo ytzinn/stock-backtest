@@ -1,0 +1,19 @@
+{
+  "tag": "F_pbr_signcount126",
+  "run_at": "2026-07-29T13:24:08.448131",
+  "seed": null,
+  "cagr": 0.1208808829795065,
+  "net_cagr": 0.10477755986686721,
+  "alpha": 0.014766272545090997,
+  "alpha_kosdaq": 0.07747233976715795,
+  "sharpe": 0.4522416810939802,
+  "net_sharpe": 0.39472391015490804,
+  "mdd": -0.34142364939227954,
+  "robustness": 0.4,
+  "benchmark_cagr": 0.1061146104344155,
+  "kosdaq_cagr": 0.04340854321234855,
+  "avg_turnover": 0.795,
+  "cagr_optimistic": 0.12391779373772849,
+  "cagr_conservative": 0.11366119484262827,
+  "n_periods": 20
+}

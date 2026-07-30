@@ -1,0 +1,272 @@
+[
+  {
+    "rebalance_date": "2015-04-03",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 0,
+    "n_rejected": 0,
+    "data_status_counts": {}
+  },
+  {
+    "rebalance_date": "2015-08-19",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 0,
+    "n_rejected": 0,
+    "data_status_counts": {}
+  },
+  {
+    "rebalance_date": "2016-04-05",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 250,
+    "n_rejected": 271,
+    "data_status_counts": {
+      "ok": 507,
+      "insufficient": 14
+    }
+  },
+  {
+    "rebalance_date": "2016-08-18",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 644,
+    "n_rejected": 515,
+    "data_status_counts": {
+      "ok": 1133,
+      "insufficient": 26
+    }
+  },
+  {
+    "rebalance_date": "2017-04-05",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 273,
+    "n_rejected": 290,
+    "data_status_counts": {
+      "ok": 548,
+      "insufficient": 15
+    }
+  },
+  {
+    "rebalance_date": "2017-08-18",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 335,
+    "n_rejected": 269,
+    "data_status_counts": {
+      "ok": 577,
+      "insufficient": 27
+    }
+  },
+  {
+    "rebalance_date": "2018-04-04",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 243,
+    "n_rejected": 262,
+    "data_status_counts": {
+      "ok": 485,
+      "insufficient": 20
+    }
+  },
+  {
+    "rebalance_date": "2018-08-20",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 447,
+    "n_rejected": 204,
+    "data_status_counts": {
+      "ok": 627,
+      "insufficient": 24
+    }
+  },
+  {
+    "rebalance_date": "2019-04-03",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 273,
+    "n_rejected": 239,
+    "data_status_counts": {
+      "ok": 502,
+      "insufficient": 10
+    }
+  },
+  {
+    "rebalance_date": "2019-08-20",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 399,
+    "n_rejected": 287,
+    "data_status_counts": {
+      "ok": 653,
+      "insufficient": 33
+    }
+  },
+  {
+    "rebalance_date": "2020-04-03",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 220,
+    "n_rejected": 376,
+    "data_status_counts": {
+      "ok": 585,
+      "insufficient": 11
+    }
+  },
+  {
+    "rebalance_date": "2020-08-20",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 438,
+    "n_rejected": 370,
+    "data_status_counts": {
+      "ok": 781,
+      "insufficient": 27
+    }
+  },
+  {
+    "rebalance_date": "2021-04-05",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 394,
+    "n_rejected": 270,
+    "data_status_counts": {
+      "ok": 650,
+      "insufficient": 14
+    }
+  },
+  {
+    "rebalance_date": "2021-08-19",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 593,
+    "n_rejected": 278,
+    "data_status_counts": {
+      "ok": 830,
+      "insufficient": 41
+    }
+  },
+  {
+    "rebalance_date": "2022-04-05",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 352,
+    "n_rejected": 329,
+    "data_status_counts": {
+      "ok": 665,
+      "insufficient": 16
+    }
+  },
+  {
+    "rebalance_date": "2022-08-18",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 502,
+    "n_rejected": 347,
+    "data_status_counts": {
+      "ok": 822,
+      "insufficient": 27
+    }
+  },
+  {
+    "rebalance_date": "2023-04-05",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 306,
+    "n_rejected": 340,
+    "data_status_counts": {
+      "ok": 638,
+      "insufficient": 8
+    }
+  },
+  {
+    "rebalance_date": "2023-08-18",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 364,
+    "n_rejected": 571,
+    "data_status_counts": {
+      "ok": 899,
+      "insufficient": 36
+    }
+  },
+  {
+    "rebalance_date": "2024-04-03",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 402,
+    "n_rejected": 285,
+    "data_status_counts": {
+      "ok": 673,
+      "insufficient": 14
+    }
+  },
+  {
+    "rebalance_date": "2024-08-20",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 503,
+    "n_rejected": 434,
+    "data_status_counts": {
+      "ok": 887,
+      "insufficient": 50
+    }
+  },
+  {
+    "rebalance_date": "2025-04-03",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 371,
+    "n_rejected": 293,
+    "data_status_counts": {
+      "ok": 657,
+      "insufficient": 7
+    }
+  },
+  {
+    "rebalance_date": "2025-08-20",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 537,
+    "n_rejected": 423,
+    "data_status_counts": {
+      "ok": 910,
+      "insufficient": 50
+    }
+  },
+  {
+    "rebalance_date": "2026-04-03",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "market_residual_blitz_subset",
+    "legacy_adapter": false,
+    "n_passed": 198,
+    "n_rejected": 495,
+    "data_status_counts": {
+      "ok": 684,
+      "insufficient": 9
+    }
+  }
+]

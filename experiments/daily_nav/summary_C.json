@@ -1,34 +1,34 @@
 {
-  "generated_at": "2026-07-28T11:33:47.947105",
+  "generated_at": "2026-07-28T13:44:58.730884",
   "tags": {
-    "U_pbr_path_ew_C": {
+    "F_pbr_no_r3r4_C": {
       "all_gates_pass": true,
       "n_closed_periods": 20,
-      "net_cagr": 0.07276346880331386,
-      "gross_cagr": 0.08625761773834406,
-      "endpoint_mdd_gross": -0.19370871145629942,
-      "daily_mdd_gross": -0.4787148676958263,
+      "net_cagr": 0.10140556540518597,
+      "gross_cagr": 0.11568773847957758,
+      "endpoint_mdd_gross": -0.1895921436659731,
+      "daily_mdd_gross": -0.5104094146408593,
       "G_NAV_3": true,
       "net": {
-        "daily_mdd": -0.4908761255583053,
-        "mdd_peak_date": "2018-01-29",
-        "mdd_trough_date": "2020-03-19",
-        "daily_vol_ann": 0.21560484192384005,
-        "daily_sharpe": 0.32162117236371857,
-        "worst_month_return": -0.1907963267780758,
+        "daily_mdd": -0.5224522261440814,
+        "mdd_peak_date": "2018-02-01",
+        "mdd_trough_date": "2020-03-23",
+        "daily_vol_ann": 0.2148123163907937,
+        "daily_sharpe": 0.4481798668487499,
+        "worst_month_return": -0.17416041104566682,
         "worst_month": "2018-10",
-        "cvar_5pct_1m": -0.13313118810643024,
+        "cvar_5pct_1m": -0.13860769095424055,
         "cvar_1m_k": 6,
         "cvar_1m_fallback": false,
-        "cvar_5pct_3m": -0.1695166360702322,
+        "cvar_5pct_3m": -0.17474673823957726,
         "cvar_3m_k": 5,
         "n_days": 2455,
         "n_months": 121
       },
-      "gross_mdd_peak": "2018-06-07",
-      "gross_mdd_trough": "2020-03-19",
-      "tracking_error_kospi": 0.12923963242687053,
-      "tracking_error_kosdaq": 0.09867456894228156
+      "gross_mdd_peak": "2019-04-24",
+      "gross_mdd_trough": "2020-03-23",
+      "tracking_error_kospi": 0.15991993620036585,
+      "tracking_error_kosdaq": 0.18212497683083778
     }
   }
 }

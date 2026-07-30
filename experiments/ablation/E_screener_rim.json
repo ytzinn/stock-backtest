@@ -1,0 +1,19 @@
+{
+  "tag": "E_screener_rim",
+  "run_at": "2026-07-29T12:57:23.637246",
+  "seed": null,
+  "cagr": 0.0683877331555971,
+  "net_cagr": 0.05500619551291552,
+  "alpha": -0.037726877278818405,
+  "alpha_kosdaq": 0.024979189943248548,
+  "sharpe": 0.2705644821650664,
+  "net_sharpe": 0.21817980545926,
+  "mdd": -0.3358701863453569,
+  "robustness": 0.5,
+  "benchmark_cagr": 0.1061146104344155,
+  "kosdaq_cagr": 0.04340854321234855,
+  "avg_turnover": 0.72,
+  "cagr_optimistic": 0.0683877331555971,
+  "cagr_conservative": 0.0683877331555971,
+  "n_periods": 20
+}
