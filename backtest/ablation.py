@@ -206,6 +206,14 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'use_momentum': True,  'use_rim_filter': False,
                             'stability_rules': {'R1', 'R2', 'R5'},
                             'rank_mode': 'pbr'},
+    # SPEC_14 §6-3 `C_R5` 판정 contrast 전용 신규 태그 (N5 `[확정 2026-08-06, 사용자]`).
+    # 채택 후보 {R1,R2,R5,R6}에서 **R5만** 제거한 leave-one-out — 기존 61개 태그에
+    # 이 조합이 없어 R5의 단일축 기여를 캘린더 간 비교할 수 없었다. 나머지 스택
+    # (HARD + 모멘텀 + PBR 랭킹)은 F_pbr_no_r3r4와 완전 동일하다.
+    'F_pbr_no_r3r4r5':     {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R6'},
+                            'rank_mode': 'pbr'},
     # PIT 재구축(2026-07-18) 후 stability 레이어 순감 반전(F_no_stability_clean > F)
     # 후속 — PBR 경로에서 stability 완전 제거 / R6 단독의 두 미검증 셀.
     'F_pbr_nostab':        {'use_hard': True,  'use_stability': False, 'use_screener': False,

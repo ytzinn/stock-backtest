@@ -18,6 +18,7 @@
 | `ablation/*_holdings.json` | 시나리오별 구간 편입 tape (~2.2MB) | `export_portfolios` |
 | `daily_nav/*_daily_nav.csv` | 태그별 일별 NAV 시계열 (~1.0MB) | `run_daily_nav` |
 | `runs/*.xlsx` | 편입 종목 Excel 배포본 (0.77MB) | `make_excel` |
+| `calendar_sens/*.npz` | SPEC_14 bootstrap block 시작점 행렬 (~0.9MB) | `calendar_sens.stage_b` |
 
 **계속 추적**: `runs/*.md`(공식 보고서 전부), `ablation/{tag}.json` 요약,
 `robustness/gate_results.json`·`random_summary.json`, `daily_nav/summary.json`·

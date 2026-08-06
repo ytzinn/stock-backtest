@@ -28,6 +28,9 @@ experiments/robustness/pools_*.json
 experiments/ablation/*_holdings.json
 experiments/daily_nav/*_daily_nav.csv
 experiments/runs/*.xlsx
+# SPEC_14 bootstrap 원자료 — block 시작점 행렬(2,000×116 int32). 난수라 압축이 거의
+# 안 먹어 ~0.9MB. 확장 규칙이 결정론이고 sha256이 stage_b.json에 박히므로 재생성 가능.
+experiments/calendar_sens/*.npz
 
 # 로그
 *.log
