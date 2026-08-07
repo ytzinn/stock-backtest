@@ -89,7 +89,7 @@ def holding_period_structure() -> dict:
 
 
 def annual_turnover() -> dict:
-    """캘린더별 연간 회전율 = 평균 구간 turnover × 연간 리밸런싱 횟수 (인컴번트 기준)."""
+    """캘린더별 연간 회전율 = 평균 구간 turnover × 연간 리밸런싱 횟수 (현행안 기준)."""
     out = {}
     for calendar in CALENDARS:
         path = ABL_DIR / f'{calendar_tag(INCUMBENT_TAG, calendar)}_periods.csv'
@@ -168,7 +168,7 @@ def a1_level_effect_and_active() -> dict:
     }
     out['active_by_calendar'] = active
     out['verify_note'] = (
-        '인컴번트 EW 의 **전체기간** 값(6.8812%)을 공통기간 값으로 대용하지 말 것 — '
+        '현행안 EW 의 **전체기간** 값(6.8812%)을 공통기간 값으로 대용하지 말 것 — '
         '§9-1c 참고값과 §9-7 공통기간 값이 이미 다르다 (§5 A-1 [VERIFY]).'
     )
     return out
@@ -194,9 +194,9 @@ def _active_by_period(strat: pd.Series, ew: pd.Series, calendar: str) -> list[di
 # ── A-3 게이트 단계별 탈락 ───────────────────────────────────────────────────
 
 def a3_gate_stages() -> dict:
-    """앵커별 풀 크기 + 단계별 탈락 분해 (인컴번트 기준, 캘린더별).
+    """앵커별 풀 크기 + 단계별 탈락 분해 (현행안 기준, 캘린더별).
 
-    `[VERIFY]` 인컴번트 반기 앵커 풀 크기 미상 — 여기서 산출한다 (§5 A-3).
+    `[VERIFY]` 현행안 반기 앵커 풀 크기 미상 — 여기서 산출한다 (§5 A-3).
 
     한계: `{tag}_periods.csv` 는 필터 단계별 **통과 수**만 기록한다. 모멘텀 통과 후
     PBR 랭킹 단계에서 자본총계·시가총액 결측으로 빠지는 종목은 별도 컬럼이 없어
@@ -253,7 +253,7 @@ def a3_gate_stages() -> dict:
 # ── A-5 구간별 gap 집중도 (달력 반기 고정 구간) ──────────────────────────────
 
 def a5_gap_concentration() -> dict:
-    """`(인컴번트 − 안 C)` 일별 active log gap 을 **달력 반기**로 집계 (§5 A-5).
+    """`(현행안 − 안 C)` 일별 active log gap 을 **달력 반기**로 집계 (§5 A-5).
 
     `[v0.3 정정]` 두 캘린더는 리밸런싱일과 보유기간 배열이 다르므로 "각 구간"이
     어느 캘린더 기준인지 불명확했다 → **캘린더와 독립적인 고정 구간**(1/1~6/30,

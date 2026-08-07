@@ -125,9 +125,9 @@ def paired_block_bootstrap_cagr_diff(
     seed:         int = 13,
     months_per_year: float = 12.0,
 ) -> dict:
-    """후보(A) − 인컴번트(B) ΔCAGR 의 paired moving block bootstrap (SPEC_13 §9-3a).
+    """후보(A) − 현행안(B) ΔCAGR 의 paired moving block bootstrap (SPEC_13 §9-3a).
 
-    안 A/안 C와 인컴번트는 **앵커 교집합이 0** 이라 구간 단위 페어링이 정의 불가하므로,
+    안 A/안 C와 현행안은 **앵커 교집합이 0** 이라 구간 단위 페어링이 정의 불가하므로,
     공통 시간축인 **월간 수익률**에서 정의한다. 두 시리즈를 **같은 블록 인덱스로 동시
     추출**해 paired 구조(동일 기간 대응)를 보존한다 — 각자 독립 리샘플하면 짝이 깨져
     차이의 분산이 과대추정된다.

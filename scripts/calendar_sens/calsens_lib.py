@@ -16,7 +16,7 @@ SPEC_14 공유 정의 — 사전등록 상수·contrast 레지스트리·연율 
 bootstrap (§10 사전등록):
   - 일별 **로그수익률** circular moving block, 블록 21거래일, 2,000회.
   - **전역 단일 RNG** `random.Random("SPEC14:CALENDAR_SENS:GLOBAL")`.
-    반복 b 마다 block index를 **한 번만** 생성해 인컴번트·EW·전 variant·양 캘린더에
+    반복 b 마다 block index를 **한 번만** 생성해 현행안·EW·전 variant·양 캘린더에
     **동일 적용**한다 (v0.2의 contrast별 seed 충돌 수정, §10).
   - 원자료로 저장하는 것은 **block 시작점 행렬**(B × n_blocks)이다. 확장 규칙
     (`idx = (start + arange(block)) % n` 이어붙인 뒤 n 절단)이 결정론이라 전체
@@ -47,7 +47,7 @@ OUT_DIR = Path('experiments/calendar_sens')
 COMMON_S = date(2016, 5, 18)
 COMMON_E = date(2026, 4, 3)
 
-# ── §0-4 인컴번트 baseline (전체기간 20구간 기준 — 공통 기간 값과 혼동 금지) ──
+# ── §0-4 현행안 baseline (전체기간 20구간 기준 — 공통 기간 값과 혼동 금지) ──
 
 INCUMBENT_FULL_GROSS_CAGR = 0.15819563103474077   # engine metrics['cagr']
 INCUMBENT_FULL_NET_CAGR   = 0.14079850522450377   # 일별 NAV 승법 net CAGR
@@ -96,7 +96,7 @@ class Contrast:
     # 'rule'     — 룰 contrast. **J1·J3 분모는 이 그룹의 단일축만** 쓴다 (§7-3).
     # 'rank_cut' — 랭킹×컷 2×2 (§14-1). 별도 블록으로 보고, J 분모 제외.
     group:        str = 'rule'
-    # None = 인컴번트. 2×2 의 "컷 켠 상태에서 랭킹 비교"는 baseline 이 인컴번트가 아니다.
+    # None = 현행안. 2×2 의 "컷 켠 상태에서 랭킹 비교"는 baseline 이 현행안이 아니다.
     baseline_tag: str | None = None
 
     @property
@@ -105,7 +105,7 @@ class Contrast:
 
 
 # §6-3 판정 contrast — **실행 전 확정, 변경 금지** (§9-4).
-# baseline 은 전부 인컴번트 F_pbr_no_r3r4 {R1,R2,R5,R6} + PBR 랭킹 + 모멘텀.
+# baseline 은 전부 현행안 F_pbr_no_r3r4 {R1,R2,R5,R6} + PBR 랭킹 + 모멘텀.
 #
 # `[v0.3 → 구현 정정 2026-08-06]` **C_RANK 를 단일축에서 다축으로 강등**했다.
 #   `F_no_r3r4` 는 `use_rim_filter=True` 라 `BacktestPipeline.score_and_rank` 를 타는데,
@@ -117,7 +117,7 @@ class Contrast:
 #
 # `[추가 2026-08-06, 사용자]` 그 대신 **랭킹 × 밸류에이션컷 2×2**(`group='rank_cut'`)를
 #   신설해 "랭킹 신호 자체가 캘린더에 민감한가"에 답할 수 있게 했다. 네 칸:
-#     (1/PBR, 컷없음) = 인컴번트 · (RIM, 컷없음) = F_rimrank_no_r3r4
+#     (1/PBR, 컷없음) = 현행안 · (RIM, 컷없음) = F_rimrank_no_r3r4
 #     (1/PBR, 컷있음) = F_pbr_no_r3r4_rimcut · (RIM, 컷있음) = F_no_r3r4
 #   두 세트로 읽는다 — 컷 끈 상태의 랭킹 비교, 컷 켠 상태의 랭킹 비교.
 #   **J1·J3 분모에는 넣지 않는다** — J 계열은 "어느 **룰**의 방향이 뒤집혔나"를 재는
@@ -142,15 +142,15 @@ JUDGMENT_CONTRASTS: tuple[Contrast, ...] = (
     # ── 랭킹 × 밸류에이션컷 2×2 (§14-1) — J 분모 제외, 별도 블록 ────────────
     Contrast('C_RANK_NOCUT', 'F_rimrank_no_r3r4', '{R1,R2,R5,R6} + RIM, 컷 없음',
              '랭킹만 (컷 끈 상태)', 1, True, None,
-             '세트1 — baseline 인컴번트(1/PBR, 컷 없음). 스코어 함수 하나만 다르다',
+             '세트1 — baseline 현행안(1/PBR, 컷 없음). 스코어 함수 하나만 다르다',
              group='rank_cut'),
     Contrast('C_RIMCUT', 'F_pbr_no_r3r4_rimcut', '{R1,R2,R5,R6} + 1/PBR + 컷',
              '밸류에이션컷만', 1, True, None,
-             '세트 공통 — baseline 인컴번트. 랭킹은 그대로 두고 컷만 켠다',
+             '세트 공통 — baseline 현행안. 랭킹은 그대로 두고 컷만 켠다',
              group='rank_cut'),
     Contrast('C_RANK_CUT', 'F_no_r3r4', '{R1,R2,R5,R6} + RIM + 컷',
              '랭킹만 (컷 켠 상태)', 1, True, 0.144387,
-             '세트2 — baseline 이 인컴번트가 아니라 F_pbr_no_r3r4_rimcut 이다',
+             '세트2 — baseline 이 현행안이 아니라 F_pbr_no_r3r4_rimcut 이다',
              group='rank_cut', baseline_tag='F_pbr_no_r3r4_rimcut'),
 )
 
@@ -161,7 +161,7 @@ SINGLE_AXIS_CONTRASTS = tuple(c for c in RULE_CONTRASTS if c.single_axis)
 MULTI_AXIS_CONTRASTS  = tuple(c for c in RULE_CONTRASTS if not c.single_axis)
 
 # 실행이 필요한 **고유 태그** — 캘린더별로 전부 필요하다. baseline 도 포함해야 한다
-# (C_RANK_CUT 의 baseline 은 인컴번트가 아니다).
+# (C_RANK_CUT 의 baseline 은 현행안이 아니다).
 REQUIRED_TAGS: tuple[str, ...] = tuple(dict.fromkeys(
     (INCUMBENT_TAG, EW_TAG)
     + tuple(c.variant_tag for c in JUDGMENT_CONTRASTS)
@@ -245,7 +245,7 @@ def block_starts(
 ) -> np.ndarray:
     """circular moving block 의 시작점 행렬 `(n_resamples, n_blocks)`.
 
-    **전역 단일 RNG.** 호출자는 이 행렬 하나를 만들어 인컴번트·EW·전 variant·양
+    **전역 단일 RNG.** 호출자는 이 행렬 하나를 만들어 현행안·EW·전 variant·양
     캘린더에 **동일 적용**해야 한다 (§10 셀 간 동조). contrast 마다 다시 부르면
     v0.2 의 seed 충돌 결함이 되살아난다.
 

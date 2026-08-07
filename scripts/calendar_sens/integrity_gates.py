@@ -2,9 +2,9 @@
 SPEC_14 §6-4 무결성 게이트 — **성과 산출 전 필수**. 불통과 시 수치 미발행·즉시 중단.
 
 게이트 5종:
-  G-CAL-1 스냅샷 동등성   인컴번트 반기 gross/net **비트 재현** (§0-4)
+  G-CAL-1 스냅샷 동등성   현행안 반기 gross/net **비트 재현** (§0-4)
   G-CAL-2 배관 양성 대조군 `F_pbr_ma_double_adapter` == `F_pbr_no_r3r4` (반기)
-  G-CAL-3 신규 태그 검증   `F_pbr_no_r3r4r5` 가 인컴번트와 **stability_rules 만** 다른지
+  G-CAL-3 신규 태그 검증   `F_pbr_no_r3r4r5` 가 현행안과 **stability_rules 만** 다른지
                           (config 대조) + 반기 실행 산출물 존재
   G-CAL-4 안 C 스케줄     `RebalancePoint.fiscal_year` 정확 조회 + `late_or_missing_
                           current_report` 비율 기록 (DB 접속 — `--no-db` 로 생략 가능)
@@ -77,7 +77,7 @@ def _daily_nav_net(tag: str, calendar: str = 'SEMIANNUAL') -> float:
 # ── G-CAL-1 ──────────────────────────────────────────────────────────────────
 
 def gate_snapshot_equivalence() -> dict:
-    """인컴번트 반기 gross·net 비트 재현 (§0-4). 부동소수 tolerance 없음."""
+    """현행안 반기 gross·net 비트 재현 (§0-4). 부동소수 tolerance 없음."""
     gross = _ablation_gross(INCUMBENT_TAG)
     net   = _daily_nav_net(INCUMBENT_TAG)
     ok_g  = gross == INCUMBENT_FULL_GROSS_CAGR
@@ -109,7 +109,7 @@ def gate_plumbing_control() -> dict:
 # ── G-CAL-3 ──────────────────────────────────────────────────────────────────
 
 def gate_new_tag() -> dict:
-    """신규 태그가 인컴번트와 **stability_rules 한 축만** 다른지 config 로 검증."""
+    """신규 태그가 현행안과 **stability_rules 한 축만** 다른지 config 로 검증."""
     inc = dict(ABLATION_CONFIGS[INCUMBENT_TAG])
     new = dict(ABLATION_CONFIGS.get(NEW_TAG, {}))
     if not new:

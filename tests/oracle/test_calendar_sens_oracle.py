@@ -170,7 +170,7 @@ def test_contrast_registry_invariants():
     assert len(lib.SINGLE_AXIS_CONTRASTS) == 5
     ids = {c.contrast_id for c in lib.SINGLE_AXIS_CONTRASTS}
     assert ids == {'C_R1', 'C_R2', 'C_R5', 'C_R6', 'C_MOM'}
-    # 인컴번트 자신은 판정 contrast 의 variant 가 될 수 없다 (자기비교 = 항상 0, §6-3)
+    # 현행안 자신은 판정 contrast 의 variant 가 될 수 없다 (자기비교 = 항상 0, §6-3)
     assert lib.INCUMBENT_TAG not in {c.variant_tag for c in lib.JUDGMENT_CONTRASTS}
 
 
@@ -186,10 +186,10 @@ def test_rank_cut_2x2_covers_four_cells():
     """네 칸이 (랭킹 2) × (컷 2) 를 정확히 덮어야 2세트 비교가 성립한다."""
     cells = {c.contrast_id: c for c in lib.RANKCUT_CONTRASTS}
     assert set(cells) == {'C_RANK_NOCUT', 'C_RIMCUT', 'C_RANK_CUT', 'C_RANK'}
-    # 세트1: 컷 없는 상태의 랭킹 비교 — baseline 은 인컴번트(1/PBR, 컷 없음)
+    # 세트1: 컷 없는 상태의 랭킹 비교 — baseline 은 현행안(1/PBR, 컷 없음)
     assert cells['C_RANK_NOCUT'].variant_tag == 'F_rimrank_no_r3r4'
     assert cells['C_RANK_NOCUT'].baseline == lib.INCUMBENT_TAG
-    # 세트2: 컷 켠 상태의 랭킹 비교 — baseline 이 인컴번트가 **아니어야** 1축이다
+    # 세트2: 컷 켠 상태의 랭킹 비교 — baseline 이 현행안이 **아니어야** 1축이다
     assert cells['C_RANK_CUT'].variant_tag == 'F_no_r3r4'
     assert cells['C_RANK_CUT'].baseline == 'F_pbr_no_r3r4_rimcut'
     assert cells['C_RANK_CUT'].single_axis is True
@@ -204,7 +204,7 @@ def test_rank_cut_excluded_from_j_denominator():
 
 
 def test_required_tags_include_non_incumbent_baselines():
-    """baseline 이 인컴번트가 아닌 contrast 의 baseline 도 실행 대상이어야 한다."""
+    """baseline 이 현행안이 아닌 contrast 의 baseline 도 실행 대상이어야 한다."""
     assert 'F_pbr_no_r3r4_rimcut' in lib.REQUIRED_TAGS
     assert len(set(lib.REQUIRED_TAGS)) == len(lib.REQUIRED_TAGS), '실행 태그 중복'
 
@@ -215,11 +215,11 @@ def test_new_c_r5_tag_exists_in_ablation_configs():
     assert cfg['stability_rules'] == {'R1', 'R2', 'R6'}
     inc = ABLATION_CONFIGS[lib.INCUMBENT_TAG]
     diff = [k for k in set(cfg) | set(inc) if cfg.get(k) != inc.get(k)]
-    assert diff == ['stability_rules'], f'인컴번트와 stability_rules 외 축이 다르다: {diff}'
+    assert diff == ['stability_rules'], f'현행안과 stability_rules 외 축이 다르다: {diff}'
 
 
 def test_2x2_tags_differ_from_incumbent_by_one_key_each():
-    """2×2 신규 두 칸은 인컴번트 config 와 딱 한 축씩만 달라야 한다."""
+    """2×2 신규 두 칸은 현행안 config 와 딱 한 축씩만 달라야 한다."""
     from backtest.ablation import ABLATION_CONFIGS
     inc = ABLATION_CONFIGS[lib.INCUMBENT_TAG]
 

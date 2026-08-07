@@ -207,9 +207,9 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'stability_rules': {'R1', 'R2', 'R5'},
                             'rank_mode': 'pbr'},
     # ── SPEC_14 §14-1 랭킹 × 밸류에이션컷 2×2 (`[확정 2026-08-06, 사용자]`) ────
-    # 인컴번트 F_pbr_no_r3r4 는 "1/PBR 랭킹 + 컷 없음", 기존 F_no_r3r4 는 "RIM 랭킹 +
+    # 현행안 F_pbr_no_r3r4 는 "1/PBR 랭킹 + 컷 없음", 기존 F_no_r3r4 는 "RIM 랭킹 +
     # 컷 있음" 이라 두 축이 동시에 다르다. 나머지 두 칸을 채워야 랭킹 효과와 컷 효과가
-    # 분리된다. 셋 다 stability {R1,R2,R5,R6} + 모멘텀 + HARD 로 인컴번트와 동일.
+    # 분리된다. 셋 다 stability {R1,R2,R5,R6} + 모멘텀 + HARD 로 현행안과 동일.
     #   RIM 랭킹 + 컷 없음
     'F_rimrank_no_r3r4':   {'use_hard': True,  'use_stability': True,  'use_screener': False,
                             'use_momentum': True,  'use_rim_filter': True,

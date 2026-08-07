@@ -12,7 +12,7 @@ git_commit은 현재 체크아웃의 `git rev-parse HEAD`.
     venv/bin/python -m scripts.audit.record_backtest_run \\
         --tag F_pbr_no_r3r4 --phase Q-C2_baseline_freeze \\
         --data-cutoff 2026-07-28 \\
-        --note "Q-C2 2단계: RebalancePoint+DEBT-3 인컴번트 baseline 재고정"
+        --note "Q-C2 2단계: RebalancePoint+DEBT-3 현행안 baseline 재고정"
 """
 from __future__ import annotations
 

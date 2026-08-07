@@ -100,7 +100,7 @@ def test_rimrank_cell_has_rim_ranking_without_cut():
     p = build_ablation_pipeline('F_rimrank_no_r3r4',
                                 ABLATION_CONFIGS['F_rimrank_no_r3r4'])
     assert type(p) is BacktestPipeline      # RIM upside 랭킹 경로
-    assert p.rim_threshold is None          # 컷 없음 → 인컴번트와 스코어 함수만 다르다
+    assert p.rim_threshold is None          # 컷 없음 → 현행안과 스코어 함수만 다르다
 
 
 def test_pbr_rimcut_cell_has_pbr_ranking_with_cut():

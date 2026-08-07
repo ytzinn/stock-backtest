@@ -1,13 +1,13 @@
 """
 SPEC_13 Q-H — 캘린더 후보 공식 판정 (QG1·QG2·QG3·QG5-PROD + evidence_label).
 
-**SPEC_10의 `gate_analysis.py`와 별개 스크립트다.** 그쪽은 반기 인컴번트의 G1/G2/G5
+**SPEC_10의 `gate_analysis.py`와 별개 스크립트다.** 그쪽은 반기 현행안의 G1/G2/G5
 판정(`gate_results.json`)을 만드는 다른 실험의 공식 산출물이고 반기 전용인 채로 유효하다.
 여기에 SPEC_13 로직을 얹으면 두 실험의 판정이 한 파일에 섞이므로 분리한다.
 공통 진단 함수(`percentile_below` 등)는 `robustness_lib`에서 재사용한다 — 복제 금지.
 
 사전등록 기준 (결과 열람 후 수정 금지):
-  §9-2  QG1 후보 net CAGR > 랜덤 p95 | QG2 > EW net CAGR | QG3 ≥ 인컴번트 + 0.1%p
+  §9-2  QG1 후보 net CAGR > 랜덤 p95 | QG2 > EW net CAGR | QG3 ≥ 현행안 + 0.1%p
         QG5-PROD 일별 net MDD > −45% (얕을 것). **전부 공통 기간 (S, E] 기준**
         (§9-2 `[확정 2026-07-28, 사용자]`).
   §9-2b 공통 기간 = warm-up 후 NAV(S)=1.0 정규화, S에서 강제 매수 금지.
@@ -17,7 +17,7 @@ SPEC_13 Q-H — 캘린더 후보 공식 판정 (QG1·QG2·QG3·QG5-PROD + eviden
 
 랜덤 대조군만 **구간 단위** 절단을 쓴다 — §9-1이 "랜덤은 일별 경로를 만들 필요 없이
 terminal NAV만 승법으로"라고 사전등록했고, S가 안 A·안 C **둘 다의 실제 앵커**라
-구간 경계와 정확히 맞아 근사가 아니다. (인컴번트는 S가 앵커가 아니므로 반드시 일별
+구간 경계와 정확히 맞아 근사가 아니다. (현행안은 S가 앵커가 아니므로 반드시 일별
 NAV 절단을 쓴다.) 이 전제는 실행 시 단언으로 검증한다.
 
 실행 (동결 스냅샷 워크트리에서):
@@ -232,7 +232,7 @@ def main() -> None:
     out.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding='utf-8')
 
     log.info('후보 net CAGR   %.4f%%  (공통 기간)', cand['net_cagr'] * 100)
-    log.info('인컴번트         %.4f%%   → QG3 문턱 %.4f%%',
+    log.info('현행안         %.4f%%   → QG3 문턱 %.4f%%',
              inc['net_cagr'] * 100, (inc['net_cagr'] + DELTA_PP) * 100)
     log.info('EW               %.4f%%   랜덤 p95 %.4f%%', ew['net_cagr'] * 100, rnd_p95 * 100)
     log.info('QG1 %s | QG2 %s | QG3 %s (마진 %+.4f%%p) | QG5-PROD %s (MDD %.2f%%)',

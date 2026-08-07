@@ -147,7 +147,7 @@ def _effects(g_vec: np.ndarray, idx_map: dict) -> dict:
     out = {'e': {}, 'delta': {}}
     for c in JUDGMENT_CONTRASTS:
         # baseline 은 contrast 마다 다를 수 있다 — 2×2 의 "컷 켠 상태 랭킹 비교"는
-        # 인컴번트가 아니라 F_pbr_no_r3r4_rimcut 을 기준으로 재야 1축이 된다 (§14-1).
+        # 현행안이 아니라 F_pbr_no_r3r4_rimcut 을 기준으로 재야 1축이 된다 (§14-1).
         e_semi = g(c.variant_tag, SEMI) - g(c.baseline, SEMI)
         e_alt  = g(c.variant_tag, ALT)  - g(c.baseline, ALT)
         out['e'][c.contrast_id] = {SEMI: e_semi, ALT: e_alt}
@@ -190,7 +190,7 @@ def _action(q1: str, q2d: str, q2m: str) -> dict:
     """§8-3 조치표 — 전 조합 포괄. Q2-D 우선."""
     if q2d == 'Q2D_LARGE':
         return {'action': 'INCUMBENT_CONFIDENCE_DOWNGRADE',
-                'text': '인컴번트 룰 신뢰도 하향 — §8-4 발동 (MASTER·SPEC_05~11 경고 삽입, '
+                'text': '현행안 룰 신뢰도 하향 — §8-4 발동 (MASTER·SPEC_05~11 경고 삽입, '
                         '#24 이후 라이브 관측 가중 상향, 대체 룰 선정 금지)'}
     if q2d == 'Q2D_INCONCLUSIVE':
         return {'action': 'NO_AUTOMATIC_ACTION',
@@ -376,7 +376,7 @@ def main() -> None:
         'contrasts_rank_cut_2x2': {
             'cells': rankcut,
             'design': {
-                '(1/PBR, 컷없음)': INCUMBENT_TAG + '  ← 인컴번트 = 2×2 원점',
+                '(1/PBR, 컷없음)': INCUMBENT_TAG + '  ← 현행안 = 2×2 원점',
                 '(RIM,   컷없음)': 'F_rimrank_no_r3r4',
                 '(1/PBR, 컷있음)': 'F_pbr_no_r3r4_rimcut',
                 '(RIM,   컷있음)': 'F_no_r3r4',
@@ -462,7 +462,7 @@ def _markdown(r: dict) -> str:
         '\n## ② 룰 다축 (보조 — J1·J3 분모 제외)\n\n' + table(r['contrasts_multi_axis']) +
         '\n## ③ 랭킹 × 밸류에이션컷 2×2 (J 분모 제외)\n\n'
         '```\n          컷 없음                 컷 있음\n'
-        '1/PBR     F_pbr_no_r3r4(인컴번트)   F_pbr_no_r3r4_rimcut\n'
+        '1/PBR     F_pbr_no_r3r4(현행안)   F_pbr_no_r3r4_rimcut\n'
         'RIM       F_rimrank_no_r3r4        F_no_r3r4\n```\n\n'
         + table(r['contrasts_rank_cut_2x2']['cells']) +
         '\n## ④ 탐색 셀\n\n(없음 — 추가 시 `exploratory=true`, 추가 시점·사유 병기, §7-4)\n'
