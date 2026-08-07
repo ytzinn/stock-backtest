@@ -93,6 +93,15 @@ class Contrast:
     single_axis:  bool
     semi_gross_ref: float | None   # 반기 전체기간 gross 참고값 (§6-3, 판정 비사용)
     note:         str = ''
+    # 'rule'     — 룰 contrast. **J1·J3 분모는 이 그룹의 단일축만** 쓴다 (§7-3).
+    # 'rank_cut' — 랭킹×컷 2×2 (§14-1). 별도 블록으로 보고, J 분모 제외.
+    group:        str = 'rule'
+    # None = 인컴번트. 2×2 의 "컷 켠 상태에서 랭킹 비교"는 baseline 이 인컴번트가 아니다.
+    baseline_tag: str | None = None
+
+    @property
+    def baseline(self) -> str:
+        return self.baseline_tag or INCUMBENT_TAG
 
 
 # §6-3 판정 contrast — **실행 전 확정, 변경 금지** (§9-4).
@@ -104,7 +113,15 @@ class Contrast:
 #   ② FV 계산 불가 종목 제외 ③ `MIN_PORTFOLIO_STOCKS` 미달 시 고평가 보완이 함께
 #   붙는다 (`_PBRRankPipeline` 에는 전부 없음). "랭킹 신호만 1축"이 아니다 —
 #   SPEC_14 §6-2 가 `F_no_r6`·`F_pbr_only` 를 배제한 것과 **동일 유형의 오염**이다.
-#   → 보조 표(다축)로 이동, J1·J3 분모에서 제외. 단일축 분모는 6 → **5**.
+#   → 보조 표(다축)로 이동, J1·J3 분모에서 제외. 룰 단일축 분모는 6 → **5**.
+#
+# `[추가 2026-08-06, 사용자]` 그 대신 **랭킹 × 밸류에이션컷 2×2**(`group='rank_cut'`)를
+#   신설해 "랭킹 신호 자체가 캘린더에 민감한가"에 답할 수 있게 했다. 네 칸:
+#     (1/PBR, 컷없음) = 인컴번트 · (RIM, 컷없음) = F_rimrank_no_r3r4
+#     (1/PBR, 컷있음) = F_pbr_no_r3r4_rimcut · (RIM, 컷있음) = F_no_r3r4
+#   두 세트로 읽는다 — 컷 끈 상태의 랭킹 비교, 컷 켠 상태의 랭킹 비교.
+#   **J1·J3 분모에는 넣지 않는다** — J 계열은 "어느 **룰**의 방향이 뒤집혔나"를 재는
+#   지표라(§7-3), 랭킹·컷 축 3개를 같은 분모에 섞으면 룰 견고성 판정이 희석된다.
 JUDGMENT_CONTRASTS: tuple[Contrast, ...] = (
     Contrast('C_R1',  'F_pbr_no_r1r3r4', '{R2,R5,R6}',  'R1 제거',      1, True,  0.145569),
     Contrast('C_R2',  'F_pbr_no_r2r3r4', '{R1,R5,R6}',  'R2 제거',      1, True,  0.159276),
@@ -116,23 +133,46 @@ JUDGMENT_CONTRASTS: tuple[Contrast, ...] = (
     Contrast('C_R3R4', 'F_pbr_r6',       '{R1~R6}',     'R3+R4 복원',   2, False, 0.145380,
              '동시 폐기된 쌍 — 어느 룰의 방향인지 분해 불가'),
     Contrast('C_STAB', 'F_pbr_nostab',   '{}',          '안정성 전체 제거', 4, False, 0.144557),
-    Contrast('C_RANK', 'F_no_r3r4',      '{R1,R2,R5,R6} + RIM',
-             '랭킹 신호 + RIM 5% 컷 + FV결측 처리', 3, False, 0.144387,
+    Contrast('C_RANK', 'F_no_r3r4',      '{R1,R2,R5,R6} + RIM + 컷',
+             '랭킹 + 밸류에이션컷 동시', 2, False, 0.144387,
              'v0.3 §6-3은 단일축 1로 등록했으나 pipeline.score_and_rank 의 밸류에이션 '
-             '컷·보완로직이 함께 바뀐다 — 구현 단계에서 다축 강등 (사용자 확정)'),
+             '컷·보완로직이 함께 바뀐다 — 다축 강등 (사용자 확정). 2×2 의 결합 셀',
+             group='rank_cut'),
+
+    # ── 랭킹 × 밸류에이션컷 2×2 (§14-1) — J 분모 제외, 별도 블록 ────────────
+    Contrast('C_RANK_NOCUT', 'F_rimrank_no_r3r4', '{R1,R2,R5,R6} + RIM, 컷 없음',
+             '랭킹만 (컷 끈 상태)', 1, True, None,
+             '세트1 — baseline 인컴번트(1/PBR, 컷 없음). 스코어 함수 하나만 다르다',
+             group='rank_cut'),
+    Contrast('C_RIMCUT', 'F_pbr_no_r3r4_rimcut', '{R1,R2,R5,R6} + 1/PBR + 컷',
+             '밸류에이션컷만', 1, True, None,
+             '세트 공통 — baseline 인컴번트. 랭킹은 그대로 두고 컷만 켠다',
+             group='rank_cut'),
+    Contrast('C_RANK_CUT', 'F_no_r3r4', '{R1,R2,R5,R6} + RIM + 컷',
+             '랭킹만 (컷 켠 상태)', 1, True, 0.144387,
+             '세트2 — baseline 이 인컴번트가 아니라 F_pbr_no_r3r4_rimcut 이다',
+             group='rank_cut', baseline_tag='F_pbr_no_r3r4_rimcut'),
 )
 
-SINGLE_AXIS_CONTRASTS = tuple(c for c in JUDGMENT_CONTRASTS if c.single_axis)
-MULTI_AXIS_CONTRASTS  = tuple(c for c in JUDGMENT_CONTRASTS if not c.single_axis)
+RULE_CONTRASTS     = tuple(c for c in JUDGMENT_CONTRASTS if c.group == 'rule')
+RANKCUT_CONTRASTS  = tuple(c for c in JUDGMENT_CONTRASTS if c.group == 'rank_cut')
+# J1·J3·Q2-D·Q2-M 의 분모 — **룰 그룹의 단일축만** (§7-3, §14-1)
+SINGLE_AXIS_CONTRASTS = tuple(c for c in RULE_CONTRASTS if c.single_axis)
+MULTI_AXIS_CONTRASTS  = tuple(c for c in RULE_CONTRASTS if not c.single_axis)
 
-# 판정에 쓰이는 **고유 실행 태그** — 캘린더별로 전부 필요하다 (§6-3).
-REQUIRED_TAGS: tuple[str, ...] = (
-    (INCUMBENT_TAG, EW_TAG) + tuple(c.variant_tag for c in JUDGMENT_CONTRASTS)
-)
+# 실행이 필요한 **고유 태그** — 캘린더별로 전부 필요하다. baseline 도 포함해야 한다
+# (C_RANK_CUT 의 baseline 은 인컴번트가 아니다).
+REQUIRED_TAGS: tuple[str, ...] = tuple(dict.fromkeys(
+    (INCUMBENT_TAG, EW_TAG)
+    + tuple(c.variant_tag for c in JUDGMENT_CONTRASTS)
+    + tuple(c.baseline for c in JUDGMENT_CONTRASTS)
+))
 
-assert len(set(REQUIRED_TAGS)) == len(REQUIRED_TAGS), 'contrast 태그 중복'
-assert len(SINGLE_AXIS_CONTRASTS) == 5, '단일축 contrast 수가 사전등록(5)과 다르다'
-assert len(JUDGMENT_CONTRASTS) == 8, '판정 contrast 수가 사전등록(8)과 다르다'
+assert len(SINGLE_AXIS_CONTRASTS) == 5, '룰 단일축 contrast 수가 사전등록(5)과 다르다'
+assert len(RULE_CONTRASTS) == 7, '룰 contrast 수가 사전등록(7)과 다르다'
+assert len(RANKCUT_CONTRASTS) == 4, '랭킹×컷 2×2 셀 수가 4가 아니다'
+assert len({c.contrast_id for c in JUDGMENT_CONTRASTS}) == len(JUDGMENT_CONTRASTS), \
+    'contrast_id 중복'
 
 
 # ── 태그 → 캘린더별 산출물 이름 ───────────────────────────────────────────────

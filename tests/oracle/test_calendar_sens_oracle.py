@@ -166,11 +166,11 @@ def test_interval_helpers():
 # ── contrast 레지스트리 불변식 (§6-3 + 구현 정정) ────────────────────────────
 
 def test_contrast_registry_invariants():
-    assert len(lib.JUDGMENT_CONTRASTS) == 8
+    assert len(lib.RULE_CONTRASTS) == 7
     assert len(lib.SINGLE_AXIS_CONTRASTS) == 5
     ids = {c.contrast_id for c in lib.SINGLE_AXIS_CONTRASTS}
     assert ids == {'C_R1', 'C_R2', 'C_R5', 'C_R6', 'C_MOM'}
-    # 인컴번트 자신은 판정 contrast 에 없다 (자기비교 = 항상 0, §6-3)
+    # 인컴번트 자신은 판정 contrast 의 variant 가 될 수 없다 (자기비교 = 항상 0, §6-3)
     assert lib.INCUMBENT_TAG not in {c.variant_tag for c in lib.JUDGMENT_CONTRASTS}
 
 
@@ -180,6 +180,35 @@ def test_c_rank_is_multi_axis():
     assert c.single_axis is False and c.n_axes > 1
 
 
+# ── §14-1 랭킹 × 밸류에이션컷 2×2 ────────────────────────────────────────────
+
+def test_rank_cut_2x2_covers_four_cells():
+    """네 칸이 (랭킹 2) × (컷 2) 를 정확히 덮어야 2세트 비교가 성립한다."""
+    cells = {c.contrast_id: c for c in lib.RANKCUT_CONTRASTS}
+    assert set(cells) == {'C_RANK_NOCUT', 'C_RIMCUT', 'C_RANK_CUT', 'C_RANK'}
+    # 세트1: 컷 없는 상태의 랭킹 비교 — baseline 은 인컴번트(1/PBR, 컷 없음)
+    assert cells['C_RANK_NOCUT'].variant_tag == 'F_rimrank_no_r3r4'
+    assert cells['C_RANK_NOCUT'].baseline == lib.INCUMBENT_TAG
+    # 세트2: 컷 켠 상태의 랭킹 비교 — baseline 이 인컴번트가 **아니어야** 1축이다
+    assert cells['C_RANK_CUT'].variant_tag == 'F_no_r3r4'
+    assert cells['C_RANK_CUT'].baseline == 'F_pbr_no_r3r4_rimcut'
+    assert cells['C_RANK_CUT'].single_axis is True
+    # 컷 축 단독
+    assert cells['C_RIMCUT'].baseline == lib.INCUMBENT_TAG
+
+
+def test_rank_cut_excluded_from_j_denominator():
+    """J1·J3 는 룰 견고성 지표다 — 랭킹·컷 축이 분모에 섞이면 안 된다 (§7-3)."""
+    assert all(c.group == 'rule' for c in lib.SINGLE_AXIS_CONTRASTS)
+    assert not (set(lib.RANKCUT_CONTRASTS) & set(lib.SINGLE_AXIS_CONTRASTS))
+
+
+def test_required_tags_include_non_incumbent_baselines():
+    """baseline 이 인컴번트가 아닌 contrast 의 baseline 도 실행 대상이어야 한다."""
+    assert 'F_pbr_no_r3r4_rimcut' in lib.REQUIRED_TAGS
+    assert len(set(lib.REQUIRED_TAGS)) == len(lib.REQUIRED_TAGS), '실행 태그 중복'
+
+
 def test_new_c_r5_tag_exists_in_ablation_configs():
     from backtest.ablation import ABLATION_CONFIGS
     cfg = ABLATION_CONFIGS['F_pbr_no_r3r4r5']
@@ -187,3 +216,21 @@ def test_new_c_r5_tag_exists_in_ablation_configs():
     inc = ABLATION_CONFIGS[lib.INCUMBENT_TAG]
     diff = [k for k in set(cfg) | set(inc) if cfg.get(k) != inc.get(k)]
     assert diff == ['stability_rules'], f'인컴번트와 stability_rules 외 축이 다르다: {diff}'
+
+
+def test_2x2_tags_differ_from_incumbent_by_one_key_each():
+    """2×2 신규 두 칸은 인컴번트 config 와 딱 한 축씩만 달라야 한다."""
+    from backtest.ablation import ABLATION_CONFIGS
+    inc = ABLATION_CONFIGS[lib.INCUMBENT_TAG]
+
+    rimcut = ABLATION_CONFIGS['F_pbr_no_r3r4_rimcut']
+    assert sorted(k for k in set(rimcut) | set(inc)
+                  if rimcut.get(k) != inc.get(k)) == ['rim_cut']
+
+    # RIM 랭킹 칸은 rank_mode 를 버리고 use_rim_filter 를 켜므로 두 키가 움직인다 —
+    # 둘이 합쳐 "스코어 함수 교체" 한 축이고, rim_cut=False 로 컷은 꺼 둔다.
+    rimrank = ABLATION_CONFIGS['F_rimrank_no_r3r4']
+    assert rimrank['use_rim_filter'] is True and rimrank['rim_cut'] is False
+    assert 'rank_mode' not in rimrank
+    assert rimrank['stability_rules'] == inc['stability_rules']
+    assert rimrank['use_momentum'] == inc['use_momentum']

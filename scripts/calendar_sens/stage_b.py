@@ -146,8 +146,10 @@ def _effects(g_vec: np.ndarray, idx_map: dict) -> dict:
 
     out = {'e': {}, 'delta': {}}
     for c in JUDGMENT_CONTRASTS:
-        e_semi = g(c.variant_tag, SEMI) - g(INCUMBENT_TAG, SEMI)
-        e_alt  = g(c.variant_tag, ALT)  - g(INCUMBENT_TAG, ALT)
+        # baseline 은 contrast 마다 다를 수 있다 — 2×2 의 "컷 켠 상태 랭킹 비교"는
+        # 인컴번트가 아니라 F_pbr_no_r3r4_rimcut 을 기준으로 재야 1축이 된다 (§14-1).
+        e_semi = g(c.variant_tag, SEMI) - g(c.baseline, SEMI)
+        e_alt  = g(c.variant_tag, ALT)  - g(c.baseline, ALT)
         out['e'][c.contrast_id] = {SEMI: e_semi, ALT: e_alt}
         out['delta'][c.contrast_id] = e_alt - e_semi
     out['delta_ew'] = g(EW_TAG, ALT) - g(EW_TAG, SEMI)
@@ -258,6 +260,7 @@ def main() -> None:
         d_boot = boot_net['delta'][c.contrast_id]
         rows.append({
             'contrast_id': c.contrast_id, 'variant_tag': c.variant_tag,
+            'baseline_tag': c.baseline, 'group': c.group,
             'composition': c.composition, 'axis': c.axis, 'n_axes': c.n_axes,
             'single_axis': c.single_axis, 'note': c.note,
             'semiannual_gross_ref_full_period': c.semi_gross_ref,
@@ -280,8 +283,10 @@ def main() -> None:
             'p_delta_gt_0':      float(np.mean(d_boot > 0.0)),
         })
 
-    single = [r for r in rows if r['single_axis']]
-    multi  = [r for r in rows if not r['single_axis']]
+    rule    = [r for r in rows if r['group'] == 'rule']
+    rankcut = [r for r in rows if r['group'] == 'rank_cut']
+    single  = [r for r in rule if r['single_axis']]      # J 분모 — 룰 단일축만
+    multi   = [r for r in rule if not r['single_axis']]
 
     n_rev     = sum(1 for r in single if r['direction_class'] == DIR_REVERSED)
     n_held    = sum(1 for r in single if r['direction_class'] == DIR_HELD)
@@ -289,12 +294,13 @@ def main() -> None:
     j1 = (n_held / (n_held + n_rev)) if (n_held + n_rev) else None
 
     from scipy.stats import kendalltau, spearmanr
-    e_s = [r['e_semiannual_net'] for r in rows]
-    e_a = [r['e_altC_net'] for r in rows]
+    e_s = [r['e_semiannual_net'] for r in rule]
+    e_a = [r['e_altC_net'] for r in rule]
     j2 = {'spearman': float(spearmanr(e_s, e_a).statistic),
           'kendall':  float(kendalltau(e_s, e_a).statistic),
-          'n_contrasts': len(rows),
-          'status': '참고만 — 효과크기 격차가 크면 자동으로 높아진다 (§7-3)'}
+          'n_contrasts': len(rule),
+          'status': '참고만 — 효과크기 격차가 크면 자동으로 높아진다 (§7-3). '
+                    '룰 contrast 7개 기준 (랭킹×컷 2×2 제외)'}
 
     # ── Q1 / Q2 ──────────────────────────────────────────────────────────────
     dew_boot = boot_net['delta_ew']
@@ -367,6 +373,24 @@ def main() -> None:
         },
         'contrasts_single_axis': single,
         'contrasts_multi_axis':  multi,
+        'contrasts_rank_cut_2x2': {
+            'cells': rankcut,
+            'design': {
+                '(1/PBR, 컷없음)': INCUMBENT_TAG + '  ← 인컴번트 = 2×2 원점',
+                '(RIM,   컷없음)': 'F_rimrank_no_r3r4',
+                '(1/PBR, 컷있음)': 'F_pbr_no_r3r4_rimcut',
+                '(RIM,   컷있음)': 'F_no_r3r4',
+            },
+            'read_as': {
+                '세트1 (컷 끈 상태의 랭킹 효과)': 'C_RANK_NOCUT',
+                '세트2 (컷 켠 상태의 랭킹 효과)': 'C_RANK_CUT',
+                '컷 효과 (랭킹 고정)':            'C_RIMCUT',
+                '결합 (두 축 동시)':              'C_RANK',
+            },
+            'status': 'J1·J3·Q2-D·Q2-M 분모 제외 — J 계열은 "어느 룰의 방향이 '
+                      '뒤집혔나"를 재는 지표라 랭킹·컷 축을 섞으면 룰 견고성 판정이 '
+                      '희석된다 (§7-3, §14-1). 방향 분류는 룰과 같은 규칙으로 산출.',
+        },
         'delta_ew': dew,
         'summary_metrics': {
             'J1_direction_hold_rate': j1, 'J1_denominator': n_held + n_rev,
@@ -399,6 +423,12 @@ def main() -> None:
         log.info('  %-7s δ=%+.4f%%p CI95=[%+.4f, %+.4f] %s',
                  r['contrast_id'], r['delta_point'] * 100,
                  r['delta_ci95'][0] * 100, r['delta_ci95'][1] * 100, r['direction_class'])
+    log.info('── 랭킹×컷 2×2 %d셀 (J 분모 제외) ──', len(rankcut))
+    for r in rankcut:
+        log.info('  %-13s %-22s vs %-22s δ=%+.4f%%p CI95=[%+.4f, %+.4f] %s',
+                 r['contrast_id'], r['variant_tag'], r['baseline_tag'],
+                 r['delta_point'] * 100, r['delta_ci95'][0] * 100,
+                 r['delta_ci95'][1] * 100, r['direction_class'])
     log.info('Δ_EW = %+.4f%%p  CI95=[%+.4f, %+.4f]  CI90=[%+.4f, %+.4f]',
              dew['point_net'] * 100, dew['ci95'][0] * 100, dew['ci95'][1] * 100,
              dew['ci90'][0] * 100, dew['ci90'][1] * 100)
@@ -414,10 +444,10 @@ def _markdown(r: dict) -> str:
     pct = lambda x: f'{x * 100:+.4f}'   # noqa: E731
 
     def table(rows: list[dict]) -> str:
-        head = ('| contrast | variant | 구성 | 축 | e(반기) | e(안C) | δ | δ 95% CI | 분류 |\n'
+        head = ('| contrast | variant | baseline | 축 | e(반기) | e(안C) | δ | δ 95% CI | 분류 |\n'
                 '|---|---|---|---|---|---|---|---|---|\n')
         body = ''.join(
-            f"| `{x['contrast_id']}` | `{x['variant_tag']}` | {x['composition']} | {x['axis']} "
+            f"| `{x['contrast_id']}` | `{x['variant_tag']}` | `{x['baseline_tag']}` | {x['axis']} "
             f"| {pct(x['e_semiannual_net'])} | {pct(x['e_altC_net'])} | **{pct(x['delta_point'])}** "
             f"| [{pct(x['delta_ci95'][0])}, {pct(x['delta_ci95'][1])}] "
             f"| {x['direction_class']} |\n" for x in rows)
@@ -428,9 +458,14 @@ def _markdown(r: dict) -> str:
         '> **진단 전용 — 본 실행만으로 채택 후보 없음** (SPEC_14 §9)\n\n'
         f"단위 %p, net 연율 로그수익률. 공통 기간 {r['common_period']['S']}~"
         f"{r['common_period']['E']} ({r['common_period']['n_obs']}관측일).\n\n"
-        '## ① 단일축 (판정용)\n\n' + table(r['contrasts_single_axis']) +
-        '\n## ② 다축 (보조 — J1·J3 분모 제외)\n\n' + table(r['contrasts_multi_axis']) +
-        '\n## ③ 탐색 셀\n\n(없음 — 추가 시 `exploratory=true`, 추가 시점·사유 병기, §7-4)\n'
+        '## ① 룰 단일축 (판정용)\n\n' + table(r['contrasts_single_axis']) +
+        '\n## ② 룰 다축 (보조 — J1·J3 분모 제외)\n\n' + table(r['contrasts_multi_axis']) +
+        '\n## ③ 랭킹 × 밸류에이션컷 2×2 (J 분모 제외)\n\n'
+        '```\n          컷 없음                 컷 있음\n'
+        '1/PBR     F_pbr_no_r3r4(인컴번트)   F_pbr_no_r3r4_rimcut\n'
+        'RIM       F_rimrank_no_r3r4        F_no_r3r4\n```\n\n'
+        + table(r['contrasts_rank_cut_2x2']['cells']) +
+        '\n## ④ 탐색 셀\n\n(없음 — 추가 시 `exploratory=true`, 추가 시점·사유 병기, §7-4)\n'
         '\n## Q1 — Δ_EW\n\n'
         f"| 지표 | 값 |\n|---|---|\n"
         f"| Δ_EW (net) | **{pct(d['point_net'])}%p** |\n"

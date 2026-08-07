@@ -206,6 +206,20 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'use_momentum': True,  'use_rim_filter': False,
                             'stability_rules': {'R1', 'R2', 'R5'},
                             'rank_mode': 'pbr'},
+    # ── SPEC_14 §14-1 랭킹 × 밸류에이션컷 2×2 (`[확정 2026-08-06, 사용자]`) ────
+    # 인컴번트 F_pbr_no_r3r4 는 "1/PBR 랭킹 + 컷 없음", 기존 F_no_r3r4 는 "RIM 랭킹 +
+    # 컷 있음" 이라 두 축이 동시에 다르다. 나머지 두 칸을 채워야 랭킹 효과와 컷 효과가
+    # 분리된다. 셋 다 stability {R1,R2,R5,R6} + 모멘텀 + HARD 로 인컴번트와 동일.
+    #   RIM 랭킹 + 컷 없음
+    'F_rimrank_no_r3r4':   {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': True,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'},
+                            'rim_cut': False},
+    #   1/PBR 랭킹 + 컷 있음
+    'F_pbr_no_r3r4_rimcut': {'use_hard': True, 'use_stability': True,  'use_screener': False,
+                            'use_momentum': True,  'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'},
+                            'rank_mode': 'pbr', 'rim_cut': True},
     # SPEC_14 §6-3 `C_R5` 판정 contrast 전용 신규 태그 (N5 `[확정 2026-08-06, 사용자]`).
     # 채택 후보 {R1,R2,R5,R6}에서 **R5만** 제거한 leave-one-out — 기존 61개 태그에
     # 이 조합이 없어 R5의 단일축 기여를 캘린더 간 비교할 수 없었다. 나머지 스택
@@ -377,18 +391,28 @@ class _PBRRankPipeline(BacktestPipeline):
     equity_mode='parent' (SPEC_11 §3, F_pbr_no_r3r4_parent): 분모를 RIM SSOT
     우선순위(RIMModel.parent_equity — 지배기업소유주지분 > _1 > 자본총계)로 교체.
     필터별 적정 기준은 유지한다 — 전 필터 일괄 통일 아님 (SPEC_11 §3 확정).
+
+    rim_cut=True (SPEC_14 §14-1, 2×2 셀): 랭킹은 1/PBR 그대로 두고 **RIM 밸류에이션
+    컷만** 켠다. 컷 규칙·보완 로직은 `pipeline.passes_rim_cut`·`supplement_to_minimum`
+    을 호출해 RIM 경로와 완전히 같은 정의를 쓴다 (복제 금지). 이 셀이 있어야
+    "랭킹 신호"와 "밸류에이션 컷"이 교락되지 않는다. **기본값 False = 기존 동작.**
     """
 
-    def __init__(self, filters: list, n_stocks: int = 20, equity_mode: str = 'total'):
-        super().__init__(filters=filters, valuation_model=RIMModel(), n_stocks=n_stocks)
+    def __init__(self, filters: list, n_stocks: int = 20, equity_mode: str = 'total',
+                 rim_cut: bool = False):
+        # rim_threshold 가 곧 컷 스위치다 — None 이면 컷 없음 (기존 PBR 경로 동작).
+        super().__init__(filters=filters, valuation_model=RIMModel(), n_stocks=n_stocks,
+                         rim_threshold=(0.05 if rim_cut else None))
         if equity_mode not in ('total', 'parent'):
             raise ValueError(f'equity_mode는 total|parent — {equity_mode!r}')
         self.equity_mode = equity_mode
 
     def score_and_rank(self, universe, rebalance_date, pit_series, conn) -> list[dict]:
         from backtest.data_access import get_market_cap, get_close_price
+        from backtest.pipeline import _rank_key, passes_rim_cut, supplement_to_minimum
 
-        scored = []
+        cut_on = self.rim_threshold is not None
+        passed, rejected = [], []
         for ticker in universe:
             pit0   = pit_series.get(ticker, [{}])[0]
             equity = (RIMModel.parent_equity(pit0) if self.equity_mode == 'parent'
@@ -403,15 +427,26 @@ class _PBRRankPipeline(BacktestPipeline):
             if pbr <= 0:
                 continue
 
-            scored.append({
+            fv = self.model.fair_value_total(ticker, pit0, beta=1.0) if cut_on else None
+            if cut_on and fv is None:
+                continue          # 컷을 켠 셀은 RIM 경로와 동일하게 FV 결측 종목을 제외한다
+
+            item = {
                 'ticker':     ticker,
                 'upside_pct': 1.0 / pbr,   # inv_pbr 스코어(랭킹용, 업사이드 % 아님)
-                'model':      'PBR_ONLY',
-                'fair_value': None,
+                'model':      'PBR_RIMCUT' if cut_on else 'PBR_ONLY',
+                'fair_value': fv,
                 'price':      price,
-            })
+            }
+            if not cut_on or passes_rim_cut(fv, mktcap, self.rim_threshold):
+                passed.append(item)
+            else:
+                rejected.append(item)
 
-        return sorted(scored, key=lambda x: x['upside_pct'], reverse=True)
+        # 정렬은 pipeline._rank_key SSOT — 종전 `reverse=True` 안정정렬은 유니버스가
+        # ticker 순이라는 암묵 전제에 기대고 있었다 (CORR-SORT-001과 같은 취지).
+        passed = supplement_to_minimum(passed, rejected, rebalance_date)
+        return sorted(passed, key=_rank_key)
 
 
 class _FactorCompositeRankPipeline(BacktestPipeline):
@@ -512,14 +547,20 @@ def build_ablation_pipeline(
             ma_short=20, ma_long=60, confirm_days=5, slope_lookback=20,
         ))
 
+    # SPEC_14 §14-1 — RIM 밸류에이션 컷을 랭킹과 **독립 스위치**로 뺀다.
+    # 키가 없으면(None) 각 경로의 **기존 동작을 그대로** 쓴다: PBR 계열은 컷 없음,
+    # RIM 계열은 컷 있음. 명시했을 때만 뒤집힌다 — 기존 60여 개 태그는 비트 불변.
+    rim_cut = config.get('rim_cut')
+
     if config.get('rank_mode') == 'ew_all':
         return _AllEqualWeightPipeline(filters=filters)
 
     if config.get('rank_mode') == 'pbr':
-        return _PBRRankPipeline(filters=filters, n_stocks=n_stocks)
+        return _PBRRankPipeline(filters=filters, n_stocks=n_stocks, rim_cut=bool(rim_cut))
 
     if config.get('rank_mode') == 'pbr_parent':
-        return _PBRRankPipeline(filters=filters, n_stocks=n_stocks, equity_mode='parent')
+        return _PBRRankPipeline(filters=filters, n_stocks=n_stocks, equity_mode='parent',
+                                rim_cut=bool(rim_cut))
 
     if config.get('rank_mode') == 'factor_composite':
         return _FactorCompositeRankPipeline(filters=filters, n_stocks=n_stocks)
@@ -534,6 +575,6 @@ def build_ablation_pipeline(
     return BacktestPipeline(
         filters=filters,
         valuation_model=RIMModel(beta_adj=beta_adj, omega=omega),
-        rim_threshold=rim_threshold,
+        rim_threshold=(None if rim_cut is False else rim_threshold),
         n_stocks=n_stocks,
     )

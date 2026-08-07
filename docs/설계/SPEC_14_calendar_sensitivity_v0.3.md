@@ -470,11 +470,35 @@ v0.2 대비 핵심 수정 6건: **Q1을 `Δ_EW`로 정확히 정의**(EW에는 a
 
 이 함께 붙는다. 인컴번트가 쓰는 `ablation._PBRRankPipeline.score_and_rank`에는 셋 다 없다. **§6-2가 `F_no_r6`·`F_pbr_only`를 배제한 것과 동일 유형의 오염**이다.
 
-**조치**: `C_RANK`를 `C_R3R4`·`C_STAB`와 같은 **보조 표(다축)**로 이동. **단일축 분모 6 → 5** (`C_R1`·`C_R2`·`C_R5`·`C_R6`·`C_MOM`). §7-3 J1·J3, §8-2 Q2-D·Q2-M 전부 이 5개 기준.
+**조치**: `C_RANK`를 `C_R3R4`·`C_STAB`와 같은 **보조 표(다축)**로 이동. **룰 단일축 분모 6 → 5** (`C_R1`·`C_R2`·`C_R5`·`C_R6`·`C_MOM`). §7-3 J1·J3, §8-2 Q2-D·Q2-M 전부 이 5개 기준. 잃어버린 랭킹 질문은 14-1b의 2×2가 별도로 받는다.
 
 **§8-2 문턱은 그대로 둔다** — 원 사전등록이 비율이 아니라 **절대 개수**(반전 ≥2, 중립 ≤2)였으므로 분모가 줄어도 정의가 성립한다. 분모 축소로 J1의 1칸이 20%p가 되는 불연속은 더 커졌으나, §7-3이 이미 "Q2-D는 비율이 아니라 반전 개수로" 판정하도록 사전등록해 두어 판정 경로는 영향받지 않는다.
 
-`[Claude 의견]` 깨끗한 대안은 `_PBRRankPipeline`과 구조가 같고 스코어만 RIM upside인 `rank_mode='rim_score'`를 신설해 진짜 1축을 만드는 것이었다. 사용자가 **사전등록 집합 불변(§9-4)을 우선**해 강등을 택했다. 따라서 본 실행은 **"랭킹 신호 자체가 캘린더에 민감한가"에 답하지 않는다** — 그 질문은 미해결로 남는다.
+### 14-1b. `[추가]` 랭킹 × 밸류에이션컷 **2×2** — 강등으로 잃은 질문을 되찾는다
+
+14-1의 강등만으로 끝내면 **"랭킹 신호 자체가 캘린더에 민감한가"에 답할 수 없다.** 그래서 밸류에이션 컷을 랭킹과 **독립 스위치**로 분리하고(`pipeline.passes_rim_cut` / `supplement_to_minimum` SSOT, `rim_cut` config 키) 빠진 두 칸을 채웠다.
+
+| | 컷 없음 | 컷 있음 |
+|---|---|---|
+| **1/PBR 랭킹** | `F_pbr_no_r3r4` ← 인컴번트 | **`F_pbr_no_r3r4_rimcut`** `[신규]` |
+| **RIM 랭킹** | **`F_rimrank_no_r3r4`** `[신규]` | `F_no_r3r4` |
+
+네 칸 전부 HARD + Stability{R1,R2,R5,R6} + 모멘텀으로 필터 스택이 동일하다(오라클로 고정).
+
+| contrast_id | variant | baseline | 축 |
+|---|---|---|---|
+| `C_RANK_NOCUT` | `F_rimrank_no_r3r4` | 인컴번트 | **세트1** — 컷 끈 상태의 랭킹 효과 |
+| `C_RANK_CUT` | `F_no_r3r4` | `F_pbr_no_r3r4_rimcut` | **세트2** — 컷 켠 상태의 랭킹 효과 |
+| `C_RIMCUT` | `F_pbr_no_r3r4_rimcut` | 인컴번트 | 컷 효과 (랭킹 고정) |
+| `C_RANK` | `F_no_r3r4` | 인컴번트 | 결합 (두 축 동시, 2축) |
+
+`C_RANK_CUT`의 baseline은 **인컴번트가 아니다** — 컷을 켠 상태끼리 비교해야 랭킹 1축이 되기 때문이다. `Contrast.baseline_tag`로 지원한다.
+
+**`[중요]` 이 2×2는 J1·J3·Q2-D·Q2-M 분모에 넣지 않는다.** J 계열은 §7-3이 *"어느 **룰**의 방향이 뒤집혔나"*를 재도록 사전등록한 지표다. 랭킹·컷 축 3개를 같은 분모에 섞으면 룰 견고성 판정이 희석되고, §8-3 조치가 룰과 무관한 축 때문에 발동할 수 있다. → **별도 블록(③)으로 발행**하고 방향 분류만 룰과 같은 규칙(§7-2)으로 산출한다.
+
+`[Claude 의견]` 잔여 caveat 1건: RIM 스코어를 쓰려면 RIM 입력이 있어야 하므로, RIM 랭킹 칸은 FV 계산 불가 종목이 빠진다(1/PBR 칸은 자본총계·시총 결측이 빠진다). 두 칸의 탈락 집합이 완전히 같지는 않다 — **어떤 스코어를 쓰느냐에 내재한 차이**라 설계로 제거할 수 없고, A-3 풀 크기 표에서 확인한다.
+
+**사전등록 정합성**: §9-4는 판정 contrast 집합을 "실행 전 확정 후 변경 금지"로 묶는다. 이 추가는 **어떤 성과 수치도 산출하기 전**에 이뤄졌고(§12가 미결항목 결정 시점을 "실행 전, 수치 산출 전"으로 규정), 결과를 본 뒤의 사후 추가가 아니다. §7-4 탐색 셀 경로가 아니라 **사전등록 확장**이다.
 
 ### 14-2. `[확정]` §12 미결항목
 
@@ -514,7 +538,12 @@ v0.2 대비 핵심 수정 6건: **Q1을 `Δ_EW`로 정확히 정의**(EW에는 a
 ### 14-6. 구현 산출물
 
 ```
-backtest/ablation.py                          F_pbr_no_r3r4r5 신규 (N5)
+backtest/pipeline.py                          rim_threshold=None(컷 없음) 지원 +
+                                              passes_rim_cut·supplement_to_minimum SSOT 추출
+backtest/ablation.py                          F_pbr_no_r3r4r5 (N5) +
+                                              F_rimrank_no_r3r4·F_pbr_no_r3r4_rimcut (2×2)
+                                              + _PBRRankPipeline(rim_cut=) 스위치
+tests/oracle/test_rim_cut_switch_oracle.py    컷 스위치 오라클 (기존 태그 불변 회귀 방지)
 scripts/calendar_sens/calsens_lib.py          사전등록 상수·contrast 레지스트리·g·bootstrap
 scripts/calendar_sens/plan_runs.py            미생성 산출물 점검 + 실행 명령 생성
 scripts/calendar_sens/integrity_gates.py      §6-4 게이트 5종 (G-CAL-1~5)

@@ -18,7 +18,10 @@ class BacktestPipeline:
         self,
         filters:         list[UniverseFilter],
         valuation_model: ValuationModel,
-        rim_threshold:   float = 0.05,   # Bayesian 튜닝: [-0.10, +0.20]
+        # None = 밸류에이션 컷 **없음** (전 종목 통과, 순수 랭킹 경로). SPEC_14 §14-1
+        # 대응 — RIM 랭킹만 바꾼 단일축 대조군을 만들려면 컷이 함께 켜지면 안 된다.
+        # 기본값 0.05는 불변이라 기존 시나리오는 비트 단위로 그대로다.
+        rim_threshold:   float | None = 0.05,   # Bayesian 튜닝: [-0.10, +0.20]
         n_stocks:        int   = 20,     # Bayesian 튜닝: [10, 30]
         top_pct:         float = 0.20,   # FactorScreener에 전달하지 않음 (filter 자체 관리)
     ):
@@ -83,6 +86,11 @@ class BacktestPipeline:
         RIM 컷 후 MIN_PORTFOLIO_STOCKS 미달 시 고평가 종목을 upside 순으로 보완.
         (FV 계산 불가 종목은 어떤 경우에도 제외)
 
+        `rim_threshold=None` 이면 컷을 건너뛴다 — 전 종목이 passed 로 가므로 rejected 가
+        비고 보완 로직도 발화하지 않는다. 즉 "RIM upside 내림차순 랭킹"만 남아
+        `ablation._PBRRankPipeline`(1/PBR 내림차순)과 **스코어 함수 하나만** 다른
+        대조군이 된다 (SPEC_14 §14-1).
+
         반환 리스트 원소: {
             'ticker': str,
             'upside_pct': float,
@@ -116,22 +124,47 @@ class BacktestPipeline:
                 'price':      price,
             }
 
-            if mktcap <= fv * (1 + self.rim_threshold):
+            if passes_rim_cut(fv, mktcap, self.rim_threshold):
                 passed.append(item)
             else:
                 rejected.append(item)
 
-        # RIM 컷 통과 종목이 최소 기준 미달 → 고평가 종목 중 upside 상위부터 보완
-        if len(passed) < MIN_PORTFOLIO_STOCKS and rejected:
-            need = MIN_PORTFOLIO_STOCKS - len(passed)
-            supplement = sorted(rejected, key=_rank_key)[:need]
-            log.info(
-                f'[{rebalance_date}] RIM 컷 통과 {len(passed)}개 < 최소 {MIN_PORTFOLIO_STOCKS}개 '
-                f'→ 고평가 보완 {len(supplement)}개 추가'
-            )
-            passed.extend(supplement)
-
+        passed = supplement_to_minimum(passed, rejected, rebalance_date)
         return sorted(passed, key=_rank_key)
+
+
+def passes_rim_cut(fv_total: float, market_cap: float, threshold: float | None) -> bool:
+    """RIM 밸류에이션 컷 판정 — **랭킹과 독립인 스크린의 SSOT**.
+
+    `threshold=None` 이면 컷을 적용하지 않는다(항상 True). `fv * (1 + inf)` 로 우회하지
+    않는 이유: FV=0 인 종목에서 `0 × inf = nan` 이 되어 비교가 False 가 되고, 컷이
+    없어야 할 경로에서 종목이 조용히 탈락한다.
+
+    `ablation._PBRRankPipeline` 이 `rim_cut=True` 일 때 같은 함수를 호출한다 —
+    "랭킹 신호"와 "밸류에이션 컷"을 2×2로 분리하려면 컷 규칙이 한 곳에만 있어야
+    한다 (SPEC_14 §14-1).
+    """
+    if threshold is None:
+        return True
+    return market_cap <= fv_total * (1 + threshold)
+
+
+def supplement_to_minimum(passed: list[dict], rejected: list[dict], rebalance_date) -> list[dict]:
+    """컷 통과분이 `MIN_PORTFOLIO_STOCKS` 미달이면 탈락분에서 랭킹 상위로 보완 (SSOT).
+
+    보완 순서는 `_rank_key`(= 그 경로의 `upside_pct` 내림차순) 이므로, PBR 경로에서
+    호출하면 1/PBR 상위부터 보완된다 — 각 경로가 자기 랭킹으로 보완한다.
+    컷이 없으면(`rejected` 가 비면) 이 함수는 아무 일도 하지 않는다.
+    """
+    if len(passed) >= MIN_PORTFOLIO_STOCKS or not rejected:
+        return passed
+    need = MIN_PORTFOLIO_STOCKS - len(passed)
+    supplement = sorted(rejected, key=_rank_key)[:need]
+    log.info(
+        f'[{rebalance_date}] RIM 컷 통과 {len(passed)}개 < 최소 {MIN_PORTFOLIO_STOCKS}개 '
+        f'→ 고평가 보완 {len(supplement)}개 추가'
+    )
+    return passed + supplement
 
 
 def _rank_key(item: dict) -> tuple[float, str]:
