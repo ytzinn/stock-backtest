@@ -1,0 +1,663 @@
+{
+  "spec": "SPEC_14 §6-4",
+  "generated_at": "2026-08-09T02:16:50.854459",
+  "db_checks": true,
+  "all_pass": true,
+  "gates": [
+    {
+      "gate": "G-CAL-1 스냅샷 동등성",
+      "pass": true,
+      "daily_nav_gross_expected": 0.15819563103474077,
+      "daily_nav_gross_actual": 0.15819563103474077,
+      "daily_nav_gross_bit_identical": true,
+      "engine_gross_expected": 0.15819563103474055,
+      "engine_gross_actual": 0.15819563103474055,
+      "engine_gross_bit_identical": true,
+      "net_expected": 0.14079850522450377,
+      "net_actual": 0.14079850522450377,
+      "net_bit_identical": true,
+      "note": "전체기간 20구간 기준값 — 공통 기간 값(§3)과 혼동 금지"
+    },
+    {
+      "gate": "G-CAL-2 배관 양성 대조군",
+      "pass": true,
+      "plumbing_tag": "F_pbr_ma_double_adapter",
+      "plumbing_gross": 0.15819563103474055,
+      "incumbent_gross": 0.15819563103474055,
+      "bit_identical": true
+    },
+    {
+      "gate": "G-CAL-3 신규 태그 검증",
+      "pass": true,
+      "tag": "F_pbr_no_r3r4r5",
+      "stability_rules": [
+        "R1",
+        "R2",
+        "R6"
+      ],
+      "expected_rules": [
+        "R1",
+        "R2",
+        "R6"
+      ],
+      "config_diff_vs_incumbent": [
+        "stability_rules"
+      ],
+      "single_axis_config": true,
+      "semiannual_artifact_exists": true,
+      "semiannual_gross_cagr": 0.14721682587477924,
+      "note": "반기 캘린더로 먼저 실행해 구성 정합을 확인한다 (§6-4)"
+    },
+    {
+      "gate": "G-CAL-5 관측일 동일",
+      "pass": true,
+      "windows": {
+        "main": {
+          "reference_series": "F_pbr_no_r3r4@main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03"
+        },
+        "rankcut": {
+          "reference_series": "F_no_r3r4@rankcut",
+          "n_obs": 2177,
+          "first": "2017-05-18",
+          "last": "2026-04-03"
+        }
+      },
+      "missing_series": [],
+      "series": [
+        {
+          "series": "F_pbr_no_r3r4@main",
+          "window": "main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_pbr_no_r3r4_C@main",
+          "window": "main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "U_pbr_path_ew@main",
+          "window": "main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "U_pbr_path_ew_C@main",
+          "window": "main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_pbr_no_r1r3r4@main",
+          "window": "main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_pbr_no_r1r3r4_C@main",
+          "window": "main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_pbr_no_r2r3r4@main",
+          "window": "main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_pbr_no_r2r3r4_C@main",
+          "window": "main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_pbr_no_r3r4r5@main",
+          "window": "main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_pbr_no_r3r4r5_C@main",
+          "window": "main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_pbr_no_r3r4r6@main",
+          "window": "main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_pbr_no_r3r4r6_C@main",
+          "window": "main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "D_pbr_no_r3r4@main",
+          "window": "main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "D_pbr_no_r3r4_C@main",
+          "window": "main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_pbr_r6@main",
+          "window": "main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_pbr_r6_C@main",
+          "window": "main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_pbr_nostab@main",
+          "window": "main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_pbr_nostab_C@main",
+          "window": "main",
+          "n_obs": 2424,
+          "first": "2016-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_no_r3r4@rankcut",
+          "window": "rankcut",
+          "n_obs": 2177,
+          "first": "2017-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_no_r3r4_C@rankcut",
+          "window": "rankcut",
+          "n_obs": 2177,
+          "first": "2017-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_pbr_no_r3r4@rankcut",
+          "window": "rankcut",
+          "n_obs": 2177,
+          "first": "2017-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_pbr_no_r3r4_C@rankcut",
+          "window": "rankcut",
+          "n_obs": 2177,
+          "first": "2017-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_rimrank_no_r3r4@rankcut",
+          "window": "rankcut",
+          "n_obs": 2177,
+          "first": "2017-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_rimrank_no_r3r4_C@rankcut",
+          "window": "rankcut",
+          "n_obs": 2177,
+          "first": "2017-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_pbr_no_r3r4_rimcut@rankcut",
+          "window": "rankcut",
+          "n_obs": 2177,
+          "first": "2017-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        },
+        {
+          "series": "F_pbr_no_r3r4_rimcut_C@rankcut",
+          "window": "rankcut",
+          "n_obs": 2177,
+          "first": "2017-05-18",
+          "last": "2026-04-03",
+          "ok": true
+        }
+      ],
+      "note": "기간라벨별로 따로 대조한다 — 2×2(rankcut)는 §14-1c 2차 창을 쓴다"
+    },
+    {
+      "gate": "G-CAL-4 안 C 스케줄",
+      "n_anchors": 23,
+      "schedule_consistent": true,
+      "anchors": [
+        {
+          "date": "2015-05-20",
+          "report_type": "Q1",
+          "fiscal_year": 2015,
+          "nominal_period_end": "2015-03-31",
+          "consistent": true
+        },
+        {
+          "date": "2015-11-18",
+          "report_type": "Q3",
+          "fiscal_year": 2015,
+          "nominal_period_end": "2015-09-30",
+          "consistent": true
+        },
+        {
+          "date": "2016-05-18",
+          "report_type": "Q1",
+          "fiscal_year": 2016,
+          "nominal_period_end": "2016-03-31",
+          "consistent": true
+        },
+        {
+          "date": "2016-11-17",
+          "report_type": "Q3",
+          "fiscal_year": 2016,
+          "nominal_period_end": "2016-09-30",
+          "consistent": true
+        },
+        {
+          "date": "2017-05-18",
+          "report_type": "Q1",
+          "fiscal_year": 2017,
+          "nominal_period_end": "2017-03-31",
+          "consistent": true
+        },
+        {
+          "date": "2017-11-17",
+          "report_type": "Q3",
+          "fiscal_year": 2017,
+          "nominal_period_end": "2017-09-30",
+          "consistent": true
+        },
+        {
+          "date": "2018-05-18",
+          "report_type": "Q1",
+          "fiscal_year": 2018,
+          "nominal_period_end": "2018-03-31",
+          "consistent": true
+        },
+        {
+          "date": "2018-11-19",
+          "report_type": "Q3",
+          "fiscal_year": 2018,
+          "nominal_period_end": "2018-09-30",
+          "consistent": true
+        },
+        {
+          "date": "2019-05-20",
+          "report_type": "Q1",
+          "fiscal_year": 2019,
+          "nominal_period_end": "2019-03-31",
+          "consistent": true
+        },
+        {
+          "date": "2019-11-19",
+          "report_type": "Q3",
+          "fiscal_year": 2019,
+          "nominal_period_end": "2019-09-30",
+          "consistent": true
+        },
+        {
+          "date": "2020-05-20",
+          "report_type": "Q1",
+          "fiscal_year": 2020,
+          "nominal_period_end": "2020-03-31",
+          "consistent": true
+        },
+        {
+          "date": "2020-11-18",
+          "report_type": "Q3",
+          "fiscal_year": 2020,
+          "nominal_period_end": "2020-09-30",
+          "consistent": true
+        },
+        {
+          "date": "2021-05-20",
+          "report_type": "Q1",
+          "fiscal_year": 2021,
+          "nominal_period_end": "2021-03-31",
+          "consistent": true
+        },
+        {
+          "date": "2021-11-17",
+          "report_type": "Q3",
+          "fiscal_year": 2021,
+          "nominal_period_end": "2021-09-30",
+          "consistent": true
+        },
+        {
+          "date": "2022-05-18",
+          "report_type": "Q1",
+          "fiscal_year": 2022,
+          "nominal_period_end": "2022-03-31",
+          "consistent": true
+        },
+        {
+          "date": "2022-11-17",
+          "report_type": "Q3",
+          "fiscal_year": 2022,
+          "nominal_period_end": "2022-09-30",
+          "consistent": true
+        },
+        {
+          "date": "2023-05-18",
+          "report_type": "Q1",
+          "fiscal_year": 2023,
+          "nominal_period_end": "2023-03-31",
+          "consistent": true
+        },
+        {
+          "date": "2023-11-17",
+          "report_type": "Q3",
+          "fiscal_year": 2023,
+          "nominal_period_end": "2023-09-30",
+          "consistent": true
+        },
+        {
+          "date": "2024-05-20",
+          "report_type": "Q1",
+          "fiscal_year": 2024,
+          "nominal_period_end": "2024-03-31",
+          "consistent": true
+        },
+        {
+          "date": "2024-11-19",
+          "report_type": "Q3",
+          "fiscal_year": 2024,
+          "nominal_period_end": "2024-09-30",
+          "consistent": true
+        },
+        {
+          "date": "2025-05-20",
+          "report_type": "Q1",
+          "fiscal_year": 2025,
+          "nominal_period_end": "2025-03-31",
+          "consistent": true
+        },
+        {
+          "date": "2025-11-19",
+          "report_type": "Q3",
+          "fiscal_year": 2025,
+          "nominal_period_end": "2025-09-30",
+          "consistent": true
+        },
+        {
+          "date": "2026-05-20",
+          "report_type": "Q1",
+          "fiscal_year": 2026,
+          "nominal_period_end": "2026-03-31",
+          "consistent": true
+        }
+      ],
+      "pass": true,
+      "late_or_missing": [
+        {
+          "date": "2015-05-20",
+          "report_type": "Q1",
+          "fiscal_year": 2015,
+          "n_latest_year": 0,
+          "n_exact_year": 0,
+          "n_late_or_missing": 0,
+          "late_or_missing_ratio": null
+        },
+        {
+          "date": "2015-11-18",
+          "report_type": "Q3",
+          "fiscal_year": 2015,
+          "n_latest_year": 0,
+          "n_exact_year": 0,
+          "n_late_or_missing": 0,
+          "late_or_missing_ratio": null
+        },
+        {
+          "date": "2016-05-18",
+          "report_type": "Q1",
+          "fiscal_year": 2016,
+          "n_latest_year": 1459,
+          "n_exact_year": 1459,
+          "n_late_or_missing": 0,
+          "late_or_missing_ratio": 0.0
+        },
+        {
+          "date": "2016-11-17",
+          "report_type": "Q3",
+          "fiscal_year": 2016,
+          "n_latest_year": 1505,
+          "n_exact_year": 1505,
+          "n_late_or_missing": 0,
+          "late_or_missing_ratio": 0.0
+        },
+        {
+          "date": "2017-05-18",
+          "report_type": "Q1",
+          "fiscal_year": 2017,
+          "n_latest_year": 1594,
+          "n_exact_year": 1534,
+          "n_late_or_missing": 60,
+          "late_or_missing_ratio": 0.037641154328732745
+        },
+        {
+          "date": "2017-11-17",
+          "report_type": "Q3",
+          "fiscal_year": 2017,
+          "n_latest_year": 1667,
+          "n_exact_year": 1603,
+          "n_late_or_missing": 64,
+          "late_or_missing_ratio": 0.03839232153569286
+        },
+        {
+          "date": "2018-05-18",
+          "report_type": "Q1",
+          "fiscal_year": 2018,
+          "n_latest_year": 1715,
+          "n_exact_year": 1653,
+          "n_late_or_missing": 62,
+          "late_or_missing_ratio": 0.036151603498542274
+        },
+        {
+          "date": "2018-11-19",
+          "report_type": "Q3",
+          "fiscal_year": 2018,
+          "n_latest_year": 1764,
+          "n_exact_year": 1700,
+          "n_late_or_missing": 64,
+          "late_or_missing_ratio": 0.036281179138321996
+        },
+        {
+          "date": "2019-05-20",
+          "report_type": "Q1",
+          "fiscal_year": 2019,
+          "n_latest_year": 1829,
+          "n_exact_year": 1749,
+          "n_late_or_missing": 80,
+          "late_or_missing_ratio": 0.04373974849644614
+        },
+        {
+          "date": "2019-11-19",
+          "report_type": "Q3",
+          "fiscal_year": 2019,
+          "n_latest_year": 1861,
+          "n_exact_year": 1799,
+          "n_late_or_missing": 62,
+          "late_or_missing_ratio": 0.03331542181622783
+        },
+        {
+          "date": "2020-05-20",
+          "report_type": "Q1",
+          "fiscal_year": 2020,
+          "n_latest_year": 1910,
+          "n_exact_year": 1809,
+          "n_late_or_missing": 101,
+          "late_or_missing_ratio": 0.05287958115183246
+        },
+        {
+          "date": "2020-11-18",
+          "report_type": "Q3",
+          "fiscal_year": 2020,
+          "n_latest_year": 1932,
+          "n_exact_year": 1874,
+          "n_late_or_missing": 58,
+          "late_or_missing_ratio": 0.030020703933747412
+        },
+        {
+          "date": "2021-05-20",
+          "report_type": "Q1",
+          "fiscal_year": 2021,
+          "n_latest_year": 1992,
+          "n_exact_year": 1910,
+          "n_late_or_missing": 82,
+          "late_or_missing_ratio": 0.04116465863453815
+        },
+        {
+          "date": "2021-11-17",
+          "report_type": "Q3",
+          "fiscal_year": 2021,
+          "n_latest_year": 2022,
+          "n_exact_year": 1962,
+          "n_late_or_missing": 60,
+          "late_or_missing_ratio": 0.02967359050445104
+        },
+        {
+          "date": "2022-05-18",
+          "report_type": "Q1",
+          "fiscal_year": 2022,
+          "n_latest_year": 2067,
+          "n_exact_year": 1992,
+          "n_late_or_missing": 75,
+          "late_or_missing_ratio": 0.036284470246734396
+        },
+        {
+          "date": "2022-11-17",
+          "report_type": "Q3",
+          "fiscal_year": 2022,
+          "n_latest_year": 2113,
+          "n_exact_year": 2060,
+          "n_late_or_missing": 53,
+          "late_or_missing_ratio": 0.025082820634169428
+        },
+        {
+          "date": "2023-05-18",
+          "report_type": "Q1",
+          "fiscal_year": 2023,
+          "n_latest_year": 2165,
+          "n_exact_year": 2092,
+          "n_late_or_missing": 73,
+          "late_or_missing_ratio": 0.033718244803695153
+        },
+        {
+          "date": "2023-11-17",
+          "report_type": "Q3",
+          "fiscal_year": 2023,
+          "n_latest_year": 2266,
+          "n_exact_year": 2206,
+          "n_late_or_missing": 60,
+          "late_or_missing_ratio": 0.0264783759929391
+        },
+        {
+          "date": "2024-05-20",
+          "report_type": "Q1",
+          "fiscal_year": 2024,
+          "n_latest_year": 2311,
+          "n_exact_year": 2231,
+          "n_late_or_missing": 80,
+          "late_or_missing_ratio": 0.03461704889658156
+        },
+        {
+          "date": "2024-11-19",
+          "report_type": "Q3",
+          "fiscal_year": 2024,
+          "n_latest_year": 2353,
+          "n_exact_year": 2303,
+          "n_late_or_missing": 50,
+          "late_or_missing_ratio": 0.021249468763280918
+        },
+        {
+          "date": "2025-05-20",
+          "report_type": "Q1",
+          "fiscal_year": 2025,
+          "n_latest_year": 2426,
+          "n_exact_year": 2354,
+          "n_late_or_missing": 72,
+          "late_or_missing_ratio": 0.02967848309975268
+        },
+        {
+          "date": "2025-11-19",
+          "report_type": "Q3",
+          "fiscal_year": 2025,
+          "n_latest_year": 2458,
+          "n_exact_year": 2407,
+          "n_late_or_missing": 51,
+          "late_or_missing_ratio": 0.020748576078112285
+        },
+        {
+          "date": "2026-05-20",
+          "report_type": "Q1",
+          "fiscal_year": 2026,
+          "n_latest_year": 2488,
+          "n_exact_year": 2397,
+          "n_late_or_missing": 91,
+          "late_or_missing_ratio": 0.03657556270096463
+        }
+      ],
+      "late_or_missing_ratio_mean": 0.030652048297845864,
+      "late_or_missing_ratio_max": 0.05287958115183246,
+      "note": "분기 전략에 \"신속 공시 기업 선호\" 효과가 섞인다 — 보고서에 명시 (SPEC_13 §0-A)"
+    }
+  ]
+}
