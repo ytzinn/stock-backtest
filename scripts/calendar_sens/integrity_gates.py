@@ -42,9 +42,9 @@ from scripts.calendar_sens.calsens_lib import (
     NAV_DIR,
     OUT_DIR,
     PLUMBING_TAG,
-    REQUIRED_TAGS,
     calendar_tag,
     load_nav,
+    required_series,
 )
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s',
@@ -248,48 +248,50 @@ def gate_observation_dates() -> dict:
     개수만 세면 안 된다 — 같은 2,424개라도 날짜가 어긋나면 §10 의 "동일 달력일
     pairing" 이 깨져 δ(j) 가 다른 날을 빼는 값이 된다.
     """
-    ref_index: pd.DatetimeIndex | None = None
-    ref_name = None
+    refs: dict[str, tuple] = {}          # 기간라벨 → (index, 대표 시리즈명)
     rows, all_ok, missing = [], True, []
 
-    for calendar in CALENDARS:
-        for tag in REQUIRED_TAGS:
-            name = f'{calendar_tag(tag, calendar)}'
-            try:
-                nav = load_nav(tag, calendar)['nav_net']
-            except FileNotFoundError as e:
-                missing.append(name)
-                all_ok = False
-                rows.append({'series': name, 'ok': False, 'reason': str(e).split('—')[0].strip()})
-                continue
-            try:
-                sliced = slice_common_period(nav, COMMON_S, COMMON_E)
-            except ValueError as e:
-                # 공통 시작일이 관측일에 없다 = 그 전략이 S 시점에 아직 존재하지 않는다.
-                # 예외로 게이트 전체를 날리면 어느 시리즈가 문제인지 안 보인다 — 행으로 남긴다.
-                all_ok = False
-                rows.append({'series': name, 'ok': False,
-                             'nav_first': nav.index[0].date().isoformat(),
-                             'nav_last':  nav.index[-1].date().isoformat(),
-                             'reason': str(e).split('—')[0].strip()})
-                continue
-            if ref_index is None:
-                ref_index, ref_name = sliced.index, name
-                ok = True
-            else:
-                ok = sliced.index.equals(ref_index)
-            all_ok &= ok
-            rows.append({'series': name, 'n_obs': len(sliced),
-                         'first': sliced.index[0].date().isoformat(),
-                         'last': sliced.index[-1].date().isoformat(), 'ok': bool(ok)})
+    for tag, calendar, (w_s, w_e), label in required_series():
+        name = f'{calendar_tag(tag, calendar)}@{label}'
+        try:
+            nav = load_nav(tag, calendar)['nav_net']
+        except FileNotFoundError as e:
+            missing.append(name)
+            all_ok = False
+            rows.append({'series': name, 'window': label, 'ok': False,
+                         'reason': str(e).split('—')[0].strip()})
+            continue
+        try:
+            sliced = slice_common_period(nav, w_s, w_e)
+        except ValueError as e:
+            # 시작일이 관측일에 없다 = 그 전략이 그 시점에 아직 존재하지 않는다.
+            # 예외로 게이트 전체를 날리면 어느 시리즈가 문제인지 안 보인다 — 행으로 남긴다.
+            all_ok = False
+            rows.append({'series': name, 'window': label, 'ok': False,
+                         'nav_first': nav.index[0].date().isoformat(),
+                         'nav_last':  nav.index[-1].date().isoformat(),
+                         'reason': str(e).split('—')[0].strip()})
+            continue
+
+        if label not in refs:
+            refs[label] = (sliced.index, name)
+            ok = True
+        else:
+            ok = sliced.index.equals(refs[label][0])
+        all_ok &= ok
+        rows.append({'series': name, 'window': label, 'n_obs': len(sliced),
+                     'first': sliced.index[0].date().isoformat(),
+                     'last': sliced.index[-1].date().isoformat(), 'ok': bool(ok)})
 
     return {
         'gate': 'G-CAL-5 관측일 동일',
         'pass': bool(all_ok),
-        'reference_series': ref_name,
-        'n_obs_reference': len(ref_index) if ref_index is not None else None,
+        'windows': {k: {'reference_series': v[1], 'n_obs': len(v[0]),
+                        'first': v[0][0].date().isoformat(),
+                        'last':  v[0][-1].date().isoformat()} for k, v in refs.items()},
         'missing_series': missing,
         'series': rows,
+        'note': '기간라벨별로 따로 대조한다 — 2×2(rankcut)는 §14-1c 2차 창을 쓴다',
     }
 
 

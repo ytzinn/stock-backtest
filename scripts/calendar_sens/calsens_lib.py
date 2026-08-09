@@ -47,6 +47,19 @@ OUT_DIR = Path('experiments/calendar_sens')
 COMMON_S = date(2016, 5, 18)
 COMMON_E = date(2026, 4, 3)
 
+# ── 랭킹×컷 2×2 전용 2차 창 (§14-1c) ─────────────────────────────────────────
+# RIM 스코어는 TTM 순이익을 요구하는데 중간보고서 원자료가 2016년부터라
+# TTM_2016 = FY2015 − interim_2015 + interim_2016 을 만들 수 없다. 그래서 2016년
+# 중간결산 앵커(반기 2016-08-18 / 안C 2016-05-18·2016-11-17)에서 **RIM 경로는
+# 포트폴리오가 0종목**이 된다 — 게이트 통과 1,478종목 중 자본총계는 1,462종목이
+# 있어 1/PBR 경로만 멀쩡하다. 즉 "RIM 랭킹이 2016년에 존재하지 않는다"는 사실이지
+# 결함이 아니다.
+# 공통 창으로 비교하면 랭킹 차이가 아니라 "1년 현금보유 vs 1년 투자" 차이를 재게
+# 되므로, 2×2 만 **양 캘린더에서 RIM 이 연속 존재하는 최초 시점**부터 잰다.
+# 룰 contrast 7개(본판정)는 사전등록 창 (COMMON_S, COMMON_E] 그대로다.
+RANKCUT_S = date(2017, 5, 18)   # 안 C 의 첫 RIM 가용 앵커 (반기는 2017-04-05부터 가용)
+RANKCUT_E = COMMON_E
+
 # ── §0-4 현행안 baseline (전체기간 20구간 기준 — 공통 기간 값과 혼동 금지) ──
 
 # gross 는 두 경로가 서로 다른 값을 낸다 — 누적 순서 차이로 끝 2자리가 갈린다
@@ -105,6 +118,11 @@ class Contrast:
     @property
     def baseline(self) -> str:
         return self.baseline_tag or INCUMBENT_TAG
+
+    @property
+    def window(self) -> tuple[date, date]:
+        """이 contrast 를 재는 기간. 랭킹×컷 2×2 만 2차 창을 쓴다 (§14-1c)."""
+        return (RANKCUT_S, RANKCUT_E) if self.group == 'rank_cut' else (COMMON_S, COMMON_E)
 
 
 # §6-3 판정 contrast — **실행 전 확정, 변경 금지** (§9-4).
@@ -178,6 +196,38 @@ assert len({c.contrast_id for c in JUDGMENT_CONTRASTS}) == len(JUDGMENT_CONTRAST
     'contrast_id 중복'
 
 
+WINDOW_MAIN, WINDOW_RANKCUT = 'main', 'rankcut'
+
+WINDOWS: dict[str, tuple[date, date]] = {
+    WINDOW_MAIN:    (COMMON_S,  COMMON_E),
+    WINDOW_RANKCUT: (RANKCUT_S, RANKCUT_E),
+}
+
+
+def required_series() -> list[tuple[str, str, tuple[date, date], str]]:
+    """`(태그, 캘린더, 기간, 기간라벨)` 전량 — 게이트와 적재가 함께 쓰는 SSOT.
+
+    같은 태그가 두 기간에 모두 필요할 수 있다(현행안은 룰 contrast 의 baseline 이자
+    2×2 의 원점이다). 기간별로 따로 실어야 관측일 정합 검사가 성립한다.
+    """
+    out, seen = [], set()
+
+    def add(tag: str, win: tuple[date, date], label: str) -> None:
+        for cal in CALENDARS:
+            key = (tag, cal, label)
+            if key not in seen:
+                seen.add(key)
+                out.append((tag, cal, win, label))
+
+    add(INCUMBENT_TAG, (COMMON_S, COMMON_E), WINDOW_MAIN)
+    add(EW_TAG,        (COMMON_S, COMMON_E), WINDOW_MAIN)
+    for c in JUDGMENT_CONTRASTS:
+        label = WINDOW_RANKCUT if c.group == 'rank_cut' else WINDOW_MAIN
+        add(c.variant_tag, c.window, label)
+        add(c.baseline,    c.window, label)
+    return out
+
+
 # ── 태그 → 캘린더별 산출물 이름 ───────────────────────────────────────────────
 
 def calendar_tag(tag: str, calendar: str) -> str:
@@ -207,6 +257,12 @@ def load_nav(tag: str, calendar: str) -> pd.DataFrame:
 
 
 # ── g(·) — 연율 로그수익률 (§7-1 + §12 N-g) ──────────────────────────────────
+
+def window_years(window: str) -> float:
+    """기간라벨의 실제 캘린더 경과연수 — g(·) 의 분모."""
+    s, e = WINDOWS[window]
+    return (e - s).days / 365.25
+
 
 def common_period_years(start: date = COMMON_S, end: date = COMMON_E) -> float:
     """공통 기간의 실제 캘린더 경과연수 (365.25일 = 1년, compute_nav_cagr 관례 동일)."""

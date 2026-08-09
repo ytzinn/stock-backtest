@@ -45,6 +45,13 @@ from scripts.calendar_sens.calsens_lib import (
     MULTI_AXIS_CONTRASTS,
     N_RESAMPLES,
     OUT_DIR,
+    RANKCUT_CONTRASTS,
+    RULE_CONTRASTS,
+    WINDOWS,
+    WINDOW_MAIN,
+    WINDOW_RANKCUT,
+    required_series,
+    window_years,
     Q1_EQUIV_BOUND,
     Q1_LARGE_ABS,
     Q2D_NEUTRAL_MAX,
@@ -105,28 +112,29 @@ def _require_gates() -> dict:
 
 # ── 시리즈 적재 ──────────────────────────────────────────────────────────────
 
-def load_series() -> tuple[dict[tuple[str, str], int], np.ndarray, np.ndarray, list]:
-    """전 태그 × 전 캘린더의 공통 기간 일별 로그수익률 행렬.
+def load_series(window: str) -> tuple[dict[tuple[str, str], int], np.ndarray, np.ndarray, list]:
+    """해당 기간라벨에 필요한 (태그 × 캘린더) 일별 로그수익률 행렬.
 
     반환: (키→행 index, net 행렬, gross 행렬, 관측일 리스트)
     """
     keys, net_rows, gross_rows = [], [], []
     ref_index = None
-    for calendar in CALENDARS:
-        for tag in REQUIRED_TAGS:
-            nav = load_nav(tag, calendar)
-            lr_net   = log_returns(nav['nav_net'],   COMMON_S, COMMON_E)
-            lr_gross = log_returns(nav['nav_gross'], COMMON_S, COMMON_E)
-            if ref_index is None:
-                ref_index = lr_net.index
-            elif not lr_net.index.equals(ref_index) or not lr_gross.index.equals(ref_index):
-                raise SystemExit(
-                    f'[관측일 불일치] {calendar_tag(tag, calendar)} — §10 동일 달력일 '
-                    f'pairing 이 성립하지 않는다 (G-CAL-5 재확인 필요)'
-                )
-            keys.append((calendar, tag))
-            net_rows.append(lr_net.to_numpy(dtype=float))
-            gross_rows.append(lr_gross.to_numpy(dtype=float))
+    for tag, calendar, (w_s, w_e), label in required_series():
+        if label != window or (calendar, tag) in keys:
+            continue
+        nav = load_nav(tag, calendar)
+        lr_net   = log_returns(nav['nav_net'],   w_s, w_e)
+        lr_gross = log_returns(nav['nav_gross'], w_s, w_e)
+        if ref_index is None:
+            ref_index = lr_net.index
+        elif not lr_net.index.equals(ref_index) or not lr_gross.index.equals(ref_index):
+            raise SystemExit(
+                f'[관측일 불일치] {calendar_tag(tag, calendar)}@{window} — §10 동일 '
+                f'달력일 pairing 이 성립하지 않는다 (G-CAL-5 재확인 필요)'
+            )
+        keys.append((calendar, tag))
+        net_rows.append(lr_net.to_numpy(dtype=float))
+        gross_rows.append(lr_gross.to_numpy(dtype=float))
 
     idx_map = {k: i for i, k in enumerate(keys)}
     dates = [d.date().isoformat() for d in ref_index]
@@ -135,7 +143,7 @@ def load_series() -> tuple[dict[tuple[str, str], int], np.ndarray, np.ndarray, l
 
 # ── 효과 계산 ────────────────────────────────────────────────────────────────
 
-def _effects(g_vec: np.ndarray, idx_map: dict) -> dict:
+def _effects(g_vec: np.ndarray, idx_map: dict, contrasts, include_ew: bool = True) -> dict:
     """한 벌의 g(시리즈별) 로부터 e(j,c)·δ(j)·Δ_EW 를 계산.
 
     `g_vec` 은 1차원(원표본) 또는 2차원 `(n_series, B)`(bootstrap) 둘 다 받는다 —
@@ -145,15 +153,80 @@ def _effects(g_vec: np.ndarray, idx_map: dict) -> dict:
         return g_vec[idx_map[(calendar, tag)]]
 
     out = {'e': {}, 'delta': {}}
-    for c in JUDGMENT_CONTRASTS:
+    for c in contrasts:
         # baseline 은 contrast 마다 다를 수 있다 — 2×2 의 "컷 켠 상태 랭킹 비교"는
         # 현행안이 아니라 F_pbr_no_r3r4_rimcut 을 기준으로 재야 1축이 된다 (§14-1).
         e_semi = g(c.variant_tag, SEMI) - g(c.baseline, SEMI)
         e_alt  = g(c.variant_tag, ALT)  - g(c.baseline, ALT)
         out['e'][c.contrast_id] = {SEMI: e_semi, ALT: e_alt}
         out['delta'][c.contrast_id] = e_alt - e_semi
-    out['delta_ew'] = g(EW_TAG, ALT) - g(EW_TAG, SEMI)
+    if include_ew:
+        out['delta_ew'] = g(EW_TAG, ALT) - g(EW_TAG, SEMI)
     return out
+
+
+def analyze(window: str, contrasts, resamples: int, include_ew: bool) -> dict:
+    """한 기간라벨에 대해 원표본 g·bootstrap·contrast 행을 만든다.
+
+    기간이 다르면 관측일 수 n 이 다르므로 block index 도 따로 뽑는다. 같은 기간
+    안에서는 §10 대로 **하나의 index 를 전 셀에 동일 적용**한다.
+    """
+    idx_map, net_mat, gross_mat, dates = load_series(window)
+    n = net_mat.shape[1]
+    years = window_years(window)
+    w_s, w_e = WINDOWS[window]
+    log.info('[%s] %s~%s | 관측일 %d개 → 로그수익률 %d개 | years=%.6f | 시리즈 %d개',
+             window, dates[0], dates[-1], n + 1, n, years, len(idx_map))
+
+    g_net   = np.array([annualized_log_return(r, years) for r in net_mat])
+    g_gross = np.array([annualized_log_return(r, years) for r in gross_mat])
+    point_net   = _effects(g_net,   idx_map, contrasts, include_ew)
+    point_gross = _effects(g_gross, idx_map, contrasts, include_ew)
+
+    seed = RNG_SEED if window == WINDOW_MAIN else f'{RNG_SEED}:{window.upper()}'
+    starts = block_starts(n, BLOCK_DAYS_PRIMARY, resamples, seed=seed)
+    idx    = expand_starts(starts, BLOCK_DAYS_PRIMARY, n)
+    boot_net   = _effects(bootstrap_g(net_mat,   idx, years), idx_map, contrasts, include_ew)
+    boot_gross = _effects(bootstrap_g(gross_mat, idx, years), idx_map, contrasts, include_ew)
+
+    rows = []
+    for c in contrasts:
+        b_e = boot_net['e'][c.contrast_id]
+        sign_semi, p_pos_semi, p_neg_semi = classify_sign(b_e[SEMI])
+        sign_alt,  p_pos_alt,  p_neg_alt  = classify_sign(b_e[ALT])
+        d_boot = boot_net['delta'][c.contrast_id]
+        d_ci   = ci(d_boot)
+        rows.append({
+            'contrast_id': c.contrast_id, 'variant_tag': c.variant_tag,
+            'baseline_tag': c.baseline, 'group': c.group, 'window': window,
+            'window_start': w_s.isoformat(), 'window_end': w_e.isoformat(),
+            'composition': c.composition, 'axis': c.axis, 'n_axes': c.n_axes,
+            'single_axis': c.single_axis, 'note': c.note,
+            'semiannual_gross_ref_full_period': c.semi_gross_ref,
+
+            'e_semiannual_net':   float(point_net['e'][c.contrast_id][SEMI]),
+            'e_altC_net':         float(point_net['e'][c.contrast_id][ALT]),
+            'e_semiannual_gross': float(point_gross['e'][c.contrast_id][SEMI]),
+            'e_altC_gross':       float(point_gross['e'][c.contrast_id][ALT]),
+            'e_semiannual_ci95':  list(ci(b_e[SEMI])),
+            'e_altC_ci95':        list(ci(b_e[ALT])),
+            'p_e_gt_eps_semiannual': p_pos_semi, 'p_e_lt_neg_eps_semiannual': p_neg_semi,
+            'p_e_gt_eps_altC':       p_pos_alt,  'p_e_lt_neg_eps_altC':       p_neg_alt,
+            'sign_semiannual': sign_semi, 'sign_altC': sign_alt,
+            'direction_class': classify_contrast(sign_semi, sign_alt),
+
+            'delta_point':       float(point_net['delta'][c.contrast_id]),
+            'delta_point_gross': float(point_gross['delta'][c.contrast_id]),
+            'delta_ci95':        list(d_ci),
+            'delta_ci95_excludes_zero': bool(excludes_zero(d_ci)),
+            'p_delta_gt_0':      float(np.mean(d_boot > 0.0)),
+        })
+
+    return {'rows': rows, 'idx_map': idx_map, 'net_mat': net_mat, 'n': n, 'years': years,
+            'dates': dates, 'g_net': g_net, 'starts': starts,
+            'digest': index_digest(idx), 'seed': seed,
+            'point_net': point_net, 'boot_net': boot_net, 'boot_gross': boot_gross,
+            'point_gross': point_gross}
 
 
 def _judge_q1(point: float, ci95: tuple, ci90: tuple) -> str:
@@ -231,60 +304,20 @@ def main() -> None:
     gates = _require_gates()
     log.info('무결성 게이트 통과 확인 (%s)', gates['generated_at'])
 
-    idx_map, net_mat, gross_mat, dates = load_series()
-    n = net_mat.shape[1]
-    years = common_period_years()
-    log.info('공통 기간 %s~%s | 관측일 %d개 → 일별 로그수익률 %d개 | years=%.6f',
-             dates[0], dates[-1], n + 1, n, years)
+    # 기간이 둘이다 — 룰 contrast 는 사전등록 창, 2×2 는 §14-1c 2차 창 (RIM 이 존재하는 구간)
+    main_a = analyze(WINDOW_MAIN, RULE_CONTRASTS, args.resamples, include_ew=True)
+    rank_a = analyze(WINDOW_RANKCUT, RANKCUT_CONTRASTS, args.resamples, include_ew=False)
 
-    # 원표본 g
-    g_net   = np.array([annualized_log_return(row, years) for row in net_mat])
-    g_gross = np.array([annualized_log_return(row, years) for row in gross_mat])
-    point_net, point_gross = _effects(g_net, idx_map), _effects(g_gross, idx_map)
+    idx_map, net_mat = main_a['idx_map'], main_a['net_mat']
+    n, years, dates  = main_a['n'], main_a['years'], main_a['dates']
+    g_net            = main_a['g_net']
+    point_net, point_gross = main_a['point_net'], main_a['point_gross']
+    boot_net, boot_gross   = main_a['boot_net'], main_a['boot_gross']
+    starts, digest         = main_a['starts'], main_a['digest']
 
-    # bootstrap — 전역 단일 RNG, 반복마다 block index 1개를 전 셀에 동일 적용 (§10)
-    log.info('bootstrap: block=%d거래일, %d회, seed=%r (전역 단일)',
-             BLOCK_DAYS_PRIMARY, args.resamples, RNG_SEED)
-    starts = block_starts(n, BLOCK_DAYS_PRIMARY, args.resamples)
-    idx    = expand_starts(starts, BLOCK_DAYS_PRIMARY, n)
-    digest = index_digest(idx)
-    boot_net   = _effects(bootstrap_g(net_mat,   idx, years), idx_map)
-    boot_gross = _effects(bootstrap_g(gross_mat, idx, years), idx_map)
-
-    # ── contrast 별 결과 ─────────────────────────────────────────────────────
-    rows = []
-    for c in JUDGMENT_CONTRASTS:
-        b_e = boot_net['e'][c.contrast_id]
-        sign_semi, p_pos_semi, p_neg_semi = classify_sign(b_e[SEMI])
-        sign_alt,  p_pos_alt,  p_neg_alt  = classify_sign(b_e[ALT])
-        d_boot = boot_net['delta'][c.contrast_id]
-        rows.append({
-            'contrast_id': c.contrast_id, 'variant_tag': c.variant_tag,
-            'baseline_tag': c.baseline, 'group': c.group,
-            'composition': c.composition, 'axis': c.axis, 'n_axes': c.n_axes,
-            'single_axis': c.single_axis, 'note': c.note,
-            'semiannual_gross_ref_full_period': c.semi_gross_ref,
-
-            'e_semiannual_net': float(point_net['e'][c.contrast_id][SEMI]),
-            'e_altC_net':       float(point_net['e'][c.contrast_id][ALT]),
-            'e_semiannual_gross': float(point_gross['e'][c.contrast_id][SEMI]),
-            'e_altC_gross':       float(point_gross['e'][c.contrast_id][ALT]),
-            'e_semiannual_ci95': list(ci(b_e[SEMI])),
-            'e_altC_ci95':       list(ci(b_e[ALT])),
-            'p_e_gt_eps_semiannual': p_pos_semi, 'p_e_lt_neg_eps_semiannual': p_neg_semi,
-            'p_e_gt_eps_altC':       p_pos_alt,  'p_e_lt_neg_eps_altC':       p_neg_alt,
-            'sign_semiannual': sign_semi, 'sign_altC': sign_alt,
-            'direction_class': classify_contrast(sign_semi, sign_alt),
-
-            'delta_point':       float(point_net['delta'][c.contrast_id]),
-            'delta_point_gross': float(point_gross['delta'][c.contrast_id]),
-            'delta_ci95':        list(ci(d_boot)),
-            'delta_ci95_excludes_zero': bool(excludes_zero(ci(d_boot))),
-            'p_delta_gt_0':      float(np.mean(d_boot > 0.0)),
-        })
-
-    rule    = [r for r in rows if r['group'] == 'rule']
-    rankcut = [r for r in rows if r['group'] == 'rank_cut']
+    rows    = main_a['rows'] + rank_a['rows']
+    rule    = main_a['rows']
+    rankcut = rank_a['rows']
     single  = [r for r in rule if r['single_axis']]      # J 분모 — 룰 단일축만
     multi   = [r for r in rule if not r['single_axis']]
 
@@ -327,13 +360,14 @@ def main() -> None:
             else:
                 s2 = block_starts(n, blk, args.resamples, seed=f'{RNG_SEED}:SENS:{blk}')
                 sens_boot = _effects(
-                    bootstrap_g(net_mat, expand_starts(s2, blk, n), years), idx_map)
+                    bootstrap_g(net_mat, expand_starts(s2, blk, n), years),
+                    idx_map, RULE_CONTRASTS, include_ew=True)
             sensitivity[str(blk)] = {
                 'delta_ew_ci95': list(ci(sens_boot['delta_ew'])),
                 'delta_ew_excludes_zero': bool(excludes_zero(ci(sens_boot['delta_ew']))),
                 'delta_excludes_zero': {
                     cid: bool(excludes_zero(ci(sens_boot['delta'][cid])))
-                    for cid in (c.contrast_id for c in JUDGMENT_CONTRASTS)
+                    for cid in (c.contrast_id for c in RULE_CONTRASTS)
                 },
             }
         base = sensitivity[str(BLOCK_DAYS_PRIMARY)]
@@ -375,6 +409,17 @@ def main() -> None:
         'contrasts_multi_axis':  multi,
         'contrasts_rank_cut_2x2': {
             'cells': rankcut,
+            'window': {'label': WINDOW_RANKCUT,
+                       'start': WINDOWS[WINDOW_RANKCUT][0].isoformat(),
+                       'end':   WINDOWS[WINDOW_RANKCUT][1].isoformat(),
+                       'n_daily_log_returns': rank_a['n'], 'years': rank_a['years'],
+                       'why': 'RIM 스코어는 TTM 순이익을 요구하는데 중간보고서 원자료가 '
+                              '2016년부터라 2016년 중간결산 앵커에서 RIM 경로 포트폴리오가 '
+                              '0종목이 된다. 사전등록 창으로 비교하면 랭킹 차이가 아니라 '
+                              '"1년 현금보유 vs 1년 투자" 차이를 재게 된다 (§14-1c).',
+                       'bootstrap_seed': rank_a['seed'],
+                       'block_index_digest_sha256': rank_a['digest']},
+            'not_comparable_with': '룰 contrast 블록 — 기간이 다르므로 δ 를 서로 비교하지 않는다',
             'design': {
                 '(1/PBR, 컷없음)': INCUMBENT_TAG + '  ← 현행안 = 2×2 원점',
                 '(RIM,   컷없음)': 'F_rimrank_no_r3r4',
