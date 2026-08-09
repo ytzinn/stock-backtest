@@ -49,8 +49,11 @@ COMMON_E = date(2026, 4, 3)
 
 # ── §0-4 현행안 baseline (전체기간 20구간 기준 — 공통 기간 값과 혼동 금지) ──
 
-INCUMBENT_FULL_GROSS_CAGR = 0.15819563103474077   # engine metrics['cagr']
-INCUMBENT_FULL_NET_CAGR   = 0.14079850522450377   # 일별 NAV 승법 net CAGR
+# gross 는 두 경로가 서로 다른 값을 낸다 — 누적 순서 차이로 끝 2자리가 갈린다
+# (상대차 1.4e-15). 어느 쪽을 인용하는지 반드시 출처와 함께 본다.
+INCUMBENT_FULL_GROSS_CAGR   = 0.15819563103474077  # 일별 NAV 승법 (SPEC_14 §0-4 인용값)
+INCUMBENT_ENGINE_GROSS_CAGR = 0.15819563103474055  # 엔진 구간복리 (2026.07.30 재발행 §3)
+INCUMBENT_FULL_NET_CAGR     = 0.14079850522450377  # 일별 NAV 승법 net
 
 # ── 사전등록 상수 (§12 N1~N4 `[확정 2026-08-06, 사용자]`) ─────────────────────
 

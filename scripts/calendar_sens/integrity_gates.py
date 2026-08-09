@@ -61,32 +61,55 @@ def _ablation_gross(tag: str) -> float:
     return float(json.loads(path.read_text(encoding='utf-8'))['cagr'])
 
 
-def _daily_nav_net(tag: str, calendar: str = 'SEMIANNUAL') -> float:
-    """일별 NAV 승법 net CAGR (SPEC_13 §9-1 metric SSOT)."""
+def _daily_nav_metric(tag: str, key: str, calendar: str = 'SEMIANNUAL') -> float:
+    """일별 NAV 승법 CAGR (SPEC_13 §9-1 metric SSOT). key = net_cagr | gross_cagr."""
     from backtest.configs.schedule import tag_suffix
     path = NAV_DIR / f'summary{tag_suffix(calendar)}.json'
     if not path.exists():
         raise FileNotFoundError(f'{path} 없음 — run_daily_nav 먼저 실행할 것')
     tags = json.loads(path.read_text(encoding='utf-8')).get('tags', {})
-    key = calendar_tag(tag, calendar)
-    if key not in tags:
-        raise KeyError(f'{path}: {key} 항목 없음 — 해당 태그 daily NAV 미실행')
-    return float(tags[key]['net_cagr'])
+    name = calendar_tag(tag, calendar)
+    if name not in tags:
+        raise KeyError(f'{path}: {name} 항목 없음 — 해당 태그 daily NAV 미실행')
+    return float(tags[name][key])
+
+
+def _daily_nav_net(tag: str, calendar: str = 'SEMIANNUAL') -> float:
+    return _daily_nav_metric(tag, 'net_cagr', calendar)
+
+
+def _daily_nav_gross(tag: str, calendar: str = 'SEMIANNUAL') -> float:
+    return _daily_nav_metric(tag, 'gross_cagr', calendar)
 
 
 # ── G-CAL-1 ──────────────────────────────────────────────────────────────────
 
 def gate_snapshot_equivalence() -> dict:
-    """현행안 반기 gross·net 비트 재현 (§0-4). 부동소수 tolerance 없음."""
-    gross = _ablation_gross(INCUMBENT_TAG)
-    net   = _daily_nav_net(INCUMBENT_TAG)
-    ok_g  = gross == INCUMBENT_FULL_GROSS_CAGR
-    ok_n  = net   == INCUMBENT_FULL_NET_CAGR
+    """현행안 반기 gross·net 비트 재현 (§0-4). 부동소수 tolerance 없음.
+
+    **gross 는 두 가지가 있고 서로 다른 값이다** — 둘 다 대조한다:
+      - 엔진 구간복리  `compute_cagr(Π(1+r_i))`     = 0.15819563103474055
+      - 일별 NAV 승법  `compute_nav_cagr(NAV_E/1.0)` = 0.15819563103474077
+    수학적으로 같지만 누적 순서가 달라 끝 2자리가 갈린다(상대차 1.4e-15). SPEC_14 §0-4
+    가 인용한 값은 **일별 NAV 쪽**이고, 2026.07.30 재발행 §3 이 인용한 값은 **엔진 쪽**이다.
+    한쪽만 보고 다른 쪽 출처와 비교하면 멀쩡한 재현이 FAIL 로 뜬다 (실제로 그랬다).
+    """
+    nav_gross    = _daily_nav_gross(INCUMBENT_TAG)
+    engine_gross = _ablation_gross(INCUMBENT_TAG)
+    net          = _daily_nav_net(INCUMBENT_TAG)
+
+    ok_nav_g = nav_gross    == INCUMBENT_FULL_GROSS_CAGR
+    ok_eng_g = engine_gross == INCUMBENT_ENGINE_GROSS_CAGR
+    ok_n     = net          == INCUMBENT_FULL_NET_CAGR
     return {
         'gate': 'G-CAL-1 스냅샷 동등성',
-        'pass': bool(ok_g and ok_n),
-        'gross_expected': INCUMBENT_FULL_GROSS_CAGR, 'gross_actual': gross,
-        'gross_bit_identical': bool(ok_g),
+        'pass': bool(ok_nav_g and ok_eng_g and ok_n),
+        'daily_nav_gross_expected': INCUMBENT_FULL_GROSS_CAGR,
+        'daily_nav_gross_actual':   nav_gross,
+        'daily_nav_gross_bit_identical': bool(ok_nav_g),
+        'engine_gross_expected': INCUMBENT_ENGINE_GROSS_CAGR,
+        'engine_gross_actual':   engine_gross,
+        'engine_gross_bit_identical': bool(ok_eng_g),
         'net_expected': INCUMBENT_FULL_NET_CAGR, 'net_actual': net,
         'net_bit_identical': bool(ok_n),
         'note': '전체기간 20구간 기준값 — 공통 기간 값(§3)과 혼동 금지',
@@ -238,7 +261,17 @@ def gate_observation_dates() -> dict:
                 all_ok = False
                 rows.append({'series': name, 'ok': False, 'reason': str(e).split('—')[0].strip()})
                 continue
-            sliced = slice_common_period(nav, COMMON_S, COMMON_E)
+            try:
+                sliced = slice_common_period(nav, COMMON_S, COMMON_E)
+            except ValueError as e:
+                # 공통 시작일이 관측일에 없다 = 그 전략이 S 시점에 아직 존재하지 않는다.
+                # 예외로 게이트 전체를 날리면 어느 시리즈가 문제인지 안 보인다 — 행으로 남긴다.
+                all_ok = False
+                rows.append({'series': name, 'ok': False,
+                             'nav_first': nav.index[0].date().isoformat(),
+                             'nav_last':  nav.index[-1].date().isoformat(),
+                             'reason': str(e).split('—')[0].strip()})
+                continue
             if ref_index is None:
                 ref_index, ref_name = sliced.index, name
                 ok = True
