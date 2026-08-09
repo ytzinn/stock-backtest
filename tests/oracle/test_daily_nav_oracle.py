@@ -237,3 +237,57 @@ def test_daily_metrics_monthly_conventions():
 def test_daily_metrics_requires_min_observations():
     with pytest.raises(ValueError, match='관측치 부족'):
         compute_daily_metrics(pd.Series({date(2020, 1, 2): 1.0}))
+
+
+# ── CORR-NAV-002: 빈 포트폴리오 ≠ 가격 조회 실패 ─────────────────────────────
+
+def test_empty_portfolio_is_cash_not_zero():
+    """빈 포트폴리오는 현금 보유 → 상대 NAV 1.0. 0.0 이면 전액이 영구 소멸한다."""
+    from datetime import date
+
+    from backtest.daily_nav import _guard_empty
+    _guard_empty({}, {}, date(2016, 8, 18))          # 예외 없이 통과해야 한다
+
+
+def test_missing_entry_prices_raises_not_silent():
+    """weights 는 있는데 진입가가 전무하면 데이터 장애 — 조용한 기본값 금지."""
+    from datetime import date
+
+    import pytest
+
+    from backtest.daily_nav import _guard_empty
+    from backtest.data_access import PriceDataUnavailable
+
+    with pytest.raises(PriceDataUnavailable):
+        _guard_empty({'005930': 0.5, '000660': 0.5}, {}, date(2016, 8, 18))
+
+
+def test_zero_nav_would_annihilate_stitched_path():
+    """왜 1.0 이어야 하는지의 근거 — 0.0 을 끼우면 이후 전 구간이 0 이 된다."""
+    from datetime import date
+
+    from backtest.daily_nav import stitch_periods
+
+    def path(v):
+        return {'rebalance_date': date(2016, 4, 5) if v else date(2016, 8, 18),
+                'obs_dates': [date(2016, 6, 1)], 'nav_path': [v], 'transaction_cost': 0.0}
+
+    good = stitch_periods([
+        {'rebalance_date': date(2016, 4, 5), 'obs_dates': [date(2016, 6, 1)],
+         'nav_path': [1.10], 'transaction_cost': 0.0},
+        {'rebalance_date': date(2016, 8, 18), 'obs_dates': [date(2016, 10, 1)],
+         'nav_path': [1.00], 'transaction_cost': 0.0},   # 현금 구간
+        {'rebalance_date': date(2017, 4, 5), 'obs_dates': [date(2017, 6, 1)],
+         'nav_path': [1.20], 'transaction_cost': 0.0},
+    ])
+    assert good['nav_gross'].iloc[-1] == pytest.approx(1.10 * 1.00 * 1.20)
+
+    dead = stitch_periods([
+        {'rebalance_date': date(2016, 4, 5), 'obs_dates': [date(2016, 6, 1)],
+         'nav_path': [1.10], 'transaction_cost': 0.0},
+        {'rebalance_date': date(2016, 8, 18), 'obs_dates': [date(2016, 10, 1)],
+         'nav_path': [0.00], 'transaction_cost': 0.0},   # 옛 동작
+        {'rebalance_date': date(2017, 4, 5), 'obs_dates': [date(2017, 6, 1)],
+         'nav_path': [1.20], 'transaction_cost': 0.0},
+    ])
+    assert dead['nav_gross'].iloc[-1] == 0.0

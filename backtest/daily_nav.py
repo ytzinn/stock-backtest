@@ -215,6 +215,29 @@ def trading_dates(conn, start: date, end: date) -> list[date]:
         return [r[0] for r in cur.fetchall()]
 
 
+def _guard_empty(weights: dict, entry_prices: dict, rebal_date: date) -> None:
+    """빈 포트폴리오(현금)와 **가격 조회 실패**를 구분한다 (CORR-NAV-002).
+
+    종전에는 둘 다 `NAV = 0.0` 을 반환했다. 그건 두 가지로 틀렸다:
+      1. 빈 포트폴리오는 현금 보유이므로 상대 NAV 가 **1.0**(무수익)이어야 한다.
+         0.0 을 돌려주면 `stitch_periods` 의 승법 누적에서 그 시점 이후 **전액이
+         영구히 0** 이 된다 — 백테스트 전액 소멸이 조용히 성공으로 기록된다.
+      2. weights 는 있는데 진입가가 하나도 없는 건 **데이터 장애**다. 조용한
+         기본값 대신 예외를 던진다 (CLAUDE.md 코드 정합성 규칙).
+
+    지금까지 터지지 않은 건 `run_daily_nav._closed_tape_periods` 가 `n_portfolio > 0`
+    구간만 넘겨 도달 불가였기 때문이다 — 필터 하나에 의존한 안전이었다.
+    """
+    if not weights:
+        return
+    if not entry_prices:
+        from backtest.data_access import PriceDataUnavailable
+        raise PriceDataUnavailable(
+            f'{rebal_date}: 편입 {len(weights)}종목 전부 진입가 조회 실패 — '
+            f'가격 데이터 장애. 현금(NAV=1.0)으로 둔갑시키지 않는다.'
+        )
+
+
 def nav_path_db(
     conn,
     weights:    dict[str, float],
@@ -240,8 +263,9 @@ def nav_path_db(
             'rebal_date=%s: 진입가 없어 제외된 종목 %d개(비중 %.2f%%, 잔여 종목으로 재정규화) %s',
             rebal_date, len(dropped), dropped_frac * 100, dropped[:5],
         )
-    if not entry_prices:
-        return [0.0 for _ in obs_dates]
+    _guard_empty(weights, entry_prices, rebal_date)
+    if not weights:
+        return [1.0 for _ in obs_dates]
 
     raw   = load_raw_prices(conn, list(entry_prices), rebal_date, obs_dates[-1])
     panel = build_price_panel(raw, entry_prices, rebal_date, obs_dates)
@@ -271,8 +295,11 @@ def daily_nav_for_period(
     tickers = list(weights.keys())
     p0 = latest_close_batch(conn, tickers, rebal_date)
     entry_prices = {t: p0[t] for t in tickers if p0.get(t) and p0[t] > 0}
-    if not entry_prices:
-        return obs, pd.Series(0.0, index=pd.Index(obs)), pd.DataFrame(index=pd.Index(obs))
+
+    _guard_empty(weights, entry_prices, rebal_date)
+    if not weights:
+        return (obs, pd.Series(1.0, index=pd.Index(obs)),
+                pd.DataFrame(index=pd.Index(obs)))
 
     raw      = load_raw_prices(conn, list(entry_prices), rebal_date, obs[-1])
     panel    = build_price_panel(raw, entry_prices, rebal_date, obs)
