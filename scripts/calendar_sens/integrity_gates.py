@@ -35,6 +35,7 @@ from scripts.calendar_sens.calsens_lib import (
     CALENDARS,
     COMMON_E,
     COMMON_S,
+    INCUMBENT_ENGINE_GROSS_CAGR,
     INCUMBENT_FULL_GROSS_CAGR,
     INCUMBENT_FULL_NET_CAGR,
     INCUMBENT_TAG,
