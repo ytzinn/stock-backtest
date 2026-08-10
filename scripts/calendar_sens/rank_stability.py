@@ -142,6 +142,39 @@ def boot_rho(x: list[float], y: list[float], seed: str) -> dict:
             'ci_low': float(lo), 'ci_high': float(hi)}
 
 
+def boot_delta_rho(px: list[float], py: list[float],
+                   fx: list[float], fy: list[float]) -> dict:
+    """Δρ = ρ_price − ρ_fin 의 CI (§14-2 사전등록 보조지표).
+
+    두 그룹은 **서로 다른 태그 집합**이라 독립 표본이다 — 각 그룹 안에서 따로
+    복원추출하고 같은 반복에서 차를 낸다.
+    """
+    rng = random.Random(f'{BOOT_SEED}:DELTA')
+    vals = []
+    for _ in range(N_BOOT):
+        pi = [rng.randrange(len(px)) for _ in range(len(px))]
+        fi = [rng.randrange(len(fx)) for _ in range(len(fx))]
+        pxs, pys = [px[i] for i in pi], [py[i] for i in pi]
+        fxs, fys = [fx[i] for i in fi], [fy[i] for i in fi]
+        if min(len(set(pxs)), len(set(pys)), len(set(fxs)), len(set(fys))) < 3:
+            continue
+        vals.append(spearman(pxs, pys) - spearman(fxs, fys))
+    arr = np.asarray(vals)
+    lo, hi = np.percentile(arr, CI_BOUNDS)
+    return {'n_valid': len(vals), 'point_from_boot_mean': float(arr.mean()),
+            'ci_low': float(lo), 'ci_high': float(hi),
+            'p_delta_gt_0': float(np.mean(arr > 0.0)),
+            'excludes_zero': bool(lo > 0.0 or hi < 0.0)}
+
+
+def spread(rows: list[dict], key: str) -> dict:
+    """그룹의 성적 분산 — ρ 해석에 필수. 분산이 크면 순위가 자동으로 안정된다
+    (SPEC_14 §7-3 J2 주의사항과 같은 함정)."""
+    v = sorted(r[key] for r in rows)
+    return {'min': v[0], 'max': v[-1], 'range_pp': (v[-1] - v[0]) * 100,
+            'stdev_pp': float(np.std(v, ddof=1)) * 100}
+
+
 def judge(rho_price: float) -> str:
     if rho_price >= RHO_GENERALIZES:
         return 'PRICE_LAYER_GENERALIZES'      # 데이터품질 가설 지지
@@ -203,15 +236,29 @@ def main() -> None:
             'spearman_gross': spearman([r['semi_gross'] for r in rows],
                                        [r['alt_gross'] for r in rows]),
             'bootstrap_net': boot_rho(xs, ys, f'{BOOT_SEED}:{gname}'),
+            'spread_semiannual_net': spread(rows, 'semi_net'),
+            'spread_altC_net':       spread(rows, 'alt_net'),
             'rows': rows,
         }
 
     gp, gf = result['groups'].get('price_only', {}), result['groups'].get('financial', {})
     rho_p = gp.get('spearman_net')
     rho_f = gf.get('spearman_net')
+    delta_ci = None
+    if rho_p is not None and rho_f is not None:
+        delta_ci = boot_delta_rho(
+            [r['semi_net'] for r in groups['price_only']],
+            [r['alt_net']  for r in groups['price_only']],
+            [r['semi_net'] for r in groups['financial']],
+            [r['alt_net']  for r in groups['financial']])
+
     result['judgment'] = {
         'rho_price': rho_p, 'rho_financial': rho_f,
         'delta_rho': (rho_p - rho_f) if (rho_p is not None and rho_f is not None) else None,
+        'delta_rho_bootstrap': delta_ci,
+        'delta_rho_direction_note':
+            'Δρ < 0 이면 가격 전용 층이 재무 룰 층보다 **덜** 일반화됐다는 뜻 — '
+            '데이터품질 가설(B)이 예측하는 방향의 반대다.',
         'verdict': judge(rho_p) if rho_p is not None else 'NO_DATA',
         'meaning': {
             'PRICE_LAYER_GENERALIZES': '가격 전용 층은 캘린더를 넘어 순위를 유지한다 '
@@ -238,12 +285,16 @@ def main() -> None:
         if 'spearman_net' not in g:
             log.info('%-11s n=%d  %s', gname, g['n'], g.get('note', ''))
             continue
-        bs = g['bootstrap_net']
-        log.info('%-11s n=%-3d ρ(net)=%+.3f  CI95=[%+.3f, %+.3f]  τ=%+.3f  ρ(gross)=%+.3f',
+        bs, sp = g['bootstrap_net'], g['spread_semiannual_net']
+        log.info('%-11s n=%-3d ρ(net)=%+.3f  CI95=[%+.3f, %+.3f]  τ=%+.3f  ρ(gross)=%+.3f'
+                 '  | 4·8월 net 폭 %.2f%%p (표준편차 %.2f%%p)',
                  gname, g['n'], g['spearman_net'], bs['ci_low'], bs['ci_high'],
-                 g['kendall_net'], g['spearman_gross'])
+                 g['kendall_net'], g['spearman_gross'], sp['range_pp'], sp['stdev_pp'])
     j = result['judgment']
-    log.info('Δρ = %s', f"{j['delta_rho']:+.3f}" if j['delta_rho'] is not None else 'n/a')
+    d = j.get('delta_rho_bootstrap')
+    log.info('Δρ = %s%s', f"{j['delta_rho']:+.3f}" if j['delta_rho'] is not None else 'n/a',
+             f"  CI95=[{d['ci_low']:+.3f}, {d['ci_high']:+.3f}]  P(Δρ>0)={d['p_delta_gt_0']:.3f}"
+             if d else '')
     log.info('판정: %s', j['verdict'])
     log.info('  → %s', j['meaning'].get(j['verdict'], ''))
     log.info('배관 대조군(안 C): %s',
