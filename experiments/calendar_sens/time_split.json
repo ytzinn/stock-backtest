@@ -1,0 +1,219 @@
+{
+  "spec": "SPEC_14 §14-3 시간 분할",
+  "disclaimer": "진단 전용 — 채택 후보 없음(§9), 대체 룰 선정 금지(§8-4.3).",
+  "generated_at": "2026-08-10T10:18:52.868242",
+  "pre_registered": {
+    "focal_tag": "F_pbr_no_r3r4",
+    "split_at": "2021-04-05",
+    "front_top": 3,
+    "back_floor": 10,
+    "robust_top": 5,
+    "n_boot": 2000,
+    "seed": "SPEC14:TIMESPLIT",
+    "note": "2026-08-10 사용자 확정 — 수치 산출 전 커밋"
+  },
+  "split": {
+    "n_closed": 20,
+    "n_front": 10,
+    "n_back": 10,
+    "front_span": [
+      "2016-04-05",
+      "2021-04-05"
+    ],
+    "back_span": [
+      "2021-04-05",
+      "2026-04-03"
+    ]
+  },
+  "spearman_front_back": -0.4754901960784314,
+  "bootstrap": {
+    "n_valid": 2000,
+    "ci_low": -0.7827227474083207,
+    "ci_high": 0.005143266203966574,
+    "mean": -0.4498367963284219
+  },
+  "focal": {
+    "tag": "F_pbr_no_r3r4",
+    "front_rank": 2,
+    "back_rank": 13,
+    "full_rank": 4
+  },
+  "verdict": "TIME_OVERFIT_CONFIRMED",
+  "secondary_horizon_correlation": {
+    "front": -0.47844383262998286,
+    "back": 0.5062162978486098,
+    "status": "판정 비사용 — §14-2 사후 가설의 시간축 확인용"
+  },
+  "rows": [
+    {
+      "tag": "F_pbr_ma2060_cd3",
+      "horizon": 60,
+      "front_mult": 2.089397960828021,
+      "back_mult": 1.7328464663162038,
+      "full_mult": 3.6206058731491186,
+      "front_rank": 1,
+      "back_rank": 16,
+      "full_rank": 7
+    },
+    {
+      "tag": "F_pbr_no_r3r4",
+      "horizon": 60,
+      "front_mult": 2.0421015254063133,
+      "back_mult": 1.8424978978819393,
+      "full_mult": 3.762567767822634,
+      "front_rank": 2,
+      "back_rank": 13,
+      "full_rank": 4
+    },
+    {
+      "tag": "F_pbr_ma2060_cd7",
+      "horizon": 60,
+      "front_mult": 1.9567623442296775,
+      "back_mult": 1.8592389418169417,
+      "full_mult": 3.638088750272824,
+      "front_rank": 3,
+      "back_rank": 11,
+      "full_rank": 6
+    },
+    {
+      "tag": "F_pbr_ma5_60",
+      "horizon": 60,
+      "front_mult": 1.910041712551795,
+      "back_mult": 1.801280060999042,
+      "full_mult": 3.44052005249601,
+      "front_rank": 4,
+      "back_rank": 14,
+      "full_rank": 9
+    },
+    {
+      "tag": "F_pbr_ma200",
+      "horizon": 200,
+      "front_mult": 1.8634929131648248,
+      "back_mult": 2.086209698212349,
+      "full_mult": 3.8876369879944397,
+      "front_rank": 5,
+      "back_rank": 5,
+      "full_rank": 1
+    },
+    {
+      "tag": "F_pbr_52w80",
+      "horizon": 252,
+      "front_mult": 1.8268776298889242,
+      "back_mult": 1.9624144835661947,
+      "full_mult": 3.5850911205971085,
+      "front_rank": 6,
+      "back_rank": 8,
+      "full_rank": 8
+    },
+    {
+      "tag": "F_pbr_ma2060_sl10",
+      "horizon": 60,
+      "front_mult": 1.7962935540207092,
+      "back_mult": 1.6623802342278817,
+      "full_mult": 2.9861228990749815,
+      "front_rank": 7,
+      "back_rank": 17,
+      "full_rank": 14
+    },
+    {
+      "tag": "F_pbr_ma2060_sl30",
+      "horizon": 60,
+      "front_mult": 1.7252261065928411,
+      "back_mult": 2.1333814332696046,
+      "full_mult": 3.6805653439971744,
+      "front_rank": 8,
+      "back_rank": 4,
+      "full_rank": 5
+    },
+    {
+      "tag": "F_pbr_ma5_20",
+      "horizon": 20,
+      "front_mult": 1.7080549397437375,
+      "back_mult": 1.9304655401245039,
+      "full_mult": 3.2973412018147212,
+      "front_rank": 9,
+      "back_rank": 10,
+      "full_rank": 10
+    },
+    {
+      "tag": "F_pbr_absret126",
+      "horizon": 126,
+      "front_mult": 1.7049951125821416,
+      "back_mult": 1.8534274706985343,
+      "full_mult": 3.1600847790664814,
+      "front_rank": 10,
+      "back_rank": 12,
+      "full_rank": 11
+    },
+    {
+      "tag": "F_pbr_ma60_120",
+      "horizon": 120,
+      "front_mult": 1.7042999510314383,
+      "back_mult": 2.279705098569331,
+      "full_mult": 3.8853012878578306,
+      "front_rank": 11,
+      "back_rank": 2,
+      "full_rank": 2
+    },
+    {
+      "tag": "F_pbr_52w75",
+      "horizon": 252,
+      "front_mult": 1.634355147741354,
+      "back_mult": 2.3249953373383967,
+      "full_mult": 3.799868098053655,
+      "front_rank": 12,
+      "back_rank": 1,
+      "full_rank": 3
+    },
+    {
+      "tag": "F_pbr_mktresid126",
+      "horizon": 126,
+      "front_mult": 1.6213797353717059,
+      "back_mult": 1.9444876555509583,
+      "full_mult": 3.1527528803907625,
+      "front_rank": 13,
+      "back_rank": 9,
+      "full_rank": 12
+    },
+    {
+      "tag": "F_pbr_signcount126",
+      "horizon": 126,
+      "front_mult": 1.5530703769077288,
+      "back_mult": 1.7428543987615701,
+      "full_mult": 2.7067755379799245,
+      "front_rank": 14,
+      "back_rank": 15,
+      "full_rank": 17
+    },
+    {
+      "tag": "F_pbr_ma5_120",
+      "horizon": 120,
+      "front_mult": 1.469831722013445,
+      "back_mult": 1.9898625603313636,
+      "full_mult": 2.924763113621932,
+      "front_rank": 15,
+      "back_rank": 6,
+      "full_rank": 15
+    },
+    {
+      "tag": "F_pbr_52w70",
+      "horizon": 252,
+      "front_mult": 1.4556251933943485,
+      "back_mult": 2.1444033549891186,
+      "full_mult": 3.1214475483215263,
+      "front_rank": 16,
+      "back_rank": 3,
+      "full_rank": 13
+    },
+    {
+      "tag": "F_pbr_ma20_120",
+      "horizon": 120,
+      "front_mult": 1.4279416436624646,
+      "back_mult": 1.9830552157886028,
+      "full_mult": 2.831687124306601,
+      "front_rank": 17,
+      "back_rank": 7,
+      "full_rank": 16
+    }
+  ]
+}
