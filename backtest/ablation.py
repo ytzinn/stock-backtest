@@ -206,6 +206,50 @@ ABLATION_CONFIGS: dict[str, dict] = {
                             'use_momentum': True,  'use_rim_filter': False,
                             'stability_rules': {'R1', 'R2', 'R5'},
                             'rank_mode': 'pbr'},
+    # ── SPEC_14 §14-5 이웃 견고성 + 계열 비교 (`[확정 2026-08-10, 사용자]`) ────
+    # **채택 후보가 아니다.** MA200 교체(§14-4)가 "200이라는 값이 우연히 잘 나온
+    # 첨탑"인지 "장기 구간 전체가 안정적인 고원"인지만 본다. 이 결과로 교체하지
+    # 않는다 — 새 후보를 만들면 20/60 을 낳은 그리드서치를 반복하는 것이다.
+    #   (1) 이웃: 같은 규칙(종가 vs N일선)에서 N 만 변화 — MA200 의 진짜 이웃
+    'F_pbr_ma100':         {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'},
+                            'rank_mode': 'pbr',
+                            'momentum_criterion': {'type': 'ma200', 'tag': 'F_pbr_ma100',
+                                                   'ma_window': 100}},
+    'F_pbr_ma150':         {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'},
+                            'rank_mode': 'pbr',
+                            'momentum_criterion': {'type': 'ma200', 'tag': 'F_pbr_ma150',
+                                                   'ma_window': 150}},
+    'F_pbr_ma250':         {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'},
+                            'rank_mode': 'pbr',
+                            'momentum_criterion': {'type': 'ma200', 'tag': 'F_pbr_ma250',
+                                                   'ma_window': 250}},
+    'F_pbr_ma300':         {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'},
+                            'rank_mode': 'pbr',
+                            'momentum_criterion': {'type': 'ma200', 'tag': 'F_pbr_ma300',
+                                                   'ma_window': 300}},
+    #   (2) 계열: 장기 이중교차 — 규칙 모양이 달라도 관측기간이 길면 안정적인가
+    'F_pbr_ma60_200':      {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'},
+                            'rank_mode': 'pbr',
+                            'momentum_criterion': {'type': 'ma_double_adapter',
+                                                   'tag': 'F_pbr_ma60_200',
+                                                   'ma_short': 60, 'ma_long': 200}},
+    'F_pbr_ma120_200':     {'use_hard': True,  'use_stability': True,  'use_screener': False,
+                            'use_rim_filter': False,
+                            'stability_rules': {'R1', 'R2', 'R5', 'R6'},
+                            'rank_mode': 'pbr',
+                            'momentum_criterion': {'type': 'ma_double_adapter',
+                                                   'tag': 'F_pbr_ma120_200',
+                                                   'ma_short': 120, 'ma_long': 200}},
     # ── SPEC_14 §14-1 랭킹 × 밸류에이션컷 2×2 (`[확정 2026-08-06, 사용자]`) ────
     # 현행안 F_pbr_no_r3r4 는 "1/PBR 랭킹 + 컷 없음", 기존 F_no_r3r4 는 "RIM 랭킹 +
     # 컷 있음" 이라 두 축이 동시에 다르다. 나머지 두 칸을 채워야 랭킹 효과와 컷 효과가
