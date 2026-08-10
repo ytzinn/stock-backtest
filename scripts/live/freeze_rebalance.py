@@ -46,7 +46,18 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(mess
                     datefmt='%H:%M:%S')
 log = logging.getLogger(__name__)
 
-DEFAULT_TAG = 'F_pbr_no_r3r4'
+# `[교체 2026-08-10, 사용자 결정 — SPEC_14 §14-4]` F_pbr_no_r3r4(MA 20/60) → F_pbr_ma200.
+# **SPEC_14 §8-4.3·§9 는 이 교체를 금지하고 있었다. 사용자가 그 금지를 명시적으로
+# 무효화하고 내린 결정이며, 반대 근거는 §14-4 에 그대로 보존돼 있다.**
+#   찬성: 20/60 은 캘린더축(4위→12위)·시간축(2위→13위) 양쪽에서 무너졌고 인접 조합도
+#         동반 추락했다. MA200 은 두 축 모두 안정(1→2위, 5→5위)이고 튜닝 파라미터가
+#         4개→1개로 줄어 과적합 표면 자체가 작다. SPEC_12 §6-1 사전등록 primary 라
+#         그리드서치 산물도 아니다.
+#   반대: 일별 net MDD 가 −54.61% → −62.61% (8.00%p 악화). SPEC_10 G5(> −45%)는
+#         이미 FAIL 인데 더 크게 위반한다. 낙폭 대책은 별도 과제로 남는다.
+# 타이밍: #24 라이브 포워드가 아직 미시작(experiments/live 에 dryrun 뿐)이라
+#         포워드 전 구간이 MA200 의 진짜 OOS 관측이 된다.
+DEFAULT_TAG = 'F_pbr_ma200'
 LIVE_DIR    = Path('experiments/live')
 N_STOCKS    = 20
 
