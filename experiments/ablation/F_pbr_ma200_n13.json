@@ -1,0 +1,19 @@
+{
+  "tag": "F_pbr_ma200_n13",
+  "n_stocks": 13,
+  "seed": null,
+  "cagr": 0.20541542630792553,
+  "net_cagr": 0.18896250692468985,
+  "alpha": 0.09930081587351003,
+  "alpha_kosdaq": 0.16200688309557698,
+  "sharpe": 0.671199788572112,
+  "net_sharpe": 0.6240745276577921,
+  "mdd": -0.3344746661698137,
+  "robustness": 0.65,
+  "benchmark_cagr": 0.1061146104344155,
+  "kosdaq_cagr": 0.04340854321234855,
+  "avg_turnover": 0.7807692307692309,
+  "cagr_optimistic": 0.20541542630792553,
+  "cagr_conservative": 0.20541542630792553,
+  "n_periods": 20
+}

@@ -1,977 +1,1986 @@
-strategy_version: 'F_pbr_no_r3r4 v1.0 (SPEC_10 관문: G1·G2 PASS, G5 FAIL — 채택 보류, shadow 기록)'
-git_commit_sha: 427f884b4ed5ae45fd001bc7f8b0ac07905bc4ca
-config_hash: 044e6ac15b640881
-database_snapshot_date: '2026-07-20'
-price_max_date: '2026-07-16'
-market_cap_max_date: '2026-07-16'
-financial_pit_build_id: 2026-06-19_643498rows
-signal_date: '2026-07-16'
-execution_date: '2026-07-16'
+strategy_version: 'F_pbr_ma200 v1.0 (SPEC_10 관문: G1·G2 PASS, G5 FAIL — 채택 보류, shadow 기록)'
+git_commit_sha: 9907ad884b331a143ccbe144b4f650d95f75ac7a
+config_hash: 3f21b139da84bf22
+database_snapshot_date: '2026-08-11'
+price_max_date: '2026-08-10'
+market_cap_max_date: '2026-08-10'
+financial_pit_build_id: 2026-11-19_1284314rows
+signal_date: '2026-08-10'
+execution_date: '2026-08-10'
 execution_rule: 종가 체결 가정 (CONTRACT-NAV-005), 실제는 당일 분할 주문
-report_type: FY
-n_gate_passed: 2410
+report_type: H1
+n_gate_passed: 2417
 selected_tickers:
-- 001800
-- '003650'
-- '005670'
-- 008490
-- 010960
-- 019010
-- '034730'
-- '035610'
-- 036800
-- 052900
-- 058730
-- '066620'
-- 069730
-- 069960
-- 072870
-- 078930
-- '108670'
-- '137080'
-- '161390'
-- '317400'
+- '000210'
+- '001230'
+- 001940
+- '003300'
+- 008500
+- 016380
+- 024800
+- '025000'
+- 092230
+- '155660'
+- '203690'
+- '446070'
+- '460860'
 target_weights:
-  001800: 0.05
-  '003650': 0.05
-  '005670': 0.05
-  008490: 0.05
-  010960: 0.05
-  019010: 0.05
-  '034730': 0.05
-  '035610': 0.05
-  036800: 0.05
-  052900: 0.05
-  058730: 0.05
-  '066620': 0.05
-  069730: 0.05
-  069960: 0.05
-  072870: 0.05
-  078930: 0.05
-  '108670': 0.05
-  '137080': 0.05
-  '161390': 0.05
-  '317400': 0.05
+  '000210': 0.076923
+  '001230': 0.076923
+  001940: 0.076923
+  '003300': 0.076923
+  008500: 0.076923
+  016380: 0.076923
+  024800: 0.076923
+  '025000': 0.076923
+  092230: 0.076923
+  '155660': 0.076923
+  '203690': 0.076923
+  '446070': 0.076923
+  '460860': 0.076923
 pbr_scores:
 - rank: 1
-  ticker: '317400'
-  inv_pbr: 3.498311
-  pbr: 0.2859
+  ticker: '203690'
+  inv_pbr: 10.778185
+  pbr: 0.0928
 - rank: 2
-  ticker: 001800
-  inv_pbr: 3.290154
-  pbr: 0.3039
+  ticker: '001230'
+  inv_pbr: 6.037244
+  pbr: 0.1656
 - rank: 3
-  ticker: 010960
-  inv_pbr: 2.953819
-  pbr: 0.3385
+  ticker: '446070'
+  inv_pbr: 5.076715
+  pbr: 0.197
 - rank: 4
-  ticker: '108670'
-  inv_pbr: 2.948486
-  pbr: 0.3392
+  ticker: 008500
+  inv_pbr: 4.643276
+  pbr: 0.2154
 - rank: 5
-  ticker: 078930
-  inv_pbr: 2.495417
-  pbr: 0.4007
+  ticker: '003300'
+  inv_pbr: 4.267204
+  pbr: 0.2343
 - rank: 6
-  ticker: 072870
-  inv_pbr: 2.395128
-  pbr: 0.4175
+  ticker: '000210'
+  inv_pbr: 4.174181
+  pbr: 0.2396
 - rank: 7
-  ticker: '035610'
-  inv_pbr: 2.378555
-  pbr: 0.4204
+  ticker: 092230
+  inv_pbr: 4.168018
+  pbr: 0.2399
 - rank: 8
-  ticker: 069730
-  inv_pbr: 2.334998
-  pbr: 0.4283
+  ticker: 001940
+  inv_pbr: 3.967622
+  pbr: 0.252
 - rank: 9
-  ticker: 008490
-  inv_pbr: 2.30364
-  pbr: 0.4341
+  ticker: 024800
+  inv_pbr: 3.497263
+  pbr: 0.2859
 - rank: 10
-  ticker: 019010
-  inv_pbr: 2.226553
-  pbr: 0.4491
+  ticker: '460860'
+  inv_pbr: 3.472662
+  pbr: 0.288
 - rank: 11
-  ticker: '137080'
-  inv_pbr: 2.105331
-  pbr: 0.475
+  ticker: 016380
+  inv_pbr: 3.428862
+  pbr: 0.2916
 - rank: 12
-  ticker: '034730'
-  inv_pbr: 2.037768
-  pbr: 0.4907
+  ticker: '025000'
+  inv_pbr: 3.214052
+  pbr: 0.3111
 - rank: 13
-  ticker: '003650'
-  inv_pbr: 1.925754
-  pbr: 0.5193
+  ticker: '155660'
+  inv_pbr: 3.134215
+  pbr: 0.3191
 - rank: 14
-  ticker: 069960
-  inv_pbr: 1.859209
-  pbr: 0.5379
+  ticker: 008060
+  inv_pbr: 3.024513
+  pbr: 0.3306
 - rank: 15
-  ticker: '005670'
-  inv_pbr: 1.820574
-  pbr: 0.5493
+  ticker: '306200'
+  inv_pbr: 2.898606
+  pbr: 0.345
 - rank: 16
-  ticker: '066620'
-  inv_pbr: 1.807242
-  pbr: 0.5533
+  ticker: 001800
+  inv_pbr: 2.881866
+  pbr: 0.347
 - rank: 17
-  ticker: 036800
-  inv_pbr: 1.608535
-  pbr: 0.6217
+  ticker: '003460'
+  inv_pbr: 2.863915
+  pbr: 0.3492
 - rank: 18
-  ticker: '161390'
-  inv_pbr: 1.557712
-  pbr: 0.642
+  ticker: '037710'
+  inv_pbr: 2.816952
+  pbr: 0.355
 - rank: 19
-  ticker: 058730
-  inv_pbr: 1.53978
-  pbr: 0.6494
+  ticker: '192440'
+  inv_pbr: 2.803983
+  pbr: 0.3566
 - rank: 20
-  ticker: 052900
-  inv_pbr: 1.524381
-  pbr: 0.656
+  ticker: '108670'
+  inv_pbr: 2.728203
+  pbr: 0.3665
 - rank: 21
-  ticker: '214320'
-  inv_pbr: 1.493626
-  pbr: 0.6695
+  ticker: 093050
+  inv_pbr: 2.698783
+  pbr: 0.3705
 - rank: 22
-  ticker: '007070'
-  inv_pbr: 1.484252
-  pbr: 0.6737
+  ticker: '007160'
+  inv_pbr: 2.626417
+  pbr: 0.3807
 - rank: 23
-  ticker: '162300'
-  inv_pbr: 1.364118
-  pbr: 0.7331
+  ticker: '227840'
+  inv_pbr: 2.598811
+  pbr: 0.3848
 - rank: 24
-  ticker: '073240'
-  inv_pbr: 1.332189
-  pbr: 0.7506
+  ticker: '121440'
+  inv_pbr: 2.583907
+  pbr: 0.387
 - rank: 25
-  ticker: '243070'
-  inv_pbr: 1.324301
-  pbr: 0.7551
+  ticker: 009190
+  inv_pbr: 2.562206
+  pbr: 0.3903
 - rank: 26
-  ticker: '192080'
-  inv_pbr: 1.266872
-  pbr: 0.7893
+  ticker: '004430'
+  inv_pbr: 2.467037
+  pbr: 0.4053
 - rank: 27
-  ticker: 086060
-  inv_pbr: 1.252356
-  pbr: 0.7985
+  ticker: '024720'
+  inv_pbr: 2.447429
+  pbr: 0.4086
 - rank: 28
-  ticker: '011560'
-  inv_pbr: 1.225348
-  pbr: 0.8161
+  ticker: '001250'
+  inv_pbr: 2.406681
+  pbr: 0.4155
 - rank: 29
-  ticker: '453340'
-  inv_pbr: 1.219011
-  pbr: 0.8203
+  ticker: 049070
+  inv_pbr: 2.346821
+  pbr: 0.4261
 - rank: 30
-  ticker: 004800
-  inv_pbr: 1.192707
-  pbr: 0.8384
+  ticker: 004780
+  inv_pbr: 2.339673
+  pbr: 0.4274
 - rank: 31
-  ticker: '004170'
-  inv_pbr: 1.181398
-  pbr: 0.8465
+  ticker: '035610'
+  inv_pbr: 2.273162
+  pbr: 0.4399
 - rank: 32
-  ticker: 028100
-  inv_pbr: 1.141969
-  pbr: 0.8757
+  ticker: '126560'
+  inv_pbr: 2.247138
+  pbr: 0.445
 - rank: 33
-  ticker: '060260'
-  inv_pbr: 1.131312
-  pbr: 0.8839
+  ticker: '051360'
+  inv_pbr: 2.23873
+  pbr: 0.4467
 - rank: 34
-  ticker: '001540'
-  inv_pbr: 1.093473
-  pbr: 0.9145
+  ticker: '136490'
+  inv_pbr: 2.099372
+  pbr: 0.4763
 - rank: 35
-  ticker: '001530'
-  inv_pbr: 1.062371
-  pbr: 0.9413
+  ticker: '034730'
+  inv_pbr: 2.096112
+  pbr: 0.4771
 - rank: 36
-  ticker: 081660
-  inv_pbr: 1.040822
-  pbr: 0.9608
+  ticker: 069730
+  inv_pbr: 2.076263
+  pbr: 0.4816
 - rank: 37
-  ticker: '007340'
-  inv_pbr: 1.026147
-  pbr: 0.9745
+  ticker: 003800
+  inv_pbr: 1.969011
+  pbr: 0.5079
 - rank: 38
-  ticker: '072130'
-  inv_pbr: 1.001145
-  pbr: 0.9989
+  ticker: '452260'
+  inv_pbr: 1.965795
+  pbr: 0.5087
 - rank: 39
-  ticker: '244920'
-  inv_pbr: 0.98662
-  pbr: 1.0136
+  ticker: '317400'
+  inv_pbr: 1.908693
+  pbr: 0.5239
 - rank: 40
-  ticker: 086670
-  inv_pbr: 0.986599
-  pbr: 1.0136
+  ticker: 009970
+  inv_pbr: 1.863752
+  pbr: 0.5366
 - rank: 41
-  ticker: '066570'
-  inv_pbr: 0.979273
-  pbr: 1.0212
+  ticker: '005670'
+  inv_pbr: 1.856014
+  pbr: 0.5388
 - rank: 42
-  ticker: 014910
-  inv_pbr: 0.943297
-  pbr: 1.0601
+  ticker: '280360'
+  inv_pbr: 1.826343
+  pbr: 0.5475
 - rank: 43
-  ticker: '071200'
-  inv_pbr: 0.864607
-  pbr: 1.1566
+  ticker: 096760
+  inv_pbr: 1.801908
+  pbr: 0.555
 - rank: 44
-  ticker: '212560'
-  inv_pbr: 0.851411
-  pbr: 1.1745
+  ticker: 009830
+  inv_pbr: 1.788333
+  pbr: 0.5592
 - rank: 45
-  ticker: 079940
-  inv_pbr: 0.821189
-  pbr: 1.2177
+  ticker: '000240'
+  inv_pbr: 1.780506
+  pbr: 0.5616
 - rank: 46
-  ticker: '126640'
-  inv_pbr: 0.78619
-  pbr: 1.272
+  ticker: '030720'
+  inv_pbr: 1.776426
+  pbr: 0.5629
 - rank: 47
-  ticker: '074600'
-  inv_pbr: 0.748453
-  pbr: 1.3361
+  ticker: '375500'
+  inv_pbr: 1.764892
+  pbr: 0.5666
 - rank: 48
-  ticker: '036570'
-  inv_pbr: 0.701542
-  pbr: 1.4254
+  ticker: '003550'
+  inv_pbr: 1.755224
+  pbr: 0.5697
 - rank: 49
-  ticker: '251970'
-  inv_pbr: 0.683096
-  pbr: 1.4639
+  ticker: '003650'
+  inv_pbr: 1.728096
+  pbr: 0.5787
 - rank: 50
-  ticker: 096530
-  inv_pbr: 0.681274
-  pbr: 1.4678
+  ticker: '054040'
+  inv_pbr: 1.715849
+  pbr: 0.5828
 - rank: 51
-  ticker: '006400'
-  inv_pbr: 0.673155
-  pbr: 1.4855
+  ticker: 028670
+  inv_pbr: 1.705365
+  pbr: 0.5864
 - rank: 52
-  ticker: '017670'
-  inv_pbr: 0.67242
-  pbr: 1.4872
+  ticker: '141000'
+  inv_pbr: 1.680083
+  pbr: 0.5952
 - rank: 53
-  ticker: '204610'
-  inv_pbr: 0.668939
-  pbr: 1.4949
+  ticker: '120240'
+  inv_pbr: 1.663881
+  pbr: 0.601
 - rank: 54
-  ticker: 018260
-  inv_pbr: 0.665497
-  pbr: 1.5026
+  ticker: 049520
+  inv_pbr: 1.605962
+  pbr: 0.6227
 - rank: 55
-  ticker: '161890'
-  inv_pbr: 0.656461
-  pbr: 1.5233
+  ticker: '004170'
+  inv_pbr: 1.592804
+  pbr: 0.6278
 - rank: 56
-  ticker: 092730
-  inv_pbr: 0.636473
-  pbr: 1.5712
+  ticker: 008490
+  inv_pbr: 1.566361
+  pbr: 0.6384
 - rank: 57
-  ticker: '383220'
-  inv_pbr: 0.620793
-  pbr: 1.6108
+  ticker: '066620'
+  inv_pbr: 1.546897
+  pbr: 0.6465
 - rank: 58
-  ticker: '241770'
-  inv_pbr: 0.611738
-  pbr: 1.6347
+  ticker: 092790
+  inv_pbr: 1.452883
+  pbr: 0.6883
 - rank: 59
-  ticker: 028050
-  inv_pbr: 0.592101
-  pbr: 1.6889
+  ticker: '161390'
+  inv_pbr: 1.444642
+  pbr: 0.6922
 - rank: 60
-  ticker: '339950'
-  inv_pbr: 0.576923
-  pbr: 1.7333
+  ticker: 002900
+  inv_pbr: 1.438409
+  pbr: 0.6952
 - rank: 61
-  ticker: '311320'
-  inv_pbr: 0.558396
-  pbr: 1.7908
+  ticker: 038680
+  inv_pbr: 1.407318
+  pbr: 0.7106
 - rank: 62
-  ticker: 010950
-  inv_pbr: 0.544797
-  pbr: 1.8355
+  ticker: '045510'
+  inv_pbr: 1.373889
+  pbr: 0.7279
 - rank: 63
-  ticker: '033640'
-  inv_pbr: 0.539445
-  pbr: 1.8538
+  ticker: '208710'
+  inv_pbr: 1.355491
+  pbr: 0.7377
 - rank: 64
-  ticker: '021240'
-  inv_pbr: 0.528075
-  pbr: 1.8937
+  ticker: '007070'
+  inv_pbr: 1.332777
+  pbr: 0.7503
 - rank: 65
-  ticker: 048550
-  inv_pbr: 0.52669
-  pbr: 1.8986
+  ticker: '004710'
+  inv_pbr: 1.331144
+  pbr: 0.7512
 - rank: 66
-  ticker: '308080'
-  inv_pbr: 0.513725
-  pbr: 1.9466
+  ticker: '005430'
+  inv_pbr: 1.328479
+  pbr: 0.7527
 - rank: 67
-  ticker: 033780
-  inv_pbr: 0.499915
-  pbr: 2.0003
+  ticker: '011200'
+  inv_pbr: 1.304613
+  pbr: 0.7665
 - rank: 68
-  ticker: 005290
-  inv_pbr: 0.495694
-  pbr: 2.0174
+  ticker: 049430
+  inv_pbr: 1.297834
+  pbr: 0.7705
 - rank: 69
-  ticker: '332570'
-  inv_pbr: 0.493816
-  pbr: 2.025
+  ticker: '214320'
+  inv_pbr: 1.297463
+  pbr: 0.7707
 - rank: 70
-  ticker: '254490'
-  inv_pbr: 0.486299
-  pbr: 2.0564
+  ticker: '051160'
+  inv_pbr: 1.274987
+  pbr: 0.7843
 - rank: 71
-  ticker: '462870'
-  inv_pbr: 0.483267
-  pbr: 2.0692
+  ticker: '181710'
+  inv_pbr: 1.268816
+  pbr: 0.7881
 - rank: 72
-  ticker: '160980'
-  inv_pbr: 0.47665
-  pbr: 2.098
+  ticker: '001740'
+  inv_pbr: 1.25123
+  pbr: 0.7992
 - rank: 73
-  ticker: 000990
-  inv_pbr: 0.470626
-  pbr: 2.1248
+  ticker: 051900
+  inv_pbr: 1.201309
+  pbr: 0.8324
 - rank: 74
-  ticker: 007810
-  inv_pbr: 0.468923
-  pbr: 2.1325
+  ticker: '192080'
+  inv_pbr: 1.161627
+  pbr: 0.8609
 - rank: 75
-  ticker: '064400'
-  inv_pbr: 0.467074
-  pbr: 2.141
+  ticker: '453340'
+  inv_pbr: 1.140579
+  pbr: 0.8767
 - rank: 76
-  ticker: 041830
-  inv_pbr: 0.437669
-  pbr: 2.2848
+  ticker: '011560'
+  inv_pbr: 1.113066
+  pbr: 0.8984
 - rank: 77
-  ticker: '330860'
-  inv_pbr: 0.386634
-  pbr: 2.5864
+  ticker: 082210
+  inv_pbr: 1.091661
+  pbr: 0.916
 - rank: 78
-  ticker: '170920'
-  inv_pbr: 0.385075
-  pbr: 2.5969
+  ticker: 081660
+  inv_pbr: 1.084002
+  pbr: 0.9225
 - rank: 79
-  ticker: '067370'
-  inv_pbr: 0.383743
-  pbr: 2.6059
+  ticker: 059100
+  inv_pbr: 1.041627
+  pbr: 0.96
 - rank: 80
-  ticker: 093320
-  inv_pbr: 0.380958
-  pbr: 2.625
+  ticker: '012330'
+  inv_pbr: 1.019263
+  pbr: 0.9811
 - rank: 81
-  ticker: '065710'
-  inv_pbr: 0.380536
-  pbr: 2.6279
+  ticker: '001530'
+  inv_pbr: 1.018917
+  pbr: 0.9814
 - rank: 82
-  ticker: 067290
-  inv_pbr: 0.368934
-  pbr: 2.7105
+  ticker: 003850
+  inv_pbr: 0.997389
+  pbr: 1.0026
 - rank: 83
-  ticker: 083450
-  inv_pbr: 0.368571
-  pbr: 2.7132
+  ticker: '100120'
+  inv_pbr: 0.990367
+  pbr: 1.0097
 - rank: 84
-  ticker: '011070'
-  inv_pbr: 0.364528
-  pbr: 2.7433
+  ticker: 059090
+  inv_pbr: 0.984256
+  pbr: 1.016
 - rank: 85
-  ticker: '356860'
-  inv_pbr: 0.334696
-  pbr: 2.9878
+  ticker: '204320'
+  inv_pbr: 0.96869
+  pbr: 1.0323
 - rank: 86
-  ticker: 034950
-  inv_pbr: 0.318092
-  pbr: 3.1437
+  ticker: '162300'
+  inv_pbr: 0.956074
+  pbr: 1.0459
 - rank: 87
-  ticker: 005930
-  inv_pbr: 0.292675
-  pbr: 3.4168
+  ticker: '001540'
+  inv_pbr: 0.955506
+  pbr: 1.0466
 - rank: 88
-  ticker: 064850
-  inv_pbr: 0.284979
-  pbr: 3.509
+  ticker: 004800
+  inv_pbr: 0.945242
+  pbr: 1.0579
 - rank: 89
-  ticker: '281820'
-  inv_pbr: 0.26569
-  pbr: 3.7638
+  ticker: '111770'
+  inv_pbr: 0.944197
+  pbr: 1.0591
 - rank: 90
-  ticker: '131970'
-  inv_pbr: 0.260588
-  pbr: 3.8375
+  ticker: '100030'
+  inv_pbr: 0.943866
+  pbr: 1.0595
 - rank: 91
-  ticker: '183300'
-  inv_pbr: 0.250341
-  pbr: 3.9945
+  ticker: 028100
+  inv_pbr: 0.935045
+  pbr: 1.0695
 - rank: 92
-  ticker: '064760'
-  inv_pbr: 0.216054
-  pbr: 4.6285
+  ticker: 039420
+  inv_pbr: 0.934733
+  pbr: 1.0698
 - rank: 93
-  ticker: 002960
-  inv_pbr: 0.21551
-  pbr: 4.6402
+  ticker: 005850
+  inv_pbr: 0.930489
+  pbr: 1.0747
 - rank: 94
-  ticker: '214450'
-  inv_pbr: 0.207052
-  pbr: 4.8297
+  ticker: '212560'
+  inv_pbr: 0.914339
+  pbr: 1.0937
 - rank: 95
-  ticker: '252990'
-  inv_pbr: 0.189807
-  pbr: 5.2685
+  ticker: '352090'
+  inv_pbr: 0.888837
+  pbr: 1.1251
 - rank: 96
-  ticker: '417840'
-  inv_pbr: 0.189694
-  pbr: 5.2717
+  ticker: '073240'
+  inv_pbr: 0.88671
+  pbr: 1.1278
 - rank: 97
-  ticker: 089890
-  inv_pbr: 0.187916
-  pbr: 5.3215
+  ticker: '244920'
+  inv_pbr: 0.857432
+  pbr: 1.1663
 - rank: 98
-  ticker: '329180'
-  inv_pbr: 0.183886
-  pbr: 5.4382
+  ticker: '066570'
+  inv_pbr: 0.835915
+  pbr: 1.1963
 - rank: 99
-  ticker: '402340'
-  inv_pbr: 0.174967
-  pbr: 5.7153
+  ticker: 066980
+  inv_pbr: 0.83246
+  pbr: 1.2013
 - rank: 100
-  ticker: '307950'
-  inv_pbr: 0.173945
-  pbr: 5.7489
+  ticker: '472850'
+  inv_pbr: 0.825568
+  pbr: 1.2113
 - rank: 101
-  ticker: '229640'
-  inv_pbr: 0.171244
-  pbr: 5.8396
+  ticker: '377450'
+  inv_pbr: 0.796405
+  pbr: 1.2556
 - rank: 102
-  ticker: 031980
-  inv_pbr: 0.163768
-  pbr: 6.1062
+  ticker: 086450
+  inv_pbr: 0.794076
+  pbr: 1.2593
 - rank: 103
-  ticker: '131290'
-  inv_pbr: 0.148667
-  pbr: 6.7264
+  ticker: '007340'
+  inv_pbr: 0.792218
+  pbr: 1.2623
 - rank: 104
-  ticker: 084370
-  inv_pbr: 0.146071
-  pbr: 6.846
+  ticker: '126640'
+  inv_pbr: 0.788795
+  pbr: 1.2678
 - rank: 105
-  ticker: '240810'
-  inv_pbr: 0.140458
-  pbr: 7.1196
+  ticker: 028260
+  inv_pbr: 0.754104
+  pbr: 1.3261
 - rank: 106
-  ticker: '140860'
-  inv_pbr: 0.124607
-  pbr: 8.0252
+  ticker: '461300'
+  inv_pbr: 0.751922
+  pbr: 1.3299
 - rank: 107
-  ticker: '062040'
-  inv_pbr: 0.112489
-  pbr: 8.8898
+  ticker: '382800'
+  inv_pbr: 0.73373
+  pbr: 1.3629
 - rank: 108
-  ticker: 094170
-  inv_pbr: 0.107656
-  pbr: 9.2888
+  ticker: '074600'
+  inv_pbr: 0.731865
+  pbr: 1.3664
 - rank: 109
-  ticker: 095610
-  inv_pbr: 0.104144
-  pbr: 9.6021
+  ticker: '144960'
+  inv_pbr: 0.723159
+  pbr: 1.3828
 - rank: 110
-  ticker: 009150
-  inv_pbr: 0.102715
-  pbr: 9.7357
+  ticker: 009450
+  inv_pbr: 0.710633
+  pbr: 1.4072
 - rank: 111
-  ticker: '420770'
-  inv_pbr: 0.102249
-  pbr: 9.78
+  ticker: '006260'
+  inv_pbr: 0.707122
+  pbr: 1.4142
 - rank: 112
-  ticker: '298040'
-  inv_pbr: 0.095736
-  pbr: 10.4454
+  ticker: 054950
+  inv_pbr: 0.706386
+  pbr: 1.4157
 - rank: 113
-  ticker: '319660'
-  inv_pbr: 0.095234
-  pbr: 10.5004
+  ticker: '340570'
+  inv_pbr: 0.697501
+  pbr: 1.4337
 - rank: 114
-  ticker: '000660'
-  inv_pbr: 0.091916
-  pbr: 10.8795
+  ticker: '071200'
+  inv_pbr: 0.694207
+  pbr: 1.4405
 - rank: 115
-  ticker: '443060'
-  inv_pbr: 0.091519
-  pbr: 10.9267
+  ticker: 068930
+  inv_pbr: 0.676829
+  pbr: 1.4775
 - rank: 116
-  ticker: '403870'
-  inv_pbr: 0.088123
-  pbr: 11.3478
+  ticker: 090430
+  inv_pbr: 0.676347
+  pbr: 1.4785
 - rank: 117
-  ticker: 080220
-  inv_pbr: 0.080509
-  pbr: 12.421
+  ticker: '271560'
+  inv_pbr: 0.661353
+  pbr: 1.5121
 - rank: 118
-  ticker: '483650'
-  inv_pbr: 0.076278
-  pbr: 13.11
+  ticker: '017670'
+  inv_pbr: 0.65571
+  pbr: 1.5251
 - rank: 119
-  ticker: '950170'
-  inv_pbr: 0.075876
-  pbr: 13.1794
+  ticker: 073490
+  inv_pbr: 0.642277
+  pbr: 1.557
 - rank: 120
-  ticker: '010120'
-  inv_pbr: 0.075133
-  pbr: 13.3097
+  ticker: '396300'
+  inv_pbr: 0.629545
+  pbr: 1.5884
 - rank: 121
-  ticker: 089970
-  inv_pbr: 0.062149
-  pbr: 16.0904
+  ticker: '101160'
+  inv_pbr: 0.62358
+  pbr: 1.6036
 - rank: 122
-  ticker: '278470'
-  inv_pbr: 0.030299
-  pbr: 33.004
+  ticker: 099190
+  inv_pbr: 0.622455
+  pbr: 1.6065
 - rank: 123
-  ticker: '950190'
-  inv_pbr: 0.000905
-  pbr: 1104.7738
+  ticker: '161890'
+  inv_pbr: 0.622204
+  pbr: 1.6072
+- rank: 124
+  ticker: 096530
+  inv_pbr: 0.618419
+  pbr: 1.617
+- rank: 125
+  ticker: '047040'
+  inv_pbr: 0.599025
+  pbr: 1.6694
+- rank: 126
+  ticker: '036570'
+  inv_pbr: 0.587089
+  pbr: 1.7033
+- rank: 127
+  ticker: '006400'
+  inv_pbr: 0.584471
+  pbr: 1.7109
+- rank: 128
+  ticker: 079940
+  inv_pbr: 0.581488
+  pbr: 1.7197
+- rank: 129
+  ticker: '185490'
+  inv_pbr: 0.577972
+  pbr: 1.7302
+- rank: 130
+  ticker: '204610'
+  inv_pbr: 0.577136
+  pbr: 1.7327
+- rank: 131
+  ticker: '178920'
+  inv_pbr: 0.565444
+  pbr: 1.7685
+- rank: 132
+  ticker: 018260
+  inv_pbr: 0.563063
+  pbr: 1.776
+- rank: 133
+  ticker: '236200'
+  inv_pbr: 0.556999
+  pbr: 1.7953
+- rank: 134
+  ticker: 053800
+  inv_pbr: 0.551517
+  pbr: 1.8132
+- rank: 135
+  ticker: '251970'
+  inv_pbr: 0.550793
+  pbr: 1.8156
+- rank: 136
+  ticker: 010950
+  inv_pbr: 0.54598
+  pbr: 1.8316
+- rank: 137
+  ticker: '417500'
+  inv_pbr: 0.537359
+  pbr: 1.861
+- rank: 138
+  ticker: '241770'
+  inv_pbr: 0.522943
+  pbr: 1.9123
+- rank: 139
+  ticker: '330860'
+  inv_pbr: 0.509748
+  pbr: 1.9618
+- rank: 140
+  ticker: '160980'
+  inv_pbr: 0.505811
+  pbr: 1.977
+- rank: 141
+  ticker: '265740'
+  inv_pbr: 0.502971
+  pbr: 1.9882
+- rank: 142
+  ticker: '021240'
+  inv_pbr: 0.487851
+  pbr: 2.0498
+- rank: 143
+  ticker: 033780
+  inv_pbr: 0.479189
+  pbr: 2.0869
+- rank: 144
+  ticker: '457600'
+  inv_pbr: 0.47898
+  pbr: 2.0878
+- rank: 145
+  ticker: 092730
+  inv_pbr: 0.470174
+  pbr: 2.1269
+- rank: 146
+  ticker: '170920'
+  inv_pbr: 0.454623
+  pbr: 2.1996
+- rank: 147
+  ticker: '282330'
+  inv_pbr: 0.451711
+  pbr: 2.2138
+- rank: 148
+  ticker: '180640'
+  inv_pbr: 0.436891
+  pbr: 2.2889
+- rank: 149
+  ticker: 028050
+  inv_pbr: 0.4258
+  pbr: 2.3485
+- rank: 150
+  ticker: '339950'
+  inv_pbr: 0.420484
+  pbr: 2.3782
+- rank: 151
+  ticker: 052860
+  inv_pbr: 0.416817
+  pbr: 2.3991
+- rank: 152
+  ticker: '474610'
+  inv_pbr: 0.414943
+  pbr: 2.41
+- rank: 153
+  ticker: '439090'
+  inv_pbr: 0.41368
+  pbr: 2.4173
+- rank: 154
+  ticker: 009240
+  inv_pbr: 0.404312
+  pbr: 2.4733
+- rank: 155
+  ticker: '011070'
+  inv_pbr: 0.401574
+  pbr: 2.4902
+- rank: 156
+  ticker: '204620'
+  inv_pbr: 0.388188
+  pbr: 2.5761
+- rank: 157
+  ticker: '064400'
+  inv_pbr: 0.38057
+  pbr: 2.6276
+- rank: 158
+  ticker: '489460'
+  inv_pbr: 0.378902
+  pbr: 2.6392
+- rank: 159
+  ticker: '281820'
+  inv_pbr: 0.376828
+  pbr: 2.6537
+- rank: 160
+  ticker: '125020'
+  inv_pbr: 0.372884
+  pbr: 2.6818
+- rank: 161
+  ticker: '263800'
+  inv_pbr: 0.362605
+  pbr: 2.7578
+- rank: 162
+  ticker: 068270
+  inv_pbr: 0.356376
+  pbr: 2.806
+- rank: 163
+  ticker: '109070'
+  inv_pbr: 0.35496
+  pbr: 2.8172
+- rank: 164
+  ticker: 098120
+  inv_pbr: 0.333037
+  pbr: 3.0027
+- rank: 165
+  ticker: 093320
+  inv_pbr: 0.325019
+  pbr: 3.0767
+- rank: 166
+  ticker: 064850
+  inv_pbr: 0.318148
+  pbr: 3.1432
+- rank: 167
+  ticker: 093370
+  inv_pbr: 0.315074
+  pbr: 3.1739
+- rank: 168
+  ticker: 083450
+  inv_pbr: 0.309356
+  pbr: 3.2325
+- rank: 169
+  ticker: '166090'
+  inv_pbr: 0.307009
+  pbr: 3.2572
+- rank: 170
+  ticker: 067290
+  inv_pbr: 0.298739
+  pbr: 3.3474
+- rank: 171
+  ticker: 005930
+  inv_pbr: 0.297151
+  pbr: 3.3653
+- rank: 172
+  ticker: '241710'
+  inv_pbr: 0.287254
+  pbr: 3.4812
+- rank: 173
+  ticker: '322000'
+  inv_pbr: 0.286641
+  pbr: 3.4887
+- rank: 174
+  ticker: 041830
+  inv_pbr: 0.28627
+  pbr: 3.4932
+- rank: 175
+  ticker: 078520
+  inv_pbr: 0.285619
+  pbr: 3.5012
+- rank: 176
+  ticker: 034950
+  inv_pbr: 0.284896
+  pbr: 3.5101
+- rank: 177
+  ticker: '413630'
+  inv_pbr: 0.283625
+  pbr: 3.5258
+- rank: 178
+  ticker: 008930
+  inv_pbr: 0.278367
+  pbr: 3.5924
+- rank: 179
+  ticker: '332570'
+  inv_pbr: 0.277375
+  pbr: 3.6052
+- rank: 180
+  ticker: '484810'
+  inv_pbr: 0.272469
+  pbr: 3.6701
+- rank: 181
+  ticker: '033100'
+  inv_pbr: 0.272153
+  pbr: 3.6744
+- rank: 182
+  ticker: '340810'
+  inv_pbr: 0.265901
+  pbr: 3.7608
+- rank: 183
+  ticker: '267270'
+  inv_pbr: 0.265865
+  pbr: 3.7613
+- rank: 184
+  ticker: '145020'
+  inv_pbr: 0.253487
+  pbr: 3.945
+- rank: 185
+  ticker: '264850'
+  inv_pbr: 0.249018
+  pbr: 4.0158
+- rank: 186
+  ticker: 032580
+  inv_pbr: 0.242262
+  pbr: 4.1278
+- rank: 187
+  ticker: '481070'
+  inv_pbr: 0.235044
+  pbr: 4.2545
+- rank: 188
+  ticker: '119850'
+  inv_pbr: 0.212245
+  pbr: 4.7115
+- rank: 189
+  ticker: '327260'
+  inv_pbr: 0.20279
+  pbr: 4.9312
+- rank: 190
+  ticker: 082920
+  inv_pbr: 0.195488
+  pbr: 5.1154
+- rank: 191
+  ticker: 031980
+  inv_pbr: 0.194826
+  pbr: 5.1328
+- rank: 192
+  ticker: '417840'
+  inv_pbr: 0.192307
+  pbr: 5.2
+- rank: 193
+  ticker: '402340'
+  inv_pbr: 0.178424
+  pbr: 5.6046
+- rank: 194
+  ticker: 002960
+  inv_pbr: 0.178144
+  pbr: 5.6134
+- rank: 195
+  ticker: 069540
+  inv_pbr: 0.163046
+  pbr: 6.1332
+- rank: 196
+  ticker: '353200'
+  inv_pbr: 0.160013
+  pbr: 6.2495
+- rank: 197
+  ticker: '131290'
+  inv_pbr: 0.159127
+  pbr: 6.2843
+- rank: 198
+  ticker: 084370
+  inv_pbr: 0.158915
+  pbr: 6.2927
+- rank: 199
+  ticker: 078600
+  inv_pbr: 0.153841
+  pbr: 6.5002
+- rank: 200
+  ticker: '214450'
+  inv_pbr: 0.149651
+  pbr: 6.6822
+- rank: 201
+  ticker: '307950'
+  inv_pbr: 0.148551
+  pbr: 6.7317
+- rank: 202
+  ticker: 095610
+  inv_pbr: 0.128582
+  pbr: 7.7771
+- rank: 203
+  ticker: '319660'
+  inv_pbr: 0.12839
+  pbr: 7.7888
+- rank: 204
+  ticker: '123330'
+  inv_pbr: 0.12565
+  pbr: 7.9586
+- rank: 205
+  ticker: '060370'
+  inv_pbr: 0.125155
+  pbr: 7.9901
+- rank: 206
+  ticker: '140860'
+  inv_pbr: 0.109803
+  pbr: 9.1072
+- rank: 207
+  ticker: 090360
+  inv_pbr: 0.106025
+  pbr: 9.4317
+- rank: 208
+  ticker: '003230'
+  inv_pbr: 0.102609
+  pbr: 9.7458
+- rank: 209
+  ticker: 009150
+  inv_pbr: 0.09474
+  pbr: 10.5552
+- rank: 210
+  ticker: 094170
+  inv_pbr: 0.093717
+  pbr: 10.6704
+- rank: 211
+  ticker: '062040'
+  inv_pbr: 0.088371
+  pbr: 11.3159
+- rank: 212
+  ticker: 036930
+  inv_pbr: 0.087022
+  pbr: 11.4914
+- rank: 213
+  ticker: '000660'
+  inv_pbr: 0.084009
+  pbr: 11.9035
+- rank: 214
+  ticker: '443060'
+  inv_pbr: 0.079433
+  pbr: 12.5892
+- rank: 215
+  ticker: 089970
+  inv_pbr: 0.073937
+  pbr: 13.525
+- rank: 216
+  ticker: '483650'
+  inv_pbr: 0.062634
+  pbr: 15.9658
+- rank: 217
+  ticker: '010120'
+  inv_pbr: 0.062201
+  pbr: 16.0769
+- rank: 218
+  ticker: '278470'
+  inv_pbr: 0.028169
+  pbr: 35.4997
+- rank: 219
+  ticker: '440110'
+  inv_pbr: 0.02326
+  pbr: 42.9928
+- rank: 220
+  ticker: '196170'
+  inv_pbr: 0.018643
+  pbr: 53.6386
+- rank: 221
+  ticker: '241560'
+  inv_pbr: 0.000794
+  pbr: 1259.7135
 filter_rejection_reasons:
   HardFilter:
-    passed: 1980
-    rejected: 430
+    passed: 1858
+    rejected: 559
     reasons:
-      거래대금 부족: 345
-      5일 이상 거래정지: 75
-      상장 6개월 미만 (listed_date 또는 가격이력 프록시): 10
+      거래대금 부족: 460
+      5일 이상 거래정지: 99
   StabilityFilter:
-    passed: 674
-    rejected: 1306
+    passed: 931
+    rejected: 927
     reasons:
-      '영업CF(-) + 재무CF(+): 차입 운영': 382
-      부채비율 > 200%: 242
-      차입금비율 > 150% (개선 추세 없음): 42
-      'adjROE(7.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 13
-      'adjROE(2.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 12
-      'adjROE(7.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 11
-      'adjROE(6.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 11
-      'adjROE(2.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 11
-      'adjROE(7.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 11
-      'adjROE(4.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 11
-      'adjROE(8.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 11
-      'adjROE(5.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 10
-      'adjROE(5.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 10
-      'adjROE(6.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 10
-      'adjROE(7.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 10
-      'adjROE(1.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 10
-      'adjROE(-0.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 10
-      'adjROE(2.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 9
-      'adjROE(2.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 9
-      'adjROE(3.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 9
-      'adjROE(3.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 9
-      'adjROE(5.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 9
-      'adjROE(3.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 9
-      'adjROE(3.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 9
-      'adjROE(8.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 9
-      'adjROE(2.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 8
-      'adjROE(5.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 8
-      'adjROE(7.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 8
-      'adjROE(5.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 8
-      'adjROE(2.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
-      'adjROE(6.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
-      'adjROE(6.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
-      'adjROE(4.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
-      'adjROE(4.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
-      'adjROE(3.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
-      'adjROE(7.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
-      'adjROE(4.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
-      'adjROE(6.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
-      'adjROE(6.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
-      'adjROE(-2.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
-      'adjROE(3.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
+      '영업CF(-) + 재무CF(+): 차입 운영': 285
+      부채비율 > 200%: 236
+      차입금비율 > 150% (개선 추세 없음): 43
+      'adjROE(7.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 12
+      'adjROE(6.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 10
+      'adjROE(7.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 10
+      'adjROE(1.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 8
+      'adjROE(5.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
+      'adjROE(3.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
+      'adjROE(5.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
       'adjROE(5.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
-      'adjROE(8.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
-      'adjROE(-0.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
-      'adjROE(1.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
-      'adjROE(3.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
-      'adjROE(3.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
-      'adjROE(-3.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 7
-      'adjROE(6.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(5.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
+      'adjROE(4.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
+      'adjROE(3.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
+      'adjROE(4.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
+      'adjROE(1.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
+      'adjROE(4.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
+      'adjROE(6.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
       'adjROE(7.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(0.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(0.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(-4.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(8.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(8.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(-0.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(8.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(7.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(4.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(7.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(3.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(4.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(7.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(4.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(8.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(6.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(6.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(-1.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
-      'adjROE(-0.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(-8.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(0.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(0.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(-3.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(-3.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(0.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(0.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(0.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(-1.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
+      'adjROE(3.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
+      'adjROE(6.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
+      'adjROE(3.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
+      'adjROE(5.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 6
+      'adjROE(3.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
       'adjROE(5.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(2.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(6.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
+      'adjROE(7.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
+      'adjROE(8.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
       'adjROE(3.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(-30.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(-4.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(-2.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(8.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(-5.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(5.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(-16.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(2.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(1.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(4.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
-      'adjROE(1.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(-8.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(1.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(-1.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(4.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(0.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(1.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(-23.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(-6.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(-5.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(2.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(-4.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(-0.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(-2.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(-2.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(2.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
+      'adjROE(-5.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
+      'adjROE(8.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
+      'adjROE(4.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
+      'adjROE(6.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
+      'adjROE(7.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
+      'adjROE(4.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
+      'adjROE(7.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
+      'adjROE(4.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
+      'adjROE(3.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
+      'adjROE(6.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
+      'adjROE(-4.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
+      'adjROE(2.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
+      'adjROE(3.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 5
+      'adjROE(-2.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(-0.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(-3.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(0.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(7.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(4.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(2.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
       'adjROE(-6.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(-2.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(-19.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(-3.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(4.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(1.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(-10.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(1.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
-      'adjROE(-8.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-2.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-7.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-11.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-4.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(1.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-14.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(1.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-14.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-3.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-12.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-15.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-8.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(2.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-2.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(7.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(1.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(6.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(-3.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(-1.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(6.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(0.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(-16.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(0.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(-1.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(3.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(-7.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 4
+      'adjROE(-12.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(2.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(1.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(5.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(4.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(-1.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(1.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
       'adjROE(-3.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-2.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-5.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-17.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-19.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-1.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-4.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-7.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-6.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-3.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-18.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-0.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-2.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-1.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-1.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-16.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-20.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-5.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-28.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-8.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-6.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-1.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(-0.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(-2.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(2.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(-3.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(-0.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(5.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(2.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(2.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(8.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(5.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(1.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(-3.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(1.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
       'adjROE(-5.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(-24.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(8.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(-6.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(0.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(-2.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(-9.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(-10.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(8.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(-2.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
       'adjROE(-10.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-9.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-14.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-25.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-10.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
-      'adjROE(-1.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-7.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-5.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-11.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-15.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-6.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-11.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 3
+      'adjROE(-21.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-3.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(0.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(6.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-42.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-24.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-7.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(4.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-2.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(2.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
       'adjROE(-0.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-9.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-5.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(5.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-15.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-6.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-14.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-22.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-39.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-1.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-0.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-17.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-3.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-10.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-0.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-15.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-20.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-21.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-19.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-14.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-10.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-6.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-38.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(0.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-17.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-13.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-4.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-4.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-17.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-10.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-24.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-11.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
       'adjROE(-27.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-14.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-26.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-33.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-12.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-26.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-10.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-20.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-12.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-12.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-27.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-33.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-31.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-36.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-21.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-6.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-28.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-20.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-10.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-0.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-39.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-15.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-1.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-26.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-5.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(0.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(2.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(5.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-22.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-2.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-15.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(0.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-4.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-8.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(8.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-11.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-9.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-9.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
       'adjROE(-7.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-38.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-13.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-5.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-22.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-4.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-32.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-16.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-1.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
       'adjROE(-28.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-10.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-16.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-28.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-4.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-15.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
-      'adjROE(-7.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-12.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-7.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-49.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-9.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(0.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-21.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-121.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-19.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-2.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-23.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-40.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-7.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-138.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-63.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-1.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-25.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-13.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(8.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-24.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-44.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-13.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(6.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-12.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-12.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-30.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(7.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(0.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-8.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-12.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-11.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-54.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-7.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(-22.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
+      'adjROE(2.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 2
       'adjROE(-8.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-45.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-165.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-28.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-23.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-32.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-566.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-39.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-5.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-45.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-46.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-24.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-36.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
       'adjROE(-21.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-57.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-82150.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-55.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-108.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-8.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-41.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-7.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-53.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-9.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-28.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-38.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-25.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-16.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-36.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-11.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-65.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-11.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-20.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-75.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-160.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-29.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-34.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-11.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-57.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-15.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-12.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-157.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-35.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-6.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-9.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-35.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-11.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-8.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-12.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-16.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-149.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-21.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-31.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-70.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-3.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-180.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-26.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-31.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-21.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-1307.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-22.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-51.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-15.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-42.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-61.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-13.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-213.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-31.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-116.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-20.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-44.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-495.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-8.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-41.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-19.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-91.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-5.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-12.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-25.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-4.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-19.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-6.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-19.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-79.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-20.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-13.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-57.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-63.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(0.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-7.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-107.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-95.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-1.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(4.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-8.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-21.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-16.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-16.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(1.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(6.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-19.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(0.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-20.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-7.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-31.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(3.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-67.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-6.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-31.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
       'adjROE(-6.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-14.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-114.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-33.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-62.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-31.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-38.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-2217.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-2.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-10.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-4.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-27.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(1.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
       'adjROE(-25.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-59.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-18.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-4.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-25.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-22.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-110.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-32.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-61.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-55.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-55.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-43.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-63.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-44.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-87.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-41.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-31.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-42.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-16.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-34.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-35.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-2.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
       'adjROE(-22.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-11.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-54.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-18.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-33.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-95.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-257.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-75.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-28.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-42.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-40.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-58.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-116.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-759.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-42.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-321.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-86.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-78.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-59.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-60.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-61.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-71.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-68.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-134.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-66.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-29.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-142.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-19.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-77.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-13.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-29.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-64.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-34.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-73.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-88.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-29.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-54.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-11.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-1.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-19.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
       'adjROE(-29.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-36.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-26.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-33.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-22.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-28.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-121.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-145.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-54.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-45.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-30.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-26.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-9.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-29.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-60.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-97.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-13.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-13.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-6.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-15.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-15.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-10.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-12.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-24.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-22.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-19.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-545.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(5.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-86.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
       'adjROE(-14.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-16.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-23.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-37.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-3.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(8.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-26.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-36.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-7.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-19.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-109.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-2.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-7.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-30.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-46.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-15.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-5.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-4.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-18.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-11.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-37.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-6.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-214.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-16.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-23.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-18.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
       'adjROE(-23.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-170.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
-      'adjROE(-48.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-157.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-47.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-14.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-27.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-8.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-39.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-61.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-40.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-0.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-60.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(7.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-8.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-32.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-33.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-146.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-83.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-1378.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-18.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-20.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-230.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-13.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-40.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-1.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-31.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-0.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-51.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-29.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-32.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-18.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-105.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-148.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-15.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-6.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-165.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-21.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-20.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-45.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-15.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-17.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-9.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-34.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-468.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-11.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-39.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-12.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-8.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-32.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-14.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-88.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-33.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-44.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-10.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-387.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-12.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-132.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-29.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-13.0%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-50.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-17.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-90.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-14.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-87.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-113.3%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-75.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-173.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-11.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-74.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-50.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-45.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-35.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-162.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-15.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-11.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-74.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-54.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-16.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-78.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-1.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-114.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-14.5%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-49.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-42.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-87.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-17.9%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-43.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-9.6%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-64.2%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-26.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-0.7%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-24.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-109.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-58.8%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-3.4%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
+      'adjROE(-136.1%) < 요구수익률(8.7%): RIM 적정가 < 장부가': 1
   MomentumFilter:
-    passed: 124
-    rejected: 550
+    passed: 222
+    rejected: 709
     reasons:
-      하락 추세 (MA 이중 조건): 550
+      'ma200: rejected_by_signal (score=-0.04025815148953038)': 1
+      'ma200: rejected_by_signal (score=-0.08641544545243085)': 1
+      'ma200: rejected_by_signal (score=-0.1610394925312052)': 1
+      'ma200: rejected_by_signal (score=-0.17273711540685144)': 1
+      'ma200: rejected_by_signal (score=-0.09510440639572004)': 1
+      'ma200: rejected_by_signal (score=-0.06433636934890241)': 1
+      'ma200: rejected_by_signal (score=-0.21132121718944874)': 1
+      'ma200: rejected_by_signal (score=-0.1384355732193655)': 1
+      'ma200: rejected_by_signal (score=-0.07453132144490171)': 1
+      'ma200: rejected_by_signal (score=-0.10041443788996773)': 1
+      'ma200: rejected_by_signal (score=-0.07438432110449378)': 1
+      'ma200: rejected_by_signal (score=-0.1304842818312485)': 1
+      'ma200: rejected_by_signal (score=-0.3006055126988779)': 1
+      'ma200: rejected_by_signal (score=-0.21984709002964575)': 1
+      'ma200: rejected_by_signal (score=-0.2533533439639809)': 1
+      'ma200: rejected_by_signal (score=-0.019200641235836313)': 1
+      'ma200: rejected_by_signal (score=-0.10242949578806004)': 1
+      'ma200: rejected_by_signal (score=-0.19693324404245172)': 1
+      'ma200: rejected_by_signal (score=-0.08255243195002226)': 1
+      'ma200: rejected_by_signal (score=-0.037539782967138335)': 1
+      'ma200: rejected_by_signal (score=-0.14075806492615095)': 1
+      'ma200: rejected_by_signal (score=-0.1684546029541255)': 1
+      'ma200: rejected_by_signal (score=-0.12955524649633832)': 1
+      'ma200: rejected_by_signal (score=-0.16907932831499706)': 1
+      'ma200: rejected_by_signal (score=-0.09416031168407824)': 1
+      'ma200: rejected_by_signal (score=-0.11976732476794671)': 1
+      'ma200: rejected_by_signal (score=-0.1863408794959519)': 1
+      'ma200: rejected_by_signal (score=-0.09206383725355494)': 1
+      'ma200: rejected_by_signal (score=-0.13892078071182545)': 1
+      'ma200: rejected_by_signal (score=-0.002615204256470327)': 1
+      'ma200: rejected_by_signal (score=-0.28329755884599994)': 1
+      'ma200: rejected_by_signal (score=-0.009043014125389992)': 1
+      'ma200: rejected_by_signal (score=-0.12428887287904)': 1
+      'ma200: rejected_by_signal (score=-0.13603491487766683)': 1
+      'ma200: rejected_by_signal (score=-0.020128249714763458)': 1
+      'ma200: rejected_by_signal (score=-0.18716337642293135)': 1
+      'ma200: rejected_by_signal (score=-0.11596640944785364)': 1
+      'ma200: rejected_by_signal (score=-0.47837134949417826)': 1
+      'ma200: rejected_by_signal (score=-0.08149876075229623)': 1
+      'ma200: rejected_by_signal (score=-0.06749642850153614)': 1
+      'ma200: rejected_by_signal (score=-0.04050686448092422)': 1
+      'ma200: rejected_by_signal (score=-0.20508007138056505)': 1
+      'ma200: rejected_by_signal (score=-0.039658757156389)': 1
+      'ma200: rejected_by_signal (score=-0.010835927785413091)': 1
+      'ma200: rejected_by_signal (score=-0.10985874787760552)': 1
+      'ma200: rejected_by_signal (score=-0.05504639380656917)': 1
+      'ma200: rejected_by_signal (score=-0.0596064814814814)': 1
+      'ma200: rejected_by_signal (score=-0.1649288553488104)': 1
+      'ma200: rejected_by_signal (score=-0.0038227687838295887)': 1
+      'ma200: rejected_by_signal (score=-0.09871594168800735)': 1
+      'ma200: rejected_by_signal (score=-0.10752070929058366)': 1
+      'ma200: rejected_by_signal (score=-0.23640849331388392)': 1
+      'ma200: rejected_by_signal (score=-0.0016445368064258448)': 1
+      'ma200: rejected_by_signal (score=-0.19008367379195057)': 1
+      'ma200: rejected_by_signal (score=-0.3796368650884854)': 1
+      'ma200: rejected_by_signal (score=-0.043036819741874566)': 1
+      'ma200: rejected_by_signal (score=-0.016369247865399617)': 1
+      'ma200: rejected_by_signal (score=-0.26820901779929107)': 1
+      'ma200: rejected_by_signal (score=-0.1630003219229531)': 1
+      'ma200: rejected_by_signal (score=-0.3295725381937896)': 1
+      'ma200: rejected_by_signal (score=-0.04063163383114221)': 1
+      'ma200: rejected_by_signal (score=-0.0006361453694773145)': 1
+      'ma200: rejected_by_signal (score=-0.13897123448881998)': 1
+      'ma200: rejected_by_signal (score=-0.2541563077264961)': 1
+      'ma200: rejected_by_signal (score=-0.020837795661087455)': 1
+      'ma200: rejected_by_signal (score=-0.18975431259801356)': 1
+      'ma200: rejected_by_signal (score=-0.07058943640402604)': 1
+      'ma200: rejected_by_signal (score=-0.0050437016384198285)': 1
+      'ma200: rejected_by_signal (score=-0.24829652230607624)': 1
+      'ma200: rejected_by_signal (score=-0.09363125873972278)': 1
+      'ma200: rejected_by_signal (score=-0.03865758675529107)': 1
+      'ma200: rejected_by_signal (score=-0.05450244247135083)': 1
+      'ma200: rejected_by_signal (score=-0.023568263711794657)': 1
+      'ma200: rejected_by_signal (score=-0.10095994703740485)': 1
+      'ma200: rejected_by_signal (score=-0.23517301672353985)': 1
+      'ma200: rejected_by_signal (score=-0.13183996433745682)': 1
+      'ma200: rejected_by_signal (score=-0.19888149569335023)': 1
+      'ma200: rejected_by_signal (score=-0.05348752915107957)': 1
+      'ma200: rejected_by_signal (score=-0.2390565159812449)': 1
+      'ma200: rejected_by_signal (score=-0.10807557495187747)': 1
+      'ma200: rejected_by_signal (score=-0.13878294218323572)': 1
+      'ma200: rejected_by_signal (score=-0.04212101774641863)': 1
+      'ma200: rejected_by_signal (score=-0.15526236003805505)': 1
+      'ma200: rejected_by_signal (score=-0.22772786978303772)': 1
+      'ma200: rejected_by_signal (score=-0.076581047282544)': 1
+      'ma200: rejected_by_signal (score=-0.0005348575442855052)': 1
+      'ma200: rejected_by_signal (score=-0.11583616964319854)': 1
+      'ma200: rejected_by_signal (score=-0.020839372564176895)': 1
+      'ma200: rejected_by_signal (score=-0.022860244888111447)': 1
+      'ma200: rejected_by_signal (score=-0.049884224302828906)': 1
+      'ma200: rejected_by_signal (score=-0.5583934534082562)': 1
+      'ma200: rejected_by_signal (score=-0.21481594857274044)': 1
+      'ma200: rejected_by_signal (score=-0.06142659588705002)': 1
+      'ma200: rejected_by_signal (score=-0.18820626055331857)': 1
+      'ma200: rejected_by_signal (score=-0.3319914821621306)': 1
+      'ma200: rejected_by_signal (score=-0.10599897133772851)': 1
+      'ma200: rejected_by_signal (score=-0.1443880831606773)': 1
+      'ma200: rejected_by_signal (score=-0.2530652335478282)': 1
+      'ma200: rejected_by_signal (score=-0.07633645580249293)': 1
+      'ma200: rejected_by_signal (score=-0.07160052412924456)': 1
+      'ma200: rejected_by_signal (score=-0.19943530059913228)': 1
+      'ma200: rejected_by_signal (score=-0.17244045497653238)': 1
+      'ma200: rejected_by_signal (score=-0.2083213734093301)': 1
+      'ma200: rejected_by_signal (score=-0.08146589339875498)': 1
+      'ma200: rejected_by_signal (score=-0.1114366185047363)': 1
+      'ma200: rejected_by_signal (score=-0.3560710487968177)': 1
+      'ma200: rejected_by_signal (score=-0.045061175768427386)': 1
+      'ma200: rejected_by_signal (score=-0.06345689651885089)': 1
+      'ma200: rejected_by_signal (score=-0.3824059512117105)': 1
+      'ma200: rejected_by_signal (score=-0.26947212163469103)': 1
+      'ma200: rejected_by_signal (score=-0.022026277576584596)': 1
+      'ma200: rejected_by_signal (score=-0.3141563267296522)': 1
+      'ma200: rejected_by_signal (score=-0.2388803739867864)': 1
+      'ma200: rejected_by_signal (score=-0.017420119782324495)': 1
+      'ma200: rejected_by_signal (score=-0.20152524972705188)': 1
+      'ma200: rejected_by_signal (score=-0.14720352881298426)': 1
+      'ma200: rejected_by_signal (score=-0.3492765007050451)': 1
+      'ma200: rejected_by_signal (score=-0.3644287217168056)': 1
+      'ma200: rejected_by_signal (score=-0.14779632431359901)': 1
+      'ma200: rejected_by_signal (score=-0.1837261920139337)': 1
+      'ma200: rejected_by_signal (score=-0.1493500267112311)': 1
+      'ma200: rejected_by_signal (score=-0.8332592161722123)': 1
+      'ma200: rejected_by_signal (score=-0.23714889288788044)': 1
+      'ma200: rejected_by_signal (score=-0.12718456409738355)': 1
+      'ma200: rejected_by_signal (score=-0.1848764898946278)': 1
+      'ma200: rejected_by_signal (score=-0.27515916424118536)': 1
+      'ma200: rejected_by_signal (score=-0.016501702057406087)': 1
+      'ma200: rejected_by_signal (score=-0.0781825672763703)': 1
+      'ma200: rejected_by_signal (score=-0.012647799961232886)': 1
+      'ma200: rejected_by_signal (score=-0.20192041826911)': 1
+      'ma200: rejected_by_signal (score=-0.25625289371804594)': 1
+      'ma200: rejected_by_signal (score=-0.11417393489106642)': 1
+      'ma200: rejected_by_signal (score=-0.030647151726739708)': 1
+      'ma200: rejected_by_signal (score=-0.08583533017344336)': 1
+      'ma200: rejected_by_signal (score=-0.0028215293403335284)': 1
+      'ma200: rejected_by_signal (score=-0.2965363207090913)': 1
+      'ma200: rejected_by_signal (score=-0.2565148509911056)': 1
+      'ma200: rejected_by_signal (score=-0.19632552114003066)': 1
+      'ma200: rejected_by_signal (score=-0.2367300397924278)': 1
+      'ma200: rejected_by_signal (score=-0.07674167677059807)': 1
+      'ma200: rejected_by_signal (score=-0.09319340187227032)': 1
+      'ma200: rejected_by_signal (score=-0.10597819280428056)': 1
+      'ma200: rejected_by_signal (score=-0.10570919270660628)': 1
+      'ma200: rejected_by_signal (score=-0.11867143824883841)': 1
+      'ma200: rejected_by_signal (score=-0.02424592875489162)': 1
+      'ma200: rejected_by_signal (score=-0.3238021638330757)': 1
+      'ma200: rejected_by_signal (score=-0.07739301187544811)': 1
+      'ma200: rejected_by_signal (score=-0.15694739053531126)': 1
+      'ma200: rejected_by_signal (score=-0.1507960466734043)': 1
+      'ma200: rejected_by_signal (score=-0.0294439501324415)': 1
+      'ma200: rejected_by_signal (score=-0.3024966072525189)': 1
+      'ma200: rejected_by_signal (score=-0.13811045408356903)': 1
+      'ma200: rejected_by_signal (score=-0.1899613061873937)': 1
+      'ma200: rejected_by_signal (score=-0.2873277416869495)': 1
+      'ma200: rejected_by_signal (score=-0.0918459358495427)': 1
+      'ma200: rejected_by_signal (score=-0.19983329860387578)': 1
+      'ma200: rejected_by_signal (score=-0.10229497485109351)': 1
+      'ma200: rejected_by_signal (score=-0.1395429261401936)': 1
+      'ma200: rejected_by_signal (score=-0.3035534504850814)': 1
+      'ma200: rejected_by_signal (score=-0.17106682564015208)': 1
+      'ma200: rejected_by_signal (score=-0.03426268055089021)': 1
+      'ma200: rejected_by_signal (score=-0.301683680932751)': 1
+      'ma200: rejected_by_signal (score=-0.18421995699609783)': 1
+      'ma200: rejected_by_signal (score=-0.2121270175774702)': 1
+      'ma200: rejected_by_signal (score=-0.07160493827160497)': 1
+      'ma200: rejected_by_signal (score=-0.16941052627897668)': 1
+      'ma200: rejected_by_signal (score=-0.5674826783892591)': 1
+      'ma200: rejected_by_signal (score=-0.2753487914277326)': 1
+      'ma200: rejected_by_signal (score=-0.07562408712876567)': 1
+      'ma200: rejected_by_signal (score=-0.037073572466096216)': 1
+      'ma200: rejected_by_signal (score=-0.15516787396987064)': 1
+      'ma200: rejected_by_signal (score=-0.053093756061434294)': 1
+      'ma200: rejected_by_signal (score=-0.055472553401791025)': 1
+      'ma200: rejected_by_signal (score=-0.2477537755687249)': 1
+      'ma200: rejected_by_signal (score=-0.1143296560705176)': 1
+      'ma200: rejected_by_signal (score=-0.27414057271281334)': 1
+      'ma200: rejected_by_signal (score=-0.10967840970143528)': 1
+      'ma200: rejected_by_signal (score=-0.022920555278809873)': 1
+      'ma200: rejected_by_signal (score=-0.10382945124358467)': 1
+      'ma200: rejected_by_signal (score=-0.1083272328972209)': 1
+      'ma200: rejected_by_signal (score=-0.41104823017393755)': 1
+      'ma200: rejected_by_signal (score=-0.3524722630785714)': 1
+      'ma200: rejected_by_signal (score=-0.3167647317116009)': 1
+      'ma200: rejected_by_signal (score=-0.1328686100549218)': 1
+      'ma200: rejected_by_signal (score=-0.005176174147654589)': 1
+      'ma200: rejected_by_signal (score=-0.1330741673987491)': 1
+      'ma200: rejected_by_signal (score=-0.0679895941062747)': 1
+      'ma200: rejected_by_signal (score=-0.012545164837631018)': 1
+      'ma200: rejected_by_signal (score=-0.05581332492454616)': 1
+      'ma200: rejected_by_signal (score=-0.2905992578316997)': 1
+      'ma200: rejected_by_signal (score=-0.09207489099769173)': 1
+      'ma200: rejected_by_signal (score=-0.04589665528279108)': 1
+      'ma200: rejected_by_signal (score=-0.0758323838460564)': 1
+      'ma200: rejected_by_signal (score=-0.14241500841905774)': 1
+      'ma200: rejected_by_signal (score=-0.03221525604218112)': 1
+      'ma200: rejected_by_signal (score=-0.1255778926008828)': 1
+      'ma200: rejected_by_signal (score=-0.13334456775560322)': 1
+      'ma200: rejected_by_signal (score=-0.14015020832780445)': 1
+      'ma200: rejected_by_signal (score=-0.28803097831235924)': 1
+      'ma200: rejected_by_signal (score=-0.14881304028067466)': 1
+      'ma200: rejected_by_signal (score=-0.19945410930476315)': 1
+      'ma200: rejected_by_signal (score=-0.27811795037060905)': 1
+      'ma200: rejected_by_signal (score=-0.3810717396978951)': 1
+      'ma200: rejected_by_signal (score=-0.044335161004653956)': 1
+      'ma200: rejected_by_signal (score=-0.13620364880787095)': 1
+      'ma200: rejected_by_signal (score=-0.13227314176824911)': 1
+      'ma200: rejected_by_signal (score=-0.13320707445513758)': 1
+      'ma200: rejected_by_signal (score=-0.08601802035392492)': 1
+      'ma200: rejected_by_signal (score=-0.042491469653876957)': 1
+      'ma200: rejected_by_signal (score=-0.18938747038377823)': 1
+      'ma200: rejected_by_signal (score=-0.3269072485504728)': 1
+      'ma200: rejected_by_signal (score=-0.0884449352474651)': 1
+      'ma200: rejected_by_signal (score=-0.28739637044883526)': 1
+      'ma200: rejected_by_signal (score=-0.2510992313288837)': 1
+      'ma200: rejected_by_signal (score=-0.0926640926640927)': 1
+      'ma200: rejected_by_signal (score=-0.05446350319268811)': 1
+      'ma200: rejected_by_signal (score=-0.2645790139135993)': 1
+      'ma200: rejected_by_signal (score=-0.17045945575309396)': 1
+      'ma200: rejected_by_signal (score=-0.10726704036382106)': 1
+      'ma200: rejected_by_signal (score=-0.15233723422515433)': 1
+      'ma200: rejected_by_signal (score=-0.14016738319384736)': 1
+      'ma200: rejected_by_signal (score=-0.03386881318670476)': 1
+      'ma200: rejected_by_signal (score=-0.3216907097063828)': 1
+      'ma200: rejected_by_signal (score=-0.15937983819969903)': 1
+      'ma200: rejected_by_signal (score=-0.014036008823218538)': 1
+      'ma200: rejected_by_signal (score=-0.08131185242271888)': 1
+      'ma200: rejected_by_signal (score=-0.24688347453173287)': 1
+      'ma200: rejected_by_signal (score=-0.03229402354188826)': 1
+      'ma200: rejected_by_signal (score=-0.11028041469239647)': 1
+      'ma200: rejected_by_signal (score=-0.22466984195713358)': 1
+      'ma200: rejected_by_signal (score=-0.11589027887860237)': 1
+      'ma200: rejected_by_signal (score=-0.17368900063512027)': 1
+      'ma200: rejected_by_signal (score=-0.18815033120408142)': 1
+      'ma200: rejected_by_signal (score=-0.14424702254222632)': 1
+      'ma200: rejected_by_signal (score=-0.0645033545876641)': 1
+      'ma200: rejected_by_signal (score=-0.033050967964734834)': 1
+      'ma200: rejected_by_signal (score=-0.24626763188354617)': 1
+      'ma200: rejected_by_signal (score=-0.19743995221968091)': 1
+      'ma200: rejected_by_signal (score=-0.017945575718914086)': 1
+      'ma200: rejected_by_signal (score=-0.2511969057333554)': 1
+      'ma200: rejected_by_signal (score=-0.3062789431170664)': 1
+      'ma200: rejected_by_signal (score=-0.18813758012620663)': 1
+      'ma200: rejected_by_signal (score=-0.07990799079907995)': 1
+      'ma200: rejected_by_signal (score=-0.21268779924054815)': 1
+      'ma200: rejected_by_signal (score=-0.10714637209320643)': 1
+      'ma200: rejected_by_signal (score=-0.33715029135951413)': 1
+      'ma200: rejected_by_signal (score=-0.11625082588919144)': 1
+      'ma200: rejected_by_signal (score=-0.15343816356884277)': 1
+      'ma200: rejected_by_signal (score=-0.0021560927849011424)': 1
+      'ma200: rejected_by_signal (score=-0.11831476690776621)': 1
+      'ma200: rejected_by_signal (score=-0.08856852035419427)': 1
+      'ma200: rejected_by_signal (score=-0.03734553150815867)': 1
+      'ma200: rejected_by_signal (score=-0.06590035435683617)': 1
+      'ma200: rejected_by_signal (score=-0.08762191427398713)': 1
+      'ma200: rejected_by_signal (score=-0.1784841075794621)': 1
+      'ma200: rejected_by_signal (score=-0.2146638883448544)': 1
+      'ma200: rejected_by_signal (score=-0.017897987191216824)': 1
+      'ma200: rejected_by_signal (score=-0.11051072894477065)': 1
+      'ma200: rejected_by_signal (score=-0.22523905911914566)': 1
+      'ma200: rejected_by_signal (score=-0.237331549930075)': 1
+      'ma200: rejected_by_signal (score=-0.10682594760681274)': 1
+      'ma200: rejected_by_signal (score=-0.2083727299403345)': 1
+      'ma200: rejected_by_signal (score=-0.08177765901886247)': 1
+      'ma200: rejected_by_signal (score=-0.14058207523187072)': 1
+      'ma200: rejected_by_signal (score=-0.3538888829337584)': 1
+      'ma200: rejected_by_signal (score=-0.19121511878436026)': 1
+      'ma200: rejected_by_signal (score=-0.2889085423694966)': 1
+      'ma200: rejected_by_signal (score=-0.15295147493289918)': 1
+      'ma200: rejected_by_signal (score=-0.5131295690418582)': 1
+      'ma200: rejected_by_signal (score=-0.07227234310199104)': 1
+      'ma200: rejected_by_signal (score=-0.036243399805198195)': 1
+      'ma200: rejected_by_signal (score=-0.31920792643267804)': 1
+      'ma200: rejected_by_signal (score=-0.13809623968777018)': 1
+      'ma200: rejected_by_signal (score=-0.17906921804866527)': 1
+      'ma200: rejected_by_signal (score=-0.4460066518737429)': 1
+      'ma200: rejected_by_signal (score=-0.14420747302293235)': 1
+      'ma200: rejected_by_signal (score=-0.17865664087918443)': 1
+      'ma200: rejected_by_signal (score=-0.29421877709830413)': 1
+      'ma200: rejected_by_signal (score=-0.20558687368122697)': 1
+      'ma200: rejected_by_signal (score=-0.011955340381385238)': 1
+      'ma200: rejected_by_signal (score=-0.2634493522318736)': 1
+      'ma200: rejected_by_signal (score=-0.2445776365826785)': 1
+      'ma200: rejected_by_signal (score=-0.11384308157948109)': 1
+      'ma200: rejected_by_signal (score=-0.15787200734162865)': 1
+      'ma200: rejected_by_signal (score=-0.29729783607603144)': 1
+      'ma200: rejected_by_signal (score=-0.06382195172771365)': 1
+      'ma200: rejected_by_signal (score=-0.1040152201718696)': 1
+      'ma200: rejected_by_signal (score=-0.1652009555561389)': 1
+      'ma200: rejected_by_signal (score=-0.4250855430246706)': 1
+      'ma200: rejected_by_signal (score=-0.1742373005282688)': 1
+      'ma200: rejected_by_signal (score=-0.10992860287502626)': 1
+      'ma200: rejected_by_signal (score=-0.012341832542090425)': 1
+      'ma200: rejected_by_signal (score=-0.14585824820252724)': 1
+      'ma200: rejected_by_signal (score=-0.16412969585907256)': 1
+      'ma200: rejected_by_signal (score=-0.1834847539126615)': 1
+      'ma200: rejected_by_signal (score=-0.09417799547089001)': 1
+      'ma200: rejected_by_signal (score=-0.1341172911861458)': 1
+      'ma200: rejected_by_signal (score=-0.06332199910181557)': 1
+      'ma200: rejected_by_signal (score=-0.4738907236046169)': 1
+      'ma200: rejected_by_signal (score=-0.10141766630316251)': 1
+      'ma200: rejected_by_signal (score=-0.3489614196433509)': 1
+      'ma200: rejected_by_signal (score=-0.15488748767295224)': 1
+      'ma200: rejected_by_signal (score=-0.2889582090921602)': 1
+      'ma200: rejected_by_signal (score=-0.23663589972393406)': 1
+      'ma200: rejected_by_signal (score=-0.07549720915720015)': 1
+      'ma200: rejected_by_signal (score=-0.2514419767278657)': 1
+      'ma200: rejected_by_signal (score=-0.24508197545259902)': 1
+      'ma200: rejected_by_signal (score=-0.057989600578263856)': 1
+      'ma200: rejected_by_signal (score=-0.13626970674963435)': 1
+      'ma200: rejected_by_signal (score=-0.42723573053761843)': 1
+      'ma200: rejected_by_signal (score=-0.1305155843466257)': 1
+      'ma200: rejected_by_signal (score=-0.3073608516191554)': 1
+      'ma200: rejected_by_signal (score=-0.05563760632162218)': 1
+      'ma200: rejected_by_signal (score=-0.1401863516532169)': 1
+      'ma200: rejected_by_signal (score=-0.3742698968967444)': 1
+      'ma200: rejected_by_signal (score=-0.2786782888737358)': 1
+      'ma200: rejected_by_signal (score=-0.11735029611756964)': 1
+      'ma200: rejected_by_signal (score=-0.08414771908809016)': 1
+      'ma200: rejected_by_signal (score=-0.0003978738337603316)': 1
+      'ma200: rejected_by_signal (score=-0.19761867487259077)': 1
+      'ma200: rejected_by_signal (score=-0.04890610269770723)': 1
+      'ma200: rejected_by_signal (score=-0.14524555214167145)': 1
+      'ma200: rejected_by_signal (score=-0.7482150426283101)': 1
+      'ma200: rejected_by_signal (score=-0.05119263623109582)': 1
+      'ma200: rejected_by_signal (score=-0.3138799003464964)': 1
+      'ma200: rejected_by_signal (score=-0.11602809186800078)': 1
+      'ma200: rejected_by_signal (score=-0.26241099406315604)': 1
+      'ma200: rejected_by_signal (score=-0.014895386642759134)': 1
+      'ma200: rejected_by_signal (score=-0.5010957714331883)': 1
+      'ma200: rejected_by_signal (score=-0.3086537886490043)': 1
+      'ma200: rejected_by_signal (score=-0.05353316382310136)': 1
+      'ma200: rejected_by_signal (score=-0.32660715843340216)': 1
+      'ma200: rejected_by_signal (score=-0.0536872813828938)': 1
+      'ma200: rejected_by_signal (score=-0.07532475551679152)': 1
+      'ma200: rejected_by_signal (score=-0.16622255840739908)': 1
+      'ma200: rejected_by_signal (score=-0.21548416652350677)': 1
+      'ma200: rejected_by_signal (score=-0.10889978251113341)': 1
+      'ma200: rejected_by_signal (score=-0.06222895700138664)': 1
+      'ma200: rejected_by_signal (score=-0.34373822760031403)': 1
+      'ma200: rejected_by_signal (score=-0.10677850827476765)': 1
+      'ma200: rejected_by_signal (score=-0.2790556962804197)': 1
+      'ma200: rejected_by_signal (score=-0.3166771324172917)': 1
+      'ma200: rejected_by_signal (score=-0.20033539331076677)': 1
+      'ma200: rejected_by_signal (score=-0.1313212736195737)': 1
+      'ma200: rejected_by_signal (score=-0.055856733873423825)': 1
+      'ma200: rejected_by_signal (score=-0.46712505371723245)': 1
+      'ma200: rejected_by_signal (score=-0.29399205842155063)': 1
+      'ma200: rejected_by_signal (score=-0.13685209960726774)': 1
+      'ma200: rejected_by_signal (score=-0.16380836380962593)': 1
+      'ma200: rejected_by_signal (score=-0.20778313244287383)': 1
+      'ma200: rejected_by_signal (score=-0.4689169474269761)': 1
+      'ma200: rejected_by_signal (score=-0.710110777138755)': 1
+      'ma200: rejected_by_signal (score=-0.6023059091609371)': 1
+      'ma200: rejected_by_signal (score=-0.1270355444772645)': 1
+      'ma200: rejected_by_signal (score=-0.40167730629615717)': 1
+      'ma200: rejected_by_signal (score=-0.3723725501805909)': 1
+      'ma200: rejected_by_signal (score=-0.03592714838648403)': 1
+      'ma200: rejected_by_signal (score=-0.21031072372699555)': 1
+      'ma200: rejected_by_signal (score=-0.2657563763262055)': 1
+      'ma200: rejected_by_signal (score=-0.24183048353300596)': 1
+      'ma200: rejected_by_signal (score=-0.208351887585968)': 1
+      'ma200: rejected_by_signal (score=-0.11673127025481356)': 1
+      'ma200: rejected_by_signal (score=-0.40155000207219527)': 1
+      'ma200: rejected_by_signal (score=-0.26484012310260285)': 1
+      'ma200: rejected_by_signal (score=-0.10273578566214325)': 1
+      'ma200: rejected_by_signal (score=-0.32091123822533363)': 1
+      'ma200: rejected_by_signal (score=-0.10682169084077187)': 1
+      'ma200: rejected_by_signal (score=-0.04482741193713047)': 1
+      'ma200: rejected_by_signal (score=-0.1969391707954724)': 1
+      'ma200: rejected_by_signal (score=-0.26497767920611903)': 1
+      'ma200: rejected_by_signal (score=-0.06174456309678111)': 1
+      'ma200: rejected_by_signal (score=-0.37280985648282483)': 1
+      'ma200: rejected_by_signal (score=-0.17858100574428748)': 1
+      'ma200: rejected_by_signal (score=-0.42944390871102534)': 1
+      'ma200: rejected_by_signal (score=-0.21852120165852307)': 1
+      'ma200: rejected_by_signal (score=-0.591141729402179)': 1
+      'ma200: rejected_by_signal (score=-0.02796404908221073)': 1
+      'ma200: rejected_by_signal (score=-0.0950093863520004)': 1
+      'ma200: rejected_by_signal (score=-0.11368363932350545)': 1
+      'ma200: rejected_by_signal (score=-0.23741610314578476)': 1
+      'ma200: rejected_by_signal (score=-0.16641550053821308)': 1
+      'ma200: rejected_by_signal (score=-0.4940575628848265)': 1
+      'ma200: rejected_by_signal (score=-0.3483738877076936)': 1
+      'ma200: rejected_by_signal (score=-0.18664314271377935)': 1
+      'ma200: rejected_by_signal (score=-0.03148270336506742)': 1
+      'ma200: rejected_by_signal (score=-0.23274729574866537)': 1
+      'ma200: rejected_by_signal (score=-0.25295774647887326)': 1
+      'ma200: rejected_by_signal (score=-0.3308454510359028)': 1
+      'ma200: rejected_by_signal (score=-0.27763132982829186)': 1
+      'ma200: rejected_by_signal (score=-0.27393423918680637)': 1
+      'ma200: rejected_by_signal (score=-0.07442621298277607)': 1
+      'ma200: rejected_by_signal (score=-0.16025583683692646)': 1
+      'ma200: rejected_by_signal (score=-0.029719923356027578)': 1
+      'ma200: rejected_by_signal (score=-0.30592083386235713)': 1
+      'ma200: rejected_by_signal (score=-0.12696701875404193)': 1
+      'ma200: rejected_by_signal (score=-0.34301958307012004)': 1
+      'ma200: rejected_by_signal (score=-0.10581455439497622)': 1
+      'ma200: rejected_by_signal (score=-0.5378790540303162)': 1
+      'ma200: rejected_by_signal (score=-0.13730460498521335)': 1
+      'ma200: rejected_by_signal (score=-0.08506903514483144)': 1
+      'ma200: rejected_by_signal (score=-0.0020840622480490234)': 1
+      'ma200: rejected_by_signal (score=-0.661751602188496)': 1
+      'ma200: rejected_by_signal (score=-0.10453934443180646)': 1
+      'ma200: rejected_by_signal (score=-0.1434660208455194)': 1
+      'ma200: rejected_by_signal (score=-0.26186011251645847)': 1
+      'ma200: rejected_by_signal (score=-0.09628862043576669)': 1
+      'ma200: rejected_by_signal (score=-0.08901046805130242)': 1
+      'ma200: rejected_by_signal (score=-0.24868073388588574)': 1
+      'ma200: rejected_by_signal (score=-0.16266677943881758)': 1
+      'ma200: rejected_by_signal (score=-0.21729957805907174)': 1
+      'ma200: rejected_by_signal (score=-0.23062678828497873)': 1
+      'ma200: rejected_by_signal (score=-0.22821678751382568)': 1
+      'ma200: rejected_by_signal (score=-0.10977916431255985)': 1
+      'ma200: rejected_by_signal (score=-0.1361222944885231)': 1
+      'ma200: rejected_by_signal (score=-0.27787567914585964)': 1
+      'ma200: rejected_by_signal (score=-0.05589261298355608)': 1
+      'ma200: rejected_by_signal (score=-0.4037272671020583)': 1
+      'ma200: rejected_by_signal (score=-0.26132437391283625)': 1
+      'ma200: rejected_by_signal (score=-0.25720574720033884)': 1
+      'ma200: rejected_by_signal (score=-0.2757374259352652)': 1
+      'ma200: rejected_by_signal (score=-0.17395512158617876)': 1
+      'ma200: rejected_by_signal (score=-0.27498452214148394)': 1
+      'ma200: rejected_by_signal (score=-0.1321219893754042)': 1
+      'ma200: rejected_by_signal (score=-0.1638610381442155)': 1
+      'ma200: rejected_by_signal (score=-0.32095989703012784)': 1
+      'ma200: rejected_by_signal (score=-0.17654729419719406)': 1
+      'ma200: rejected_by_signal (score=-0.2971651868933045)': 1
+      'ma200: rejected_by_signal (score=-0.18343096106824297)': 1
+      'ma200: rejected_by_signal (score=-0.246544180489236)': 1
+      'ma200: rejected_by_signal (score=-0.20115280226083554)': 1
+      'ma200: rejected_by_signal (score=-0.13863807985663235)': 1
+      'ma200: rejected_by_signal (score=-0.15052413746310678)': 1
+      'ma200: rejected_by_signal (score=-0.23929905199655277)': 1
+      'ma200: rejected_by_signal (score=-0.14347024328704605)': 1
+      'ma200: rejected_by_signal (score=-0.06138425593462049)': 1
+      'ma200: rejected_by_signal (score=-0.2857711848502482)': 1
+      'ma200: rejected_by_signal (score=-0.2684271183043544)': 1
+      'ma200: rejected_by_signal (score=-0.2028049930937671)': 1
+      'ma200: rejected_by_signal (score=-0.14261785455732678)': 1
+      'ma200: rejected_by_signal (score=-0.29172813713938694)': 1
+      'ma200: rejected_by_signal (score=-0.24347200708121264)': 1
+      'ma200: rejected_by_signal (score=-0.06700099131144666)': 1
+      'ma200: rejected_by_signal (score=-0.11186666012826174)': 1
+      'ma200: rejected_by_signal (score=-0.039272121432811447)': 1
+      'ma200: rejected_by_signal (score=-0.19376364544763913)': 1
+      'ma200: rejected_by_signal (score=-0.16587700250415127)': 1
+      'ma200: rejected_by_signal (score=-0.5342598915939141)': 1
+      'ma200: rejected_by_signal (score=-0.08647531726578384)': 1
+      'ma200: rejected_by_signal (score=-0.03853759282858027)': 1
+      'ma200: rejected_by_signal (score=-0.18855904976960214)': 1
+      'ma200: rejected_by_signal (score=-0.07926949376705972)': 1
+      'ma200: rejected_by_signal (score=-0.26944144868724906)': 1
+      'ma200: rejected_by_signal (score=-0.053750611084872446)': 1
+      'ma200: rejected_by_signal (score=-0.22883620746965205)': 1
+      'ma200: rejected_by_signal (score=-0.2999434482003758)': 1
+      'ma200: rejected_by_signal (score=-0.1213160686877427)': 1
+      'ma200: rejected_by_signal (score=-0.04166534446101611)': 1
+      'ma200: rejected_by_signal (score=-0.19687826126412267)': 1
+      'ma200: rejected_by_signal (score=-0.27092996289424864)': 1
+      'ma200: rejected_by_signal (score=-0.26207925939591115)': 1
+      'ma200: rejected_by_signal (score=-0.2962419319164338)': 1
+      'ma200: rejected_by_signal (score=-0.01299445019916956)': 1
+      'ma200: rejected_by_signal (score=-0.2802920231038999)': 1
+      'ma200: rejected_by_signal (score=-0.3610002935944596)': 1
+      'ma200: rejected_by_signal (score=-0.1365210478705422)': 1
+      'ma200: rejected_by_signal (score=-0.34742917721891753)': 1
+      'ma200: rejected_by_signal (score=-0.46046915000958977)': 1
+      'ma200: rejected_by_signal (score=-0.04328575719482486)': 1
+      'ma200: rejected_by_signal (score=-0.13629605759933205)': 1
+      'ma200: rejected_by_signal (score=-0.03682904531800968)': 1
+      'ma200: rejected_by_signal (score=-0.2142497966125254)': 1
+      'ma200: rejected_by_signal (score=-0.1385686317163367)': 1
+      'ma200: rejected_by_signal (score=-0.31887364317131384)': 1
+      'ma200: rejected_by_signal (score=-0.21054939914037596)': 1
+      'ma200: rejected_by_signal (score=-0.3109453678113051)': 1
+      'ma200: rejected_by_signal (score=-0.13737681171214433)': 1
+      'ma200: rejected_by_signal (score=-0.41844257961569153)': 1
+      'ma200: rejected_by_signal (score=-0.1634947331149863)': 1
+      'ma200: rejected_by_signal (score=-0.30637604998794976)': 1
+      'ma200: rejected_by_signal (score=-0.14074338637690043)': 1
+      'ma200: rejected_by_signal (score=-0.22581004497542367)': 1
+      'ma200: rejected_by_signal (score=-0.22731413135659762)': 1
+      'ma200: rejected_by_signal (score=-0.20378212357868897)': 1
+      'ma200: rejected_by_signal (score=-0.031640535201697406)': 1
+      'ma200: rejected_by_signal (score=-0.5221109735267704)': 1
+      'ma200: rejected_by_signal (score=-0.24400825461257125)': 1
+      'ma200: rejected_by_signal (score=-0.0611186622654224)': 1
+      'ma200: rejected_by_signal (score=-0.2416249364003964)': 1
+      'ma200: rejected_by_signal (score=-0.07501512152770629)': 1
+      'ma200: rejected_by_signal (score=-0.22126334065260678)': 1
+      'ma200: rejected_by_signal (score=-0.017675378870757763)': 1
+      'ma200: rejected_by_signal (score=-0.19770327261397402)': 1
+      'ma200: rejected_by_signal (score=-0.13159121133932727)': 1
+      'ma200: rejected_by_signal (score=-0.5700656071453409)': 1
+      'ma200: rejected_by_signal (score=-0.10050776005436723)': 1
+      'ma200: rejected_by_signal (score=-0.09843903287096256)': 1
+      'ma200: rejected_by_signal (score=-0.010382765746352107)': 1
+      'ma200: rejected_by_signal (score=-0.13133615695986411)': 1
+      'ma200: rejected_by_signal (score=-0.1185702537730059)': 1
+      'ma200: rejected_by_signal (score=-0.17351956692425308)': 1
+      'ma200: rejected_by_signal (score=-0.11335457463692888)': 1
+      'ma200: rejected_by_signal (score=-0.2842230838055473)': 1
+      'ma200: rejected_by_signal (score=-0.4214974018487553)': 1
+      'ma200: rejected_by_signal (score=-0.0933743002455687)': 1
+      'ma200: rejected_by_signal (score=-0.27302009819820827)': 1
+      'ma200: rejected_by_signal (score=-0.18820144223786328)': 1
+      'ma200: rejected_by_signal (score=-0.2877626766755852)': 1
+      'ma200: rejected_by_signal (score=-0.2123154479709739)': 1
+      'ma200: rejected_by_signal (score=-0.11067150042170248)': 1
+      'ma200: rejected_by_signal (score=-0.29649105936299536)': 1
+      'ma200: rejected_by_signal (score=-0.025612013423924607)': 1
+      'ma200: rejected_by_signal (score=-0.3147667563757529)': 1
+      'ma200: rejected_by_signal (score=-0.2055662970708546)': 1
+      'ma200: rejected_by_signal (score=-0.2751022751740472)': 1
+      'ma200: rejected_by_signal (score=-0.040444968321791674)': 1
+      'ma200: rejected_by_signal (score=-0.154305658097859)': 1
+      'ma200: rejected_by_signal (score=-0.35366504992557934)': 1
+      'ma200: rejected_by_signal (score=-0.0017787917327704017)': 1
+      'ma200: rejected_by_signal (score=-0.015163197121562555)': 1
+      'ma200: rejected_by_signal (score=-0.1952708595794166)': 1
+      'ma200: rejected_by_signal (score=-0.0787543121929345)': 1
+      'ma200: rejected_by_signal (score=-0.07835124811228567)': 1
+      'ma200: rejected_by_signal (score=-0.07330728703595513)': 1
+      'ma200: rejected_by_signal (score=-0.15990572275333126)': 1
+      'ma200: rejected_by_signal (score=-0.17430336014513048)': 1
+      'ma200: rejected_by_signal (score=-0.10268161737847947)': 1
+      'ma200: rejected_by_signal (score=-0.03914694997509982)': 1
+      'ma200: rejected_by_signal (score=-0.28437288173261777)': 1
+      'ma200: rejected_by_signal (score=-0.04955627958886111)': 1
+      'ma200: rejected_by_signal (score=-0.16179945606134916)': 1
+      'ma200: rejected_by_signal (score=-0.33367771593079065)': 1
+      'ma200: rejected_by_signal (score=-0.10147746746329489)': 1
+      'ma200: rejected_by_signal (score=-0.09508172251660574)': 1
+      'ma200: rejected_by_signal (score=-0.37788337936746474)': 1
+      'ma200: rejected_by_signal (score=-0.27933866962322595)': 1
+      'ma200: rejected_by_signal (score=-0.09361667450902056)': 1
+      'ma200: rejected_by_signal (score=-0.05927314151324736)': 1
+      'ma200: rejected_by_signal (score=-0.215341068623508)': 1
+      'ma200: rejected_by_signal (score=-0.03176762422981516)': 1
+      'ma200: rejected_by_signal (score=-0.03225410289054731)': 1
+      'ma200: rejected_by_signal (score=-0.3535864297977829)': 1
+      'ma200: rejected_by_signal (score=-0.18667176637343352)': 1
+      'ma200: rejected_by_signal (score=-0.11634756995581741)': 1
+      'ma200: rejected_by_signal (score=-0.053487136584859485)': 1
+      'ma200: rejected_by_signal (score=-0.09590840599121664)': 1
+      'ma200: rejected_by_signal (score=-0.1886766158301978)': 1
+      'ma200: rejected_by_signal (score=-0.04468441805359136)': 1
+      'ma200: rejected_by_signal (score=-0.04511847015518422)': 1
+      'ma200: rejected_by_signal (score=-0.03721012463016726)': 1
+      'ma200: rejected_by_signal (score=-0.17592048279841876)': 1
+      'ma200: rejected_by_signal (score=-0.012406061005088453)': 1
+      'ma200: rejected_by_signal (score=-0.020192553463406315)': 1
+      'ma200: rejected_by_signal (score=-0.014672036823935586)': 1
+      'ma200: rejected_by_signal (score=-0.3663038986086238)': 1
+      'ma200: rejected_by_signal (score=-0.006182082834890745)': 1
+      'ma200: rejected_by_signal (score=-0.13247217337071648)': 1
+      'ma200: rejected_by_signal (score=-0.19856348305381233)': 1
+      'ma200: rejected_by_signal (score=-0.16638666899171062)': 1
+      'ma200: rejected_by_signal (score=-0.3520751797578957)': 1
+      'ma200: rejected_by_signal (score=-0.27170107741691474)': 1
+      'ma200: rejected_by_signal (score=-0.3069760759658209)': 1
+      'ma200: rejected_by_signal (score=-0.2318487332890169)': 1
+      'ma200: rejected_by_signal (score=-0.3806172608732994)': 1
+      'ma200: rejected_by_signal (score=-0.47003038273023223)': 1
+      'ma200: rejected_by_signal (score=-0.05492976653933923)': 1
+      'ma200: rejected_by_signal (score=-0.5306801368378397)': 1
+      'ma200: rejected_by_signal (score=-0.28607853136155026)': 1
+      'ma200: rejected_by_signal (score=-0.17475974388288218)': 1
+      'ma200: rejected_by_signal (score=-0.40608339140157834)': 1
+      'ma200: rejected_by_signal (score=-0.06961002113540704)': 1
+      'ma200: rejected_by_signal (score=-0.15482732152308432)': 1
+      'ma200: rejected_by_signal (score=-0.4219963649531585)': 1
+      'ma200: rejected_by_signal (score=-0.2996079507029932)': 1
+      'ma200: rejected_by_signal (score=-0.3457735484350606)': 1
+      'ma200: rejected_by_signal (score=-0.12189403761788897)': 1
+      'ma200: rejected_by_signal (score=-0.251936375220124)': 1
+      'ma200: rejected_by_signal (score=-0.08232866799082328)': 1
+      'ma200: rejected_by_signal (score=-0.17278476959645006)': 1
+      'ma200: rejected_by_signal (score=-0.35954063604240283)': 1
+      'ma200: rejected_by_signal (score=-0.13922164568104223)': 1
+      'ma200: rejected_by_signal (score=-0.1239995895752104)': 1
+      'ma200: rejected_by_signal (score=-0.34430344005396163)': 1
+      'ma200: rejected_by_signal (score=-0.3216922498540199)': 1
+      'ma200: rejected_by_signal (score=-0.10151709562985889)': 1
+      'ma200: rejected_by_signal (score=-0.2539937534042568)': 1
+      'ma200: rejected_by_signal (score=-0.013415548704274638)': 1
+      'ma200: rejected_by_signal (score=-0.0017123545628473513)': 1
+      'ma200: rejected_by_signal (score=-0.24039863879436063)': 1
+      'ma200: rejected_by_signal (score=-0.3315374638331837)': 1
+      'ma200: rejected_by_signal (score=-0.09776666029275749)': 1
+      'ma200: rejected_by_signal (score=-0.19910464005914297)': 1
+      'ma200: rejected_by_signal (score=-0.38223240115718415)': 1
+      'ma200: rejected_by_signal (score=-0.49297379920803786)': 1
+      'ma200: rejected_by_signal (score=-0.05911257131093017)': 1
+      'ma200: rejected_by_signal (score=-0.025810987245154182)': 1
+      'ma200: rejected_by_signal (score=-0.05522923431752391)': 1
+      'ma200: rejected_by_signal (score=-0.4673135984721398)': 1
+      'ma200: rejected_by_signal (score=-0.016755292465134963)': 1
+      'ma200: rejected_by_signal (score=-0.1815303837541502)': 1
+      'ma200: rejected_by_signal (score=-0.4410936562399028)': 1
+      'ma200: rejected_by_signal (score=-0.21257557436517538)': 1
+      'ma200: rejected_by_signal (score=-0.15960017054337017)': 1
+      'ma200: rejected_by_signal (score=-0.0580562178033871)': 1
+      'ma200: rejected_by_signal (score=-0.24457550604339595)': 1
+      'ma200: rejected_by_signal (score=-0.2596046044379322)': 1
+      'ma200: rejected_by_signal (score=-0.27496556766591285)': 1
+      'ma200: rejected_by_signal (score=-0.28796544881522124)': 1
+      'ma200: rejected_by_signal (score=-0.09228080847840736)': 1
+      'ma200: rejected_by_signal (score=-0.19805598214318443)': 1
+      'ma200: rejected_by_signal (score=-0.23467561355562305)': 1
+      'ma200: rejected_by_signal (score=-0.3166674396673006)': 1
+      'ma200: rejected_by_signal (score=-0.47286118806022903)': 1
+      'ma200: rejected_by_signal (score=-0.26886796689606607)': 1
+      'ma200: rejected_by_signal (score=-0.3500055668364994)': 1
+      'ma200: rejected_by_signal (score=-0.31454349280124205)': 1
+      'ma200: rejected_by_signal (score=-0.10087546336461861)': 1
+      'ma200: rejected_by_signal (score=-0.08881956985716633)': 1
+      'ma200: rejected_by_signal (score=-0.20356482198671388)': 1
+      'ma200: rejected_by_signal (score=-0.022688585100544834)': 1
+      'ma200: rejected_by_signal (score=-0.09012694895426498)': 1
+      'ma200: rejected_by_signal (score=-0.2179663409741056)': 1
+      'ma200: rejected_by_signal (score=-0.352886286941405)': 1
+      'ma200: rejected_by_signal (score=-0.46381929178188164)': 1
+      'ma200: rejected_by_signal (score=-0.13733794590796644)': 1
+      'ma200: rejected_by_signal (score=-0.05980323024747325)': 1
+      'ma200: rejected_by_signal (score=-0.22437790110466327)': 1
+      'ma200: rejected_by_signal (score=-0.3752089269511788)': 1
+      'ma200: rejected_by_signal (score=-0.47994616067305707)': 1
+      'ma200: rejected_by_signal (score=-0.041799554062826316)': 1
+      'ma200: rejected_by_signal (score=-0.10521497296643689)': 1
+      'ma200: rejected_by_signal (score=-0.031107504677934106)': 1
+      'ma200: rejected_by_signal (score=-0.16006569783155566)': 1
+      'ma200: rejected_by_signal (score=-0.2945040363375453)': 1
+      'ma200: rejected_by_signal (score=-0.21624548349397976)': 1
+      'ma200: rejected_by_signal (score=-0.4568248502631005)': 1
+      'ma200: rejected_by_signal (score=-0.25216172002804393)': 1
+      'ma200: rejected_by_signal (score=-0.3244099477269127)': 1
+      'ma200: rejected_by_signal (score=-0.6123112865515052)': 1
+      'ma200: rejected_by_signal (score=-0.11297453010467473)': 1
+      'ma200: rejected_by_signal (score=-0.36023812083254625)': 1
+      'ma200: rejected_by_signal (score=-0.11626127095740357)': 1
+      'ma200: rejected_by_signal (score=-0.2979596953646535)': 1
+      'ma200: rejected_by_signal (score=-0.3406372810166848)': 1
+      'ma200: rejected_by_signal (score=-0.07194400204486917)': 1
+      'ma200: rejected_by_signal (score=-0.2358556260129534)': 1
+      'ma200: rejected_by_signal (score=-0.37879942816995393)': 1
+      'ma200: rejected_by_signal (score=-0.12204249058474526)': 1
+      'ma200: rejected_by_signal (score=-0.06975553346106422)': 1
+      'ma200: rejected_by_signal (score=-0.27030722437704047)': 1
+      'ma200: rejected_by_signal (score=-0.5306861451499973)': 1
+      'ma200: rejected_by_signal (score=-0.16782488595715395)': 1
+      'ma200: rejected_by_signal (score=-0.28124890510583556)': 1
+      'ma200: rejected_by_signal (score=-0.21123878147050668)': 1
+      'ma200: rejected_by_signal (score=-0.2957672970198848)': 1
+      'ma200: rejected_by_signal (score=-0.4976164849151631)': 1
+      'ma200: rejected_by_signal (score=-0.15591319238785373)': 1
+      'ma200: rejected_by_signal (score=-0.3192975485301114)': 1
+      'ma200: rejected_by_signal (score=-0.0922174249972324)': 1
+      'ma200: rejected_by_signal (score=-0.2942828651171573)': 1
+      'ma200: rejected_by_signal (score=-0.049186322910952596)': 1
+      'ma200: rejected_by_signal (score=-0.3456678700361011)': 1
+      'ma200: rejected_by_signal (score=-0.45776459658400626)': 1
+      'ma200: rejected_by_signal (score=-0.4526853149779275)': 1
+      'ma200: rejected_by_signal (score=-0.15662370294541894)': 1
+      'ma200: rejected_by_signal (score=-0.33468169261000924)': 1
+      'ma200: rejected_by_signal (score=-0.16988931857581013)': 1
+      'ma200: rejected_by_signal (score=-0.02291305740881988)': 1
+      'ma200: rejected_by_signal (score=-0.08514963831497324)': 1
+      'ma200: rejected_by_signal (score=-0.5063427649803249)': 1
+      'ma200: rejected_by_signal (score=-0.3765817306503334)': 1
+      'ma200: rejected_by_signal (score=-0.14469478840812544)': 1
+      'ma200: rejected_by_signal (score=-0.3315172156162822)': 1
+      'ma200: rejected_by_signal (score=-0.2572401443177107)': 1
+      'ma200: rejected_by_signal (score=-0.38047613725494867)': 1
+      'ma200: rejected_by_signal (score=-0.024178783728319497)': 1
+      'ma200: rejected_by_signal (score=-0.11144367020530332)': 1
+      'ma200: rejected_by_signal (score=-0.11239396929887102)': 1
+      'ma200: rejected_by_signal (score=-0.38565414668823705)': 1
+      'ma200: rejected_by_signal (score=-0.14274692460459204)': 1
+      'ma200: rejected_by_signal (score=-0.33380804972008615)': 1
+      'ma200: rejected_by_signal (score=-0.2771630645847041)': 1
+      'ma200: rejected_by_signal (score=-0.1955674864647451)': 1
+      'ma200: rejected_by_signal (score=-0.5041041478842725)': 1
+      'ma200: rejected_by_signal (score=-0.15967823284521154)': 1
+      'ma200: rejected_by_signal (score=-0.4062868745282717)': 1
+      'ma200: rejected_by_signal (score=-0.3969444602477866)': 1
+      'ma200: rejected_by_signal (score=-0.4632473535112569)': 1
+      'ma200: rejected_by_signal (score=-0.32178553571516977)': 1
+      'ma200: rejected_by_signal (score=-0.03927124433969764)': 1
+      'ma200: rejected_by_signal (score=-0.33212102747681704)': 1
+      'ma200: rejected_by_signal (score=-0.22571752878222806)': 1
+      'ma200: rejected_by_signal (score=-0.14192594047494833)': 1
+      'ma200: rejected_by_signal (score=-0.16992577220847638)': 1
+      'ma200: rejected_by_signal (score=-0.6548035491011848)': 1
+      'ma200: rejected_by_signal (score=-0.19221397794694606)': 1
+      'ma200: rejected_by_signal (score=-0.41247316981467286)': 1
+      'ma200: rejected_by_signal (score=-0.0006070138607087161)': 1
+      'ma200: rejected_by_signal (score=-0.0632002752285048)': 1
+      'ma200: rejected_by_signal (score=-0.4256798164976975)': 1
+      'ma200: rejected_by_signal (score=-0.5548507358873773)': 1
+      'ma200: rejected_by_signal (score=-0.1711144344500629)': 1
+      'ma200: rejected_by_signal (score=-0.26529593237869353)': 1
+      'ma200: rejected_by_signal (score=-0.15595274336209375)': 1
+      'ma200: rejected_by_signal (score=-0.06596741823113483)': 1
+      'ma200: rejected_by_signal (score=-0.030648993961751025)': 1
+      'ma200: rejected_by_signal (score=-0.7715766585228779)': 1
+      'ma200: rejected_by_signal (score=-0.18848772509910583)': 1
+      'ma200: rejected_by_signal (score=-0.7658923431778449)': 1
+      'ma200: rejected_by_signal (score=-0.1441262125751639)': 1
 previous_rebalance_date: '2026-04-03'
 expected_turnover: 0.95
 expected_cost: 0.00646
 random_seed: null
-test_suite_status: fast_155pass_1known_env_fail
+test_suite_status: not_run
 dry_run: true
-generated_at: '2026-07-20T00:49:59.179456'
+generated_at: '2026-08-11T02:05:02.064308'
