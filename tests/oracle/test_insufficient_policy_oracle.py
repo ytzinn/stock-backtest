@@ -48,13 +48,29 @@ def test_pass_policy_returns_result_untouched():
     assert out is r, '결과 객체가 교체되면 기존 태그 재현성을 보장할 수 없다'
 
 
+def test_key_absent_means_pass():
+    """키가 없으면 종전 동작 — 프레임워크 기본값 계약.
+
+    `[2026-08-12 갱신]` 종전 이 자리에는 "어떤 태그도 이 키를 선언하지 않는다"는
+    테스트가 있었다. 그건 스위치 도입 **시점의 사실**이었지 correctness 속성이
+    아니다. ablation.py 가 전 태그에 'reject'를 일괄 적용하면서 의도가 바뀌었으므로,
+    프레임워크 계약(키 부재 → 'pass')만 여기 남기고 태그별 의도는 아래에서 검증한다.
+    """
+    cfg = {'type': 'ma200', 'tag': 't', 'ma_window': 200}
+    assert build_momentum_criterion_filter(cfg).on_insufficient == 'pass'
+
+
 @pytest.mark.parametrize('tag', [t for t, c in ABLATION_CONFIGS.items()
                                  if isinstance(c.get('momentum_criterion'), dict)])
-def test_no_existing_tag_declares_the_key(tag):
-    """기존 태그 중 어느 것도 이 키를 갖지 않는다 → 전부 종전 동작."""
+def test_every_momentum_tag_is_fail_closed(tag):
+    """모멘텀 계열 전 태그가 fail-closed 여야 §14-5 이웃 비교가 동일 조건이 된다.
+
+    창 길이가 태그마다 달라 노출 정도가 다른데(ma300 300거래일 vs ma5_20 40거래일),
+    일부만 fail-closed 면 오염된 태그와 깨끗한 태그의 순위를 나란히 매기게 된다.
+    """
     cfg = ABLATION_CONFIGS[tag]['momentum_criterion']
-    assert 'on_insufficient' not in cfg, f'{tag}: 예상치 못한 on_insufficient 선언'
-    assert build_momentum_criterion_filter(dict(cfg)).on_insufficient == 'pass'
+    assert cfg.get('on_insufficient') == 'reject', f'{tag}: fail-closed 누락'
+    assert build_momentum_criterion_filter(dict(cfg)).on_insufficient == 'reject'
 
 
 # ── reject 정책 ──────────────────────────────────────────────────────────────

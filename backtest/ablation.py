@@ -395,6 +395,34 @@ ABLATION_CONFIGS: dict[str, dict] = {
                     'stability_rules': {'R1', 'R5', 'R6'}},
 }
 
+# ── `[2026-08-12]` 모멘텀 fail-closed 일괄 적용 (C′안) ──────────────────────
+#
+# `docs/설계/[이슈] 모멘텀필터_coverage_gate_미구현.md` 참조.
+# HardFilter는 상장 6개월(약 124거래일)에서 유니버스에 넣는데, 창이 그보다 긴
+# criterion은 그 틈의 종목을 "신호가 좋아서가 아니라 자료가 없어서" 통과시켰다.
+# 23개 태그 중 15개가 노출(요구 이력 > 124거래일):
+#   ma300 300 · mktresid126 274 · 52w70/75/80 252 · ma250 250 · ma60_200·ma120_200 220
+#   · ma200 200 · ma150 150 · absret126·signcount126 148 · ma20_120·ma5_120·ma60_120 140
+#
+# **태그별로 선언하지 않고 여기서 일괄 적용하는 이유**: 창 길이는 파라미터라
+# 태그마다 다르고, 노출 여부가 `요구 이력 > HardFilter 문턱`이라는 **계산 결과**다.
+# 태그마다 손으로 적으면 파라미터를 바꿀 때 노출 여부와 선언이 어긋난다.
+#
+# 깨끗한 8개(ma100 100 · ma2060_sl30 90 · cd3/cd7·ma5_60·ma_double_adapter 80 ·
+# sl10 70 · ma5_20 40)에도 함께 적용한다 — insufficient 가 구조적으로 0이라
+# **결과가 바뀌지 않으면서**(회귀 테스트로 확인) 계열 전체가 동일 규약을 갖는다.
+# §14-5 이웃 비교가 오염 태그와 깨끗한 태그를 섞어 매긴 순위였던 문제를 없앤다.
+#
+# setdefault 이므로 개별 태그가 'pass'를 명시하면 그쪽이 이긴다.
+for _cfg in ABLATION_CONFIGS.values():
+    _mc = _cfg.get('momentum_criterion')
+    if isinstance(_mc, dict):
+        _mc.setdefault('on_insufficient', 'reject')
+del _cfg, _mc
+
+# 레거시 `use_momentum` 경로(MomentumFilter, MA 20/60)는 요구 이력 80거래일 < 124 라
+# 노출되지 않고, MomentumCriterionFilter 를 타지 않아 이 스위치의 대상도 아니다.
+
 RANDOM_TAGS    = frozenset({'A_random', 'B_hard_random', 'C_stability_random', 'C_no_r6',
                             'C_pbr_path_random'})
 RANDOM_REPEATS = 500  # C_pbr_path_random은 1,000회 — fast-path 러너에서 별도 지정 (SPEC_10 §3-1)
