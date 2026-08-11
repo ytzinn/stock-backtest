@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Protocol
@@ -470,10 +470,18 @@ class MomentumCriterionFilter:
 
     stats_key = 'MomentumFilter'
 
-    def __init__(self, criterion: MomentumCriterion, tag: str, legacy_adapter: bool = False):
+    #: `on_insufficient` 허용값. 'pass' = 종전 동작(하위호환 기본값).
+    ON_INSUFFICIENT_CHOICES = ('pass', 'reject')
+
+    def __init__(self, criterion: MomentumCriterion, tag: str, legacy_adapter: bool = False,
+                 on_insufficient: str = 'pass'):
+        if on_insufficient not in self.ON_INSUFFICIENT_CHOICES:
+            raise ValueError(
+                f'on_insufficient={on_insufficient!r} — 허용: {self.ON_INSUFFICIENT_CHOICES}')
         self.criterion = criterion
         self.tag = tag
         self.legacy_adapter = legacy_adapter
+        self.on_insufficient = on_insufficient
         self.last_diagnostics: dict = {}
 
     def apply(self, tickers, rebalance_date, pit_series, conn):
@@ -481,6 +489,7 @@ class MomentumCriterionFilter:
         passed, rejected, diagnostics = [], {}, {}
         for ticker in tickers:
             result = self.criterion.evaluate(ticker, ctx)
+            result = self._apply_insufficient_policy(result)
             diagnostics[ticker] = result
             if result.passed:
                 passed.append(ticker)
@@ -489,6 +498,32 @@ class MomentumCriterionFilter:
         self.last_diagnostics = diagnostics
         self._write_diagnostics(rebalance_date, diagnostics)
         return passed, rejected
+
+    def _apply_insufficient_policy(self, result: CriterionResult) -> CriterionResult:
+        """`data_status == 'insufficient'` 결과의 통과/탈락을 정책으로 결정한다.
+
+        **개별 criterion이 아니라 여기 한 곳에서 처리하는 이유**: insufficient 통과는
+        `_classify_gap` 2곳 + 각 criterion의 창 길이 검사 8곳, 총 10개 반환 지점에서
+        발생한다. 반환 지점마다 분기를 넣으면 새 criterion을 추가할 때 빠뜨린다.
+
+        `'pass'`(기본값)는 종전 동작을 **비트 단위로** 유지한다 — 이 분기는 결과 객체를
+        건드리지 않고 그대로 돌려준다. 따라서 `on_insufficient` 키가 없는 기존 태그는
+        전부 불변이다(SPEC_14 §14-1 `rim_cut` 스위치와 동일한 하위호환 규약).
+
+        `'reject'`는 "판정 불가"를 "통과"로 취급하던 fail-open 을 닫는다.
+        HardFilter는 상장 6개월(약 124거래일)에서 유니버스에 넣는데 MA200은 200거래일,
+        52주 고가는 252거래일이 필요해 그 틈의 종목은 신호가 좋아서가 아니라 자료가
+        없어서 통과했다. MA 20/60(요구 80거래일 < 124)에서는 구조적으로 발생하지 않아
+        드러나지 않던 문제다. 실측: MA20/60 0.00% · MA200 1.77% · 52주고가 2.71%.
+        (`docs/설계/[이슈] 모멘텀필터_coverage_gate_미구현.md` C′안)
+
+        `data_status='invalid'` 는 이 정책의 대상이 아니다 — §4-4에서 별도로 다룬다.
+        """
+        if self.on_insufficient == 'pass' or result.data_status != 'insufficient':
+            return result
+        if not result.passed:
+            return result
+        return replace(result, passed=False, reason_code='rejected_insufficient_data')
 
     def _write_diagnostics(self, rebalance_date, diagnostics: dict) -> None:
         DIAG_DIR.mkdir(parents=True, exist_ok=True)
@@ -526,6 +561,9 @@ def build_momentum_criterion_filter(config: dict) -> MomentumCriterionFilter:
     config = dict(config)
     ctype = config.pop('type', None)
     tag = config.pop('tag', None)
+    # criterion 생성자 인자가 아니라 필터 정책이다 — 아래 ghost parameter 검사에
+    # 걸리지 않도록 여기서 미리 빼낸다. 키가 없으면 'pass'(종전 동작).
+    on_insufficient = config.pop('on_insufficient', 'pass')
     if ctype is None:
         raise ValueError("momentum_criterion.type 필수 (예: 'abs_return')")
     if tag is None:
@@ -543,4 +581,5 @@ def build_momentum_criterion_filter(config: dict) -> MomentumCriterionFilter:
     criterion = cls(**config)
     return MomentumCriterionFilter(
         criterion=criterion, tag=tag, legacy_adapter=(ctype == 'ma_double_adapter'),
+        on_insufficient=on_insufficient,
     )
