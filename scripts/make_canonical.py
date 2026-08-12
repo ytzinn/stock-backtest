@@ -150,7 +150,7 @@ def collect() -> dict:
         'abl_summary_has_key': key in (abl_summary.get('scenarios') or {}),
         'gates': gates, 'manifest': manifest,
         'tape_cap': _tape_cap(key),
-        'issues': [i for i in (issues.get('issues') or []) if i.get('status') != 'resolved'],
+        'issues': list(issues.get('issues') or []),
         'sources': {name: _sha256(p) for name, p in sources.items()},
         'constants': {'RF': C.RF, 'RK': C.RK, 'OMEGA': C.OMEGA, 'VB_CAP': C.VB_CAP},
     }
@@ -192,6 +192,17 @@ def check(d: dict) -> list[str]:
     for label, obj in (('구간 지표', d['abl_tag']), ('일별 지표', d['nav_tag'])):
         if obj is not None and not (obj.get('run_at') or obj.get('generated_at')):
             p.append(f'{label}(`{key}`)에 산출 일자가 없다 — 신선도를 판정할 수 없다.')
+
+    # 근거 문서 경로가 살아 있는가. 죽은 링크는 "근거가 있다"는 인상만 주고 확인은
+    # 막는다 — 2026-08-12 에 실제로 2건을 죽은 채로 커밋했고 사용자가 발견했다.
+    for i in d['issues']:
+        r = i.get('ref')
+        if r and not (ROOT / r).exists():
+            p.append(f'미해결 과제 `{i.get("id")}` 의 근거 경로가 없다: `{r}`')
+        # 해소된 항목은 지우는 것이 규약이다 — 파일 이름이 곧 계약(open_issues)이다.
+        if i.get('status') not in ('open', 'blocked'):
+            p.append(f'미해결 과제 `{i.get("id")}` 의 status 가 `{i.get("status")}` 다. '
+                     f'open|blocked 만 허용 — 해소됐으면 항목을 지워라.')
 
     m = d['manifest']
     if m is not None:

@@ -113,6 +113,32 @@ def test_each_check_fires(override, needle):
     assert any(needle in p for p in problems), f'{needle!r} 검사가 발화하지 않았다: {problems}'
 
 
+def test_dead_issue_ref_is_caught():
+    """미해결 과제의 근거 경로가 죽어 있으면 잡아야 한다.
+
+    죽은 링크는 "근거가 있다"는 인상만 주고 확인은 막는다. 2026-08-12 에 실제로
+    2건을 죽은 채로 커밋했고 사용자가 발견했다.
+    """
+    d = _base(issues=[{'id': 'X', 'status': 'open', 'severity': 'high', 'summary': 's',
+                       'ref': 'docs/설계/존재하지_않는_문서.md'}])
+    assert any('근거 경로가 없다' in p for p in check(d))
+
+
+def test_resolved_issue_left_in_file_is_caught():
+    """해소된 항목은 **지우는 것**이 규약이다 — 파일 이름이 곧 계약(open_issues)이다.
+
+    status 로 남겨두면 "열린 과제 목록"에 닫힌 과제가 섞인다. 해소 기록은 git 이력과
+    해당 SPEC 절이 갖는다.
+    """
+    d = _base(issues=[{'id': 'X', 'status': 'resolved', 'severity': 'high', 'summary': 's'}])
+    assert any('해소됐으면 항목을 지워라' in p for p in check(d))
+
+
+def test_live_issue_refs_all_resolve():
+    """실제 `docs/open_issues.yaml` 의 근거 경로가 전부 살아 있어야 한다."""
+    assert [p for p in check(collect()) if '근거 경로가 없다' in p] == []
+
+
 def test_gate_tag_misattribution_is_caught():
     """게이트 산출물이 **다른 전략** 것이면 잡아야 한다 — 2026-08-12 오귀속 재발 방지."""
     g = copy.deepcopy(_base()['gates'])

@@ -68,13 +68,11 @@ Sharpe·MDD 의 SSOT 는 일별 NAV 다 (SPEC_13 §9-1). 구간 지표는 엔진
 
 | id | 심각도 | 내용 | 근거 |
 |---|---|---|---|
-| `G5-MDD` | high | 일별 net MDD 가 SPEC_10 G5 한계선(−45%)을 위반한다. 종목 수 축으로는 풀리지 않는다 — 구간간 표준편차가 k=1 에서 k=20 까지 거의 줄지 않아 전 종목이 같은 저PBR 팩터에 물려 있다. | `docs/설계/SPEC_10_prereg_pbr_gate.md` |
-| `G1-NULL-N` | high | G1 귀무분포가 20종목 추첨이라 13종목 운영 설정을 판정할 수 없다. 같은 n 으로 재추첨해야 하며, 종목 수 감소는 분산을 키워 합격선을 올리는 방향이다. | `docs/검토/NEXT_SESSION_CANONICAL.md` |
-| `NULL-POOL-SPLIT` | high | 귀무분포 요약본(random_summary.json)은 2026-07-29 재추첨분인데 같은 디렉토리의 원시 데이터(draws·periods·contrib·pools)는 2026-07-20 판이다. 요약본만 복사되고 원시 데이터는 ~/qg_run 스냅샷 작업장에 남았다. /opt 에서 재실행하면 조용히 다른 G1 이 나온다. | `docs/검토/NEXT_SESSION_CANONICAL.md` |
+| `G5-MDD` | high | 일별 net MDD 가 SPEC_10 G5 한계선(−45%)을 위반한다. 종목 수 축으로는 풀리지 않는다 — 구간간 표준편차가 k=1 에서 k=20 까지 거의 줄지 않아 전 종목이 같은 저PBR 팩터에 물려 있다. | `docs/설계/SPEC_10_pbr_gate_robustness.md` |
 | `SECTOR-DATA` | high | 섹터 분류 데이터가 전무해 업종 집중도를 측정할 수 없다. 낙폭 원인 규명의 최대 병목이다 (pykrx 섹터 API 불작동 → DB 수동 입력 외 수단 없음). | `docs/검토/f_pbr_ma200_median_split.md` |
 | `TAPE-ASYNC` | medium | run_ablation 이 지표를 갱신해도 대응 holdings tape 은 그대로다. tape 에 생성 시각·코드 SHA·소스 지표 해시가 없어 소비처가 stale 을 감지할 수단이 없다. tape 자체가 없는 태그도 있다. | `docs/설계/[이슈] 모멘텀필터_coverage_gate_미구현.md` |
 | `CORR-GATE-003` | medium | universe_gate_pit 의 PK 에 시점 차원이 없어 정정 공시 이후 시점에는 게이트 판정이 stale 하다. | `docs/설계/SPEC_06_phases.md` |
-| `RF-ERP-SENS` | low | 할인율 r 이 고정값이라 출처가 불명확하고, 저금리 구간에서 기업가치를 과대 추정할 위험이 있다. 민감도 분석 미실시. | `docs/설계/SPEC_05_valuation.md` |
+| `RF-ERP-SENS` | low | 할인율 r 이 고정값이라 출처가 불명확하고, 저금리 구간에서 기업가치를 과대 추정할 위험이 있다. 민감도 분석 미실시. | `docs/설계/SPEC_04_models.md` |
 
 이 표의 원본은 `docs/open_issues.yaml` 이다. 거기를 고쳐라.
 
@@ -89,4 +87,4 @@ Sharpe·MDD 의 SSOT 는 일별 NAV 다 (SPEC_13 §9-1). 구간 지표는 엔진
 | `experiments/daily_nav/summary.json` | d9313004882d1bde |
 | `experiments/robustness/gate_results_F_pbr_ma200_n13.json` | 49db2dace297b722 |
 | `experiments/live/dryrun/manifest.yaml` | 7f3064fff5799ce0 |
-| `docs/open_issues.yaml` | f150a75d80e0b39d |
+| `docs/open_issues.yaml` | 8bb7d47fe94e2338 |
