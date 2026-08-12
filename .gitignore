@@ -23,6 +23,9 @@ experiments/reports/
 # 로컬 사본은 working tree 에 그대로 둔다 (untracked) — `git clean -fdx` 금지.
 experiments/robustness/*.csv.gz
 experiments/robustness/*_draws.csv
+# 날짜 접미사로 보존한 과거 추첨 원자료도 같은 정책 (2026-08-12: 최초 사전등록분
+# `*_20260720.*` 를 정규 이름에서 비켜 보존했다 — SPEC_10 §8-2).
+experiments/robustness/*_draws_*.csv
 experiments/robustness/pools.json
 experiments/robustness/pools_*.json
 experiments/ablation/*_holdings.json
