@@ -87,4 +87,4 @@ Sharpe·MDD 의 SSOT 는 일별 NAV 다 (SPEC_13 §9-1). 구간 지표는 엔진
 | `experiments/daily_nav/summary.json` | d9313004882d1bde |
 | `experiments/robustness/gate_results_F_pbr_ma200_n13.json` | 49db2dace297b722 |
 | `experiments/live/dryrun/manifest.yaml` | 7f3064fff5799ce0 |
-| `docs/open_issues.yaml` | 8bb7d47fe94e2338 |
+| `docs/open_issues.yaml` | 6633f6866587b02c |

@@ -18,7 +18,7 @@ import re
 
 import pytest
 
-from scripts.make_canonical import build, check, collect, render
+from scripts.make_canonical import _sha256, build, check, collect, render
 
 
 # ── 1. 멱등성 ────────────────────────────────────────────────────────────────
@@ -44,6 +44,20 @@ def test_every_timestamp_in_output_comes_from_a_source():
     found = set(re.findall(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}', text))
     orphans = {t for t in found if not any(a.startswith(t) for a in allowed)}
     assert not orphans, f'재료에 없는 타임스탬프가 찍혔다: {orphans}'
+
+
+def test_source_fingerprint_ignores_line_endings(tmp_path):
+    """소스 지문은 줄바꿈에 종속되면 안 된다.
+
+    git 이 텍스트 파일을 개발 PC(CRLF)와 서버(LF)로 다르게 체크아웃하므로, 원시
+    바이트를 해시하면 같은 내용에 다른 지문이 나온다. 그러면 한쪽에서 만든
+    CANONICAL.md 를 다른 쪽에서 `--check` 할 때 항상 실패한다 (2026-08-12 실제 발생).
+    """
+    lf = tmp_path / 'lf.yaml'
+    crlf = tmp_path / 'crlf.yaml'
+    lf.write_bytes(b'issues:\n  - id: X\n')
+    crlf.write_bytes(b'issues:\r\n  - id: X\r\n')
+    assert _sha256(lf) == _sha256(crlf)
 
 
 def test_output_does_not_depend_on_git_head():

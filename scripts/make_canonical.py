@@ -71,9 +71,18 @@ def _read_json(path: Path) -> dict | None:
 
 
 def _sha256(path: Path) -> str | None:
+    """소스 파일 지문. **줄바꿈을 정규화한 뒤** 해시한다.
+
+    원시 바이트를 그대로 해시하면 지문이 플랫폼에 종속된다 — git 이 텍스트 파일을
+    개발 PC(CRLF)와 서버(LF)로 서로 다르게 체크아웃하기 때문이다. 그러면 같은 내용인데
+    지문이 달라져, 한쪽에서 생성한 CANONICAL.md 를 다른 쪽에서 `--check` 하면 항상
+    실패한다 (2026-08-12 서버 교차 검사에서 발견). 지문이 말해야 하는 것은 "내용이
+    같은가"이지 "어느 OS 에서 체크아웃했는가"가 아니다.
+    """
     if not path.exists():
         return None
-    return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+    return hashlib.sha256(
+        path.read_bytes().replace(b'\r\n', b'\n')).hexdigest()[:16]
 
 
 def _freeze_constants() -> tuple[str, int]:
