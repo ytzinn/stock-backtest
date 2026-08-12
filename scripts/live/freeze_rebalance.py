@@ -136,6 +136,15 @@ def _rejection_summary(stats: dict) -> dict:
     return out
 
 
+def _artifact_key(tag: str) -> str:
+    """산출물 조회 키. 종목 수가 이름에 들어간다.
+
+    태그 이름만으로는 어느 n 의 산출물인지 알 수 없다 — 그게 2026-08-12 에 n=20 tape
+    을 n=13 운영에 쓰게 만든 함정이다. 명명 규약은 `run_ablation --n-stocks` 와 같다.
+    """
+    return f'{tag}_n{N_STOCKS}'
+
+
 def _previous_holdings(tag: str, signal_date: date) -> tuple[str | None, dict[str, float]]:
     """직전 리밸런싱 보유 (holdings tape에서 signal_date 이전 최신 구간).
 
@@ -149,7 +158,7 @@ def _previous_holdings(tag: str, signal_date: date) -> tuple[str | None, dict[st
     # 산출물 명명 규약: 기본 n 은 접미사 없음, 그 외는 `_n{K}`. N_STOCKS 를 바꾸면
     # 태그 이름은 그대로인데 가리켜야 할 tape 이 달라진다 — 여기서 해소한다.
     abl_dir = Path('experiments/ablation')
-    path = abl_dir / f'{tag}_n{N_STOCKS}_holdings.json'
+    path = abl_dir / f'{_artifact_key(tag)}_holdings.json'
     if not path.exists():
         path = abl_dir / f'{tag}_holdings.json'
     if not path.exists():
@@ -183,7 +192,7 @@ def _gate_status(tag: str) -> str:
     그 값은 옛 채택안 F_pbr_no_r3r4(n=20) 판정이라, 태그를 MA200 으로 바꾼 뒤에는
     **다른 전략의 성적표가 라이브 산출물에 복사되는** 상태였다.
     """
-    path = Path('experiments/robustness') / f'gate_results_{tag}.json'
+    path = Path('experiments/robustness') / f'gate_results_{_artifact_key(tag)}.json'
     if not path.exists():
         return f'SPEC_10 게이트 미산출 ({path.name} 없음)'
     r = json.loads(path.read_text(encoding='utf-8'))

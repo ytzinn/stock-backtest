@@ -41,6 +41,14 @@ RIM(잔여이익모델) 기반 한국 주식 멀티팩터 백테스트 머신.
 | `docs/설계/SPEC_07_regime.md` | 레짐 진단 유닛 (Phase A) | Phase A |
 | `docs/설계/SPEC_08_regime_phaseB.md` | 레짐 오버레이 Signal→Tilt (Phase B) | Phase B |
 | `docs/설계/SPEC_08_B05_timing_vs_deconcentration.md` | Phase B 타이밍 vs 분산 분해 | Phase B |
+| `docs/설계/SPEC_09_daily_nav.md` | 일별 NAV 엔진 — Sharpe·MDD 의 SSOT | Phase 2~4 |
+| `docs/설계/SPEC_10_pbr_gate_robustness.md` | 채택 관문 사전등록(G1/G2/G5) + 강건성 진단 | Phase 2~4 |
+| `docs/설계/SPEC_11_decomposition_live_manifest.md` | 기여 분해 + 라이브 동결 manifest | Phase 3~4 |
+| `docs/설계/SPEC_12_momentum_criteria_v0.3.md` | 모멘텀 기준 사전등록·비교 | Phase 2~4 |
+| `docs/설계/SPEC_13_rebalance_calendar_v0.7.md` | 리밸런싱 캘린더 + 비용 모델 | Phase 2~4 |
+| `docs/설계/SPEC_14_calendar_sensitivity_v0.3.md` | 캘린더 민감도 — 채택안 교체 근거 | Phase 2~4 |
+| `docs/CANONICAL.md` | **자동 생성** — 현행 채택 설정·성적·게이트 현황의 단일 출처 | 전체 |
+| `docs/open_issues.yaml` | 미해결 과제 (CANONICAL 입력, 사람이 편집) | 전체 |
 | `docs/설계/[계획] XBRL_PIT_구현.md` | DART XBRL 최초공시 수집 구현 계획 (룩어헤드 해소) | Phase 0~2 |
 | `docs/설계/[이슈] DART정정_룩어헤드.md` | DART 정정공시 룩어헤드 편향 이슈 분석 | Phase 0~2 |
 | `docs/검토/` | 백테스트 검토·모델개선 워크플로우 기록 (정적 보존) | 기록 |
@@ -151,7 +159,7 @@ RF, RK = 0.0263, 0.0873   # 두 파일에서 동일 값 유지
 | 항목 | 확정값 |
 |------|--------|
 | 가중 방식 | 동일가중 (1/N) |
-| 목표 종목 수 | **20개** (Bayesian 튜닝 범위: 10~30) |
+| 목표 종목 수 | **13개** (`[교체 2026-08-11]` 20 → 13, 사용자 결정. 근거·반대논거는 `docs/검토/f_pbr_ma200_median_split.md` §5. 현행값 출처는 `docs/CANONICAL.md`) |
 | 종목당 최대 비중 | 없음 — 동일가중 1/N (2026-07-05 5% 캡 폐지, SPEC_06 참조) |
 | 업종 최대 비중 | 25% |
 | KOSDAQ 최대 비중 | 60% |
@@ -197,7 +205,7 @@ RF, RK = 0.0263, 0.0873   # 두 파일에서 동일 값 유지
 |---------|--------|----------|------|
 | `beta_adj` (r 오프셋) | 0.0 | [-0.02, +0.02] | r = RF + β×(RK-RF) + **beta_adj**. β=1.0 고정 유지, r 수준만 미세 조정 |
 | `rim_threshold` | 0.05 | [-0.10, +0.20] | 밸류에이션 필터 임계값 (현재가 > FV×(1+rim_threshold) 제외) |
-| `n_stocks` | 20 | [10, 30] | 포트폴리오 목표 종목 수 |
+| `n_stocks` | **13** | [10, 30] | 포트폴리오 목표 종목 수. `[교체 2026-08-11]` 20 → 13 — 운영 확정값은 `scripts/live/freeze_rebalance.py:N_STOCKS`, 현황은 `docs/CANONICAL.md` |
 
 > `beta_adj`는 종목별 β 차이를 흡수하기 위한 전역 오프셋. β=1.0 고정은 유지.
 > `beta_adj` < 0: r 낙관적(할인율 낮음) → 적정가 상승. `beta_adj` > 0: r 보수적 → 적정가 하락.
@@ -206,7 +214,13 @@ RF, RK = 0.0263, 0.0873   # 두 파일에서 동일 값 유지
 
 > \* 업종 집중 상한 25%: `stocks.sector` 수동 업데이트 의존으로 데이터 신뢰도 불확실. Phase 2에서는 하드 룰로 유지. Phase 3 이후 sector 데이터 정비 완료 시 Bayesian 튜닝 대상 [15%, 40%] 검토.
 
-## 3-6. 재무안정성 필터 기준 (R1,R4,R5,R6 — R2/R3 폐기 2026-07-07)
+## 3-6. 재무안정성 필터 기준
+
+> `[정정 2026-08-12]` 이 절의 제목은 오랫동안 `R1,R4,R5,R6 — R2/R3 폐기` 였으나
+> **코드와 다르다.** 현행 채택안의 활성 규칙은 `backtest/ablation.py` 의
+> `ABLATION_CONFIGS['F_pbr_ma200']['stability_rules']` = **{R1, R2, R5, R6}** 이다
+> (R3·R4 미사용). 활성 규칙의 단일 출처는 코드이고, 그 파생 표기는
+> `docs/CANONICAL.md` 가 자동 생성한다 — 이 문서에 손으로 적지 마라.
 
 Bayesian 튜닝 대상에서 제외. 조건 충족 시 즉시 탈락. R1~R5 개별 검증(leave-one-out) 결과
 R2(R1과 완전 중복, 어떤 조합에서도 결과 불변)·R3(제거 시 CAGR·MDD 모두 개선)를 폐기 —
@@ -354,6 +368,15 @@ stock-backtest/                   # 실제 서버 경로: /opt/stock-backtest/
 > 이력: 2026-06-21 최초 실행 → RIM 산식 교체(Ohlson 지속성형) → 06-25 재실행 → 07-02 adj_close
 > 소급보정 후 재실행 → 07-05 STEP 3/3B 신호분리·FactorScreener 폐기 → **07-06 상장폐지 haircut
 > 버그 수정 후 전체 재실행**(아래는 최신 수치). 상세: 버전 이력 v5.0~v5.3.
+
+> ⚠️ **`[정정 2026-08-12]` 아래 두 블록 모두 낡았다 — 채택안 자체가 바뀌었다.**
+> 2026-08-10 모멘텀 **MA 20/60 → MA200**(SPEC_14 §14-4), 08-11 종목 수 **20 → 13**
+> (`docs/검토/f_pbr_ma200_median_split.md` §5). 아래에 "채택 후보"로 적힌
+> `F_pbr_no_r3r4` 는 **더 이상 채택안이 아니다.**
+>
+> **현행 채택 설정·성적·게이트 현황의 단일 출처는 `docs/CANONICAL.md`** 다 (산출물에서
+> 자동 생성 — 손으로 쓴 수치가 낡는 문제를 끊기 위해 만들었다). 이 문서에 수치를 다시
+> 적지 마라. 채택 상태는 **여전히 보류**이며 SPEC_10 G5(일별 net MDD)를 위반한다.
 
 > ⚠️ **`[정정 2026-07-30]` 아래 표는 2026-07-06 시점 값으로, 최신 수치가 아니다.**
 > 이후 PIT 재구축(07-18)과 `CORR-TTM-001` TTM 정렬 버그 수정(f1d2935)을 거쳐
