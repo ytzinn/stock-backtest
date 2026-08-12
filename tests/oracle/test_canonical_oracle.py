@@ -46,6 +46,16 @@ def test_every_timestamp_in_output_comes_from_a_source():
     assert not orphans, f'재료에 없는 타임스탬프가 찍혔다: {orphans}'
 
 
+def test_output_does_not_depend_on_git_head():
+    """생성 커밋 SHA 를 담지 않는다 — **자기참조**라서 멱등성이 원리적으로 깨진다.
+
+    파일이 HEAD 를 적는데 그 파일을 커밋하면 HEAD 가 바뀐다. 그러면 커밋 직후
+    `--check` 가 항상 실패해 검사가 영구히 빨간불이 된다. 2026-08-12 에 실제로
+    이 상태로 커밋했고, 서버 교차 검사에서 발견했다.
+    """
+    assert 'git_sha' not in collect(), 'HEAD 의존 필드가 되살아났다'
+
+
 # ── 2. 태그 키 조립 ──────────────────────────────────────────────────────────
 
 def test_lookup_key_carries_n_stocks():
@@ -71,7 +81,7 @@ def _base(**over):
                      'config_hash': 'abc', 'git_commit_sha': 'deadbeef',
                      'signal_date': '2026-08-10', 'expected_turnover': 0.92},
         'tape_cap': 13,
-        'issues': [], 'sources': {}, 'git_sha': 'abc1234', 'config': {},
+        'issues': [], 'sources': {}, 'config': {},
         'constants': {'RF': 0.0263, 'RK': 0.0873, 'OMEGA': 0.62, 'VB_CAP': 5.0,
                       'MIN_STOCKS_WARN': 13},
     }

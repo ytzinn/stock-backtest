@@ -12,6 +12,10 @@ docs/CANONICAL.md 생성 — "지금 채택된 설정이 무엇이고, 성적이
 ## 무엇을 하지 않는가
 
 - SPEC 의 거울이 아니다. 판정 **논리·근거**는 SPEC 이 SSOT 이고 여기 담지 않는다.
+- **생성 커밋 SHA 를 찍지 않는다.** 자기참조라서다 — 파일이 HEAD 를 적는데 그 파일을
+  커밋하면 HEAD 가 바뀐다. 커밋할 때마다 멱등성 검사가 영구히 빨간불이 된다
+  (2026-08-12 실제로 발생, 서버 교차 검사에서 발견). 이 문서의 출처는 아래 소스 지문이
+  전부 규정하며, HEAD 는 재료의 속성이 아니다.
 - **생성 시각과 mtime 을 찍지 않는다.** 재생성 시 바이트가 달라져 멱등성 검사가 매번
   오작동하고, 그러면 진짜 변경을 못 잡는다. 신선도는 재료가 가진 `run_at`/`generated_at`
   이 이미 말해준다 — "요약본을 몇 시에 인쇄했나"는 정보가 아니다. mtime 은 git 이 보존
@@ -32,7 +36,6 @@ import hashlib
 import json
 import logging
 import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -92,14 +95,6 @@ def _freeze_constants() -> tuple[str, int]:
     return str(found['DEFAULT_TAG']), int(found['N_STOCKS'])
 
 
-def _git_sha() -> str:
-    try:
-        return subprocess.check_output(
-            ['git', 'rev-parse', '--short', 'HEAD'], cwd=ROOT).decode().strip()
-    except Exception:                                   # noqa: BLE001 — git 없이도 생성 가능
-        return 'unknown'
-
-
 def _load_manifest() -> dict | None:
     path = LIVE_DIR / 'dryrun/manifest.yaml'
     if not path.exists():
@@ -150,7 +145,6 @@ def collect() -> dict:
 
     return {
         'tag': tag, 'n_stocks': n_stocks, 'key': key,
-        'git_sha': _git_sha(),
         'config': cfg,
         'abl_tag': abl_tag, 'nav_tag': nav_tag,
         'abl_summary_has_key': key in (abl_summary.get('scenarios') or {}),
@@ -246,8 +240,7 @@ def render(d: dict, problems: list[str]) -> str:
     L += [f'# CANONICAL — 현행 채택 설정과 성적', '',
           '> ⚠️ **이 파일은 `scripts/make_canonical.py` 가 산출물에서 생성한다. 손으로 고치지 마라.**',
           '> 고쳐야 할 값이 있으면 그 값을 만든 산출물이나 `docs/open_issues.yaml` 을 고쳐라.',
-          '> 판정 **논리·근거**는 여기 없다 — SPEC 이 SSOT 다.', '',
-          f'생성 커밋 `{d["git_sha"]}`', '']
+          '> 판정 **논리·근거**는 여기 없다 — SPEC 이 SSOT 다.', '']
 
     if problems:
         L += ['## ⚠️ 정합성 경고', '',
