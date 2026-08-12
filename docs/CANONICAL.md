@@ -4,17 +4,13 @@
 > 고쳐야 할 값이 있으면 그 값을 만든 산출물이나 `docs/open_issues.yaml` 을 고쳐라.
 > 판정 **논리·근거**는 여기 없다 — SPEC 이 SSOT 다.
 
-생성 커밋 `8aba3c7`
+생성 커밋 `4fd05a0`
 
 ## ⚠️ 정합성 경고
 
 아래가 해소되기 전에는 이 문서의 값을 인용할 때 반드시 함께 인용하라.
 
-1. `ablation/summary.json` 에 `F_pbr_ma200_n13` 가 병합돼 있지 않다 — summary 만 읽는 소비자는 운영 설정을 볼 수 없다.
-2. `gate_results_F_pbr_ma200_n13.json` 이 없다 — SPEC_10 게이트가 **현행 채택안으로 산출된 적이 없다.** 다른 태그의 성적표를 대신 쓰지 않는다.
-3. 구간 지표(`F_pbr_ma200_n13`)에 산출 일자가 없다 — 신선도를 판정할 수 없다.
-4. 라이브 manifest 의 `strategy_version` 이 게이트 산출물 없이 PASS 를 주장한다 — 문자열에 박힌 옛 성적이다.
-5. 운영 종목 수 13 이 `MIN_STOCKS_WARN`(15) 아래다.
+1. 운영 종목 수 13 이 `MIN_STOCKS_WARN`(15) 아래다.
 
 ## 채택 설정
 
@@ -36,9 +32,9 @@
 
 | 지표 | 값 | 출처 | 산출 일자 |
 |---|---|---|---|
-| 구간 CAGR (gross) | 20.3329% | `ablation/F_pbr_ma200_n13.json` | — |
-| 구간 CAGR (net) | 18.6891% | `ablation/F_pbr_ma200_n13.json` | — |
-| 완결 구간 수 | 20 | `ablation/F_pbr_ma200_n13.json` | — |
+| 구간 CAGR (gross) | 20.3329% | `ablation/F_pbr_ma200_n13.json` | 2026-08-12T13:49:09 |
+| 구간 CAGR (net) | 18.6891% | `ablation/F_pbr_ma200_n13.json` | 2026-08-12T13:49:09 |
+| 완결 구간 수 | 20 | `ablation/F_pbr_ma200_n13.json` | 2026-08-12T13:49:09 |
 | **일별 net CAGR** | **18.5525%** | `daily_nav/summary.json` | 2026-08-11T23:35:40 |
 | 일별 net MDD | -58.12% | `daily_nav/summary.json` | 2026-08-11T23:35:40 |
 | 일별 net Sharpe | 0.725 | `daily_nav/summary.json` | 2026-08-11T23:35:40 |
@@ -47,17 +43,23 @@ Sharpe·MDD 의 SSOT 는 일별 NAV 다 (SPEC_13 §9-1). 구간 지표는 엔진
 
 ## SPEC_10 하드 게이트
 
-**미산출** — `gate_results_F_pbr_ma200_n13.json` 이 없다. 다른 태그의 게이트 결과를 여기 옮겨 적지 않는다. 그게 2026-08-12 에 실제로 일어난 오귀속이다.
+대상 `F_pbr_ma200_n13` · 귀무분포 `C_pbr_path_random_n13` (13종목) · 산출 2026-08-12T13:43:29
+
+| 게이트 | 판정 | 근거 |
+|---|---|---|
+| G1 | PASS | CAGR 20.33% vs 귀무 p95 15.61% |
+| G2 | PASS | net 18.69% vs U 6.93% |
+| G5 | **FAIL** | 일별 net MDD -58.12% vs 한계 -45.00% |
 
 ## 라이브 신호 (dry-run)
 
 | 항목 | 값 |
 |---|---|
 | 신호일 | 2026-08-10 |
-| config_hash | `3f21b139da84bf22` |
-| git_commit_sha | `9907ad884b33` |
+| config_hash | `4fa366d612d1050f` |
+| git_commit_sha | `0dfa0b17ca05` |
 | 편입 종목 수 | 13 |
-| 예상 회전율 | 95.00% |
+| 예상 회전율 | 92.31% |
 
 ## 상수
 
@@ -91,9 +93,9 @@ Sharpe·MDD 의 SSOT 는 일별 NAV 다 (SPEC_13 §9-1). 구간 지표는 엔진
 
 | 파일 | sha256(앞 16) |
 |---|---|
-| `experiments/ablation/summary.json` | 050cc12e1dfee1cc |
-| `experiments/ablation/F_pbr_ma200_n13.json` | a72aecd99e6884bf |
+| `experiments/ablation/summary.json` | f2839c3620434bda |
+| `experiments/ablation/F_pbr_ma200_n13.json` | 2dd881b92484c088 |
 | `experiments/daily_nav/summary.json` | d9313004882d1bde |
-| `experiments/robustness/gate_results_F_pbr_ma200_n13.json` | **없음** |
-| `experiments/live/dryrun/manifest.yaml` | 4e2bb11833da9cb1 |
+| `experiments/robustness/gate_results_F_pbr_ma200_n13.json` | 49db2dace297b722 |
+| `experiments/live/dryrun/manifest.yaml` | 7f3064fff5799ce0 |
 | `docs/open_issues.yaml` | f150a75d80e0b39d |
