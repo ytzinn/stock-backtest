@@ -152,8 +152,7 @@ def collect() -> dict:
         'tape_cap': _tape_cap(key),
         'issues': [i for i in (issues.get('issues') or []) if i.get('status') != 'resolved'],
         'sources': {name: _sha256(p) for name, p in sources.items()},
-        'constants': {'RF': C.RF, 'RK': C.RK, 'OMEGA': C.OMEGA, 'VB_CAP': C.VB_CAP,
-                      'MIN_STOCKS_WARN': C.MIN_STOCKS_WARN},
+        'constants': {'RF': C.RF, 'RK': C.RK, 'OMEGA': C.OMEGA, 'VB_CAP': C.VB_CAP},
     }
 
 
@@ -203,10 +202,6 @@ def check(d: dict) -> list[str]:
                 and d['gates'] is None:
             p.append('라이브 manifest 의 `strategy_version` 이 게이트 산출물 없이 PASS 를 '
                      '주장한다 — 문자열에 박힌 옛 성적이다.')
-
-    if n < d['constants']['MIN_STOCKS_WARN']:
-        p.append(f'운영 종목 수 {n} 이 `MIN_STOCKS_WARN`'
-                 f'({d["constants"]["MIN_STOCKS_WARN"]}) 아래다.')
 
     return p
 

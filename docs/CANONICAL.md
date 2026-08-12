@@ -4,12 +4,6 @@
 > 고쳐야 할 값이 있으면 그 값을 만든 산출물이나 `docs/open_issues.yaml` 을 고쳐라.
 > 판정 **논리·근거**는 여기 없다 — SPEC 이 SSOT 다.
 
-## ⚠️ 정합성 경고
-
-아래가 해소되기 전에는 이 문서의 값을 인용할 때 반드시 함께 인용하라.
-
-1. 운영 종목 수 13 이 `MIN_STOCKS_WARN`(15) 아래다.
-
 ## 채택 설정
 
 | 항목 | 값 |
@@ -67,7 +61,6 @@ Sharpe·MDD 의 SSOT 는 일별 NAV 다 (SPEC_13 §9-1). 구간 지표는 엔진
 | `RK` | 0.0873 |
 | `OMEGA` | 0.62 |
 | `VB_CAP` | 5.0 |
-| `MIN_STOCKS_WARN` | 15 |
 
 `backtest/configs/constants.py` 에서 import — 재선언 금지.
 

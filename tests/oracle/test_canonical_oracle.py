@@ -82,8 +82,7 @@ def _base(**over):
                      'signal_date': '2026-08-10', 'expected_turnover': 0.92},
         'tape_cap': 13,
         'issues': [], 'sources': {}, 'config': {},
-        'constants': {'RF': 0.0263, 'RK': 0.0873, 'OMEGA': 0.62, 'VB_CAP': 5.0,
-                      'MIN_STOCKS_WARN': 13},
+        'constants': {'RF': 0.0263, 'RK': 0.0873, 'OMEGA': 0.62, 'VB_CAP': 5.0},
     }
     d.update(over)
     return d
@@ -108,8 +107,6 @@ def test_missing_n_suffixed_metrics_is_reported_not_silently_substituted():
     ({'abl_summary_has_key': False},        '병합돼 있지 않다'),
     ({'tape_cap': 20},                      'tape 의 종목 수 상한이 20'),
     ({'tape_cap': None},                    'tape) 이 없다'),
-    ({'constants': {'RF': 0.0263, 'RK': 0.0873, 'OMEGA': 0.62, 'VB_CAP': 5.0,
-                    'MIN_STOCKS_WARN': 15}}, 'MIN_STOCKS_WARN'),
 ])
 def test_each_check_fires(override, needle):
     problems = check(_base(**override))

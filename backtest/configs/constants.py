@@ -31,5 +31,8 @@ def sell_cost(market: str | None) -> float:
 COST_SELL = 0.00505  # 구 TAX(0.33%) + COMMISSION/2 + SLIPPAGE/2
 COST_BUY  = 0.00175  # COMMISSION/2 + SLIPPAGE/2
 
-# 포트폴리오 최소 편입 종목 수 경고 임계값
-MIN_STOCKS_WARN = 15
+# `[폐기 2026-08-12, 사용자 결정]` MIN_STOCKS_WARN = 15 삭제.
+# 2026-08-11 에 운영 종목 수를 13 으로 채택하면서 이 임계값은 **매 구간 발화**하게 됐다.
+# 늘 켜져 있는 경고는 무시되고, 무시되는 경고는 진짜 이상을 가린다.
+# 목표 미달 감지는 engine 이 파이프라인의 목표 종목 수와 **상대 비교**로 대체한다
+# (고정값이 아니라 n 을 따라가므로 다시 낡지 않는다).

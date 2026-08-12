@@ -17,7 +17,7 @@ from datetime import date
 
 import pandas as pd
 
-from backtest.configs.constants import BUY_COST, MIN_STOCKS_WARN, sell_cost
+from backtest.configs.constants import BUY_COST, sell_cost
 from backtest.configs.schedule import RebalancePoint
 from backtest.data_access import (
     get_close_price,
@@ -140,10 +140,15 @@ class BacktestEngine:
                 # 5. 포트폴리오 구성
                 portfolio = build_portfolio(candidates, n_stocks=self.pipeline.n_stocks)
 
-                # 최소 편입 종목 수 경고 (DesignBug-3)
-                if 0 < len(portfolio) < MIN_STOCKS_WARN:
+                # 목표 종목 수 미달 경고 (DesignBug-3) — 유니버스가 목표를 못 채운 구간.
+                # `[교체 2026-08-12]` 고정 임계값 MIN_STOCKS_WARN=15 를 폐기하고 파이프라인의
+                # 목표 종목 수와 상대 비교한다. 고정값은 n=13 채택 후 매 구간 발화해 의미를
+                # 잃었다. 상대 판정은 n 을 바꿔도 따라가므로 다시 낡지 않는다.
+                # (n_stocks=None 인 전 종목 동일가중 파이프라인은 목표가 없어 대상 아님.)
+                target_n = self.pipeline.n_stocks
+                if target_n and 0 < len(portfolio) < target_n:
                     log.warning(
-                        f'  [최소종목미달] {rebal_date}: {len(portfolio)}종목 < {MIN_STOCKS_WARN}'
+                        f'  [목표종목미달] {rebal_date}: {len(portfolio)}종목 < 목표 {target_n}'
                     )
 
                 # 6. 구간 수익률 계산 — 상폐 3종 조정값 포함 (Gap-3)
