@@ -15,6 +15,7 @@ Ablation Test A~G 전체 실행 스크립트.
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import logging
 import os
@@ -43,6 +44,11 @@ logging.basicConfig(
     datefmt='%H:%M:%S',
 )
 log = logging.getLogger(__name__)
+
+# 기본 종목 수는 재선언하지 않고 build_ablation_pipeline 시그니처에서 읽는다
+# (CLAUDE.md 코드 정합성 규칙: 상수 재선언 금지). 그쪽이 바뀌면 여기도 따라간다.
+DEFAULT_N_STOCKS: int = inspect.signature(
+    build_ablation_pipeline).parameters['n_stocks'].default
 
 OUT_DIR = Path('experiments/ablation')
 
@@ -75,10 +81,15 @@ def _run_one(args: tuple) -> dict:
 
 
 def run_deterministic(tag: str, config: dict, rebalance_points: list[RebalancePoint],
-                      valuation_date: date | None = None) -> tuple[dict, list[dict]]:
-    """단일 실행 (D/E/F/G). (metrics_dict, period_results) 반환."""
-    log.info(f'[{tag}] 실행 시작')
-    pipeline = build_ablation_pipeline(tag, config, seed=None)
+                      valuation_date: date | None = None,
+                      n_stocks: int | None = None) -> tuple[dict, list[dict]]:
+    """단일 실행 (D/E/F/G). (metrics_dict, period_results) 반환.
+
+    `n_stocks`가 None이면 `build_ablation_pipeline`의 기본값(20)을 쓴다.
+    """
+    log.info(f'[{tag}] 실행 시작' + (f' (n_stocks={n_stocks})' if n_stocks else ''))
+    kw = {} if n_stocks is None else {'n_stocks': n_stocks}
+    pipeline = build_ablation_pipeline(tag, config, seed=None, **kw)
     engine   = BacktestEngine(pipeline)
     result   = engine.run(rebalance_points, run_name=tag, ablation_tag=tag,
                           valuation_date=valuation_date or date.today())
@@ -99,6 +110,9 @@ def run_deterministic(tag: str, config: dict, rebalance_points: list[RebalancePo
         'cagr_optimistic':    m.get('cagr_optimistic', 0.0),
         'cagr_conservative':  m.get('cagr_conservative', 0.0),
         'n_periods':          m['n_periods'],
+        # 종목 수는 지금까지 **어떤 산출물에도 기록되지 않았고** 태그 이름 문자열
+        # (`_n13`)에만 있었다. 이름과 내용이 어긋나도 아무도 못 잡던 원인이다.
+        'n_stocks':           n_stocks if n_stocks is not None else DEFAULT_N_STOCKS,
     }
     log.info(
         f'[{tag}] CAGR={m["cagr"]:.1%} (net={m.get("net_cagr", 0):.1%}) '
@@ -342,6 +356,12 @@ def main() -> None:
     parser.add_argument('--valuation-date', default=None,
                         help='열린 구간 평가 기준일 YYYY-MM-DD (기본: 오늘 — CLI에서 결정, '
                              '엔진은 date.today()를 내부 호출하지 않는다)')
+    # 2026-08-11 n 스윕(커밋 2421ee1)은 저장소에 없는 임시 스크립트로 돌아
+    # `run_at` 없이 summary 병합도 안 된 산출물을 남겼다 — 운영 설정(n=13)이 바로
+    # 그 산출물이었다. 스윕을 정규 경로로 끌어들여 재현 가능하게 한다.
+    parser.add_argument('--n-stocks', type=int, default=None,
+                        help='포트폴리오 종목 수. 지정 시 산출물 태그에 `_n{K}` 접미사가 '
+                             '붙는다 (기본: build_ablation_pipeline 기본값 20, 접미사 없음)')
     parser.add_argument('--calendar', choices=CALENDAR_CHOICES, default='SEMIANNUAL',
                         help='리밸런싱 캘린더 (SPEC_13 §7). 기본 SEMIANNUAL = 기존 동작·'
                              '기존 파일명. A/C는 산출물에 _A/_C 접미사가 붙는다.')
@@ -357,6 +377,11 @@ def main() -> None:
 
     rebalance_points = list(get_schedule(args.calendar))
     suffix           = tag_suffix(args.calendar)
+    # --n-stocks 를 **명시하면 항상** `_n{K}` 접미사를 붙인다 (K가 기본값 20이어도).
+    # 기존 스윕 산출물(_n10/_n12/_n13/_n20)이 이 규약이고, 소비처가 키를
+    # `f'{tag}_n{N_STOCKS}'` 로 조립할 수 있어야 조회가 균일해진다.
+    # 플래그를 안 주면 접미사 없음 = 종전 전체 실행과 비트 동일.
+    n_sfx            = '' if args.n_stocks is None else f'_n{args.n_stocks}'
     valuation_date   = (date.fromisoformat(args.valuation_date)
                        if args.valuation_date else date.today())
     log.info(f'valuation_date = {valuation_date}  calendar = {args.calendar} '
@@ -369,25 +394,36 @@ def main() -> None:
         if tag not in tags_to_run:
             continue
         config  = ABLATION_CONFIGS[tag]
-        out_tag = f'{tag}{suffix}'
+        # summary 안의 키는 캘린더 접미사를 갖지 않는다 (파일이 이미 캘린더별로 갈린다).
+        # n 접미사는 **갖는다** — n 이 다르면 다른 전략이라 같은 키를 쓰면 서로 덮는다.
+        key     = f'{tag}{n_sfx}'
+        out_tag = f'{key}{suffix}'
 
         if tag in RANDOM_TAGS:
-            results  = run_random_distribution(tag, config, rebalance_points, valuation_date,
+            # 귀무분포의 추첨 종목 수는 config의 `random_n`이 `n_stocks`를 이긴다
+            # (build_ablation_pipeline). --n-stocks 를 줬으면 그 의도를 따르게
+            # config 사본에서 갈아끼운다 — 판정 대상과 귀무분포의 n 이 어긋나면
+            # 게이트가 성립하지 않는다 (2026-08-12: n=13 전략을 n=20 풀로 판정 중이었다).
+            run_config = ({**config, 'random_n': args.n_stocks}
+                          if args.n_stocks is not None else config)
+            results  = run_random_distribution(tag, run_config, rebalance_points, valuation_date,
                                                n_repeats=args.repeats, n_workers=args.workers)
             save_distribution(tag, results, out_tag)
             cagrs = sorted(r['cagr'] for r in results)
             n     = len(cagrs)
-            dist_stats[tag] = {
+            dist_stats[key] = {
                 'median_cagr':  round(cagrs[n // 2], 6),
                 'p5_cagr':      round(cagrs[int(n * 0.05)], 6),
                 'p95_cagr':     round(cagrs[int(n * 0.95)], 6),
                 'n_repeats':    n,
+                'n_stocks':     run_config.get('random_n'),
             }
         else:
-            result, period_results = run_deterministic(tag, config, rebalance_points, valuation_date)
+            result, period_results = run_deterministic(tag, config, rebalance_points,
+                                                       valuation_date, n_stocks=args.n_stocks)
             save_deterministic(tag, result, out_tag)
             save_periods(tag, period_results, out_tag)
-            det_results[tag] = result
+            det_results[key] = result
 
     # 캘린더별 분리 저장 — 접미사 없이 쓰면 기존 공식 산출물(반기) 기록이 유실된다.
     # 캘린더 분리는 캘린더 간 유실만 막으므로, 같은 캘린더 안 태그 간 유실은

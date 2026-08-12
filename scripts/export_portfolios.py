@@ -54,8 +54,16 @@ def extract_portfolio_periods(
     config:           dict,
     rebalance_points: list[RebalancePoint],
     date_filter:      bool = True,
+    n_stocks:         int | None = None,
 ) -> list[dict]:
-    pipeline = build_ablation_pipeline(tag, config, seed=None)
+    """`n_stocks`가 None이면 `build_ablation_pipeline`의 기본값(20)을 쓴다.
+
+    tape 은 지표(`{tag}.json`)와 **같은 n 으로** 뽑아야 한다. 어긋나면 소비처가
+    조용히 다른 전략을 분석한다 (2026-08-12: n=13 운영인데 n=20 tape 만 존재해
+    freeze_rebalance 의 turnover 가 종목 수 전이분을 삼켰다).
+    """
+    kw = {} if n_stocks is None else {'n_stocks': n_stocks}
+    pipeline = build_ablation_pipeline(tag, config, seed=None, **kw)
     conn = get_connection()
     names = get_stock_names(conn)
     results = []
@@ -128,6 +136,9 @@ def main() -> None:
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--tags', nargs='+', help='추출할 태그 목록 (기본: 전체 결정론적 시나리오)')
+    parser.add_argument('--n-stocks', type=int, default=None,
+                        help='포트폴리오 종목 수. run_ablation --n-stocks 와 **같은 값**을 '
+                             '줘야 지표와 tape 의 n 이 일치한다. 지정 시 `_n{K}` 접미사.')
     parser.add_argument('--calendar', choices=CALENDAR_CHOICES, default='SEMIANNUAL',
                         help='리밸런싱 캘린더 (SPEC_13 §7). 기본 SEMIANNUAL = 기존 동작·'
                              '기존 파일명. A/C는 산출물에 _A/_C 접미사가 붙는다.')
@@ -140,15 +151,18 @@ def main() -> None:
 
     rebalance_points = list(get_schedule(args.calendar))
     suffix           = tag_suffix(args.calendar)
+    # run_ablation 과 동일한 명명 규약 — 명시하면 항상 `_n{K}`.
+    n_sfx            = '' if args.n_stocks is None else f'_n{args.n_stocks}'
     log.info(f'calendar = {args.calendar} ({len(rebalance_points)}개 앵커)')
 
     for tag in det_tags:
         config = ABLATION_CONFIGS[tag]
-        log.info(f'=== {tag}{suffix} 추출 시작 ===')
+        log.info(f'=== {tag}{n_sfx}{suffix} 추출 시작 ===')
         periods = extract_portfolio_periods(
-            tag, config, rebalance_points, date_filter=(args.calendar == 'SEMIANNUAL')
+            tag, config, rebalance_points, date_filter=(args.calendar == 'SEMIANNUAL'),
+            n_stocks=args.n_stocks,
         )
-        out = OUT_DIR / f'{tag}{suffix}_holdings.json'
+        out = OUT_DIR / f'{tag}{n_sfx}{suffix}_holdings.json'
         out.write_text(json.dumps(periods, ensure_ascii=False, indent=2), encoding='utf-8')
         log.info(f'  → {out}')
 

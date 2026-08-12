@@ -137,17 +137,62 @@ def _rejection_summary(stats: dict) -> dict:
 
 
 def _previous_holdings(tag: str, signal_date: date) -> tuple[str | None, dict[str, float]]:
-    """직전 리밸런싱 보유 (holdings tape에서 signal_date 이전 최신 구간)."""
-    path = Path('experiments/ablation') / f'{tag}_holdings.json'
+    """직전 리밸런싱 보유 (holdings tape에서 signal_date 이전 최신 구간).
+
+    tape 의 종목 수 상한이 N_STOCKS 와 다르면 **예외를 던진다.** 조용히 다른 n 의
+    tape 을 읽으면 turnover·비용이 종목 수 전이분까지 삼켜 조용히 틀린다
+    (2026-08-12 발견: n 20→13 교체 후 n=13 tape 이 없어 n=20 tape 으로 폴백,
+    manifest 의 expected_turnover 가 0.9231 이어야 할 것이 0.9500 으로 기록됨).
+    `_config_hash` 는 n_stocks 를 해시에 넣지만 **산출물 경로는 태그 이름만** 쓰므로
+    이 어긋남을 잡지 못한다 — 여기서 잡는다.
+    """
+    # 산출물 명명 규약: 기본 n 은 접미사 없음, 그 외는 `_n{K}`. N_STOCKS 를 바꾸면
+    # 태그 이름은 그대로인데 가리켜야 할 tape 이 달라진다 — 여기서 해소한다.
+    abl_dir = Path('experiments/ablation')
+    path = abl_dir / f'{tag}_n{N_STOCKS}_holdings.json'
+    if not path.exists():
+        path = abl_dir / f'{tag}_holdings.json'
     if not path.exists():
         return None, {}
-    periods = [p for p in json.loads(path.read_text(encoding='utf-8'))
+    tape = json.loads(path.read_text(encoding='utf-8'))
+
+    # 구간별 n_portfolio 는 유니버스가 작으면 상한 미만일 수 있다. 상한 자체는
+    # 최댓값으로만 확인 가능하므로 max 로 대조한다. 위 폴백이 조용하지 않은 이유가
+    # 이 검사다 — 엉뚱한 n 의 tape 을 집으면 여기서 멈춘다.
+    tape_cap = max((p['n_portfolio'] for p in tape), default=0)
+    if tape_cap != N_STOCKS:
+        raise SystemExit(
+            f'holdings tape 종목 수 불일치: {path} 의 상한은 {tape_cap} 인데 '
+            f'N_STOCKS={N_STOCKS} 이다. 그 n 으로 tape 을 생성하라 '
+            f'(run_ablation --tags {tag} --n-stocks {N_STOCKS} → export_portfolios). '
+            f'다른 n 의 tape 을 대신 쓰면 turnover 에 종목 수 전이 비용이 섞인다.')
+
+    periods = [p for p in tape
                if p['rebalance_date'] < signal_date.isoformat() and p['n_portfolio'] > 0]
     if not periods:
         return None, {}
     last = max(periods, key=lambda p: p['rebalance_date'])
     tickers = [h['ticker'] for h in last['holdings']]
     return last['rebalance_date'], {t: 1.0 / len(tickers) for t in tickers}
+
+
+def _gate_status(tag: str) -> str:
+    """SPEC_10 게이트 현황을 **산출물에서** 읽는다. 문자열에 박지 않는다.
+
+    2026-08-12 이전에는 'G1·G2 PASS, G5 FAIL' 이 이 파일에 하드코딩돼 있었다.
+    그 값은 옛 채택안 F_pbr_no_r3r4(n=20) 판정이라, 태그를 MA200 으로 바꾼 뒤에는
+    **다른 전략의 성적표가 라이브 산출물에 복사되는** 상태였다.
+    """
+    path = Path('experiments/robustness') / f'gate_results_{tag}.json'
+    if not path.exists():
+        return f'SPEC_10 게이트 미산출 ({path.name} 없음)'
+    r = json.loads(path.read_text(encoding='utf-8'))
+    hg = r.get('hard_gates', {})
+    parts = []
+    for g in ('G1', 'G2', 'G5'):
+        v = hg.get(g, {}).get('pass')
+        parts.append(f'{g} {"PASS" if v else "FAIL" if v is not None else "미산출"}')
+    return f'SPEC_10 관문: {", ".join(parts)} (산출 {r.get("generated_at", "?")})'
 
 
 def main() -> None:
@@ -196,8 +241,7 @@ def main() -> None:
         turnover = _calc_turnover(prev_w, portfolio)
 
         manifest = {
-            'strategy_version':      f'{tag} v1.0 (SPEC_10 관문: G1·G2 PASS, G5 FAIL — '
-                                     f'채택 보류, shadow 기록)',
+            'strategy_version':      f'{tag} v1.0 n={N_STOCKS} ({_gate_status(tag)})',
             'git_commit_sha':        _git_sha(),
             'config_hash':           _config_hash(tag),
             'database_snapshot_date': date.today().isoformat(),

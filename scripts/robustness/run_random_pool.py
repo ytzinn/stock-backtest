@@ -80,7 +80,11 @@ log = logging.getLogger(__name__)
 TAG     = 'C_pbr_path_random'
 OUT_DIR = Path('experiments/robustness')
 N_DRAWS = 1000
-N_PICK  = 20
+# `[정정 2026-08-12]` 귀무분포의 추첨 종목 수는 **판정 대상과 같아야** 한다.
+# 20 으로 하드코딩돼 있어, 운영이 n=13 으로 바뀐 뒤에도 G1 은 13종목 전략을
+# 20종목 귀무분포로 판정하고 있었다. 종목 수가 줄면 분산이 커져 p95(합격선)가
+# 올라가므로, n 을 맞추지 않으면 게이트가 관대해진다.
+DEFAULT_N_PICK = 20
 
 # SPEC_13 §9-1a 등가성 게이트 허용오차
 TOL_EQ1            = 1e-12   # 승법 산식 (동일 gross 수열 대조 — 정의상 완전 일치 가능)
@@ -157,7 +161,7 @@ def build_pools(
     return pools, stock_data, markets
 
 
-def _draw_portfolio(pool: list[str], seed: int, rebal: date) -> dict[str, float]:
+def _draw_portfolio(pool: list[str], seed: int, rebal: date, n_pick: int) -> dict[str, float]:
     """_RandomSelectPipeline.score_and_rank + build_portfolio와 동일한 추첨 재현."""
     rng = random.Random(f'{seed}:{rebal.isoformat()}')
     shuffled = list(pool)
@@ -166,7 +170,7 @@ def _draw_portfolio(pool: list[str], seed: int, rebal: date) -> dict[str, float]
         {'ticker': t, 'upside_pct': 0.0, 'model': 'RANDOM', 'fair_value': 0.0, 'price': 0.0}
         for t in shuffled
     ]
-    return build_portfolio(candidates, n_stocks=N_PICK)
+    return build_portfolio(candidates, n_stocks=n_pick)
 
 
 def _net_cagr_from_growth(net_growth: float, span: dict | None) -> float:
@@ -181,7 +185,8 @@ def _net_cagr_from_growth(net_growth: float, span: dict | None) -> float:
     return float(net_growth ** (1 / years) - 1) if years > 0 else 0.0
 
 
-def run_draws(pools, stock_data, markets, n_draws: int, rebalance_points):
+def run_draws(pools, stock_data, markets, n_draws: int, rebalance_points,
+              n_pick: int = DEFAULT_N_PICK):
     """전 시드 추첨 실행 (DB 무접촉 — prefetch 데이터만 사용)."""
     pairs = [(r.date, n.date) for r, n in _closed_period_pairs(rebalance_points)]
     span = None
@@ -198,7 +203,7 @@ def run_draws(pools, stock_data, markets, n_draws: int, rebalance_points):
             pool = pools.get(rebal) or []
             if not pool:
                 continue
-            portfolio = _draw_portfolio(pool, seed, rebal)
+            portfolio = _draw_portfolio(pool, seed, rebal, n_pick)
             sd = stock_data[rebal]
             valid = [(t, w, *sd[t]) for t, w in portfolio.items() if t in sd]
             gross, _opt, _cons = _aggregate_period_return(valid) if valid else (0.0, 0.0, 0.0)
@@ -233,7 +238,8 @@ def run_draws(pools, stock_data, markets, n_draws: int, rebalance_points):
 
 
 def verify_against_engine(conn, pools, stock_data, markets, seed: int,
-                          valuation_date: date, rebalance_points) -> None:
+                          valuation_date: date, rebalance_points,
+                          n_pick: int = DEFAULT_N_PICK) -> None:
     """등가성 게이트 3종 (SPEC_13 §9-1a) — 하나라도 실패하면 결과 저장 없이 중단.
 
       기존   : fast-path seed 추첨 vs 전체 엔진 — 편입·gross·turnover (tol 1e-12)
@@ -241,7 +247,10 @@ def verify_against_engine(conn, pools, stock_data, markets, seed: int,
       EQ-2   : fast-path terminal net NAV vs 실제 일별 NAV 경로 (tol 1e-6 / 상폐 1e-3)
     """
     log.info('[등가성 게이트] seed=%d 전체 엔진 대조 실행 시작', seed)
-    pipeline = build_ablation_pipeline(TAG, ABLATION_CONFIGS[TAG], seed=seed)
+    # config 의 `random_n` 이 n_stocks 를 이기므로(build_ablation_pipeline) 사본에서 교체.
+    # 안 그러면 등가성 게이트가 n_pick=13 추첨을 n=20 엔진과 대조해 항상 실패한다.
+    verify_config = {**ABLATION_CONFIGS[TAG], 'random_n': n_pick}
+    pipeline = build_ablation_pipeline(TAG, verify_config, seed=seed)
     engine   = BacktestEngine(pipeline)
     result   = engine.run(rebalance_points, run_name=f'{TAG}_verify', ablation_tag=TAG,
                           valuation_date=valuation_date)
@@ -263,7 +272,7 @@ def verify_against_engine(conn, pools, stock_data, markets, seed: int,
 
     for er, (rebal, nxt) in zip(engine_closed, pairs):
         assert er['rebalance_date'] == rebal
-        portfolio = _draw_portfolio(pools[rebal], seed, rebal)
+        portfolio = _draw_portfolio(pools[rebal], seed, rebal, n_pick)
         if set(portfolio) != set(er['portfolio']):
             raise SystemExit(
                 f'[등가성 게이트 실패] {rebal}: 편입 상이 — 셔플 재현 결함. '
@@ -329,6 +338,9 @@ def verify_against_engine(conn, pools, stock_data, markets, seed: int,
 def main() -> None:
     parser = argparse.ArgumentParser(description='SPEC_10 C_pbr_path_random fast-path')
     parser.add_argument('--n-draws',        type=int, default=N_DRAWS)
+    parser.add_argument('--n-pick',         type=int, default=DEFAULT_N_PICK,
+                        help='추첨 종목 수. **판정 대상 태그의 n 과 같아야 한다.** '
+                             '기본값 외를 주면 산출물에 `_n{K}` 접미사가 붙는다.')
     parser.add_argument('--verify-seed',    type=int, default=0)
     parser.add_argument('--skip-verify',    action='store_true',
                         help='등가성 게이트 생략 (디버그 전용 — 공식 실행 금지)')
@@ -344,7 +356,8 @@ def main() -> None:
     valuation_date   = date.fromisoformat(args.valuation_date)
     rebalance_points = list(get_schedule(args.calendar))
     suffix           = tag_suffix(args.calendar)
-    out_tag          = f'{TAG}{suffix}'
+    n_sfx            = '' if args.n_pick == DEFAULT_N_PICK else f'_n{args.n_pick}'
+    out_tag          = f'{TAG}{n_sfx}{suffix}'
     log.info('calendar = %s (%d개 앵커) → %s', args.calendar, len(rebalance_points), out_tag)
 
     conn = get_connection()
@@ -352,14 +365,14 @@ def main() -> None:
         pools, stock_data, markets = build_pools(conn, rebalance_points)
         if not args.skip_verify:
             verify_against_engine(conn, pools, stock_data, markets, args.verify_seed,
-                                  valuation_date, rebalance_points)
+                                  valuation_date, rebalance_points, n_pick=args.n_pick)
         else:
             log.warning('등가성 게이트 생략 (--skip-verify) — 공식 수치로 사용 금지')
     finally:
         conn.close()
 
     draws, periods, contribs = run_draws(pools, stock_data, markets, args.n_draws,
-                                         rebalance_points)
+                                         rebalance_points, n_pick=args.n_pick)
 
     with (OUT_DIR / f'{out_tag}_draws.csv').open('w', newline='', encoding='utf-8') as f:
         w = csv.writer(f)
@@ -373,7 +386,7 @@ def main() -> None:
         w = csv.writer(f)
         w.writerow(['seed', 'rebalance_date', 'ticker', 'weight_eff', 'ret'])
         w.writerows(contribs)
-    (OUT_DIR / f'pools{suffix}.json').write_text(
+    (OUT_DIR / f'pools{n_sfx}{suffix}.json').write_text(
         json.dumps({d.isoformat(): p for d, p in pools.items()}, ensure_ascii=False, indent=1),
         encoding='utf-8')
 
@@ -383,7 +396,11 @@ def main() -> None:
     summary = {
         'tag': out_tag, 'calendar': args.calendar,
         'generated_at': datetime.now().isoformat(),
-        'n_draws': n, 'seed_scheme': 'random.Random(f"{seed}:{rebalance_date}") — seed 0..n-1',
+        'n_draws': n,
+        # 종목 수를 산출물에 남긴다 — 종전에는 N_PICK 상수에만 있어 소비처가
+        # 귀무분포의 n 을 알 수 없었고, 판정 대상과 어긋나도 잡히지 않았다.
+        'n_stocks': args.n_pick,
+        'seed_scheme': 'random.Random(f"{seed}:{rebalance_date}") — seed 0..n-1',
         'verify_seed': None if args.skip_verify else args.verify_seed,
         'cost_model': 'CORR-COST-001 (매수/매도 분리 + 시장별 매도요율)',
         'net_definition': '승법 (SPEC_13 §9-1) — net_growth *= (1−tc)(1+gross)',
@@ -394,7 +411,7 @@ def main() -> None:
         'p95_net_cagr': net_cagrs[int(n * 0.95)],
         'pool_sizes': {d.isoformat(): len(p) for d, p in pools.items()},
     }
-    (OUT_DIR / f'random_summary{suffix}.json').write_text(
+    (OUT_DIR / f'random_summary{n_sfx}{suffix}.json').write_text(
         json.dumps(summary, indent=2, ensure_ascii=False), encoding='utf-8')
     log.info('완료: n=%d  gross median=%.4f p95=%.4f  |  net median=%.4f p95=%.4f',
              n, summary['median_cagr'], summary['p95_cagr'],
