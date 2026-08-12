@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-11T18:48:47.297114",
+  "generated_at": "2026-08-12T13:49:09.891501",
   "scenarios": {
     "F_pbr_no_r3r4": {
       "cagr": 0.158196,
@@ -1116,6 +1116,24 @@
       "cagr_conservative": 0.138408,
       "n_periods": 20,
       "run_at": "2026-08-11T18:48:47.297114"
+    },
+    "F_pbr_ma200_n13": {
+      "cagr": 0.203329,
+      "net_cagr": 0.186891,
+      "alpha": 0.097214,
+      "alpha_kosdaq": 0.15992,
+      "sharpe": 0.667005,
+      "net_sharpe": 0.619683,
+      "mdd": -0.341378,
+      "robustness": 0.65,
+      "benchmark_cagr": 0.106115,
+      "kosdaq_cagr": 0.043409,
+      "avg_turnover": 0.780769,
+      "cagr_optimistic": 0.20568,
+      "cagr_conservative": 0.197676,
+      "n_periods": 20,
+      "n_stocks": 13,
+      "run_at": "2026-08-12T13:49:09.891501"
     }
   },
   "judgements": {

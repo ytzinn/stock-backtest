@@ -1,6 +1,6 @@
 {
   "tag": "F_pbr_ma200_n13",
-  "n_stocks": 13,
+  "run_at": "2026-08-12T13:49:09.890777",
   "seed": null,
   "cagr": 0.20332883254284506,
   "net_cagr": 0.18689083784884652,
@@ -15,5 +15,6 @@
   "avg_turnover": 0.7807692307692309,
   "cagr_optimistic": 0.20568015444249976,
   "cagr_conservative": 0.19767603388818888,
-  "n_periods": 20
+  "n_periods": 20,
+  "n_stocks": 13
 }
