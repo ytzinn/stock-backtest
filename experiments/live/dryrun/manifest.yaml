@@ -1,9 +1,9 @@
-strategy_version: 'F_pbr_ma200 v1.0 (SPEC_10 관문: G1·G2 PASS, G5 FAIL — 채택 보류, shadow 기록)'
-git_commit_sha: 9907ad884b331a143ccbe144b4f650d95f75ac7a
-config_hash: 3f21b139da84bf22
-database_snapshot_date: '2026-08-11'
-price_max_date: '2026-08-10'
-market_cap_max_date: '2026-08-10'
+strategy_version: F_pbr_ma200 v1.0 n=13 (SPEC_10 게이트 미산출 (gate_results_F_pbr_ma200.json 없음))
+git_commit_sha: 0dfa0b17ca05962286d5c3f7d5c3afc348c772f0
+config_hash: 4fa366d612d1050f
+database_snapshot_date: '2026-08-12'
+price_max_date: '2026-08-12'
+market_cap_max_date: '2026-08-12'
 financial_pit_build_id: 2026-11-19_1284314rows
 signal_date: '2026-08-10'
 execution_date: '2026-08-10'
@@ -1978,9 +1978,9 @@ filter_rejection_reasons:
       'ma200: rejected_by_signal (score=-0.7658923431778449)': 1
       'ma200: rejected_by_signal (score=-0.1441262125751639)': 1
 previous_rebalance_date: '2026-04-03'
-expected_turnover: 0.95
-expected_cost: 0.00646
+expected_turnover: 0.923077
+expected_cost: 0.006277
 random_seed: null
-test_suite_status: not_run
+test_suite_status: fast:329pass integration:not_run
 dry_run: true
-generated_at: '2026-08-11T02:05:02.064308'
+generated_at: '2026-08-12T13:38:12.185018'

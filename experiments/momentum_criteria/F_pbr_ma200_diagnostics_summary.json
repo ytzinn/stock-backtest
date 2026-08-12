@@ -3130,5 +3130,17 @@
       "ok": 689,
       "insufficient": 4
     }
+  },
+  {
+    "rebalance_date": "2026-08-10",
+    "implementation": "MomentumCriterionFilter",
+    "criterion": "ma200",
+    "legacy_adapter": false,
+    "n_passed": 222,
+    "n_rejected": 709,
+    "data_status_counts": {
+      "ok": 929,
+      "invalid": 2
+    }
   }
 ]
