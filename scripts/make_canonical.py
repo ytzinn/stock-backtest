@@ -21,209 +21,44 @@ docs/CANONICAL.md 생성 — "지금 채택된 설정이 무엇이고, 성적이
   이 이미 말해준다 — "요약본을 몇 시에 인쇄했나"는 정보가 아니다. mtime 은 git 이 보존
   하지 않아 클론만 해도 달라진다.
 
-## 렌더러가 아니라 정합성 검사기다
+## 예쁘게 찍기만 하지 않는다
 
 2026-08-12 에 드러난 결함들은 전부 "재료끼리 안 맞는데 아무도 안 알려줘서" 생겼다.
-예쁘게 찍기만 하면 또 난다. 검사에 걸리면 경고를 문서에 박고 **종료 코드 1**로 끝낸다.
+그래서 수집과 함께 **정합성 검사**를 돌린다. 검사에 걸리면 경고를 문서에 박고
+**종료 코드 1**로 끝낸다.
+
+수집·검사 자체는 `backtest/canonical_state.py` 소유다 (`collect()` / `check()`).
+이 파일은 그 결과를 마크다운으로 찍는 **렌더러**이고, 대시보드 배너는 같은 결과를
+화면으로 그리는 또 다른 소비자다. 같은 사실을 두 곳에서 따로 읽으면 반드시 갈라진다.
 
 실행:  venv/bin/python -m scripts.make_canonical
 """
 from __future__ import annotations
 
 import argparse
-import ast
-import hashlib
-import json
 import logging
-import re
 import sys
-from pathlib import Path
 
-import yaml
-
-from backtest.ablation import ABLATION_CONFIGS
-from backtest.configs import constants as C
+# 수집·검사는 `backtest/canonical_state.py` 소유다. 이 파일은 **렌더러**다.
+# 대시보드 배너도 같은 collect()/check() 를 소비한다 — 같은 사실을 두 곳에서 따로
+# 읽으면 반드시 갈라진다 (그 모듈 docstring 에 갈라진 사례 3건).
+# `_sha256`·`collect`·`check` 는 여기서도 import 가능해야 한다 (오라클 테스트 계약).
+from backtest.canonical_state import (  # noqa: F401
+    DOCS,
+    _sha256,
+    check,
+    collect,
+    momentum_label,
+)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s',
                     datefmt='%H:%M:%S')
 log = logging.getLogger(__name__)
 
-ROOT     = Path(__file__).resolve().parent.parent
-ABL_DIR  = ROOT / 'experiments/ablation'
-NAV_DIR  = ROOT / 'experiments/daily_nav'
-ROB_DIR  = ROOT / 'experiments/robustness'
-LIVE_DIR = ROOT / 'experiments/live'
-DOCS     = ROOT / 'docs'
 OUT_PATH = DOCS / 'CANONICAL.md'
-FREEZE   = ROOT / 'scripts/live/freeze_rebalance.py'
-ISSUES   = DOCS / 'open_issues.yaml'
 
 G5_LIMIT = -0.45   # SPEC_10 §5 사전등록. gate_analysis.G5_MDD_LIMIT 과 같은 값 —
                    # 게이트 산출물이 있으면 그쪽 값을 쓰고 이건 표시용 폴백이다.
-
-
-# ── 입력 읽기 ────────────────────────────────────────────────────────────────
-
-def _read_json(path: Path) -> dict | None:
-    if not path.exists():
-        return None
-    return json.loads(path.read_text(encoding='utf-8'))
-
-
-def _sha256(path: Path) -> str | None:
-    """소스 파일 지문. **줄바꿈을 정규화한 뒤** 해시한다.
-
-    원시 바이트를 그대로 해시하면 지문이 플랫폼에 종속된다 — git 이 텍스트 파일을
-    개발 PC(CRLF)와 서버(LF)로 서로 다르게 체크아웃하기 때문이다. 그러면 같은 내용인데
-    지문이 달라져, 한쪽에서 생성한 CANONICAL.md 를 다른 쪽에서 `--check` 하면 항상
-    실패한다 (2026-08-12 서버 교차 검사에서 발견). 지문이 말해야 하는 것은 "내용이
-    같은가"이지 "어느 OS 에서 체크아웃했는가"가 아니다.
-    """
-    if not path.exists():
-        return None
-    return hashlib.sha256(
-        path.read_bytes().replace(b'\r\n', b'\n')).hexdigest()[:16]
-
-
-def _freeze_constants() -> tuple[str, int]:
-    """freeze_rebalance.py 에서 DEFAULT_TAG·N_STOCKS 를 **ast 로** 읽는다.
-
-    import 하지 않는 이유: 그 모듈은 backtest.ablation·ingest.connection 까지 끌고
-    온다. 정규식을 안 쓰는 이유: `N_STOCKS    = 13` 처럼 정렬 공백이 들어가 있다.
-    """
-    tree = ast.parse(FREEZE.read_text(encoding='utf-8'))
-    found: dict[str, object] = {}
-    for node in tree.body:
-        if isinstance(node, ast.Assign) and len(node.targets) == 1:
-            t = node.targets[0]
-            if isinstance(t, ast.Name) and t.id in ('DEFAULT_TAG', 'N_STOCKS'):
-                found[t.id] = ast.literal_eval(node.value)
-    missing = {'DEFAULT_TAG', 'N_STOCKS'} - found.keys()
-    if missing:
-        raise SystemExit(f'{FREEZE} 에서 {sorted(missing)} 를 찾지 못했다.')
-    return str(found['DEFAULT_TAG']), int(found['N_STOCKS'])
-
-
-def _load_manifest() -> dict | None:
-    path = LIVE_DIR / 'dryrun/manifest.yaml'
-    if not path.exists():
-        return None
-    m = yaml.safe_load(path.read_text(encoding='utf-8'))
-    # 티커가 파일 안에서 `'000210'`(문자열)과 `001940`(→ 정수 1940)로 섞여 있다.
-    # 0 을 잃은 채로 비교하면 조용히 안 맞는다.
-    m['selected_tickers'] = [str(t).zfill(6) for t in m.get('selected_tickers') or []]
-    return m
-
-
-def _tape_cap(tag: str) -> int | None:
-    """holdings tape 의 종목 수 상한. 없으면 None."""
-    path = ABL_DIR / f'{tag}_holdings.json'
-    if not path.exists():
-        return None
-    tape = json.loads(path.read_text(encoding='utf-8'))
-    return max((p['n_portfolio'] for p in tape), default=0) or None
-
-
-# ── 수집 ────────────────────────────────────────────────────────────────────
-
-def collect() -> dict:
-    tag, n_stocks = _freeze_constants()
-    # 종목 수는 산출물에 기록되지 않고 태그 이름 문자열에만 있었다 (2026-08-12 발견).
-    # 그래서 조회 키를 **조립**해야 한다. 조립한 키가 없으면 조용히 기본 태그로
-    # 폴백하지 않는다 — 그게 n=20 성적(14.52%)을 운영(18.55%) 수치로 발행하던 함정이다.
-    key = f'{tag}_n{n_stocks}'
-
-    abl_summary = _read_json(ABL_DIR / 'summary.json') or {}
-    nav_summary = _read_json(NAV_DIR / 'summary.json') or {}
-    abl_tag     = _read_json(ABL_DIR / f'{key}.json')
-    gates       = _read_json(ROB_DIR / f'gate_results_{key}.json')
-    manifest    = _load_manifest()
-    issues      = yaml.safe_load(ISSUES.read_text(encoding='utf-8')) if ISSUES.exists() else {}
-
-    nav_tag = (nav_summary.get('tags') or {}).get(key)
-    cfg     = ABLATION_CONFIGS.get(tag, {})
-
-    sources = {
-        'experiments/ablation/summary.json':        ABL_DIR / 'summary.json',
-        f'experiments/ablation/{key}.json':         ABL_DIR / f'{key}.json',
-        'experiments/daily_nav/summary.json':       NAV_DIR / 'summary.json',
-        f'experiments/robustness/gate_results_{key}.json': ROB_DIR / f'gate_results_{key}.json',
-        'experiments/live/dryrun/manifest.yaml':    LIVE_DIR / 'dryrun/manifest.yaml',
-        'docs/open_issues.yaml':                    ISSUES,
-    }
-
-    return {
-        'tag': tag, 'n_stocks': n_stocks, 'key': key,
-        'config': cfg,
-        'abl_tag': abl_tag, 'nav_tag': nav_tag,
-        'abl_summary_has_key': key in (abl_summary.get('scenarios') or {}),
-        'gates': gates, 'manifest': manifest,
-        'tape_cap': _tape_cap(key),
-        'issues': list(issues.get('issues') or []),
-        'sources': {name: _sha256(p) for name, p in sources.items()},
-        'constants': {'RF': C.RF, 'RK': C.RK, 'OMEGA': C.OMEGA, 'VB_CAP': C.VB_CAP},
-    }
-
-
-# ── 정합성 검사 ──────────────────────────────────────────────────────────────
-
-def check(d: dict) -> list[str]:
-    """어긋난 것들을 사람이 읽을 문장으로 돌려준다. 비어 있으면 정상."""
-    p: list[str] = []
-    key, n = d['key'], d['n_stocks']
-
-    if d['abl_tag'] is None:
-        p.append(f'`{key}.json` 이 없다 — 운영 설정의 구간 지표를 인용할 수 없다.')
-    if d['nav_tag'] is None:
-        p.append(f'`daily_nav/summary.json` 에 `{key}` 키가 없다 — 일별 지표를 인용할 수 없다.')
-    if not d['abl_summary_has_key']:
-        p.append(f'`ablation/summary.json` 에 `{key}` 가 병합돼 있지 않다 — summary 만 읽는 '
-                 f'소비자는 운영 설정을 볼 수 없다.')
-
-    if d['gates'] is None:
-        p.append(f'`gate_results_{key}.json` 이 없다 — SPEC_10 게이트가 **현행 채택안으로 '
-                 f'산출된 적이 없다.** 다른 태그의 성적표를 대신 쓰지 않는다.')
-    else:
-        g_tag = d['gates'].get('tag')
-        if g_tag != key:
-            p.append(f'게이트 산출물의 대상이 `{g_tag}` 인데 운영은 `{key}` 다 — 오귀속.')
-        if d['gates'].get('draws_n_stocks') not in (None, n):
-            p.append(f'G1 귀무분포가 {d["gates"]["draws_n_stocks"]}종목 추첨인데 운영은 '
-                     f'{n}종목이다 — 합격선 자체가 달라 판정이 성립하지 않는다.')
-
-    if d['tape_cap'] is None:
-        p.append(f'`{key}_holdings.json` (tape) 이 없다 — 종목 단위 분석·진단이 불가하다.')
-    elif d['tape_cap'] != n:
-        p.append(f'tape 의 종목 수 상한이 {d["tape_cap"]} 인데 운영은 {n} 이다. '
-                 f'`config_hash` 는 n 을 해시에 넣지만 **산출물 경로는 태그 이름만** 쓰므로 '
-                 f'이 어긋남을 잡지 못한다.')
-
-    for label, obj in (('구간 지표', d['abl_tag']), ('일별 지표', d['nav_tag'])):
-        if obj is not None and not (obj.get('run_at') or obj.get('generated_at')):
-            p.append(f'{label}(`{key}`)에 산출 일자가 없다 — 신선도를 판정할 수 없다.')
-
-    # 근거 문서 경로가 살아 있는가. 죽은 링크는 "근거가 있다"는 인상만 주고 확인은
-    # 막는다 — 2026-08-12 에 실제로 2건을 죽은 채로 커밋했고 사용자가 발견했다.
-    for i in d['issues']:
-        r = i.get('ref')
-        if r and not (ROOT / r).exists():
-            p.append(f'미해결 과제 `{i.get("id")}` 의 근거 경로가 없다: `{r}`')
-        # 해소된 항목은 지우는 것이 규약이다 — 파일 이름이 곧 계약(open_issues)이다.
-        if i.get('status') not in ('open', 'blocked'):
-            p.append(f'미해결 과제 `{i.get("id")}` 의 status 가 `{i.get("status")}` 다. '
-                     f'open|blocked 만 허용 — 해소됐으면 항목을 지워라.')
-
-    m = d['manifest']
-    if m is not None:
-        if len(m['selected_tickers']) != n:
-            p.append(f'라이브 manifest 의 편입 종목이 {len(m["selected_tickers"])}개인데 '
-                     f'운영은 {n}개다.')
-        if isinstance(m.get('strategy_version'), str) and 'PASS' in m['strategy_version'] \
-                and d['gates'] is None:
-            p.append('라이브 manifest 의 `strategy_version` 이 게이트 산출물 없이 PASS 를 '
-                     '주장한다 — 문자열에 박힌 옛 성적이다.')
-
-    return p
 
 
 # ── 렌더링 ──────────────────────────────────────────────────────────────────
@@ -236,15 +71,6 @@ def _stamp(obj: dict | None) -> str:
     if not obj:
         return '—'
     return (obj.get('run_at') or obj.get('generated_at') or '—')[:19]
-
-
-def _momentum_desc(cfg: dict) -> str:
-    mc = cfg.get('momentum_criterion')
-    if mc:
-        params = ', '.join(f'{k}={v}' for k, v in sorted(mc.items())
-                           if k not in ('type', 'tag'))
-        return f'`{mc["type"]}`' + (f' ({params})' if params else '')
-    return '레거시 `MomentumFilter` (MA 20/60)' if cfg.get('use_momentum') else '없음'
 
 
 def render(d: dict, problems: list[str]) -> str:
@@ -270,7 +96,7 @@ def render(d: dict, problems: list[str]) -> str:
           f'| 산출물 키 | `{key}` |',
           f'| 랭킹 | `{cfg.get("rank_mode", "—")}` |',
           f'| 안정성 규칙 | {", ".join(sorted(cfg.get("stability_rules") or [])) or "—"} |',
-          f'| 모멘텀 기준 | {_momentum_desc(cfg)} |',
+          f'| 모멘텀 기준 | {momentum_label(cfg)} |',
           f'| HardFilter | {"사용" if cfg.get("use_hard") else "미사용"} |',
           f'| 팩터 스크리너 | {"사용" if cfg.get("use_screener") else "미사용"} |',
           f'| RIM 밸류에이션 컷 | {"사용" if cfg.get("use_rim_filter") else "미사용"} |', '',

@@ -14,6 +14,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from dashboard.canonical_banner import render_canonical_banner
 from dashboard.config import PROJECT_ROOT
 
 ABLATION_DIR = PROJECT_ROOT / "experiments" / "ablation"
@@ -91,47 +92,31 @@ def load_rand_dist(tag: str) -> pd.DataFrame:
     return pd.read_csv(p) if p.exists() else pd.DataFrame()
 
 
+def n_periods_label(scen: dict, tags: list[str]) -> str:
+    """표시용 구간 수 문자열. **화면에서 세지 않고 산출물의 `n_periods` 를 읽는다.**
+
+    구간 수를 화면에서 재계산하면 안 되는 이유 (2026-08-14 발견):
+    구간 CSV 23행 → `n_gate>0` 21행 → **완결 구간 20** 이 서로 다른 층이다.
+    엔진 공식 지표는 완결 구간(20)만 쓴다 (CLAUDE.md: "공식 성과 지표는 완결
+    구간만"). 화면이 `n_gate>0` 로 세면 미완결 구간이 섞여 CAGR 이 어긋난다
+    (실측: 21구간 재계산 18.4770% vs 공식 20.3329%, 1.86%p).
+    """
+    ns = sorted({scen[t]["n_periods"] for t in tags
+                 if t in scen and scen[t].get("n_periods")})
+    if not ns:
+        return "구간 수 미상"
+    return f"{ns[0]}구간" if len(ns) == 1 else f"{ns[0]}~{ns[-1]}구간 (태그별 상이)"
+
+
 @st.cache_data(ttl=60)
-def compute_metrics_from_csv(tag: str, periods_per_year: int = 2) -> dict:
-    """period CSV에서 n_gate>0 유효 구간 기준 성과 지표 직접 계산 (21구간 기준)."""
-    import numpy as np
+def period_span(tag: str) -> tuple[int, str, str] | None:
+    """구간 CSV 의 행 수와 날짜 범위. **캡션 전용 — 지표 계산에 쓰지 마라.**"""
     df = load_periods(tag)
-    if df.empty or "period_return" not in df.columns:
-        return {}
-    if "n_gate" in df.columns:
-        df = df[df["n_gate"] > 0].reset_index(drop=True)
-    if len(df) < 2:
-        return {}
-
-    RF_PER_PERIOD = 0.0263 / periods_per_year
-    ret   = df["period_return"].to_numpy()
-    n     = len(ret)
-    years = n / periods_per_year
-    cagr  = float(np.prod(1 + ret) ** (1 / years) - 1)
-
-    bench_cagr = alpha = robustness = None
-    if "kospi_return" in df.columns:
-        bench      = df["kospi_return"].to_numpy()
-        bench_cagr = float(np.prod(1 + bench) ** (1 / years) - 1)
-        alpha      = cagr - bench_cagr
-        robustness = float(((ret - bench) > 0).mean())
-
-    nav  = pd.Series(np.cumprod(1 + ret))
-    mdd  = float((nav / nav.cummax() - 1).min())
-
-    excess = ret - RF_PER_PERIOD
-    sharpe = float(excess.mean() / excess.std() * (periods_per_year ** 0.5)) if excess.std() > 0 else 0.0
-
-    net_cagr = None
-    if "net_return" in df.columns:
-        net_cagr = float(np.prod(1 + df["net_return"].to_numpy()) ** (1 / years) - 1)
-
-    out: dict = {"cagr": cagr, "mdd": mdd, "sharpe": sharpe, "n_periods": n}
-    if bench_cagr  is not None: out["benchmark_cagr"] = bench_cagr
-    if alpha       is not None: out["alpha"]          = alpha
-    if robustness  is not None: out["robustness"]     = robustness
-    if net_cagr    is not None: out["net_cagr"]       = net_cagr
-    return out
+    if df.empty:
+        return None
+    return (len(df),
+            df["rebalance_date"].min().date().isoformat(),
+            df["next_date"].max().date().isoformat())
 
 
 @st.cache_data(ttl=3600)
@@ -164,6 +149,10 @@ if summary:
 else:
     st.warning(f"summary.json을 찾을 수 없습니다: {ABLATION_DIR}")
     st.stop()
+
+# 현행 채택 배너. 수치를 여기 박지 않는다 — make_canonical 과 같은 collect() 를 읽는다.
+render_canonical_banner()
+st.divider()
 
 tab_overview, tab_period, tab_dist = st.tabs(["시나리오 비교", "구간별 분석", "랜덤 분포"])
 
@@ -249,18 +238,20 @@ SCENARIO_TABLE = [
 # ══════════════════════════════════════════════════════════════════════════════
 
 with tab_overview:
-    # DET/NO_R6 시나리오: period CSV → 21구간 기준 지표 직접 계산
-    # RAND 시나리오: summary.json 유지 (500회 분포 데이터)
-    csv_metrics: dict[str, dict] = {
-        tag: compute_metrics_from_csv(tag)
-        for tag in DET_TAGS + NO_R6_TAGS
-    }
-    # 표시용 시나리오 dict: det/no_r6는 CSV 계산값 우선, 없으면 summary.json 폴백
-    display_scenarios: dict[str, dict] = dict(scenarios)
-    for tag, m in csv_metrics.items():
-        if m:
-            display_scenarios[tag] = m
-    csv_bench_cagr = (csv_metrics.get("D_rim_only") or {}).get("benchmark_cagr")
+    # `[교체 2026-08-14]` period CSV 재계산 폐기 — 산출물 값을 그대로 쓴다.
+    #
+    # 이전에는 DET/NO_R6 태그의 지표를 구간 CSV 에서 화면이 직접 다시 계산해
+    # summary.json 값을 덮어썼다. 그 계산이 ① `n_gate>0`(21) 을 완결 구간(20) 대신
+    # 세고 ② 연수를 `구간수 ÷ 2` 로 잡아(CLAUDE.md: "CAGR 연수는 실제 캘린더
+    # 경과일수 기준"), 화면 CAGR 이 docs/CANONICAL.md 공식 수치와 1.86%p 어긋났다.
+    # 게다가 RF 를 재선언하고 CAGR·Sharpe·MDD 산식을 복제해 영구 규칙 2건을
+    # 위반했다 (상수는 configs/constants.py, 산식은 backtest/metrics.py 단일 정의).
+    #
+    # summary.json 은 엔진이 산출물에서 만든 값이므로 그대로 소비하면 세 규칙이
+    # 동시에 지켜진다. 화면은 지표를 계산하지 않는다 — 읽어서 그리기만 한다.
+    display_scenarios: dict[str, dict] = scenarios
+    bench_cagr_val   = scenarios.get("D_rim_only", {}).get("benchmark_cagr")
+    det_periods      = n_periods_label(scenarios, DET_TAGS + NO_R6_TAGS)
 
     # ── 시나리오·필터 설명 ────────────────────────────────────────────────────
     with st.expander("📖 시나리오 및 필터 설명 — 처음 보시는 분은 여기를 펼쳐보세요", expanded=False):
@@ -336,8 +327,8 @@ with tab_overview:
         )
 
     st.subheader("레이어별 기여도 판정")
-    st.caption("21구간 기준 CSV 직접 계산값으로 재산출")
-    # CSV 계산값으로 판정 재계산
+    st.caption(f"산출물 CAGR({det_periods}, 완결 구간) 대조 · 랜덤 p95 는 `_dist.csv` 원본")
+    # 산출물 CAGR 끼리의 대소 비교. 지표를 새로 계산하지 않는다.
     _d  = (display_scenarios.get("D_rim_only",      {}).get("cagr") or 0)
     _e  = (display_scenarios.get("E_screener_rim",  {}).get("cagr") or 0)
     _f  = (display_scenarios.get("F_momentum_rim",  {}).get("cagr") or 0)
@@ -349,18 +340,25 @@ with tab_overview:
         if not _rd.empty and "cagr" in _rd.columns:
             if _rt == "C_stability_random": _cp95 = _rd["cagr"].quantile(0.95)
             if _rt == "B_hard_random":      _bp95 = _rd["cagr"].quantile(0.95)
-    _csv_judgements = {
-        "C > B (안정성 기여, p95)": bool(_cp95 and _bp95 and _cp95 > _bp95),
-        "D > C_p95 (RIM 유효성)":   bool(_cp95 and _d > _cp95),
-        "E > D (팩터스크리닝)":      bool(_e > _d),
-        "F > D (모멘텀 기여)":       bool(_f > _d),
-        "G > D (전체 기여)":         bool(_g > _d),
+    # 입력이 없으면 **False 가 아니라 None** 이다. 이전에는 `bool(_cp95 and ...)` 이라
+    # `_dist.csv` 가 없는 환경(개발 PC: 0개, 서버: 4개)에서 판정이 조용히 "실패"로
+    # 렌더돼, 데이터 부재와 진짜 미달을 화면에서 구분할 수 없었다. 조용한 기본값 금지.
+    def _cmp(lhs: float | None, rhs: float | None) -> bool | None:
+        return None if lhs is None or rhs is None else bool(lhs > rhs)
+
+    _recomputed = {
+        "C > B (안정성 기여, p95)": _cmp(_cp95, _bp95),
+        "D > C_p95 (RIM 유효성)":   _cmp(_d or None, _cp95),
+        "E > D (팩터스크리닝)":      _cmp(_e or None, _d or None),
+        "F > D (모멘텀 기여)":       _cmp(_f or None, _d or None),
+        "G > D (전체 기여)":         _cmp(_g or None, _d or None),
     }
-    _live_judgements = _csv_judgements if any(csv_metrics.values()) else judgements
+    _live_judgements = _recomputed if _d else judgements
     cols = st.columns(len(_live_judgements) or 1)
     for col, (key, val) in zip(cols, _live_judgements.items()):
-        icon = "✅" if val else "❌"
-        bg   = "#dcfce7" if val else "#fee2e2"
+        icon = "❔" if val is None else ("✅" if val else "❌")
+        bg   = "#f1f5f9" if val is None else ("#dcfce7" if val else "#fee2e2")
+        key  = f"{key}<br><span style='color:#94a3b8'>데이터 없음</span>" if val is None else key
         col.markdown(
             f"<div style='background:{bg};padding:10px 6px;border-radius:8px;"
             f"text-align:center;line-height:1.4'>"
@@ -373,7 +371,8 @@ with tab_overview:
     st.divider()
 
     st.subheader("CAGR 사다리 (A → G, R6 제외 변형 포함)")
-    st.caption("D~H·R6변형: period CSV 21구간 기준 실시간 계산 | A/B/C 랜덤: ablation 실행 시 기록된 분포 중앙값")
+    st.caption(f"D~H·R6변형: 산출물 CAGR ({det_periods}, 완결 구간) | "
+               "A/B/C 랜덤: ablation 실행 시 기록된 분포 중앙값")
     cagr_rows = []
     # 표시 순서: 랜덤 기준선 → 결정론적(D/E/F/G 바로 뒤에 no_r6 삽입) → H
     _det_order = []
@@ -393,8 +392,7 @@ with tab_overview:
                                "no_r6": tag in NO_R6_TAGS})
 
     if cagr_rows:
-        benchmark = (csv_bench_cagr or
-                     scenarios.get("D_rim_only", {}).get("benchmark_cagr", 0)) * 100
+        benchmark = (bench_cagr_val or 0) * 100
         fig = go.Figure()
         for r in cagr_rows:
             if r["rand"]:
@@ -424,7 +422,12 @@ with tab_overview:
         st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("전체 시나리오 지표")
-    st.caption("D~H: period CSV 21구간 기준 직접 계산 | A/B/C: summary.json 집계값")
+    st.caption(f"D~H: 산출물 값 ({det_periods}, 완결 구간) | A/B/C: summary.json 분포 집계값")
+    # MDD·Sharpe 는 **열 단위로 기준을 고정**한다. CANONICAL 의 SSOT 는 일별 NAV 지만
+    # 일별 NAV 가 있는 태그는 72개 중 14개뿐이라, 있는 행만 일별 값으로 채우면 한 열에
+    # 두 기준이 섞인다 (같은 태그에서 구간 −34.14% vs 일별 −58.12%, 24%p 차). 정렬하는
+    # 순간 순위가 뒤집히므로 여기서는 전 행을 구간 기준으로 통일하고 열 제목에 명시한다.
+    # 일별 NAV 값은 현행 채택 배너·단일 태그 상세에서만 노출한다.
     table_rows = []
     for tag in ALL_TAGS:
         s = display_scenarios.get(tag, {})
@@ -432,13 +435,13 @@ with tab_overview:
             continue
         cagr = s.get("cagr") or s.get("median_cagr", 0)
         table_rows.append({
-            "시나리오":    TAG_LABELS.get(tag, tag),
-            "CAGR":       f"{cagr * 100:.1f}%",
-            "Alpha":      f"{s['alpha'] * 100:.1f}%"    if "alpha"      in s else "—",
-            "MDD":        f"{s['mdd'] * 100:.1f}%"      if "mdd"        in s else "—",
-            "Sharpe":     f"{s['sharpe']:.2f}"           if "sharpe"     in s else "—",
-            "Robustness": f"{s['robustness'] * 100:.0f}%" if "robustness" in s
-                          else f"n={s.get('n_repeats', '—')}회",
+            "시나리오":         TAG_LABELS.get(tag, tag),
+            "CAGR":            f"{cagr * 100:.1f}%",
+            "Alpha":           f"{s['alpha'] * 100:.1f}%"    if "alpha"      in s else "—",
+            "MDD (구간 기준)":   f"{s['mdd'] * 100:.1f}%"      if "mdd"        in s else "—",
+            "Sharpe (구간 기준)": f"{s['sharpe']:.2f}"          if "sharpe"     in s else "—",
+            "Robustness":      f"{s['robustness'] * 100:.0f}%" if "robustness" in s
+                               else f"n={s.get('n_repeats', '—')}회",
         })
     st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
 
@@ -450,7 +453,8 @@ with tab_overview:
     if r6_avail:
         st.divider()
         st.subheader("R6 필터 민감도 (adjROE < r 기준 탈락 On/Off)")
-        st.caption("R6 제외 시 CAGR 변화 (21구간 기준). R6가 수익을 제한하면 제외 시 상승, 노이즈를 제거하면 하락.")
+        st.caption(f"R6 제외 시 CAGR 변화 ({det_periods}, 완결 구간). "
+                   "R6가 수익을 제한하면 제외 시 상승, 노이즈를 제거하면 하락.")
         r6_rows = []
         for tag_on, tag_off in r6_avail:
             s_on  = display_scenarios[tag_on]
@@ -470,12 +474,24 @@ with tab_overview:
 # ══════════════════════════════════════════════════════════════════════════════
 
 with tab_period:
-    st.caption("분석 기준: 유효 **21개 구간** (2016-04-05 ~ 2026-04-03) — TTM 미충족 2015-04·08 2구간 제외, 전략·벤치마크 동일 적용")
     available = [t for t in DET_TAGS + NO_R6_TAGS if not load_periods(t).empty]
 
     if not available:
         st.info("구간별 데이터(`*_periods.csv`)가 없습니다. 서버에서 `--det-only`로 재실행하면 생성됩니다.")
         st.stop()
+
+    # 구간 수는 세 층이 다르다 — CSV 전체 / n_gate>0 / 완결. 이 탭은 구간을 훑어보는
+    # 화면이라 n_gate>0 을 쓰지만, 공식 지표 기준(완결 구간)과 다르다는 걸 못박는다.
+    # 날짜·개수를 문자열로 박아두면 재실행 때마다 낡는다.
+    _base    = load_periods(available[0])
+    _gated_n = int((_base["n_gate"] > 0).sum()) if "n_gate" in _base.columns else len(_base)
+    _span    = period_span(available[0])
+    st.caption(
+        f"이 탭은 게이트 통과 구간 **{_gated_n}개** 를 훑어봅니다 "
+        + (f"(CSV 전체 {_span[0]}행, {_span[1]} ~ {_span[2]}). " if _span else ". ")
+        + f"공식 성과 지표는 **완결 구간 {det_periods}** 기준이라 이 숫자와 다릅니다 — "
+        "이 탭의 구간값으로 CAGR 을 재계산하지 마세요. 전략·벤치마크는 동일 구간 적용."
+    )
 
     # ── 컨트롤 ────────────────────────────────────────────────────────────────
     ctrl1, ctrl2 = st.columns([3, 2])
@@ -487,7 +503,7 @@ with tab_period:
             format_func=lambda t: TAG_LABELS.get(t, t),
         )
     base_df   = load_periods("D_rim_only")
-    # TTM 미충족 빈 구간(n_gate=0) 제외 → 유효 21개 구간 기준
+    # TTM 미충족 빈 구간(n_gate=0) 제외 → 위 캡션의 게이트 통과 구간 기준
     if "n_gate" in base_df.columns:
         base_df = base_df[base_df["n_gate"] > 0].copy()
     all_dates = sorted(base_df["rebalance_date"].dt.date.tolist())
