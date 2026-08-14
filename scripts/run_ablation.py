@@ -19,6 +19,7 @@ import inspect
 import json
 import logging
 import os
+from collections import Counter
 from datetime import date, datetime
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
@@ -80,6 +81,28 @@ def _run_one(args: tuple) -> dict:
     }
 
 
+def calendar_metadata(points: list[RebalancePoint]) -> dict:
+    """이 실행이 실제로 쓴 캘린더를 앵커에서 **파생**한다. 라벨을 믿지 않는다.
+
+    "안 A 는 분기다"라는 사실이 지금까지 **태그 이름 `_A` 에만** 있었다 — `n_stocks`
+    와 똑같은 병이다(2026-08-12). 이름과 내용이 어긋나도 잡을 수단이 없었고, 그래서
+    "캘린더 A/C 메타데이터 정합" 검사를 아예 만들 수 없었다.
+
+    `args.calendar` 라벨이 아니라 앵커에서 뽑는 이유: 라벨은 사람이 넘기는 값이라
+    틀릴 수 있지만, 앵커는 엔진이 실제로 순회한 것이다. `report_types` 분포가
+    분기(Q1/Q3 포함)와 반기(FY/H1 뿐)를 내용으로 구별해 준다.
+    """
+    ids = sorted({p.calendar_id for p in points})
+    return {
+        # 섞이면 숨기지 않고 그대로 드러낸다 — 섞인 실행은 그 자체가 사고다.
+        'id':            ids[0] if len(ids) == 1 else '+'.join(ids),
+        'n_anchors':     len(points),
+        'report_types':  dict(sorted(Counter(p.report_type for p in points).items())),
+        'first_anchor':  min(p.date for p in points).isoformat(),
+        'last_anchor':   max(p.date for p in points).isoformat(),
+    }
+
+
 def run_deterministic(tag: str, config: dict, rebalance_points: list[RebalancePoint],
                       valuation_date: date | None = None,
                       n_stocks: int | None = None) -> tuple[dict, list[dict]]:
@@ -113,6 +136,8 @@ def run_deterministic(tag: str, config: dict, rebalance_points: list[RebalancePo
         # 종목 수는 지금까지 **어떤 산출물에도 기록되지 않았고** 태그 이름 문자열
         # (`_n13`)에만 있었다. 이름과 내용이 어긋나도 아무도 못 잡던 원인이다.
         'n_stocks':           n_stocks if n_stocks is not None else DEFAULT_N_STOCKS,
+        # 캘린더도 이름(`_A`/`_C`)에만 있었다 — 위와 같은 이유로 내용에 기록한다.
+        'calendar':           calendar_metadata(rebalance_points),
     }
     log.info(
         f'[{tag}] CAGR={m["cagr"]:.1%} (net={m.get("net_cagr", 0):.1%}) '
@@ -417,6 +442,7 @@ def main() -> None:
                 'p95_cagr':     round(cagrs[int(n * 0.95)], 6),
                 'n_repeats':    n,
                 'n_stocks':     run_config.get('random_n'),
+                'calendar':     calendar_metadata(rebalance_points),
             }
         else:
             result, period_results = run_deterministic(tag, config, rebalance_points,

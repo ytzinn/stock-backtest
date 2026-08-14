@@ -1,10 +1,12 @@
 """시리즈 탐색 — main 층. 드롭다운으로 **변수 축**을 고르고 그 축의 비교를 본다.
 
-레거시 `ablation.py` 는 레이어 축(13태그) 전용이라 만들어 둔 72개 산출물 중 대부분이
+레거시 `ablation.py` 는 레이어 축(13태그) 전용이라 만들어 둔 76개 산출물 중 대부분이
 화면에 없었다. 여기는 매니페스트(`dashboard/series.py`)의 16축 전부를 연다.
+2026-08-14 에 레거시 페이지의 구간별·분포 탭까지 흡수하고 그쪽을 없앴다 — 화면이 둘이면
+한쪽만 고쳐지는 상태가 되고, 실제로 그게 오염이 오래 살아남은 이유였다.
 
 **이 화면은 지표를 계산하지 않는다.** 산출물이 기록한 값을 읽어 그리기만 한다
-(2026-08-14: 화면 재계산이 공식 수치와 1.86%p 어긋나고 판정 배지를 뒤집은 사고).
+(화면 재계산이 공식 수치와 1.86%p 어긋나고 판정 배지를 뒤집은 사고).
 """
 from __future__ import annotations
 
@@ -31,11 +33,26 @@ STATUS_COLOR = {
     'EXPLORING':   '#d97706',
     'ARCHIVED':    '#64748b',
 }
+FUNNEL_COLS = {
+    'n_gate':           ('Gate PASS',       '#94a3b8'),
+    'hard_passed':      ('Hard Filter',     '#60a5fa'),
+    'stability_passed': ('Stability Filter', '#34d399'),
+    'screener_passed':  ('Factor Screener', '#fbbf24'),
+    'momentum_passed':  ('Momentum Filter', '#a78bfa'),
+}
 
 
 @st.cache_data(ttl=60)
 def _catalog():
     return build_catalog()
+
+
+@st.cache_data(ttl=60)
+def _periods(path_str: str) -> pd.DataFrame:
+    df = pd.read_csv(path_str)
+    df['rebalance_date'] = pd.to_datetime(df['rebalance_date'])
+    df['next_date'] = pd.to_datetime(df['next_date'])
+    return df
 
 
 def _pct(v, digits=2):
@@ -79,55 +96,16 @@ st.markdown(
     unsafe_allow_html=True)
 st.caption(f'**무엇을 바꿨나** — {spec.changes}')
 
+if spec.notes:
+    with st.expander('📖 이 축을 처음 본다면 — 배경 설명', expanded=False):
+        st.markdown(spec.notes)
+
 if series.missing:
     st.error(f'매니페스트가 가리키는데 산출물이 없는 키: `{"`, `".join(series.missing)}`')
 
-# ── A형 — 태그 성과 비교 ────────────────────────────────────────────────────
-
-if spec.kind == 'A':
-    rows = []
-    for ref in series.members:
-        a = catalog.require(ref.artifact_key)
-        m = a.metrics
-        rows.append({
-            '시나리오': ref.display + (' ⟵ 기준' if ref.artifact_key == spec.baseline else ''),
-            'CAGR': _pct(m.get('cagr') if m.get('cagr') is not None else m.get('median_cagr')),
-            'net CAGR': _pct(m.get('net_cagr')),
-            'Alpha': _pct(m.get('alpha')),
-            'MDD (구간 기준)': _pct(m.get('mdd')),
-            'Sharpe (구간 기준)': None if m.get('sharpe') is None else round(m['sharpe'], 2),
-            'Robustness': _pct(m.get('robustness'), 0),
-            '회전율': _pct(m.get('avg_turnover'), 0),
-            # 레거시 산출물은 n_stocks 를 기록하지 않는다 (72개 중 68개). 20 으로
-            # 간주하되 화면에서 "기록된 13"과 "간주한 20"을 구별할 수 있게 표기한다.
-            '구간': a.n_periods if a.n_periods is not None else '—',
-            'n': a.n_stocks if a.n_stocks is not None else '미기록',
-            '산출': (a.generated_at or '')[:10],
-            '출처': '분포집계' if a.source == 'summary' else '단일실행',
-        })
-    df = pd.DataFrame(rows)
-
-    fig = go.Figure(go.Bar(
-        x=df['CAGR'], y=df['시나리오'], orientation='h',
-        marker_color=['#1d4ed8' if '⟵ 기준' in s else '#93c5fd' for s in df['시나리오']],
-        text=[f'{v:.1f}%' if v is not None else '—' for v in df['CAGR']],
-        textposition='outside', hovertemplate='%{y}<br>CAGR %{x:.2f}%<extra></extra>'))
-    fig.update_layout(height=max(320, len(df) * 30), xaxis_title='CAGR (%)',
-                      yaxis={'categoryorder': 'array',
-                             'categoryarray': list(reversed(df['시나리오']))},
-                      margin=dict(l=10, r=80, t=10, b=30), plot_bgcolor='white')
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.dataframe(df, use_container_width=True, hide_index=True)
-    st.caption(
-        'MDD·Sharpe 는 **구간 기준**으로 열 전체를 통일했습니다. 일별 NAV 가 있는 태그는 '
-        '72개 중 14개뿐이라, 있는 행만 일별 값으로 채우면 한 열에 두 정의가 섞입니다 '
-        '(같은 태그에서 −34.14% vs −58.12%). 일별 값은 위 현행 채택 배너에 있습니다. '
-        '`분포집계` 행은 500회 반복의 중앙값이라 단일 실행 지표가 없습니다.')
-
 # ── B형 — 검정/진단 산출물 ─────────────────────────────────────────────────
 
-else:
+if spec.kind == 'B':
     st.info(f'검정·진단 산출물입니다. 전용 뷰(`renderer={spec.renderer}`)는 미구현이라 '
             f'원본 파일을 나열합니다.')
     found = []
@@ -141,6 +119,172 @@ else:
         st.dataframe(pd.DataFrame(found), use_container_width=True, hide_index=True)
     else:
         st.error('원본 파일이 하나도 없습니다 — 산출물이 서버에만 있거나 경로가 죽었습니다.')
+
+# ── A형 — 비교 / 구간별 / 분포 ──────────────────────────────────────────────
+
+else:
+    with_periods = [r for r in series.members
+                    if 'periods' in catalog.require(r.artifact_key).sidecars]
+    with_dist = [r for r in series.members
+                 if 'dist' in catalog.require(r.artifact_key).sidecars]
+    tab_cmp, tab_period, tab_dist = st.tabs(['비교', '구간별', '랜덤 분포'])
+
+    # ── 비교 ────────────────────────────────────────────────────────────────
+    with tab_cmp:
+        rows = []
+        for ref in series.members:
+            a = catalog.require(ref.artifact_key)
+            m = a.metrics
+            rows.append({
+                '시나리오': ref.display + (' ⟵ 기준' if ref.artifact_key == spec.baseline else ''),
+                'CAGR': _pct(m.get('cagr') if m.get('cagr') is not None else m.get('median_cagr')),
+                'net CAGR': _pct(m.get('net_cagr')),
+                'Alpha': _pct(m.get('alpha')),
+                'MDD (구간 기준)': _pct(m.get('mdd')),
+                'Sharpe (구간 기준)': None if m.get('sharpe') is None else round(m['sharpe'], 2),
+                'Robustness': _pct(m.get('robustness'), 0),
+                '회전율': _pct(m.get('avg_turnover'), 0),
+                # 레거시 산출물은 n_stocks·calendar 를 기록하지 않는다. "기록된 13"과
+                # "이름으로 간주한 20"을 화면에서 구별할 수 있게 표기한다.
+                # 한 열에 숫자와 '—' 를 섞으면 Arrow 직렬화가 터진다 — 열 단위로
+                # 타입을 통일한다 (2026-08-14 실제 발생).
+                '구간': str(a.n_periods) if a.n_periods is not None else '—',
+                'n': str(a.n_stocks) if a.n_stocks is not None else '미기록',
+                '캘린더': (m.get('calendar') or {}).get('id', '미기록'),
+                '산출': (a.generated_at or '')[:10],
+                '출처': '분포집계' if a.source == 'summary' else '단일실행',
+            })
+        df = pd.DataFrame(rows)
+
+        fig = go.Figure(go.Bar(
+            x=df['CAGR'], y=df['시나리오'], orientation='h',
+            marker_color=['#1d4ed8' if '⟵ 기준' in s else '#93c5fd' for s in df['시나리오']],
+            text=[f'{v:.1f}%' if v is not None else '—' for v in df['CAGR']],
+            textposition='outside', hovertemplate='%{y}<br>CAGR %{x:.2f}%<extra></extra>'))
+        fig.update_layout(height=max(320, len(df) * 30), xaxis_title='CAGR (%)',
+                          yaxis={'categoryorder': 'array',
+                                 'categoryarray': list(reversed(df['시나리오']))},
+                          margin=dict(l=10, r=80, t=10, b=30), plot_bgcolor='white')
+        st.plotly_chart(fig, use_container_width=True)
+        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.caption(
+            'MDD·Sharpe 는 **구간 기준**으로 열 전체를 통일했습니다. 일별 NAV 가 있는 태그는 '
+            '76개 중 14개뿐이라, 있는 행만 일별 값으로 채우면 한 열에 두 정의가 섞입니다 '
+            '(같은 태그에서 −34.14% vs −58.12%). 일별 값은 위 현행 채택 배너에 있습니다. '
+            '`분포집계` 행은 500회 반복의 중앙값이라 단일 실행 지표가 없습니다.')
+
+    # ── 구간별 ──────────────────────────────────────────────────────────────
+    with tab_period:
+        if not with_periods:
+            st.info('이 축에는 구간 CSV(`*_periods.csv`)가 있는 멤버가 없습니다. '
+                    '구간 CSV 는 git 미추적이라 개발 PC 에는 일부만 있습니다 — 서버가 원본입니다.')
+        else:
+            picked = st.multiselect(
+                '시나리오', with_periods, default=with_periods[:3],
+                format_func=lambda r: r.display, key='period_pick')
+            if picked:
+                base = _periods(str(catalog.require(picked[0].artifact_key).sidecars['periods']))
+                gated = base[base['n_gate'] > 0] if 'n_gate' in base.columns else base
+                dates = sorted(gated['rebalance_date'].dt.date.tolist())
+                lo, hi = st.select_slider('분석 구간', options=dates,
+                                          value=(dates[0], dates[-1]), key='period_range')
+                st.caption(
+                    f'게이트 통과 구간 {len(gated)}개 중 선택 범위. **공식 성과 지표는 완결 '
+                    f'구간 기준**이라 이 개수와 다릅니다 — 이 탭의 구간값으로 CAGR 을 '
+                    f'재계산하지 마세요.')
+
+                fig = go.Figure()
+                for ref in picked:
+                    d = _periods(str(catalog.require(ref.artifact_key).sidecars['periods']))
+                    d = d[(d['rebalance_date'].dt.date >= lo) & (d['rebalance_date'].dt.date <= hi)]
+                    if 'n_gate' in d.columns:
+                        d = d[d['n_gate'] > 0]
+                    fig.add_trace(go.Bar(
+                        x=d['rebalance_date'].dt.strftime('%Y-%m'),
+                        y=d['period_return'] * 100, name=ref.display,
+                        hovertemplate='%{x}<br>%{y:.2f}%<extra></extra>'))
+                d0 = base[(base['rebalance_date'].dt.date >= lo)
+                          & (base['rebalance_date'].dt.date <= hi)]
+                for col, name, dash in (('kospi_return', 'KOSPI', 'dash'),
+                                        ('kosdaq_return', 'KOSDAQ', 'dot')):
+                    if col in d0.columns:
+                        fig.add_trace(go.Scatter(
+                            x=d0['rebalance_date'].dt.strftime('%Y-%m'),
+                            y=d0[col] * 100, name=name, mode='lines+markers',
+                            line=dict(width=1.5, dash=dash)))
+                fig.update_layout(height=380, yaxis_title='구간 수익률 (%)', barmode='group',
+                                  xaxis=dict(type='category', tickangle=-45, tickfont_size=10),
+                                  margin=dict(t=10, b=60), plot_bgcolor='white',
+                                  legend=dict(orientation='h', y=-0.35, font_size=10))
+                st.plotly_chart(fig, use_container_width=True)
+
+                st.subheader('필터별 통과 종목 수')
+                d = _periods(str(catalog.require(picked[0].artifact_key).sidecars['periods']))
+                d = d[(d['rebalance_date'].dt.date >= lo) & (d['rebalance_date'].dt.date <= hi)]
+                fig2 = go.Figure()
+                for col, (label, c) in FUNNEL_COLS.items():
+                    if col in d.columns and d[col].notna().any():
+                        fig2.add_trace(go.Scatter(
+                            x=d['rebalance_date'], y=d[col], name=label, mode='lines+markers',
+                            line=dict(color=c, width=2), marker=dict(size=5)))
+                fig2.update_layout(height=260, yaxis_title='통과 종목 수', hovermode='x unified',
+                                   margin=dict(t=10, b=50), plot_bgcolor='white',
+                                   legend=dict(orientation='h', y=-0.25))
+                st.plotly_chart(fig2, use_container_width=True)
+                st.caption(f'기준 시나리오: {picked[0].display}')
+
+                with st.expander('구간별 수치 테이블'):
+                    for ref in picked:
+                        d = _periods(str(catalog.require(ref.artifact_key).sidecars['periods']))
+                        d = d[(d['rebalance_date'].dt.date >= lo)
+                              & (d['rebalance_date'].dt.date <= hi)].copy()
+                        out = pd.DataFrame({
+                            '구간 시작': d['rebalance_date'].dt.date,
+                            '전략': (d['period_return'] * 100).round(2),
+                            'net': (d['net_return'] * 100).round(2) if 'net_return' in d else None,
+                            'KOSPI': (d['kospi_return'] * 100).round(2),
+                            'KOSDAQ': (d['kosdaq_return'] * 100).round(2)
+                                      if 'kosdaq_return' in d else None,
+                            'Alpha(vs KP)': ((d['period_return'] - d['kospi_return']) * 100).round(2),
+                            '종목': d['n_stocks'] if 'n_stocks' in d else None,
+                        })
+                        st.markdown(f'**{ref.display}**')
+                        st.dataframe(out, use_container_width=True, hide_index=True)
+
+    # ── 랜덤 분포 ───────────────────────────────────────────────────────────
+    with tab_dist:
+        if not with_dist:
+            st.info('이 축에는 랜덤 분포(`*_dist.csv`)가 있는 멤버가 없습니다. '
+                    '분포는 A/B/C 같은 무작위 추첨 시나리오에만 있습니다.')
+        else:
+            det = [r for r in series.members
+                   if catalog.require(r.artifact_key).metrics.get('cagr') is not None]
+            for ref in with_dist:
+                d = pd.read_csv(catalog.require(ref.artifact_key).sidecars['dist'])
+                if 'cagr' not in d.columns:
+                    continue
+                cagr = d['cagr'] * 100
+                p5, p95 = cagr.quantile(0.05), cagr.quantile(0.95)
+                st.markdown(f'**{ref.display}** — {len(d)}회 추첨')
+                c = st.columns(3)
+                c[0].metric('중앙값 CAGR', f'{cagr.median():.1f}%')
+                c[1].metric('p5', f'{p5:.1f}%')
+                c[2].metric('p95', f'{p95:.1f}%')
+                fig = go.Figure(go.Histogram(x=cagr, nbinsx=40, marker_color='#cbd5e1',
+                                             name='랜덤 분포'))
+                fig.add_vline(x=p95, line_dash='dash', line_color='#dc2626',
+                              annotation_text=f'p95 {p95:.1f}%')
+                for r in det:
+                    v = catalog.require(r.artifact_key).metrics['cagr'] * 100
+                    fig.add_vline(x=v, line_color='#1d4ed8', line_width=1.5,
+                                  annotation_text=f'{r.display.split()[0]} {v:.1f}%',
+                                  annotation_font_size=10)
+                fig.update_layout(height=300, xaxis_title='CAGR (%)', bargap=0.05,
+                                  margin=dict(t=30, b=30), plot_bgcolor='white',
+                                  showlegend=False)
+                st.plotly_chart(fig, use_container_width=True)
+            st.caption('세로선은 이 축의 결정적 실행 CAGR 입니다. 빨간 파선(p95)을 넘어야 '
+                       '"무작위로도 나올 수 있는 성적"이 아니라고 말할 수 있습니다.')
 
 # ── 미배정 산출물 ───────────────────────────────────────────────────────────
 

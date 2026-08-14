@@ -74,6 +74,7 @@ class SeriesSpec:
     periods_per_year: int | None = 2   # None = 축마다 다름. 구간 수는 산출물에서 읽는다
     paths: tuple[str, ...] = ()     # B형 원본 (repo 상대 glob)
     renderer: str | None = None     # B형 전용 뷰 키
+    notes: str = ''                 # 축을 처음 보는 사람에게 필요한 배경 (마크다운)
 
 
 @dataclass(frozen=True)
@@ -100,6 +101,42 @@ _SPEC14 = 'docs/설계/SPEC_14_calendar_sensitivity_v0.3.md'
 
 _CLOSED = lambda label, as_of, src: Status('CLOSED_FAIL', label, as_of, src)  # noqa: E731
 
+#: 사람이 읽는 이름. 레거시 ablation 페이지가 갖고 있던 자산을 여기로 옮겼다 —
+#: 화면이 둘이면 한쪽만 고쳐지는 상태가 되기 때문이다(2026-08-14 오염이 그랬다).
+LABELS: dict[str, str] = {
+    'A_random':           'A  랜덤 (필터 없음)',
+    'B_hard_random':      'B  Hard + 랜덤',
+    'C_stability_random': 'C  Hard + Stability + 랜덤',
+    'C_no_r6':            "C′ Hard + Stability(−R6) + 랜덤",
+    'D_rim_only':         'D  Hard + Stability + RIM',
+    'D_no_r6':            "D′ RIM (R6 제외)",
+    'E_screener_rim':     'E  D + 팩터스크리닝',
+    'E_no_r6':            "E′ E (R6 제외)",
+    'F_momentum_rim':     'F  D + 모멘텀',
+    'F_no_r6':            "F′ F (R6 제외)",
+    'G_full':             'G  전체 (E + F)',
+    'G_no_r6':            "G′ 전체 (R6 제외)",
+    'H_no_stability':     'H  G − Stability',
+}
+
+_LAYER_NOTES = """
+**Ablation Test** 란 필터를 하나씩 추가해 가며 각 구성 요소가 수익률에 얼마나 기여하는지
+측정하는 실험이다. A(아무 필터 없는 랜덤 매매)에서 시작해 G(모든 필터 적용)까지 쌓는다.
+A~C 는 필터 통과 후 **무작위 추첨을 500회 반복**한 분포이고, D~H 는 단일 결정적 실행이다.
+C→D 차이가 RIM 모델 자체의 기여를 보여준다.
+
+| 레이어 | 무엇을 거르나 |
+|---|---|
+| 🔒 **Hard Filter** | 일평균 거래대금 1억 미만·상장 6개월 미만 제외. 슬리피지로 현실성이 깨지는 종목을 뺀다 |
+| 🏦 **Stability Filter** | 재무안정성 하드 룰 6개 중 하나라도 걸리면 탈락 — R1 부채비율>200% · R2 차입금비율>150%(3FY 단조 개선이면 예외) · R3 최근 3FY 중 매출 YoY −5% 이하 2회 · R4 영업CF 2년 연속 음수 · R5 영업CF<0 & 재무CF>0(차입 운영) · R6 adjROE < 요구수익률 |
+| 🔍 **Factor Screener** | 매출·영업이익 성장(각 1/6), GPA(1/3), 1/PBR(1/3) 복합 점수 상위 20% |
+| 📈 **Momentum Filter** | 가격이 추세 위에 있는 종목만. "좋은 기업이라도 지금 하락 중이면 사지 않는다" (밸류 트랩 회피) |
+| 💡 **RIM 적정가** | 주주자본 + 초과이익 누적으로 적정가 산출. 고평가 5% 초과 제외 후 상승여력순 편입 |
+
+> ⚠️ 이 축은 **RIM 랭킹 경로**의 기록이다. 현행 채택안은 1/PBR 랭킹이라 계보가 다르다 —
+> 여기 수치를 현행 성적으로 인용하지 마라.
+"""
+
 
 # ── 정본 인벤토리 — 16축 ────────────────────────────────────────────────────
 
@@ -110,6 +147,7 @@ SERIES: tuple[SeriesSpec, ...] = (
         baseline='D_rim_only',
         tags=('A_random', 'B_hard_random', 'C_stability_random', 'D_rim_only',
               'E_screener_rim', 'F_momentum_rim', 'G_full', 'H_no_stability'),
+        notes=_LAYER_NOTES,
         status=Status('ARCHIVED', 'RIM 경로 — 랭킹 폐기로 계보 종료', '2026-07', _SPEC05)),
 
     SeriesSpec(
@@ -167,8 +205,11 @@ SERIES: tuple[SeriesSpec, ...] = (
         id='ranking_signal', title='랭킹 신호 분리', kind='A',
         changes='RIM vs 1/PBR vs 팩터 — 무엇이 순위를 만드나',
         baseline='D_rim_only',
+        # `_parent` 는 랭킹 자체를 바꾼다 — PBR 분모가 자본총계가 아니라 지배기업
+        # 소유주지분이다 (rank_mode='pbr_parent', SPEC_11 §3). 이름만 보면 "부모 실행"
+        # 으로 오독하기 쉬워 미배정으로 남아 있었다.
         tags=('D_rim_only', 'D_pbr_only', 'D_factor_only', 'D_pbr_no_r3r4',
-              'F_momentum_rim', 'F_pbr_only'),
+              'F_momentum_rim', 'F_pbr_only', 'F_pbr_no_r3r4_parent'),
         status=Status('CLOSED_FAIL', 'RIM 랭킹 근거 상실 → 1/PBR 로 교체', '2026-07', _SPEC10)),
 
     SeriesSpec(
@@ -270,7 +311,8 @@ def resolve(spec: SeriesSpec, catalog: ArtifactCatalog | None = None) -> Series:
     else:
         members.sort()
     return Series(spec=spec,
-                  members=tuple(_split_variant(ScenarioRef.from_key(k)) for k in members),
+                  members=tuple(_split_variant(ScenarioRef.from_key(k, LABELS.get(k)))
+                                for k in members),
                   missing=tuple(missing))
 
 

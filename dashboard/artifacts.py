@@ -45,7 +45,11 @@ class ScenarioRef:
 
     base_tag: str
     artifact_key: str
-    params: dict = field(default_factory=dict)
+    # `hash=False` 가 필수다. frozen dataclass 는 __hash__ 를 자동 생성하는데 dict 필드가
+    # 끼면 해싱 시점에 TypeError 로 터진다. Streamlit 은 위젯 옵션을 해싱하므로 이걸
+    # 빼먹으면 ScenarioRef 를 셀렉트 옵션으로 쓰는 순간 **화면이 죽는다** (2026-08-14 발생).
+    # 동등성 비교에는 남겨둔다 — eq 가 같으면 hash 대상 필드도 같으므로 계약은 지켜진다.
+    params: dict = field(default_factory=dict, hash=False)
     label: str | None = None
 
     @classmethod

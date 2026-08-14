@@ -156,3 +156,19 @@ def test_exclude_prevents_double_ownership(catalog):
     n_axis = {m.artifact_key for m in resolve(
         next(s for s in SERIES if s.id == 'n_stocks'), catalog).members}
     assert not (grid & n_axis), f'두 축이 같은 키를 소유한다: {sorted(grid & n_axis)}'
+
+
+def test_scenario_ref_is_hashable():
+    """`ScenarioRef` 는 해시 가능해야 한다 — Streamlit 위젯이 옵션을 해싱한다.
+
+    frozen dataclass 는 __hash__ 를 자동 생성하는데 `params` 가 dict 라 그대로 두면
+    해싱 시점에 TypeError 로 터진다. 데이터 계층에서는 아무 문제가 없어 보이다가
+    **화면에서만** 죽는 종류라, 여기서 못 박는다 (2026-08-14 실제 발생).
+    """
+    from dashboard.artifacts import ScenarioRef
+    a = ScenarioRef.of('F_pbr_ma200', n_stocks=13)
+    b = ScenarioRef.of('F_pbr_ma200', n_stocks=13)
+    assert hash(a) == hash(b) and a == b
+    assert len({a, b}) == 1                      # 집합·dict 키로 쓸 수 있어야 한다
+    assert a.params == {'n_stocks': 13}          # 해시에서 뺐어도 값은 살아 있어야 한다
+    assert len({r for s in resolve_all() for r in s.members}) > 0
