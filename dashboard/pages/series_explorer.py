@@ -23,6 +23,13 @@ from backtest.canonical_state import ROOT
 from dashboard.artifacts import build_catalog
 from dashboard.canonical_banner import render_canonical_banner
 from dashboard.series import SERIES, resolve, unassigned
+from dashboard.series_view import (
+    MDD_COL,
+    b_type_files,
+    comparison_rows,
+    n_curve,
+    provenance_rows,
+)
 
 st.set_page_config(page_title='시리즈 탐색', layout='wide', page_icon='🧭')
 
@@ -65,13 +72,11 @@ def _render_n_curve() -> None:
     `build_portfolio` 가 `candidates[:n]` 인 순수 접두어 슬라이스라 성립한다.
     gross·구간 기준이라는 한계를 화면에도 반드시 함께 띄운다.
     """
-    path = ROOT / 'experiments/analysis/n_stocks_curve.json'
-    if not path.exists():
+    d = n_curve()
+    if d is None:
         st.info('종목 수 곡선 산출물이 없습니다 — '
                 '`python -m scripts.analysis.n_stocks_curve` 로 생성합니다.')
         return
-    import json
-    d = json.loads(path.read_text(encoding='utf-8'))
     pts = pd.DataFrame(d['points'])
 
     st.subheader('종목 수 곡선 (tape 절단, n=1..%d)' % pts['n'].max())
@@ -157,15 +162,11 @@ if series.missing:
 if spec.kind == 'B':
     st.info(f'검정·진단 산출물입니다. 전용 뷰(`renderer={spec.renderer}`)는 미구현이라 '
             f'원본 파일을 나열합니다.')
-    found = []
-    for pattern in spec.paths:
-        for p in sorted(glob.glob(str(ROOT / pattern))):
-            path = Path(p)
-            found.append({'파일': str(path.relative_to(ROOT)),
-                          '크기': f'{path.stat().st_size / 1024:,.0f} KB',
-                          '수정': pd.Timestamp(path.stat().st_mtime, unit='s').date()})
+    found = b_type_files(spec)
     if found:
-        st.dataframe(pd.DataFrame(found), use_container_width=True, hide_index=True)
+        df_b = pd.DataFrame(found)
+        df_b['수정'] = pd.to_datetime(df_b['수정'], unit='s').dt.date
+        st.dataframe(df_b, use_container_width=True, hide_index=True)
     else:
         st.error('원본 파일이 하나도 없습니다 — 산출물이 서버에만 있거나 경로가 죽었습니다.')
 
@@ -180,29 +181,7 @@ else:
 
     # ── 비교 ────────────────────────────────────────────────────────────────
     with tab_cmp:
-        rows = []
-        for ref in series.members:
-            a = catalog.require(ref.artifact_key)
-            m = a.metrics
-            rows.append({
-                '시나리오': ref.display + (' ⟵ 기준' if ref.artifact_key == spec.baseline else ''),
-                'CAGR': _pct(m.get('cagr') if m.get('cagr') is not None else m.get('median_cagr')),
-                'net CAGR': _pct(m.get('net_cagr')),
-                'Alpha': _pct(m.get('alpha')),
-                'MDD (구간 기준)': _pct(m.get('mdd')),
-                'Sharpe (구간 기준)': None if m.get('sharpe') is None else round(m['sharpe'], 2),
-                'Robustness': _pct(m.get('robustness'), 0),
-                '회전율': _pct(m.get('avg_turnover'), 0),
-                # 레거시 산출물은 n_stocks·calendar 를 기록하지 않는다. "기록된 13"과
-                # "이름으로 간주한 20"을 화면에서 구별할 수 있게 표기한다.
-                # 한 열에 숫자와 '—' 를 섞으면 Arrow 직렬화가 터진다 — 열 단위로
-                # 타입을 통일한다 (2026-08-14 실제 발생).
-                '구간': str(a.n_periods) if a.n_periods is not None else '—',
-                'n': str(a.n_stocks) if a.n_stocks is not None else '미기록',
-                '캘린더': (m.get('calendar') or {}).get('id', '미기록'),
-                '산출': (a.generated_at or '')[:10],
-                '출처': '분포집계' if a.source == 'summary' else '단일실행',
-            })
+        rows = comparison_rows(series, catalog)
         df = pd.DataFrame(rows)
 
         fig = go.Figure(go.Bar(
@@ -221,6 +200,13 @@ else:
             '76개 중 14개뿐이라, 있는 행만 일별 값으로 채우면 한 열에 두 정의가 섞입니다 '
             '(같은 태그에서 −34.14% vs −58.12%). 일별 값은 위 현행 채택 배너에 있습니다. '
             '`분포집계` 행은 500회 반복의 중앙값이라 단일 실행 지표가 없습니다.')
+
+        with st.expander('🧬 산출물 계보 — 왜 이 태그는 그래프가 없나'):
+            st.write('산출물 상당수가 git 미추적이라 개발 PC 와 서버가 다릅니다. '
+                     '구간 CSV 가 없으면 [구간별] 탭에, 분포 CSV 가 없으면 [랜덤 분포] '
+                     '탭에 그 태그가 안 나옵니다.')
+            st.dataframe(pd.DataFrame(provenance_rows(series, catalog)),
+                         use_container_width=True, hide_index=True)
 
         if spec.renderer == 'n_stocks_curve':
             _render_n_curve()

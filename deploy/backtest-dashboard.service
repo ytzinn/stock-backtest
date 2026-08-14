@@ -1,0 +1,21 @@
+[Unit]
+Description=stock Backtest Development Diagnostics Dashboard (Streamlit)
+After=network.target docker.service
+
+[Service]
+Type=simple
+User=milmelmul
+WorkingDirectory=/opt/stock-backtest
+EnvironmentFile=/opt/stock-backtest/.env
+Environment=DASHBOARD_RUN_ENV=server
+Environment=BACKTEST_PROJECT_ROOT=/opt/stock-backtest
+Environment=BACKTEST_LOG_DIR=/var/log/backtest
+ExecStart=/opt/stock-backtest/venv/bin/python -m streamlit run dashboard/app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true --browser.gatherUsageStats=false
+# 대시보드는 정상 종료(exit 0)로도 내려갈 수 있다 — 2026-08-14 에 kill 로 두 번 내려갔고
+# `on-failure` 였으면 둘 다 안 살아났다. 명시적 `systemctl stop` 은 always 여도 재기동
+# 하지 않으므로, 사람이 의도한 정지는 그대로 존중된다.
+Restart=always
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
