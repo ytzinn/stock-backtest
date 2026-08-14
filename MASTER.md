@@ -339,7 +339,7 @@ stock-backtest/                   # 실제 서버 경로: /opt/stock-backtest/
 │       └─ phase2_rim.py            # Phase 2 파이프라인 조립
 │
 ├─ dashboard/
-│   ├─ app.py                       # Streamlit 대시보드 (포트 8502)
+│   ├─ app.py                       # Streamlit 대시보드 (포트 8501)
 │   ├─ server.py
 │   ├─ health.py
 │   ├─ queries.py

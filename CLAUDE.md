@@ -178,6 +178,6 @@ id, ticker, corp_code, year, report_type, fs_div, account_nm, amount, frmtrm_amo
   패턴: `$script=@'...'@ | Out-File "$env:TEMP\t.py"` → `scp -i ... t.py :/tmp/t.py` → `ssh ... "venv/bin/python /tmp/t.py"`
 - **백그라운드 모듈**: `nohup python -m X` 단독 실행 시 ModuleNotFoundError.
   패턴: `ssh -i "..." user@host "cd /opt/stock-backtest && nohup venv/bin/python -m ingest.X >> /opt/stock-backtest/logs/X.log 2>&1 &"` (double quotes, 절대경로 필수)
-- **현황 확인 순서**: ① `GET http://172.30.1.96:8502/health` (JSON) → ② SSH `dashboard/status/health.json` → ③ psycopg2 직접 쿼리. 신규 스크립트 작성은 마지막 수단.
+- **현황 확인 순서**: ① `GET http://172.30.1.96:8501/health` (JSON) → ② SSH `dashboard/status/health.json` → ③ psycopg2 직접 쿼리. 신규 스크립트 작성은 마지막 수단.
 
 

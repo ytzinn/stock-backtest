@@ -218,18 +218,19 @@ VS Code Remote SSH에서 `backtest-server` 호스트명으로 접속하면 비�
 mkdir -p /opt/stock-backtest/logs
 ```
 
-## 0-6-1. Streamlit 대시보드 (포트 8502)
+## 0-6-1. Streamlit 대시보드 (포트 8501)
 
 백테스트 결과를 시각화하는 Streamlit 대시보드. `dashboard/` 디렉토리 내 구현.
+systemd로 상시 기동 중(운영 포트 8501). 아래는 임시 수동 실행 예시.
 
 ```bash
 # 수동 실행 (개발 시)
-cd /opt/stock-backtest && venv/bin/python -m streamlit run dashboard/app.py --server.port 8502
+cd /opt/stock-backtest && venv/bin/python -m streamlit run dashboard/app.py --server.port 8501
 
-# 헬스체크: GET http://172.30.1.96:8502/health
+# 헬스체크: GET http://172.30.1.96:8501/health
 ```
 
-상태 확인 순서: ① `GET http://172.30.1.96:8502/health` → ② SSH `dashboard/status/health.json` → ③ psycopg2 직접 쿼리.
+상태 확인 순서: ① `GET http://172.30.1.96:8501/health` → ② SSH `dashboard/status/health.json` → ③ psycopg2 직접 쿼리.
 
 ---
 
