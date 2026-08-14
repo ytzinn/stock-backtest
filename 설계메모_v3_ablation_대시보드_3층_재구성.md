@@ -116,6 +116,36 @@ EXCLUDE_SUFFIX = ('_holdings', '_periods', '_dist')     # 부속 산출물
 반대 방향도 하나 있다. **`F_pbr_no_r3r4_parent` 가 실재하는데 §5 인벤토리 어디에도 없다.**
 무결성 검사 4번(목록에 없는 파일 경고)이 잡아줄 것이나, 미리 소속을 정해두는 편이 낫다. `[확인 요망]`
 
+### 3-3. 구현 결과 (2026-08-14) `[완료]`
+
+```
+dashboard/artifacts.py   ScenarioRef · Artifact · ArtifactCatalog · build_catalog()
+dashboard/series.py      Status · SeriesSpec · Series · SERIES(16축) · resolve() · unassigned()
+dashboard/pages/series_explorer.py   main 층 (드롭다운 = 축 선택)
+```
+
+**카탈로그 76항목** = 파일 72 + **summary-only 4**. 후자가 설계에 없던 발견이다:
+`A_random`·`B_hard_random`·`C_stability_random`·`C_no_r6` 는 500회 반복의 분포 집계라
+**단일 실행 산출물 파일이 없고** `summary.json` 에만 있다. `source` 필드로 구분한다 —
+뭉개면 "파일이 없다"와 "원래 파일로 존재하지 않는다"를 구별할 수 없다.
+
+**멤버십 총합 93 / 실제 태그 76** — 다대다가 실제로 작동한다는 뜻이다
+(`D_rim_only` 5축, `F_momentum_rim` 5축, `F_pbr_no_r3r4` 3축…). 미배정은
+`F_pbr_no_r3r4_parent` **1개뿐**이고, 이는 위에서 예고한 바로 그 태그다.
+
+**캘린더 변형은 `params` 로 분리했다.** `F_pbr_no_r3r4_A` 의 base_tag 는
+`F_pbr_no_r3r4` + `params={'calendar':'A'}` 다. 단, **떼어낸 나머지가 실제
+`ABLATION_CONFIGS` 키일 때만** 뗀다 — 이름 끝만 보고 자르면 `_A` 로 끝나는 멀쩡한
+태그를 망가뜨린다. "잘랐더니 아는 config 가 나왔다"가 파싱이 옳았다는 증거다.
+
+**검사 10개** (`tests/integrity/test_series_manifest.py`): 매니페스트 태그 실재 / base_tag ∈
+ABLATION_CONFIGS / B형 경로 해석 / 미배정 warning / **다대다가 실제로 쓰이는지** /
+캘린더 접미사 분리 / A형 멤버 ≥2 / 두 축의 키 중복 소유 금지 / 근거 문서 실재 / id 유일.
+
+> **근거 문서 검사가 즉시 값을 했다.** 매니페스트를 쓰면서 SPEC 파일명 4개를 틀리게 적었다
+> (`SPEC_05_ablation.md` → 실제 `SPEC_05_backtest.md` 등). 죽은 링크는 근거가 아니라
+> 근거인 척이고, 이 저장소는 같은 실수를 이미 두 번 커밋한 적이 있다.
+
 ---
 
 ## 4. A형/B형 + 지표 SSOT + 동적 구간
