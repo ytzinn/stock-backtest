@@ -874,12 +874,16 @@ def _mark_error(ticker: str, msg: str) -> None:
 
 
 def ingest_all(skip_if_done: bool = False, max_tickers: int = 0,
-               only_reports: tuple[str, ...] = ()) -> None:
+               only_reports: tuple[str, ...] = (),
+               shard_index: int = 0, shard_total: int = 1) -> None:
     """stocks 테이블 전종목 DART 수집 (14일+ 분산 실행).
 
     max_tickers > 0 이면 해당 수만큼만 처리하고 중단 (파일럿/일별 분산용).
     only_reports: 비어있으면 DEFAULT_REPORTS(FY+H1), ('H1',) 이면 H1만 재수집 (FY 보존),
                   ('Q1','Q3') 이면 분기만 명시 수집 (Q-A1, SPEC_13 §5-7).
+    shard_total > 1: 종목 목록을 shard_total개로 나눠 shard_index번째 몫만 처리.
+                     서로 다른 DART_API_KEY로 동시 실행해 쿼터를 병렬 소모할 때 사용
+                     (겹치는 종목이 없어야 쿼터 낭비가 없다).
     """
     dart = DartAPI()
 
@@ -918,10 +922,13 @@ def ingest_all(skip_if_done: bool = False, max_tickers: int = 0,
             """)
         targets = cur.fetchall()
 
+    if shard_total > 1:
+        targets = targets[shard_index::shard_total]
     if max_tickers > 0:
         targets = targets[:max_tickers]
     total = len(targets)
-    log.info(f'DART 수집 대상: {total}개 종목 (only_reports={only_reports or "전체"})')
+    log.info(f'DART 수집 대상: {total}개 종목 (only_reports={only_reports or "전체"}, '
+             f'shard={shard_index}/{shard_total})')
     for i, (ticker, corp_code) in enumerate(targets, 1):
         try:
             ingest_company(dart, ticker, corp_code, only_reports=only_reports)
@@ -951,6 +958,11 @@ def main() -> None:
                         help='명시한 report_type만 수집 (예: --only-reports Q1 Q3). '
                              'DEFAULT_REPORTS(FY+H1) 안전장치를 우회하는 유일한 경로 — '
                              'Q1/Q3 실제 수집(쿼터 소모)은 반드시 이 플래그로 명시한다.')
+    parser.add_argument('--shard-index', type=int, default=0,
+                        help='병렬 실행 시 이 프로세스가 맡을 몫의 인덱스 (0-base)')
+    parser.add_argument('--shard-total', type=int, default=1,
+                        help='병렬 실행 총 개수. 서로 다른 DART_API_KEY로 동시 실행할 때 '
+                             '종목을 겹치지 않게 나눠 쿼터를 병렬 소모')
     args = parser.parse_args()
     if args.skip_if_done:
         configure_logging('dart_retry.log')
@@ -975,7 +987,8 @@ def main() -> None:
         ingest_company(dart, args.ticker, row[0], only_reports=only_reports)
     else:
         ingest_all(skip_if_done=args.skip_if_done, max_tickers=args.max_tickers,
-                   only_reports=only_reports)
+                   only_reports=only_reports,
+                   shard_index=args.shard_index, shard_total=args.shard_total)
 
 
 if __name__ == '__main__':
