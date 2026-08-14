@@ -1,0 +1,23 @@
+# /etc/sudoers.d/backtest-dashboard
+#
+# 대시보드 서비스 제어만 비밀번호 없이 허용한다. 배포 자동화가 sudo 비밀번호를
+# 어디에도 저장하지 않게 하려는 것이 목적이다.
+#
+# 왜 비밀번호 파일이 아니라 이 방식인가:
+#   평문 sudo 비밀번호를 서버에 두면 milmelmul 로 도는 **모든 프로세스**(크론·대시보드·
+#   배포 스크립트)가 root 가 될 수 있다. 아래 규칙은 명시된 네 명령만 root 로 돌린다.
+#   필요한 인터랙티브 작업은 어느 쪽이든 "설치 1회"로 같으므로, 편의는 동일하고
+#   위험만 다르다.
+#
+# 이 서버의 기존 구성과 같은 패턴이다 — stock-api·stock-dart-watcher 가 이미 이 방식.
+#
+# 설치:
+#   sudo cp /opt/stock-backtest/deploy/sudoers.d-backtest-dashboard \
+#           /etc/sudoers.d/backtest-dashboard
+#   sudo chmod 440 /etc/sudoers.d/backtest-dashboard
+#   sudo visudo -c            # 문법 검증 — 반드시 통과 확인
+#
+# 주의: 경로를 절대경로로 고정한다. `systemctl` 만 적으면 PATH 조작으로 우회된다.
+#       인자까지 명시한다 — 서비스 이름을 비우면 아무 유닛이나 제어할 수 있다.
+
+milmelmul ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart backtest-dashboard.service, /usr/bin/systemctl start backtest-dashboard.service, /usr/bin/systemctl stop backtest-dashboard.service, /usr/bin/systemctl status backtest-dashboard.service
