@@ -131,7 +131,7 @@ if not candidates:
     st.stop()
 
 spec = col_series.selectbox(
-    '시리즈 (변수 축)', candidates,
+    '시리즈 (변수 축)', candidates, key='series_pick',
     format_func=lambda s: f'[{s.kind}] {s.title} — {s.changes}')
 
 series = resolve(spec, catalog)

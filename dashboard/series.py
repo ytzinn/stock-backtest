@@ -277,7 +277,7 @@ SERIES: tuple[SeriesSpec, ...] = (
 
     SeriesSpec(
         id='n_stocks', title='포트폴리오 종목 수 민감도', kind='A',
-        changes='종목 수 k (10/12/13/20)',
+        changes='종목 수 n — 재실행 4개(10/12/13/20) + tape 절단 곡선 n=1..20',
         baseline='F_pbr_ma200_n13',
         patterns=('F_pbr_ma200_n*',),
         # 재실행은 4개(10/12/13/20)뿐이지만, build_portfolio 가 순수 접두어 슬라이스라
