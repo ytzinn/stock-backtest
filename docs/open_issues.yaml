@@ -18,9 +18,9 @@ issues:
     status: open
     severity: high
     summary: 일별 net MDD 가 SPEC_10 G5 한계선(−45%)을 위반한다. 종목 수 축으로는 풀리지
-             않는다 — 구간간 표준편차가 k=1 에서 k=20 까지 거의 줄지 않아 전 종목이 같은
-             저PBR 팩터에 물려 있다.
-    ref: docs/설계/SPEC_10_pbr_gate_robustness.md
+             않는다 — 구간간 표준편차가 n=1 18.78% 에서 n=20 21.15% 로 거의 줄지 않아
+             전 종목이 같은 저PBR 팩터에 물려 있다 (n=1..20 곡선은 tape 절단 산출).
+    ref: experiments/analysis/n_stocks_curve.json
 
   - id: SECTOR-DATA
     status: open

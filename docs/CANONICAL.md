@@ -68,7 +68,7 @@ Sharpe·MDD 의 SSOT 는 일별 NAV 다 (SPEC_13 §9-1). 구간 지표는 엔진
 
 | id | 심각도 | 내용 | 근거 |
 |---|---|---|---|
-| `G5-MDD` | high | 일별 net MDD 가 SPEC_10 G5 한계선(−45%)을 위반한다. 종목 수 축으로는 풀리지 않는다 — 구간간 표준편차가 k=1 에서 k=20 까지 거의 줄지 않아 전 종목이 같은 저PBR 팩터에 물려 있다. | `docs/설계/SPEC_10_pbr_gate_robustness.md` |
+| `G5-MDD` | high | 일별 net MDD 가 SPEC_10 G5 한계선(−45%)을 위반한다. 종목 수 축으로는 풀리지 않는다 — 구간간 표준편차가 n=1 18.78% 에서 n=20 21.15% 로 거의 줄지 않아 전 종목이 같은 저PBR 팩터에 물려 있다 (n=1..20 곡선은 tape 절단 산출). | `experiments/analysis/n_stocks_curve.json` |
 | `SECTOR-DATA` | high | 섹터 분류 데이터가 전무해 업종 집중도를 측정할 수 없다. 낙폭 원인 규명의 최대 병목이다 (pykrx 섹터 API 불작동 → DB 수동 입력 외 수단 없음). | `docs/검토/f_pbr_ma200_median_split.md` |
 | `TAPE-ASYNC` | medium | run_ablation 이 지표를 갱신해도 대응 holdings tape 은 그대로다. tape 에 생성 시각·코드 SHA·소스 지표 해시가 없어 소비처가 stale 을 감지할 수단이 없다. tape 자체가 없는 태그도 있다. | `docs/설계/[이슈] 모멘텀필터_coverage_gate_미구현.md` |
 | `CORR-GATE-003` | medium | universe_gate_pit 의 PK 에 시점 차원이 없어 정정 공시 이후 시점에는 게이트 판정이 stale 하다. | `docs/설계/SPEC_06_phases.md` |
@@ -87,4 +87,4 @@ Sharpe·MDD 의 SSOT 는 일별 NAV 다 (SPEC_13 §9-1). 구간 지표는 엔진
 | `experiments/daily_nav/summary.json` | d9313004882d1bde |
 | `experiments/robustness/gate_results_F_pbr_ma200_n13.json` | 49db2dace297b722 |
 | `experiments/live/dryrun/manifest.yaml` | 7f3064fff5799ce0 |
-| `docs/open_issues.yaml` | 6633f6866587b02c |
+| `docs/open_issues.yaml` | 317ff6aee7dbdac4 |

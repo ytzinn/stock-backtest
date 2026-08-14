@@ -1,0 +1,227 @@
+{
+  "spec": "docs/설계/SPEC_10_pbr_gate_robustness.md",
+  "disclaimer": "gross · 구간 기준 · tape 절단. net 과 일별 MDD 는 이 방법으로 구할 수 없다 (회전율이 n 에 따라 달라지고, 일별 지표는 NAV 가 SSOT). MDD·Sharpe 의 SSOT 는 일별 NAV 다 — 여기 값은 구간 기준이라 훨씬 얕다.",
+  "source": {
+    "tag": "F_pbr_ma200",
+    "artifact_key": "F_pbr_ma200",
+    "tape": "experiments/ablation/F_pbr_ma200_holdings.json",
+    "tape_sha256": "be27ea62c55f1dd6",
+    "metrics_sha256": "9759a6b29b177c1d",
+    "tape_portfolio_cap": 20,
+    "n_periods": 20,
+    "first_rebalance": "2016-04-05",
+    "last_exit": "2026-04-03"
+  },
+  "points": [
+    {
+      "n": 1,
+      "method": "truncation",
+      "gross_cagr": 0.079642,
+      "mean_period_return": 0.059627,
+      "period_return_std": 0.1878,
+      "mdd_period_basis": -0.623058,
+      "sharpe_period_basis": 0.349995
+    },
+    {
+      "n": 2,
+      "method": "truncation",
+      "gross_cagr": 0.038948,
+      "mean_period_return": 0.032735,
+      "period_return_std": 0.166725,
+      "mdd_period_basis": -0.551098,
+      "sharpe_period_basis": 0.166123
+    },
+    {
+      "n": 3,
+      "method": "truncation",
+      "gross_cagr": 0.099347,
+      "mean_period_return": 0.062234,
+      "period_return_std": 0.169868,
+      "mdd_period_basis": -0.508086,
+      "sharpe_period_basis": 0.408639
+    },
+    {
+      "n": 4,
+      "method": "truncation",
+      "gross_cagr": 0.134367,
+      "mean_period_return": 0.080093,
+      "period_return_std": 0.193272,
+      "mdd_period_basis": -0.397681,
+      "sharpe_period_basis": 0.489839
+    },
+    {
+      "n": 5,
+      "method": "truncation",
+      "gross_cagr": 0.159583,
+      "mean_period_return": 0.094171,
+      "period_return_std": 0.207083,
+      "mdd_period_basis": -0.41666,
+      "sharpe_period_basis": 0.553313
+    },
+    {
+      "n": 6,
+      "method": "truncation",
+      "gross_cagr": 0.168928,
+      "mean_period_return": 0.097336,
+      "period_return_std": 0.197114,
+      "mdd_period_basis": -0.366893,
+      "sharpe_period_basis": 0.604002
+    },
+    {
+      "n": 7,
+      "method": "truncation",
+      "gross_cagr": 0.15507,
+      "mean_period_return": 0.09266,
+      "period_return_std": 0.206257,
+      "mdd_period_basis": -0.407226,
+      "sharpe_period_basis": 0.545167
+    },
+    {
+      "n": 8,
+      "method": "truncation",
+      "gross_cagr": 0.143174,
+      "mean_period_return": 0.085737,
+      "period_return_std": 0.193396,
+      "mdd_period_basis": -0.418931,
+      "sharpe_period_basis": 0.530797
+    },
+    {
+      "n": 9,
+      "method": "truncation",
+      "gross_cagr": 0.145774,
+      "mean_period_return": 0.087057,
+      "period_return_std": 0.19511,
+      "mdd_period_basis": -0.418054,
+      "sharpe_period_basis": 0.535699
+    },
+    {
+      "n": 10,
+      "method": "truncation",
+      "gross_cagr": 0.191166,
+      "mean_period_return": 0.111729,
+      "period_return_std": 0.225233,
+      "mdd_period_basis": -0.408605,
+      "sharpe_period_basis": 0.618968
+    },
+    {
+      "n": 11,
+      "method": "truncation",
+      "gross_cagr": 0.215091,
+      "mean_period_return": 0.123032,
+      "period_return_std": 0.228186,
+      "mdd_period_basis": -0.372951,
+      "sharpe_period_basis": 0.68101
+    },
+    {
+      "n": 12,
+      "method": "truncation",
+      "gross_cagr": 0.206379,
+      "mean_period_return": 0.116779,
+      "period_return_std": 0.214585,
+      "mdd_period_basis": -0.340471,
+      "sharpe_period_basis": 0.68296
+    },
+    {
+      "n": 13,
+      "method": "truncation",
+      "gross_cagr": 0.205415,
+      "mean_period_return": 0.116753,
+      "period_return_std": 0.21829,
+      "mdd_period_basis": -0.334475,
+      "sharpe_period_basis": 0.6712
+    },
+    {
+      "n": 14,
+      "method": "truncation",
+      "gross_cagr": 0.17966,
+      "mean_period_return": 0.105172,
+      "period_return_std": 0.217723,
+      "mdd_period_basis": -0.394085,
+      "sharpe_period_basis": 0.597728
+    },
+    {
+      "n": 15,
+      "method": "truncation",
+      "gross_cagr": 0.185987,
+      "mean_period_return": 0.107187,
+      "period_return_std": 0.214878,
+      "mdd_period_basis": -0.363232,
+      "sharpe_period_basis": 0.618901
+    },
+    {
+      "n": 16,
+      "method": "truncation",
+      "gross_cagr": 0.174607,
+      "mean_period_return": 0.101782,
+      "period_return_std": 0.21283,
+      "mdd_period_basis": -0.38958,
+      "sharpe_period_basis": 0.588942
+    },
+    {
+      "n": 17,
+      "method": "truncation",
+      "gross_cagr": 0.162065,
+      "mean_period_return": 0.095541,
+      "period_return_std": 0.209977,
+      "mdd_period_basis": -0.386218,
+      "sharpe_period_basis": 0.554908
+    },
+    {
+      "n": 18,
+      "method": "truncation",
+      "gross_cagr": 0.178014,
+      "mean_period_return": 0.104097,
+      "period_return_std": 0.219184,
+      "mdd_period_basis": -0.374798,
+      "sharpe_period_basis": 0.586806
+    },
+    {
+      "n": 19,
+      "method": "truncation",
+      "gross_cagr": 0.169287,
+      "mean_period_return": 0.099411,
+      "period_return_std": 0.214425,
+      "mdd_period_basis": -0.381328,
+      "sharpe_period_basis": 0.568926
+    },
+    {
+      "n": 20,
+      "method": "truncation",
+      "gross_cagr": 0.160971,
+      "mean_period_return": 0.095169,
+      "period_return_std": 0.211466,
+      "mdd_period_basis": -0.3898,
+      "sharpe_period_basis": 0.548514
+    }
+  ],
+  "cross_check_vs_rerun": [
+    {
+      "n": 10,
+      "truncation_gross_cagr": 0.191166,
+      "rerun_gross_cagr": 0.192417,
+      "delta": -0.001251,
+      "rerun_run_at": null
+    },
+    {
+      "n": 12,
+      "truncation_gross_cagr": 0.206379,
+      "rerun_gross_cagr": 0.213745,
+      "delta": -0.007366,
+      "rerun_run_at": null
+    },
+    {
+      "n": 13,
+      "truncation_gross_cagr": 0.205415,
+      "rerun_gross_cagr": 0.203329,
+      "delta": 0.002086,
+      "rerun_run_at": "2026-08-12T13:49:09.890777"
+    },
+    {
+      "n": 20,
+      "truncation_gross_cagr": 0.160971,
+      "rerun_gross_cagr": 0.161678,
+      "delta": -0.000707,
+      "rerun_run_at": null
+    }
+  ]
+}

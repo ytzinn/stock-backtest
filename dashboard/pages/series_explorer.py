@@ -59,6 +59,55 @@ def _pct(v, digits=2):
     return None if v is None else round(v * 100, digits)
 
 
+def _render_n_curve() -> None:
+    """종목 수 곡선. 재실행은 4개뿐이지만 tape 절단으로 n=1..20 을 볼 수 있다.
+
+    `build_portfolio` 가 `candidates[:n]` 인 순수 접두어 슬라이스라 성립한다.
+    gross·구간 기준이라는 한계를 화면에도 반드시 함께 띄운다.
+    """
+    path = ROOT / 'experiments/analysis/n_stocks_curve.json'
+    if not path.exists():
+        st.info('종목 수 곡선 산출물이 없습니다 — '
+                '`python -m scripts.analysis.n_stocks_curve` 로 생성합니다.')
+        return
+    import json
+    d = json.loads(path.read_text(encoding='utf-8'))
+    pts = pd.DataFrame(d['points'])
+
+    st.subheader('종목 수 곡선 (tape 절단, n=1..%d)' % pts['n'].max())
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=pts['n'], y=pts['gross_cagr'] * 100, name='gross CAGR',
+                             mode='lines+markers', line=dict(color='#1d4ed8', width=2)))
+    fig.add_trace(go.Scatter(x=pts['n'], y=pts['period_return_std'] * 100,
+                             name='구간간 표준편차', mode='lines+markers', yaxis='y2',
+                             line=dict(color='#dc2626', width=2, dash='dash')))
+    fig.update_layout(
+        height=340, xaxis_title='종목 수 n', yaxis_title='gross CAGR (%)',
+        yaxis2=dict(title='구간간 표준편차 (%)', overlaying='y', side='right'),
+        margin=dict(t=10, b=40), plot_bgcolor='white',
+        legend=dict(orientation='h', y=-0.25))
+    st.plotly_chart(fig, use_container_width=True)
+
+    first, last = d['points'][0], d['points'][-1]
+    st.caption(
+        f"**낙폭이 종목 수로 안 풀리는 이유** — 구간간 표준편차가 n=1 "
+        f"{first['period_return_std']:.2%} 에서 n={last['n']} {last['period_return_std']:.2%} 로 "
+        f"**줄지 않습니다.** 종목을 늘려도 분산이 안 된다는 뜻이고(전 종목이 같은 저PBR "
+        f"팩터에 물림), SPEC_10 G5 미해결 과제의 근거입니다. " + d['disclaimer'])
+
+    cross = pd.DataFrame(d['cross_check_vs_rerun'])
+    if not cross.empty:
+        with st.expander('교차 검증 — 절단값 vs 실제 재실행'):
+            st.write('차이는 tape 과 지표 산출물이 다른 실행일 때 벌어집니다 '
+                     '(미해결 과제 `TAPE-ASYNC`). 절단 곡선을 읽을 때의 오차 범위입니다.')
+            st.dataframe(pd.DataFrame({
+                'n': cross['n'],
+                '절단 gross CAGR': (cross['truncation_gross_cagr'] * 100).round(2),
+                '재실행 gross CAGR': (cross['rerun_gross_cagr'] * 100).round(2),
+                '차이 (%p)': (cross['delta'] * 100).round(2),
+            }), use_container_width=True, hide_index=True)
+
+
 st.title('🧭 시리즈 탐색')
 render_canonical_banner()
 st.divider()
@@ -172,6 +221,9 @@ else:
             '76개 중 14개뿐이라, 있는 행만 일별 값으로 채우면 한 열에 두 정의가 섞입니다 '
             '(같은 태그에서 −34.14% vs −58.12%). 일별 값은 위 현행 채택 배너에 있습니다. '
             '`분포집계` 행은 500회 반복의 중앙값이라 단일 실행 지표가 없습니다.')
+
+        if spec.renderer == 'n_stocks_curve':
+            _render_n_curve()
 
     # ── 구간별 ──────────────────────────────────────────────────────────────
     with tab_period:

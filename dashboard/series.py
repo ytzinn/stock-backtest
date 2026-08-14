@@ -280,6 +280,12 @@ SERIES: tuple[SeriesSpec, ...] = (
         changes='종목 수 k (10/12/13/20)',
         baseline='F_pbr_ma200_n13',
         patterns=('F_pbr_ma200_n*',),
+        # 재실행은 4개(10/12/13/20)뿐이지만, build_portfolio 가 순수 접두어 슬라이스라
+        # n=1..20 곡선은 tape 절단으로 구할 수 있다. G5-MDD 과제가 인용하는 "구간간
+        # 표준편차가 안 줄어든다"의 근거가 여기 있다 — 이전에는 코드 주석과 산문에만
+        # 있어 재현이 불가능했다 (2026-08-14).
+        paths=('experiments/analysis/n_stocks_curve.json',),
+        renderer='n_stocks_curve',
         status=Status('ADOPTED', 'n=13 채택 (낙폭은 미해결)', '2026-08-11', _SPEC10)),
 )
 
