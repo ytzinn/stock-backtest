@@ -77,7 +77,7 @@ LIVE_DIR    = Path('experiments/live')
 # 타이밍: #24 라이브 포워드가 아직 미시작(experiments/live 에 dryrun 뿐)이라
 #         포워드 전 구간이 n=13 의 진짜 OOS 관측이 된다. §14-4 와 동일한 논거.
 # 미해결: SPEC_10 G5(> −45%)는 어느 n 에서도 통과하지 못한다. 구간간 표준편차가
-#         n=1 18.78% → n=20 21.15% 로 줄지 않아(전 종목이 같은 저PBR 팩터에 물림)
+#         n=1 18.78% → n=20 21.06% 로 줄지 않아(전 종목이 같은 저PBR 팩터에 물림)
 #         낙폭은 종목 수 축으로 풀리지 않는다 — 별도 과제. 이 수치의 산출물은
 #         experiments/analysis/n_stocks_curve.json (scripts/analysis/n_stocks_curve.py).
 #         이전에는 이 주석과 검토 문서 산문에만 있어 재현이 불가능했다 (2026-08-14).
