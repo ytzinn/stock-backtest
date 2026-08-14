@@ -689,13 +689,22 @@ def _get_valid_collection_targets(ticker: str, conn) -> list[tuple[int, str]]:
 
 def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
                     start_year: int = 2014,
-                    only_reports: tuple[str, ...] = ()) -> None:
+                    only_reports: tuple[str, ...] = (),
+                    year_filter: Optional[int] = None) -> None:
     """단일 회사 재무제표 + 공시 수집.
 
     only_reports: 비어있으면 DEFAULT_REPORTS(FY+H1), 지정하면 해당 report_type만 수집.
                   Q1/Q3는 _get_valid_collection_targets가 유효 대상으로 잡아도 여기서
                   명시(예: ('Q1','Q3'))해야 실제로 수집된다(DEFAULT_REPORTS 안전장치).
                   H1-only 재수집 시 fs_div를 DB에서 읽어 probe API 콜 절약.
+    year_filter:  지정하면 그 사업연도만 수집한다. only_reports 는 report_type 축만
+                  좁힐 뿐 연도 축은 열어둔 채라, `--only-reports H1` 만 주면 상장 이후
+                  전 연도(2016~2026) H1 을 매번 재수집해 하루 쿼터를 통째로 태운다
+                  (2026-08-14 실측: 종목당 ~11 콜). 최신 분기만 따라잡을 때 쓴다.
+
+                  year_filter 가 켜지면 ingest_status_reports 완료 기록을 읽지도 쓰지도
+                  않는다 — 그 테이블에는 연도 차원이 없어서, 한 연도만 받고 'H1 완료'로
+                  적으면 이후 다른 연도 H1 수집이 통째로 스킵된다.
     """
     end_year = date.today().year
 
@@ -723,6 +732,8 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
         # valid_targets에는 Q1/Q3가 포함되지만 명시 요청 없이는 수집하지 않는다.
         active_report_types = only_reports if only_reports else DEFAULT_REPORTS
         collect_targets = [(yr, rt) for yr, rt in valid_targets if rt in active_report_types]
+        if year_filter is not None:
+            collect_targets = [(yr, rt) for yr, rt in collect_targets if yr == year_filter]
 
         if not collect_targets:
             return
@@ -734,7 +745,7 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
         # financials 테이블 내용으로 "대상이 다 있는지" 추론하는 방식은 쓰지 않는다 — 오래된
         # 연도(DART에 원래 데이터 없음)·아직 마감 안 된 최신 분기 때문에 그 방식은 영원히
         # "미완료"로 잡혀 매번 처음부터 재수집하게 된다(2026-07-27 파일럿에서 확인).
-        if only_reports:
+        if only_reports and year_filter is None:
             cur.execute(
                 "SELECT report_type FROM ingest_status_reports WHERE ticker=%s AND report_type = ANY(%s)",
                 (ticker, list(only_reports)),
@@ -840,7 +851,7 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
         # only_reports 모드는 report_type 단위 완료도 기록 (다일 분산 실행 재개용, migration v9).
         # collect_targets에 실제로 등장한 report_type만 완료 처리 — only_reports에 있어도
         # 이 종목에 해당 report_type의 유효 대상 자체가 없었으면 완료로 잘못 기록하지 않는다.
-        if only_reports:
+        if only_reports and year_filter is None:
             attempted_types = sorted({rt for _, rt in collect_targets})
             cur.executemany(
                 """
@@ -875,7 +886,8 @@ def _mark_error(ticker: str, msg: str) -> None:
 
 def ingest_all(skip_if_done: bool = False, max_tickers: int = 0,
                only_reports: tuple[str, ...] = (),
-               shard_index: int = 0, shard_total: int = 1) -> None:
+               shard_index: int = 0, shard_total: int = 1,
+               year_filter: Optional[int] = None) -> None:
     """stocks 테이블 전종목 DART 수집 (14일+ 분산 실행).
 
     max_tickers > 0 이면 해당 수만큼만 처리하고 중단 (파일럿/일별 분산용).
@@ -928,10 +940,11 @@ def ingest_all(skip_if_done: bool = False, max_tickers: int = 0,
         targets = targets[:max_tickers]
     total = len(targets)
     log.info(f'DART 수집 대상: {total}개 종목 (only_reports={only_reports or "전체"}, '
-             f'shard={shard_index}/{shard_total})')
+             f'year={year_filter or "전체"}, shard={shard_index}/{shard_total})')
     for i, (ticker, corp_code) in enumerate(targets, 1):
         try:
-            ingest_company(dart, ticker, corp_code, only_reports=only_reports)
+            ingest_company(dart, ticker, corp_code, only_reports=only_reports,
+                           year_filter=year_filter)
         except QuotaExceededError as e:
             log.error(f'[{i}/{total}] {ticker} 쿼터 초과 — 배치 중단')
             _mark_error(ticker, str(e))
@@ -958,6 +971,9 @@ def main() -> None:
                         help='명시한 report_type만 수집 (예: --only-reports Q1 Q3). '
                              'DEFAULT_REPORTS(FY+H1) 안전장치를 우회하는 유일한 경로 — '
                              'Q1/Q3 실제 수집(쿼터 소모)은 반드시 이 플래그로 명시한다.')
+    parser.add_argument('--year', type=int, default=None,
+                        help='이 사업연도만 수집 (예: --year 2026). 지정하지 않으면 상장 이후 '
+                             '전 연도를 재수집해 쿼터를 대량 소모한다 — 최신 분기 따라잡기엔 필수.')
     parser.add_argument('--shard-index', type=int, default=0,
                         help='병렬 실행 시 이 프로세스가 맡을 몫의 인덱스 (0-base)')
     parser.add_argument('--shard-total', type=int, default=1,
@@ -984,11 +1000,13 @@ def main() -> None:
         if not row or not row[0]:
             log.error(f'{args.ticker} corp_code 없음 — universe_loader --init 먼저 실행')
             return
-        ingest_company(dart, args.ticker, row[0], only_reports=only_reports)
+        ingest_company(dart, args.ticker, row[0], only_reports=only_reports,
+                       year_filter=args.year)
     else:
         ingest_all(skip_if_done=args.skip_if_done, max_tickers=args.max_tickers,
                    only_reports=only_reports,
-                   shard_index=args.shard_index, shard_total=args.shard_total)
+                   shard_index=args.shard_index, shard_total=args.shard_total,
+                   year_filter=args.year)
 
 
 if __name__ == '__main__':
