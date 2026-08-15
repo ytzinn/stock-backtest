@@ -241,3 +241,43 @@ def test_r6_axis_puts_each_on_off_pair_side_by_side(catalog):
         assert j == i + 1, (
             f'{on.strip()} 와 {off} 사이에 다른 행이 끼었다 (i={i}, j={j}) — '
             f'on/off 대조가 그림에서 안 읽힌다')
+
+
+# ── 분포 CSV 와 summary 가 같은 실행인가 ─────────────────────────────────────
+
+def test_random_distribution_matches_the_summary_median(catalog):
+    """히스토그램과 비교표가 **같은 실행**에서 왔는가.
+
+    분포 탭은 히스토그램에 p95 선을 긋고 "무작위로도 나올 성적인가"를 눈으로 재게
+    한다. 그런데 그 히스토그램이 폐기된 실행의 것이면 **합격선 자체가 낡은 것**이라,
+    현행 수치를 그 선에 대보는 순간 판정이 조용히 틀린다.
+
+    2026-08-15 확인: 분포 CSV 는 2026-07-18 배치이고 `summary.json` 중앙값은 07-30
+    재발행(CORR-TTM-001 수정 후)이라 최대 0.48%p 어긋나 있다. 재생성은 기준선 재산출을
+    수반하므로(드리프트 규칙) 사용자 승인 전까지 **경고로 관리한다.**
+    """
+    import warnings as _w
+
+    import pandas as pd
+
+    from dashboard.series_view import DIST_VINTAGE_TOL, dist_vintage_gap
+
+    mismatched = []
+    for a in catalog:
+        path = a.sidecars.get('dist')
+        if path is None:
+            continue
+        df = pd.read_csv(path)
+        if 'cagr' not in df.columns:
+            continue
+        gap = dist_vintage_gap(a, float(df['cagr'].median()))
+        if gap is not None and abs(gap) > DIST_VINTAGE_TOL:
+            mismatched.append(f'{a.key}: {gap:+.2f}%p')
+
+    if mismatched:
+        _w.warn(
+            '분포 CSV 와 summary 중앙값이 다르다 (다른 실행에서 왔다는 뜻): '
+            + ', '.join(mismatched)
+            + '. 화면이 경고로 알리고 있다. 해소하려면 랜덤 시나리오를 현행 코드로 '
+              '재실행해야 하는데 그건 기준선 재산출이라 사용자 승인이 필요하다.',
+            UserWarning, stacklevel=2)

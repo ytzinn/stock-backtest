@@ -159,6 +159,62 @@ def grouped_chart_rows(series: Series, rows: list[dict]) -> list[dict]:
     return out
 
 
+#: 분포 CSV 중앙값과 `summary.json` 중앙값이 이만큼(%p) 넘게 벌어지면 **다른 실행**으로 본다.
+#: 같은 실행이면 부동소수 오차 수준이어야 한다.
+DIST_VINTAGE_TOL = 0.02
+
+
+def dist_vintage_gap(artifact, dist_median: float) -> float | None:
+    """분포 CSV 의 중앙값과 산출물이 기록한 중앙값의 차이 (%p). 없으면 None.
+
+    **둘은 같아야 한다.** 다르면 히스토그램과 비교표가 서로 다른 실행에서 온 것이다.
+    2026-08-15 에 실제로 그랬다 — 분포 CSV 는 2026-07-18 배치이고 `summary.json` 의
+    중앙값은 07-30 재발행(CORR-TTM-001 수정 후)이라 최대 0.48%p 벌어져 있었다.
+    화면은 히스토그램에 p95 선을 긋고 "무작위로도 나올 성적인가"를 판정하게 하므로,
+    이 어긋남을 말하지 않으면 **폐기된 실행의 합격선**으로 현행 값을 재게 된다.
+    """
+    rec = artifact.metrics.get('median_cagr')
+    if rec is None:
+        return None
+    return (dist_median - rec) * 100
+
+
+def _cagr(artifact) -> float | None:
+    """비교표와 **같은 규칙**으로 CAGR 을 고른다.
+
+    분포 집계(`source='summary'`)는 단일 실행 값이 없어 중앙값을 쓴다. 여기서 다른
+    규칙을 쓰면 표의 숫자와 증분이 안 맞아, 사람이 뺄셈을 검산하다 틀렸다고 여긴다.
+    """
+    m = artifact.metrics
+    v = m.get('cagr')
+    return m.get('median_cagr') if v is None else v
+
+
+def delta_rows_for(spec: SeriesSpec, catalog: ArtifactCatalog) -> list[dict]:
+    """왜-지도의 증분 표 — 등록 대장이 지정한 두 시나리오의 CAGR 차이.
+
+    **지표를 새로 계산하지 않는다.** 산출물이 기록한 값 두 개를 뺄 뿐이고, 그 뺄셈은
+    어차피 사람이 표를 보며 머릿속으로 하던 것이다. 다만 **어느 둘을 빼야 하는지**를
+    등록 대장이 정해 주므로, 세트가 다른 행을 잘못 빼는 사고가 사라진다.
+    """
+    if spec.why is None or not spec.why.deltas:
+        return []
+    rows = []
+    for d in spec.why.deltas:
+        base, variant = catalog.get(d.base), catalog.get(d.variant)
+        if base is None or variant is None:
+            continue
+        b, v = _cagr(base), _cagr(variant)
+        rows.append({
+            '무엇을 바꿨나': d.label,
+            '기준': d.base,
+            '바꾼 뒤': d.variant,
+            'Δ CAGR (%p)': None if b is None or v is None else round((v - b) * 100, 2),
+            '메모': d.note or '—',
+        })
+    return rows
+
+
 def provenance_rows(series: Series, catalog: ArtifactCatalog) -> list[dict]:
     """산출물 계보 — "왜 이 태그는 그래프가 없나"를 화면에서 답하게 한다.
 

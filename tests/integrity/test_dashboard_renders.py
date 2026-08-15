@@ -186,11 +186,20 @@ def test_why_map_panel_reaches_the_screen(series_id):
     _assert_clean(at, f'series_explorer[{series_id}]')
 
     labels = [e.label or '' for e in at.expander]
-    assert any('왜 이 축이 있나' in lab for lab in labels), \
+    assert any('어떻게 읽나' in lab for lab in labels), \
         f'왜-지도 패널이 화면에 없다. 현재 패널: {labels}'
 
-    text = ' '.join(str(getattr(e, 'value', '')) for e in at.markdown)
-    assert spec.why.history[0][:20] in text, '먹여준 결정이 화면에 없다'
+    md = [str(getattr(e, 'value', '')) for e in at.markdown]
+    text = ' '.join(md)
+    assert spec.why.reading[0][:20] in text, '결과 해석이 화면에 없다'
+    assert spec.why.history[0][:20] in text, '결정 이력이 화면에 없다'
+
+    # **해석이 이력보다 먼저** 나와야 한다. 사람이 이 화면에 온 이유는 숫자를 봤기
+    # 때문이지 방법론이 궁금해서가 아니다.
+    first = next(i for i, t in enumerate(md) if spec.why.reading[0][:20] in t)
+    later = next(i for i, t in enumerate(md) if spec.why.history[0][:20] in t)
+    assert first < later, '결정 이력이 결과 해석보다 위에 있다 — 순서가 뒤집혔다'
+
     warned = ' '.join(str(getattr(e, 'value', '')) for e in at.warning)
     for w in spec.why.warnings:
-        assert w[:20] in warned, f'탐색 경고가 화면에 없다: {w[:40]}'
+        assert w[:20] in warned, f'주의할 점이 화면에 없다: {w[:40]}'

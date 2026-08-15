@@ -318,3 +318,19 @@ def test_screener_is_what_separates_the_flipped_sets():
     for tag in kept - {'C_stability_random'}:      # C 는 랜덤 추첨 계열
         assert not ABLATION_CONFIGS[tag].get('use_screener'), \
             f'{tag}: 스크리너가 켜져 있다 — 두 덩어리를 가르는 축이 스크리너가 아니다'
+
+
+def test_why_map_next_axes_point_at_real_axes():
+    """"다음 질문을 받은 축"이 실재해야 한다.
+
+    오타면 화면에서 그 줄이 조용히 사라져, 축들이 다시 서로 모르는 섬이 된다.
+    자기 자신을 가리키는 것도 막는다 — 이어지는 흐름이 아니라 순환이 된다.
+    """
+    for s in SERIES:
+        if s.why is None:
+            continue
+        for nxt in s.why.next_axes:
+            assert nxt in SERIES_BY_ID, f'{s.id}: 존재하지 않는 축을 가리킨다 — {nxt}'
+            assert nxt != s.id, f'{s.id}: 자기 자신을 다음 축으로 가리킨다'
+        if s.why.next_axes:
+            assert s.why.next_step, f'{s.id}: 이어받는 축만 있고 설명이 없다'

@@ -157,6 +157,25 @@ def test_markdown_text_has_no_accidental_strikethrough():
     targets += [(f'KIND_MEANING[{k}]', v[1]) for k, v in KIND_MEANING.items()]
     targets += [(f'STATUS_MEANING[{k}]', v) for k, v in STATUS_MEANING.items()]
 
+    # 왜-지도도 마크다운으로 뜬다. 처음엔 이 목록에서 빠져 있었고, 그래서 레이어 축
+    # 경고의 "A~C 와 D~H" 가 화면에서 그어진 채 배포됐다 (2026-08-15).
+    for s in SERIES:
+        w = s.why
+        if w is None:
+            continue
+        for i, t in enumerate(w.reading):
+            targets.append((f'{s.id}.why.reading[{i}]', t))
+        for i, t in enumerate(w.history):
+            targets.append((f'{s.id}.why.history[{i}]', t))
+        for i, t in enumerate(w.warnings):
+            targets.append((f'{s.id}.why.warnings[{i}]', t))
+        for field in ('variable', 'question', 'failure_mode'):
+            targets.append((f'{s.id}.why.{field}', getattr(w, field)))
+        for d in w.deltas:
+            targets.append((f'{s.id}.why.delta[{d.label}]', f'{d.label} {d.note}'))
+        for detail, _ in w.understanding:
+            targets.append((f'{s.id}.why.understanding', detail))
+
     bad = []
     for name, text in targets:
         for i, line in enumerate(text.splitlines(), 1):

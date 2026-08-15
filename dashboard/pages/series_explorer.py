@@ -24,13 +24,22 @@ from dashboard.artifacts import build_catalog
 from dashboard.b_views import B_RENDERERS
 from dashboard.canonical_banner import render_canonical_banner
 from dashboard.glossary import index_rows, terms_for
-from dashboard.series import KIND_MEANING, SERIES, resolve, unassigned
+from dashboard.series import (
+    KIND_MEANING,
+    SERIES,
+    SERIES_BY_ID,
+    resolve,
+    unassigned,
+)
 from dashboard.series_view import (
     DEFAULT_N_STOCKS,
+    DIST_VINTAGE_TOL,
     MDD_COL,
     b_type_files,
     comparison_rows,
     compound_curve,
+    delta_rows_for,
+    dist_vintage_gap,
     excess_curve,
     grouped_chart_rows,
     n_curve,
@@ -167,27 +176,54 @@ if spec.notes:
 # 됐나"는 답하지 못한다. 목적은 판정 재현이 아니라 **6개월 뒤 따라잡기**다.
 if spec.why is not None:
     w = spec.why
-    with st.expander('🧭 왜 이 축이 있나 — 결정 이력', expanded=False):
-        st.markdown(f'**무엇을 바꾸나** — {w.variable}')
-        st.markdown(f'**답하는 질문** — {w.question}')
-        st.markdown(f'**막는 착각** — {w.failure_mode}')
+    with st.expander('🧭 이 결과를 어떻게 읽나 — 해석과 결정 이력', expanded=False):
+        # 결과 해석이 맨 앞이다. 사람이 이 화면에 온 이유는 숫자를 봤기 때문이지
+        # 방법론이 궁금해서가 아니다. 배경부터 늘어놓으면 답을 못 찾고 닫는다.
+        for line in w.reading:
+            st.markdown(f'- {line}')
 
-        st.markdown('##### 먹여준 결정')
+        delta_rows = delta_rows_for(spec, catalog)
+        if delta_rows:
+            st.markdown('##### 무엇을 더했을 때 얼마가 달라지나')
+            st.dataframe(pd.DataFrame(delta_rows), use_container_width=True,
+                         hide_index=True,
+                         column_config={'Δ CAGR (%p)':
+                                        st.column_config.NumberColumn(format='%+.2f')})
+            st.caption('산출물이 기록한 CAGR 두 개를 뺀 값입니다. 어느 둘을 빼야 하는지는 '
+                       '등록 대장이 정해 둡니다 — 세트가 다른 행을 빼면 조용히 틀립니다.')
+
+        st.divider()
+        st.markdown(f'**이 축이 바꾸는 것** — {w.variable}')
+        st.markdown(f'**답하려는 질문** — {w.question}')
+        st.markdown(f'**막으려는 오해** — {w.failure_mode}')
+
+        st.markdown('##### 여기서 내려진 결정')
         st.markdown('\n'.join(f'{i}. {h}' for i, h in enumerate(w.history, 1)))
 
         if w.warnings:
-            st.markdown('##### 탐색 경고')
+            st.markdown('##### 읽을 때 주의할 점')
             for warn in w.warnings:
                 st.warning(warn)
 
         if w.understanding:
-            st.markdown('##### 내 이해 — 확인한 것과 해석한 것')
+            st.markdown('##### 어디까지 확인됐나')
             st.dataframe(
-                pd.DataFrame([{'세부': d, '확신': label} for d, label in w.understanding]),
+                pd.DataFrame([{'항목': d, '확신': label} for d, label in w.understanding]),
                 use_container_width=True, hide_index=True)
-            st.caption('`검증된 사실` = 문서·코드·산출물로 확인 · `Claude 의견` = 해석 · '
-                       '`확실하지 않은 사실` = 미확정. 셋을 같은 무게로 적으면 나중에 '
-                       '구별할 방법이 없어집니다.')
+            st.caption('`검증된 사실` = 문서·코드·산출물로 확인한 것 · `Claude 의견` = 해석 · '
+                       '`확실하지 않은 사실` = 아직 재보지 않은 것. 셋을 같은 무게로 적어 두면 '
+                       '나중에 무엇이 근거였는지 구별할 수 없게 됩니다.')
+        # 축들이 서로를 가리키지 않으면 화면이 16개의 섬이 된다. "그래서 다음에 뭘
+        # 봤나"를 매번 문서에서 다시 찾게 두지 않는다.
+        if w.next_step:
+            st.markdown('##### 그래서 다음 질문은')
+            st.info(w.next_step)
+            picked_next = [SERIES_BY_ID[a] for a in w.next_axes if a in SERIES_BY_ID]
+            if picked_next:
+                st.markdown('이어받은 축 — ' + ' · '.join(
+                    f'**{s.title}** (`{s.id}`, {s.status.code})' for s in picked_next))
+                st.caption('위 드롭다운에서 그 축을 고르면 이어서 볼 수 있습니다.')
+
         if w.sources:
             st.caption('근거 ' + ' · '.join(f'`{s}`' for s in w.sources))
 
@@ -447,6 +483,20 @@ else:
                 cagr = d['cagr'] * 100
                 p5, p95 = cagr.quantile(0.05), cagr.quantile(0.95)
                 st.markdown(f'**{ref.display}** — {len(d)}회 추첨')
+
+                # 히스토그램(분포 CSV)과 비교표(summary.json)가 **같은 실행**에서
+                # 왔는지 확인한다. 다르면 폐기된 실행의 합격선으로 현행 값을 재게 된다.
+                gap = dist_vintage_gap(catalog.require(ref.artifact_key), cagr.median() / 100)
+                if gap is not None and abs(gap) > DIST_VINTAGE_TOL:
+                    rec = catalog.require(ref.artifact_key).metrics['median_cagr'] * 100
+                    st.warning(
+                        f'**이 히스토그램은 비교표와 다른 실행입니다.** 여기 중앙값은 '
+                        f'`{cagr.median():.2f}%` 인데 비교표에 뜨는 값은 `{rec:.2f}%` 로 '
+                        f'**{gap:+.2f}%p** 차이가 납니다. 분포 CSV 는 2026-07-18 배치이고 '
+                        f'비교표 값은 **2026-07-30 재발행**(TTM 연도정렬 버그 `CORR-TTM-001` '
+                        f'수정 후)입니다. 아래 p95 선은 **폐기된 실행의 합격선**이므로, '
+                        f'현행 수치가 그 선을 넘는지로 판정하지 마세요 — 공식 G1 판정은 '
+                        f'`experiments/robustness/` 의 게이트 산출물이 합니다.')
                 c = st.columns(3)
                 c[0].metric('중앙값 CAGR', f'{cagr.median():.1f}%')
                 c[1].metric('p5', f'{p5:.1f}%')
