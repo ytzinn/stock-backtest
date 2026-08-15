@@ -361,8 +361,10 @@ def test_ranking_signal_direction_flips_between_paths(catalog):
     def cagr(key):
         return catalog.require(key).metrics['cagr']
 
-    no_mom = cagr('D_pbr_only') - cagr('D_rim_only')      # 1/PBR − RIM
-    with_mom = cagr('F_pbr_only') - cagr('F_momentum_rim')
+    # **R6 를 양쪽 다 끈 짝**으로 잰다. R6 켠 쪽과 끈 쪽을 빼면 랭킹·R6 가 함께
+    # 달라진 값이 나온다 (SPEC_13 §9-9 도 이 짝을 썼다).
+    no_mom = cagr('D_pbr_only') - cagr('D_no_r6')        # 1/PBR − RIM
+    with_mom = cagr('F_pbr_only') - cagr('F_no_r6')
 
     assert no_mom > 0, (
         f'모멘텀 없는 경로에서 1/PBR 이 더 이상 앞서지 않는다 ({no_mom:+.2%}) — '
@@ -377,7 +379,7 @@ def test_ranking_signal_direction_flips_between_paths(catalog):
 
 def test_pbr_ranking_turns_over_less(catalog):
     """"1/PBR 은 회전율이 낮아 net 에서 격차가 더 벌어진다"가 사실인가."""
-    rim, pbr = catalog.require('D_rim_only'), catalog.require('D_pbr_only')
+    rim, pbr = catalog.require('D_no_r6'), catalog.require('D_pbr_only')
     assert pbr.metrics['avg_turnover'] < rim.metrics['avg_turnover'], \
         '1/PBR 의 회전율이 더 이상 낮지 않다 — 왜-지도의 비용 서술을 고쳐라'
     gross_gap = pbr.metrics['cagr'] - rim.metrics['cagr']
@@ -385,3 +387,53 @@ def test_pbr_ranking_turns_over_less(catalog):
     assert net_gap > gross_gap, (
         f'net 격차({net_gap:+.2%})가 gross({gross_gap:+.2%})보다 크지 않다 — '
         f'"비용을 빼면 더 벌어진다"는 서술이 무효다')
+
+
+def test_why_map_deltas_stay_inside_one_set(catalog):
+    """증분표가 **세트를 가로질러** 빼지 않는가.
+
+    세트는 "이것만 빼고 나머지가 같은" 묶음이다. 세트를 넘어 두 행을 빼면 여러 조건이
+    한꺼번에 달라진 값이 나오는데, 화면에는 "무엇을 바꿨나" 한 줄로 뜨므로 사람은 그
+    하나의 효과로 읽는다. R6 축의 "세트를 가로질러 비교하지 마라" 경고와 같은 규칙이다.
+    """
+    for s in SERIES:
+        if s.why is None or not s.why.deltas or not s.groups:
+            continue
+        where = {k: i for i, g in enumerate(s.groups) for k in g}
+        for d in s.why.deltas:
+            a, b = where.get(d.base), where.get(d.variant)
+            if a is None or b is None:
+                continue
+            if d.crosses_sets:
+                assert a != b, (
+                    f'{s.id}: 증분 "{d.label}" 이 crosses_sets 인데 실제로는 같은 '
+                    f'세트다 — 플래그가 낡았다')
+                assert d.note, f'{s.id}: 세트를 넘는 증분에는 이유를 적어야 한다'
+                continue
+            assert a == b, (
+                f'{s.id}: 증분 "{d.label}" 이 세트 {a} 와 {b} 를 가로질러 뺀다 — '
+                f'여러 조건이 함께 달라진 값이 단일 효과로 읽힌다. 의도한 것이라면 '
+                f'crosses_sets=True 로 명시하고 이유를 note 에 적어라')
+
+
+def test_config_matrix_reads_the_real_pipeline(catalog):
+    """설정표가 조립된 파이프라인에서 나오는가, 그리고 다축을 드러내는가.
+
+    `D_rim_only` 와 `D_pbr_only` 는 이름만 보면 랭킹만 다른 것 같지만 실제로는
+    **랭킹·R6·밸류에이션 컷 셋**이 다르다. 설정표를 만들자마자 그게 드러났고, 그래서
+    증분표의 짝을 고쳤다. 이 검사는 그 사실이 화면에 계속 드러나는지 지킨다.
+    """
+    from dashboard.series_view import config_matrix, pipeline_facts, varying_columns
+
+    rows = config_matrix(resolve(SERIES_BY_ID['ranking_signal'], catalog))
+    assert rows, '설정표가 비었다'
+    assert len(varying_columns(rows)) >= 2, (
+        '랭킹 축에서 달라지는 조건이 1개 이하로 잡혔다 — 다축이라는 사실이 '
+        '화면에서 사라졌다')
+
+    rim, pbr = pipeline_facts('D_rim_only'), pipeline_facts('D_pbr_only')
+    assert rim['랭킹 신호'] != pbr['랭킹 신호']
+    assert rim['안정성 룰'] != pbr['안정성 룰'], \
+        'R6 차이가 사라졌다 — 증분표의 짝(D_no_r6)을 다시 검토하라'
+    assert rim['밸류에이션 컷'] != pbr['밸류에이션 컷'], \
+        '밸류에이션 컷 차이가 사라졌다 — "본질적으로 다축"이라는 서술을 고쳐라'

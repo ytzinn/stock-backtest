@@ -14,9 +14,10 @@ import glob
 import inspect
 import json
 import re
+from functools import lru_cache
 from pathlib import Path
 
-from backtest.ablation import build_ablation_pipeline
+from backtest.ablation import ABLATION_CONFIGS, build_ablation_pipeline
 from dashboard.artifacts import ArtifactCatalog
 from dashboard.series import Series, SeriesSpec
 
@@ -179,6 +180,75 @@ def dist_vintage_gap(artifact, dist_median: float) -> float | None:
     return (dist_median - rec) * 100
 
 
+#: 조립된 파이프라인 클래스 → 사람이 읽는 랭킹 신호 이름.
+_RANK_NAMES = {
+    'BacktestPipeline':            'RIM 상승여력',
+    '_PBRRankPipeline':            '1/PBR',
+    '_FactorCompositeRankPipeline': '팩터 복합',
+    '_RandomSelectPipeline':       '무작위 추첨',
+    '_AllEqualWeightPipeline':     '동일가중 전체',
+}
+
+
+@lru_cache(maxsize=None)
+def pipeline_facts(base_tag: str) -> dict:
+    """설정을 **실제로 조립해** 읽는다. 플래그를 화면이 다시 해석하지 않는다.
+
+    `stability_r6`·`stability_rules`·`rank_mode`·`rim_cut` 의 조합 규칙은
+    `build_ablation_pipeline` 이 단일 정의다. 화면이 그 분기를 베껴 쓰면 둘이 어긋나는
+    날 화면만 조용히 틀린다. 그래서 같은 함수로 조립한 뒤 결과물을 들여다본다.
+    """
+    cfg = ABLATION_CONFIGS.get(base_tag)
+    if cfg is None:
+        return {}
+    p = build_ablation_pipeline(base_tag, cfg)
+    names = [type(f).__name__ for f in p.filters]
+    stability = next((f for f in p.filters if type(f).__name__ == 'StabilityFilter'), None)
+    rules = sorted(getattr(stability, 'active_rules', None) or ())
+
+    rank = _RANK_NAMES.get(type(p).__name__, type(p).__name__)
+    if type(p).__name__ == '_PBRRankPipeline' and getattr(p, 'equity_mode', '') == 'parent':
+        rank = '1/PBR (지배지분)'
+
+    return {
+        '랭킹 신호': rank,
+        'Hard 필터': '✓' if 'HardFilter' in names else '—',
+        '안정성 룰': '·'.join(rules) if rules else '—',
+        '스크리너': '✓' if 'FactorScreener' in names else '—',
+        '모멘텀': '✓' if any('Momentum' in n for n in names) else '—',
+        '밸류에이션 컷': '✓' if getattr(p, 'rim_threshold', None) is not None else '—',
+    }
+
+
+#: 설정 매트릭스에서 시나리오를 가리키는 열 이름.
+CONFIG_KEY_COL = '시나리오'
+
+
+def config_matrix(series: Series) -> list[dict]:
+    """멤버별 설정 표 — **무엇이 켜지고 꺼졌는지**를 한 줄에 편다.
+
+    태그 이름을 사람 말로 옮긴 라벨만으로는 두 행이 무엇에서 갈리는지 알 수 없다.
+    실제로 이 표를 만들자마자 잡힌 것이 있다: `D_rim_only` 와 `D_pbr_only` 는 랭킹만
+    다른 게 아니라 **R6 와 밸류에이션 컷까지 함께** 다르다. 이름만 보고 "랭킹 신호의
+    차이"로 읽으면 3중 교란을 단일 효과로 인용하게 된다.
+    """
+    rows = []
+    for ref in series.members:
+        facts = pipeline_facts(ref.base_tag)
+        if not facts:
+            continue
+        rows.append({CONFIG_KEY_COL: ref.display, **facts})
+    return rows
+
+
+def varying_columns(rows: list[dict]) -> list[str]:
+    """행마다 값이 다른 열만. 나머지는 이 축에서 **고정**된 조건이다."""
+    if not rows:
+        return []
+    return [c for c in rows[0] if c != CONFIG_KEY_COL
+            and len({r.get(c) for r in rows}) > 1]
+
+
 def _cagr(artifact) -> float | None:
     """비교표와 **같은 규칙**으로 CAGR 을 고른다.
 
@@ -210,6 +280,9 @@ def delta_rows_for(spec: SeriesSpec, catalog: ArtifactCatalog) -> list[dict]:
             '기준': d.base,
             '바꾼 뒤': d.variant,
             'Δ CAGR (%p)': None if b is None or v is None else round((v - b) * 100, 2),
+            # 세트를 넘는 비교는 화면에서 표가 나야 한다. 조건이 여럿 달라진 값이라
+            # 같은 굵기로 읽으면 안 된다.
+            '세트 넘음': '⚠' if d.crosses_sets else '—',
             '메모': d.note or '—',
         })
     return rows

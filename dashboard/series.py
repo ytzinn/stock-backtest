@@ -106,6 +106,10 @@ class Delta:
     base: str        # 기준 artifact_key
     variant: str     # 바꾼 쪽 artifact_key
     note: str = ''
+    # 세트를 가로지르는 비교인가. 기본은 금지다 — 세트를 넘으면 여러 조건이 함께
+    # 달라진 값이 "무엇을 바꿨나" 한 줄로 뜬다. 그래도 필요한 자리가 있어서(무작위
+    # 추첨 vs 모델 선택) **명시적으로 켤 때만** 허용하고, 화면이 그 사실을 표시한다.
+    crosses_sets: bool = False
 
 
 @dataclass(frozen=True)
@@ -189,20 +193,20 @@ LABELS: dict[str, str] = {
     'B_hard_random':      'B  Hard + 랜덤',
     'C_stability_random': 'C  Hard + Stability + 랜덤',
     'C_no_r6':            "C′ Hard + Stability(−R6) + 랜덤",
-    'D_rim_only':         'D  Hard + Stability + RIM',
-    'D_no_r6':            "D′ RIM (R6 제외)",
+    'D_rim_only':         'D  RIM 랭킹',
+    'D_no_r6':            "D′ RIM 랭킹 (−R6)",
     'E_screener_rim':     'E  D + 팩터스크리닝',
     'E_no_r6':            "E′ E (R6 제외)",
-    'F_momentum_rim':     'F  D + 모멘텀',
-    'F_no_r6':            "F′ F (R6 제외)",
+    'F_momentum_rim':     'F  RIM 랭킹 + 모멘텀',
+    'F_no_r6':            "F′ RIM 랭킹 + 모멘텀 (−R6)",
     'G_full':             'G  전체 (E + F)',
     'G_no_r6':            "G′ 전체 (R6 제외)",
     'H_no_stability':     'H  G − Stability',
     # 랭킹 신호 축. 어느 신호로 줄을 세운 것인지가 이름에서 보여야 한다.
-    'D_pbr_only':         'D  1/PBR 랭킹',
-    'D_factor_only':      'D  팩터 복합 랭킹',
+    'D_pbr_only':         'D  1/PBR 랭킹 (−R6)',
+    'D_factor_only':      'D  팩터 복합 랭킹 (−R6)',
     'D_pbr_no_r3r4':      'D  1/PBR (−R3·R4)',
-    'F_pbr_only':         'F  1/PBR + 모멘텀',
+    'F_pbr_only':         'F  1/PBR + 모멘텀 (−R6)',
     'F_pbr_no_r3r4_parent': 'F  1/PBR (분모=지배지분)',
 }
 
@@ -284,7 +288,9 @@ _WHY_LAYERS = WhyMap(
         Delta('Stability 추가', 'B_hard_random', 'C_stability_random',
               '재무 하드룰 6개. 중앙값보다 p5(바닥)에서 더 크게 움직인다'),
         Delta('RIM 랭킹으로 선택', 'C_stability_random', 'D_rim_only',
-              '같은 풀에서 무작위 추첨 대신 RIM 순위로 고른다 = RIM 모델의 기여'),
+              '같은 풀에서 무작위 추첨 대신 RIM 순위로 고른다 = RIM 모델의 기여. '
+              '추첨 중앙값과 단일 실행을 견주는 것이라 값의 종류가 다르다',
+              crosses_sets=True),
         Delta('스크리너 추가', 'D_rim_only', 'E_screener_rim', '2026-07-05 폐기'),
         Delta('모멘텀 추가', 'D_rim_only', 'F_momentum_rim', '현행 경로가 물려받은 레이어'),
         Delta('스크리너 추가 (모멘텀 위에)', 'F_momentum_rim', 'G_full',
@@ -412,13 +418,17 @@ _WHY_RANKING = WhyMap(
         '무작위로 20종목 뽑기"의 상위 5%(C p95)조차 넘지 못한다 — **9.54% vs 12.13%, '
         '−2.59%p 미달.** 모델로 고른 것이 제비뽑기 잘된 경우만도 못하다는 뜻이라, '
         '다른 수치가 어떻든 랭킹 신호로서의 근거가 서지 않는다.',
-        '**모멘텀이 없는 경로에서는 1/PBR 이 크게 앞선다.** 게다가 회전율이 낮아 '
-        '(1/PBR 47% vs RIM 68%) 비용을 뺀 net 에서 격차가 더 벌어진다. 순위를 매기는 '
-        '신호를 바꿨을 뿐인데 거래비용까지 같이 줄어드는 셈이다.',
-        '**단, 모멘텀 경로에서는 RIM 이 근소하게 앞선다.** 이 줄만 보고 결론을 뒤집으면 '
-        '안 된다. 2026-07-30 재발행에서 `F_no_r6 > F_pbr_only` 가 FAIL→PASS 로 실제로 '
-        '뒤집혔지만(+0.13%p), **1차 관문이 그대로 실패라서 판정은 유지됐다.** 소수점 몇 '
-        '자리 우열은 구간을 조금만 바꿔도 뒤집히는 크기다.',
+        '**모멘텀이 없는 경로에서는 1/PBR 이 크게 앞선다** (+2.49%p, R6 를 양쪽 다 끈 짝 기준). '
+        '게다가 회전율이 낮아 비용을 뺀 net 에서 격차가 더 벌어진다 — 순위를 매기는 신호를 '
+        '바꿨을 뿐인데 거래비용까지 같이 줄어드는 셈이다.',
+        '**단, 모멘텀 경로에서는 RIM 이 근소하게 앞선다** (+0.13%p). 이 줄만 보고 결론을 '
+        '뒤집으면 안 된다. 2026-07-30 재발행에서 `F_no_r6 > F_pbr_only` 가 FAIL→PASS 로 '
+        '실제로 뒤집혔지만 **1차 관문이 그대로 실패라서 판정은 유지됐다.** 이 크기는 '
+        '구간을 조금만 바꿔도 뒤집힌다.',
+        '**아래 설정표를 먼저 보라 — 이 축의 비교는 본질적으로 다축이다.** 랭킹을 RIM 에서 '
+        '1/PBR 로 바꾸면 **밸류에이션 컷(고평가 5% 초과 제외)이 함께 사라진다.** 캘린더 '
+        '민감도 작업에서도 같은 이유로 이 대조를 단일축에서 **다축으로 강등**했다. '
+        '"랭킹 신호만의 효과"라고 부를 수 있는 값은 이 표에 없다.',
         '**팩터 복합 랭킹은 비교 대상이 아니었다.** 1.60% 로 셋 중 압도적 꼴찌이고, '
         '이것이 팩터 스크리너를 폐기한 결정과 같은 방향의 증거다.',
     ),
@@ -427,15 +437,18 @@ _WHY_RANKING = WhyMap(
     question='편입 종목의 순위를 무엇으로 매겨야 하는가? RIM 모델은 그 값을 할 만한가?',
     failure_mode='"RIM 은 저PBR 의 재포장이 아니라 별개의 신호다"라는 믿음을 검증 없이 '
                  '끌고 가는 것을 막는다. 그 명제는 검증 결과 **룩어헤드의 산물**이었다.',
+    # **R6 를 양쪽 다 끈 짝**으로만 비교한다. `D_rim_only`(R6 켬)와 `D_pbr_only`(R6 끔)를
+    # 그냥 빼면 랭킹·R6·밸류에이션 컷 셋이 한꺼번에 달라진 값을 "랭킹의 차이"로 읽게 된다.
+    # SPEC_13 §9-9 가 쓴 짝도 `D_no_r6` vs `D_pbr_only`, `F_no_r6` vs `F_pbr_only` 다.
     deltas=(
-        Delta('RIM → 1/PBR (모멘텀 없음)', 'D_rim_only', 'D_pbr_only',
-              '회전율도 68% → 47% 로 함께 내려간다'),
-        Delta('RIM → 팩터 복합 (모멘텀 없음)', 'D_rim_only', 'D_factor_only',
+        Delta('RIM → 1/PBR · 모멘텀 없음', 'D_no_r6', 'D_pbr_only',
+              'R6 를 양쪽 다 끈 짝. 회전율도 함께 내려간다'),
+        Delta('RIM → 1/PBR · 모멘텀 있음', 'F_no_r6', 'F_pbr_only',
+              '여기서만 RIM 이 앞선다 — 그 크기가 0.4%p 도 안 된다'),
+        Delta('RIM → 팩터 복합 · 모멘텀 없음', 'D_no_r6', 'D_factor_only',
               '팩터 스크리너 폐기와 같은 방향의 증거'),
-        Delta('RIM → 1/PBR (모멘텀 있음)', 'F_momentum_rim', 'F_pbr_only',
-              '여기서만 RIM 이 앞선다 — 1차 관문 실패를 뒤집지는 못한다'),
-        Delta('1/PBR → 분모를 지배지분으로', 'F_pbr_only', 'F_pbr_no_r3r4_parent',
-              'PBR 분모를 자본총계 대신 지배기업소유주지분으로 (SPEC_11 §3)'),
+        Delta('R6 를 켜면 (RIM 경로)', 'D_no_r6', 'D_rim_only',
+              '위 비교에서 R6 를 빼 둔 이유 — 이만큼이 랭킹과 무관하게 움직인다'),
     ),
     history=(
         r'**2026-07-16** 강건성 분석에서 교훈을 하나 세웠다 — **0.4\~2%p 차이는 구간 의존일 '
@@ -570,12 +583,12 @@ SERIES: tuple[SeriesSpec, ...] = (
         # `_parent` 는 랭킹 자체를 바꾼다 — PBR 분모가 자본총계가 아니라 지배기업
         # 소유주지분이다 (rank_mode='pbr_parent', SPEC_11 §3). 이름만 보면 "부모 실행"
         # 으로 오독하기 쉬워 미배정으로 남아 있었다.
-        tags=('D_rim_only', 'D_pbr_only', 'D_factor_only', 'D_pbr_no_r3r4',
-              'F_momentum_rim', 'F_pbr_only', 'F_pbr_no_r3r4_parent'),
+        tags=('D_rim_only', 'D_no_r6', 'D_pbr_only', 'D_pbr_no_r3r4', 'D_factor_only',
+              'F_momentum_rim', 'F_no_r6', 'F_pbr_only', 'F_pbr_no_r3r4_parent'),
         # 모멘텀 유무로 나눈다. 두 덩어리에서 RIM 과 1/PBR 의 우열이 **반대로** 나오므로,
         # 섞어 놓으면 어느 비교가 어느 조건이었는지 눈으로 못 가린다.
-        groups=(('D_rim_only', 'D_pbr_only', 'D_pbr_no_r3r4', 'D_factor_only'),
-                ('F_momentum_rim', 'F_pbr_only', 'F_pbr_no_r3r4_parent')),
+        groups=(('D_rim_only', 'D_no_r6', 'D_pbr_only', 'D_pbr_no_r3r4', 'D_factor_only'),
+                ('F_momentum_rim', 'F_no_r6', 'F_pbr_only', 'F_pbr_no_r3r4_parent')),
         why=_WHY_RANKING,
         status=Status('CLOSED_FAIL', 'RIM 랭킹 근거 상실 → 1/PBR 로 교체', '2026-07', _SPEC10)),
 

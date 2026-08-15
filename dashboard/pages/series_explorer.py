@@ -32,18 +32,21 @@ from dashboard.series import (
     unassigned,
 )
 from dashboard.series_view import (
+    CONFIG_KEY_COL,
     DEFAULT_N_STOCKS,
     DIST_VINTAGE_TOL,
     MDD_COL,
     b_type_files,
     comparison_rows,
     compound_curve,
+    config_matrix,
     delta_rows_for,
     dist_vintage_gap,
     excess_curve,
     grouped_chart_rows,
     n_curve,
     provenance_rows,
+    varying_columns,
 )
 
 st.set_page_config(page_title='시리즈 탐색', layout='wide', page_icon='🧭')
@@ -309,6 +312,28 @@ else:
             f'72개(전체 76개 중)에는 애초에 그 칸이 없습니다. 값을 모르는 게 아니라 '
             f'적히지 않은 것이고, `_n13` 처럼 접미사가 있으면 그 수, 없으면 기본값 '
             f'{DEFAULT_N_STOCKS} 입니다. 괄호 없는 숫자만 산출물이 직접 기록한 값입니다.')
+
+        # 설정 매트릭스. 라벨만으로는 두 행이 **무엇에서 갈리는지** 알 수 없다.
+        # 값은 플래그를 다시 해석한 게 아니라 파이프라인을 실제로 조립해 읽은 것이다.
+        cfg_rows = config_matrix(series)
+        if cfg_rows:
+            vary = varying_columns(cfg_rows)
+            fixed = [c for c in cfg_rows[0]
+                     if c != CONFIG_KEY_COL and c not in vary]
+            with st.expander(f'⚙️ 설정 비교 — 이 축에서 실제로 달라지는 조건 {len(vary)}개',
+                             expanded=bool(vary)):
+                st.dataframe(
+                    pd.DataFrame([{CONFIG_KEY_COL: r[CONFIG_KEY_COL],
+                                   **{c: r[c] for c in vary}} for r in cfg_rows])
+                    if vary else pd.DataFrame(cfg_rows),
+                    use_container_width=True, hide_index=True)
+                if fixed:
+                    st.caption('이 축에서 **고정**된 조건 — ' + ' · '.join(
+                        f'{c} `{cfg_rows[0][c]}`' for c in fixed))
+                st.caption(
+                    '플래그를 화면이 다시 해석한 값이 아니라 `build_ablation_pipeline` 로 '
+                    '**실제 조립한 파이프라인**에서 읽은 값입니다. 달라지는 조건이 2개 '
+                    '이상이면 두 행의 차이를 **어느 한 조건의 효과로 부를 수 없습니다.**')
 
         with st.expander('🧬 산출물 계보 — 왜 이 전략은 그래프가 없나'):
             st.write('산출물 상당수가 git 미추적이라 개발 PC 와 서버가 다릅니다. '
