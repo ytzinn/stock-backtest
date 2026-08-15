@@ -53,13 +53,14 @@
   룰 조합처럼 **축이 곧 이유인 태그는 비워 둔다** (열이 이미 답하는 것을 다시
   적으면 중복이고, 중복한 설명은 갈라진다). 내용은 `dashboard/tags.py` 소유.
 
-총 **72개** 태그.
+총 **73개** 태그.
 
 | 태그 | 분류 | 랭킹 신호 | 안정성 룰 | Hard | 스크리너 | 모멘텀 | 밸류에이션 컷 | 종목 수 | 짝 대조군 | 소속 축 | 왜 만들었나 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | `A_random` | RANDOM | 무작위 추첨 | — | — | — | — | n/a | 20 고정 (추첨) | — | layers | 무작위 20종목 선택, seed x rebalance_date 복합 시드, 500회 반복. 결과: A_random_dist.csv (experiments/ablation/, gitignore됨).  |
 | `B_hard_random` | RANDOM | 무작위 추첨 | — | ✓ | — | — | n/a | 20 고정 (추첨) | — | layers | HardFilter만 통과 후 무작위 선택, 500회 반복. B_hard_random_dist.csv.  |
 | `C_no_r6` | RANDOM | 무작위 추첨 | R1·R2·R3·R4·R5 | ✓ | — | — | n/a | 20 고정 (추첨) | — | r6_loo | 이름과 달리 코드상 RANDOM_TAGS에 포함(use_rim_filter=False, random_n=20) — Hard+Stability(R6 제외) 통과 후 무작위 선택. C_no_r6_dist.csv.  |
+| `C_pbr_ma200_random` | — | 무작위 추첨 | R1·R2·R5·R6 | ✓ | — | MA 200 | n/a | 20 고정 (추첨) | — | **미배정** | **없음** |
 | `C_pbr_path_random` | RANDOM | 무작위 추첨 | R1·R2·R5·R6 | ✓ | — | MA 20/60 | n/a | 20 고정 (추첨) | — | benchmarks | SPEC_10 §3-1 이 **채택 후보 전용으로 새로 만든 짝 대조군.** 기존 `C_stability_random` 은 룰이 전 6개인 데다 모멘텀을 안 태워서, 채택안(룰 {R1,R2,R5,R6} + 모멘텀)의 관문으로 쓰면 "유니버스가 좁아서"와 "랭킹이 좋아서"가 섞인다. 그래서 **모멘텀 통과 풀에서 무작위 20종목**을 1,000회 뽑는다 (p95 추정 안정화). G1 관문의 귀무분포가 이것이다. |
 | `C_stability_random` | RANDOM | 무작위 추첨 | R1·R2·R3·R4·R5·R6 | ✓ | — | — | n/a | 20 고정 (추첨) | — | layers, r6_loo | Hard+Stability(기본 전체 6룰) 통과 후 무작위 선택, 500회 반복. C_stability_random_dist.csv.  |
 | `D_factor_only` | DIAGNOSTIC | 팩터 복합 | R1·R2·R3·R4·R5 | ✓ | — | — | n/a | 산출물 키 참조 (기본 20) | `C_no_r6` | ranking_signal | RIM 없이 FactorScreener 4팩터 합산 점수로 직접 랭킹 — 신호분리 대조군 (스크리너 자체는 폐기됐으나 진단 목적 보존).  |
@@ -81,7 +82,7 @@
 | `E_screener_rim` | ARCHIVE | RIM 상승여력 | R1·R2·R3·R4·R5·R6 | ✓ | ✓ | — | ✓ | 산출물 키 참조 (기본 20) | **없음** | layers, r6_loo, screener_single | FactorScreener 폐기(2026-07-05, phase2_rim.py:7 주석). 원칙 5에 따라 삭제하지 않고 기록 보존.  |
 | `F_momentum_rim` | DIAGNOSTIC | RIM 상승여력 | R1·R2·R3·R4·R5·R6 | ✓ | — | MA 20/60 | ✓ | 산출물 키 참조 (기본 20) | **없음** | layers, r6_loo, stability_combo_f, stability_all, ranking_signal | 모멘텀 기여도(F>D) 판정용. 단, stability_rules 미지정 → 기본값(R1~R6 전체)이라 CANONICAL(R1,R4,R5,R6)과 필터 구성이 다르다. GAPS.md DOC-ABL-002 참조.  |
 | `F_no_r2` | DIAGNOSTIC | RIM 상승여력 | R1·R3·R4·R5·R6 | ✓ | — | MA 20/60 | ✓ | 산출물 키 참조 (기본 20) | **없음** | stability_combo_f | F 계열에서 R2 단독 제외.  |
-| `F_no_r2r3` | CANONICAL | RIM 상승여력 | R1·R4·R5·R6 | ✓ | — | MA 20/60 | ✓ | 산출물 키 참조 (기본 20) | **없음** | stability_combo_f | phase2_rim.py:55 주석은 ’채택 파이프라인 F_momentum_rim 구조’라고 적혀 있으나 이는 오기(誤記)다. F_momentum_rim 태그는 stability_rules 키가 없어 StabilityFilter 기본값(_ALL_RULES = R1~R6, R2/R3 포함)으로 빌드되므로 실제 프로덕션 설정과 다르다. 프로덕션과 필터 구성이 정확히 일치하는 태그는 F_no_r2r3 뿐이다. GAPS.md DOC-ABL-002 참조.  |
+| `F_no_r2r3` | ARCHIVE | RIM 상승여력 | R1·R4·R5·R6 | ✓ | — | MA 20/60 | ✓ | 산출물 키 참조 (기본 20) | **없음** | stability_combo_f | **2026-07 시점의 채택 파이프라인**이었다 (RIM 랭킹 경로). 현행 채택안은 1/PBR + MA200 + n=13 이라 계보가 다르다 — 여기 수치를 현행 성적으로 인용하지 마라. phase2_rim.py:55 주석은 ’채택 파이프라인 F_momentum_rim 구조’라고 적혀 있으나 이는 오기(誤記)다. F_momentum_rim 태그는 stability_rules 키가 없어 StabilityFilter 기본값(_ALL_RULES = R1~R6, R2/R3 포함)으로 빌드되므로 실제 프로덕션 설정과 다르다. 프로덕션과 필터 구성이 정확히 일치하는 태그는 F_no_r2r3 뿐이었다. GAPS.md DOC-ABL-002 참조.  |
 | `F_no_r2r3r4` | DIAGNOSTIC | RIM 상승여력 | R1·R5·R6 | ✓ | — | MA 20/60 | ✓ | 산출물 키 참조 (기본 20) | **없음** | stability_combo_f | F 계열에서 R2+R3+R4 동시 제외 (조합 확인용, 채택안 아님).  |
 | `F_no_r2r4` | DIAGNOSTIC | RIM 상승여력 | R1·R3·R5·R6 | ✓ | — | MA 20/60 | ✓ | 산출물 키 참조 (기본 20) | **없음** | stability_combo_f | F 계열에서 R2+R4 동시 제외 (조합 확인용, 채택안 아님).  |
 | `F_no_r3` | DIAGNOSTIC | RIM 상승여력 | R1·R2·R4·R5·R6 | ✓ | — | MA 20/60 | ✓ | 산출물 키 참조 (기본 20) | **없음** | stability_combo_f | F 계열에서 R3 단독 제외.  |
@@ -96,7 +97,7 @@
 | `F_pbr_ma100` | — | 1/PBR | R1·R2·R5·R6 | ✓ | — | MA 100 | — | 산출물 키 참조 (기본 20) | **없음** | momentum_grid | 축 설명 참조 |
 | `F_pbr_ma120_200` | — | 1/PBR | R1·R2·R5·R6 | ✓ | — | MA 120/200 | — | 산출물 키 참조 (기본 20) | **없음** | momentum_grid | 축 설명 참조 |
 | `F_pbr_ma150` | — | 1/PBR | R1·R2·R5·R6 | ✓ | — | MA 150 | — | 산출물 키 참조 (기본 20) | **없음** | momentum_grid | 축 설명 참조 |
-| `F_pbr_ma200` | — | 1/PBR | R1·R2·R5·R6 | ✓ | — | MA 200 | — | 산출물 키 참조 (기본 20) | **없음** | momentum_grid | 축 설명 참조 |
+| `F_pbr_ma200` | CANONICAL | 1/PBR | R1·R2·R5·R6 | ✓ | — | MA 200 | — | 산출물 키 참조 (기본 20) | `C_pbr_ma200_random` | momentum_grid | 축 설명 참조 |
 | `F_pbr_ma2060_cd3` | — | 1/PBR | R1·R2·R5·R6 | ✓ | — | MA 20/60 cd3 | — | 산출물 키 참조 (기본 20) | **없음** | momentum_grid | 축 설명 참조 |
 | `F_pbr_ma2060_cd7` | — | 1/PBR | R1·R2·R5·R6 | ✓ | — | MA 20/60 cd7 | — | 산출물 키 참조 (기본 20) | **없음** | momentum_grid | 축 설명 참조 |
 | `F_pbr_ma2060_sl10` | — | 1/PBR | R1·R2·R5·R6 | ✓ | — | MA 20/60 sl10 | — | 산출물 키 참조 (기본 20) | **없음** | momentum_grid | 축 설명 참조 |
@@ -132,7 +133,7 @@
 
 ## 관문을 물을 수 없는 태그
 
-짝이 맞는 무작위 대조군이 없는 태그가 **55개** 있다. 이들에게 `D ≥ C_p95` 형태의 관문을 물으면, 룰 구성이 다른 유니버스에서 뽑은 분포와 견주는 것이라 판정이 성립하지 않는다.
+짝이 맞는 무작위 대조군이 없는 태그가 **54개** 있다. 이들에게 `D ≥ C_p95` 형태의 관문을 물으면, 룰 구성이 다른 유니버스에서 뽑은 분포와 견주는 것이라 판정이 성립하지 않는다.
 
 - `D_no_r1`
 - `D_no_r2`
@@ -162,7 +163,6 @@
 - `F_pbr_ma100`
 - `F_pbr_ma120_200`
 - `F_pbr_ma150`
-- `F_pbr_ma200`
 - `F_pbr_ma2060_cd3`
 - `F_pbr_ma2060_cd7`
 - `F_pbr_ma2060_sl10`
@@ -192,12 +192,12 @@
 
 ## 등록 대장에 없는 태그
 
-축 어디에도 안 들어간 태그가 **0개**. 화면에 안 뜨므로 만들어 두고 잊기 쉽다.
+축 어디에도 안 들어간 태그가 **1개**. 화면에 안 뜨므로 만들어 두고 잊기 쉽다.
 
-- (없음)
+- `C_pbr_ma200_random`
 
 ## 왜 만들었는지 안 적힌 태그
 
-축이 설명해 주지도 않고 개별 설명도 없는 태그가 **0개**. 조건표만으로는 "왜 이 조합을 굳이 만들었나"를 알 수 없는 자리다. 설명은 `dashboard/tags.py` 에 추가한다.
+축이 설명해 주지도 않고 개별 설명도 없는 태그가 **1개**. 조건표만으로는 "왜 이 조합을 굳이 만들었나"를 알 수 없는 자리다. 설명은 `dashboard/tags.py` 에 추가한다.
 
-- (없음)
+- `C_pbr_ma200_random`

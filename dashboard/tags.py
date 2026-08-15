@@ -86,12 +86,18 @@ TAG_NOTES: dict[str, tuple[str, str]] = {
         '오독하기 쉬워 한동안 어느 축에도 배정되지 않은 채 남아 있었다.'),
 
     # ── 2026-07-12 감사 산출물에서 이관 ───────────────────────────────────
-    # ── CANONICAL ────────────────────────────────────────
-    'F_no_r2r3': ('CANONICAL',
+    # `F_no_r2r3` 는 **그때의** 채택안이었다. 지금은 아니다 (RIM 랭킹 경로가 폐기됐고
+    # 현행은 1/PBR + MA200 + n=13). 분류를 손으로 `CANONICAL` 이라 적어 뒀더니
+    # 채택안이 두 번 바뀌는 동안 아무도 못 고쳐서, 매트릭스가 **폐기된 RIM 태그를
+    # 현행 채택안이라고** 띄우고 있었다 (2026-08-15 사용자 발견). 그래서 이제
+    # `class_of` 가 채택 태그를 SSOT 에서 읽는다 — 여기 손으로 적지 않는다.
+    'F_no_r2r3': ('ARCHIVE',
+     '**2026-07 시점의 채택 파이프라인**이었다 (RIM 랭킹 경로). 현행 채택안은 1/PBR + MA200 + n=13 이라 '
+     '계보가 다르다 — 여기 수치를 현행 성적으로 인용하지 마라. '
      'phase2_rim.py:55 주석은 ’채택 파이프라인 F_momentum_rim 구조’라고 적혀 있으나 이는 오기(誤記)다. '
      'F_momentum_rim 태그는 stability_rules 키가 없어 StabilityFilter 기본값(_ALL_RULES = '
      'R1~R6, R2/R3 포함)으로 빌드되므로 실제 프로덕션 설정과 다르다. 프로덕션과 필터 구성이 정확히 일치하는 태그는 '
-     'F_no_r2r3 뿐이다. GAPS.md DOC-ABL-002 참조. '
+     'F_no_r2r3 뿐이었다. GAPS.md DOC-ABL-002 참조. '
      ),
     # ── DIAGNOSTIC ────────────────────────────────────────
     'D_factor_only': ('DIAGNOSTIC',
@@ -213,5 +219,21 @@ def note_of(tag: str) -> str:
     return TAG_NOTES.get(tag, ('', ''))[1]
 
 
+def adopted_tag() -> str:
+    """현행 채택 태그. **SSOT 는 `scripts/live/freeze_rebalance.py::DEFAULT_TAG` 다.**
+
+    손으로 적지 않는다. 실제로 그렇게 적어 뒀다가 채택안이 두 번 바뀌는 동안
+    (RIM → 1/PBR, MA 20/60 → MA200, n 20 → 13) 아무도 못 고쳐서, 매트릭스가 폐기된
+    RIM 태그 `F_no_r2r3` 를 `CANONICAL` 이라고 띄우고 현행 `F_pbr_ma200` 은 분류가
+    비어 있었다. `docs/CANONICAL.md` 도 같은 함수에서 읽으므로 둘이 갈라질 수 없다.
+    """
+    from backtest.canonical_state import _freeze_constants
+
+    return _freeze_constants()[0]
+
+
 def class_of(tag: str) -> str:
+    """태그 분류. `CANONICAL` 만은 대장이 아니라 **운영 설정에서** 나온다."""
+    if tag == adopted_tag():
+        return 'CANONICAL'
     return TAG_NOTES.get(tag, ('', ''))[0]

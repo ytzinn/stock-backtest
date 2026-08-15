@@ -620,6 +620,30 @@ def test_tag_matrix_is_current():
         + (r.stderr or r.stdout))
 
 
+def test_canonical_class_tracks_the_live_setting():
+    """`CANONICAL` 분류가 **현행 운영 태그 하나**에만 붙는가.
+
+    손으로 적어 뒀더니 채택안이 두 번 바뀌는 동안(RIM → 1/PBR, MA 20/60 → MA200,
+    n 20 → 13) 아무도 못 고쳤다. 매트릭스가 폐기된 RIM 태그 `F_no_r2r3` 를 현행
+    채택안이라고 띄우고, 진짜 채택안 `F_pbr_ma200` 은 분류가 비어 있었다
+    (2026-08-15 사용자 발견). 이제 `scripts/live/freeze_rebalance.py` 에서 읽는다.
+    """
+    from backtest.canonical_state import _freeze_constants
+    from dashboard.tags import TAG_NOTES, adopted_tag, class_of
+
+    live = _freeze_constants()[0]
+    assert adopted_tag() == live
+    assert live in ABLATION_CONFIGS, f'운영 태그 `{live}` 가 ABLATION_CONFIGS 에 없다'
+    assert class_of(live) == 'CANONICAL'
+
+    marked = [t for t in ABLATION_CONFIGS if class_of(t) == 'CANONICAL']
+    assert marked == [live], f'CANONICAL 이 운영 태그 하나가 아니다: {marked}'
+    hand = [t for t, (cls, _) in TAG_NOTES.items() if cls == 'CANONICAL']
+    assert not hand, (
+        f'분류를 손으로 `CANONICAL` 이라 적은 태그가 있다: {hand} — '
+        f'채택안이 바뀌면 낡는다. 운영 설정에서 파생되게 두라')
+
+
 def test_every_tag_note_points_at_a_real_tag():
     """태그 설명이 실재하는 태그를 가리키는가. 오타면 영영 안 뜬다."""
     from dashboard.tags import CLASSES, TAG_NOTES

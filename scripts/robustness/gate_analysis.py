@@ -153,8 +153,14 @@ def main() -> None:
     # n=13 전략을 n=20 귀무분포로 판정하고 있었고, 그 방향은 **합격선을 낮추는** 쪽
     # (종목이 많을수록 분산이 작아 p95 가 낮다)이라 게이트가 관대해져 있었다.
     f_n = f_json.get('n_stocks') or _n_from_tag(F_TAG, DEFAULT_N_STOCKS)
+    # `random_summary` 파일명은 종전에 **`_n{K}` 접미사만** 담았다 (풀 태그가 하나뿐
+    # 이라 가능했던 규약). 2026-08-15 에 풀 태그가 인자가 됐으므로, 기본 태그가 아니면
+    # 태그를 포함한 이름을 먼저 본다 — 안 그러면 MA200 풀을 판정하면서 MA 20/60 풀의
+    # 요약을 읽는다. `run_random_pool.py` 의 `side_sfx` 와 같은 규칙이다.
     m_sfx = re.search(r'(_n\d+)$', args.draws_tag)
-    rs_path = ROB_DIR / f'random_summary{m_sfx.group(1) if m_sfx else ""}.json'
+    rs_path = ROB_DIR / f'random_summary_{args.draws_tag}.json'
+    if not rs_path.exists():
+        rs_path = ROB_DIR / f'random_summary{m_sfx.group(1) if m_sfx else ""}.json'
     draws_n = None
     if rs_path.exists():
         draws_n = json.loads(rs_path.read_text(encoding='utf-8')).get('n_stocks')

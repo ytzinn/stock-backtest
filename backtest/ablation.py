@@ -11,6 +11,7 @@ Phase 2 필수 실행. 레이어별 Alpha 기여도 분해.
 """
 from __future__ import annotations
 
+import copy
 import random
 
 from backtest.configs.constants        import OMEGA
@@ -423,8 +424,29 @@ del _cfg, _mc
 # 레거시 `use_momentum` 경로(MomentumFilter, MA 20/60)는 요구 이력 80거래일 < 124 라
 # 노출되지 않고, MomentumCriterionFilter 를 타지 않아 이 스위치의 대상도 아니다.
 
+# ── `[2026-08-15]` 채택안(MA200) 전용 귀무분포 풀 ──────────────────────────
+#
+# `C_pbr_path_random`(SPEC_10 §3-1)은 2026-07-19 등록 당시 채택 후보였던
+# `F_pbr_no_r3r4`(레거시 MA 20/60)와 필터 스택이 같았다. 08-10 에 모멘텀이 MA200 으로
+# 바뀌었는데 **풀은 안 따라갔다** — `run_random_pool.py` 의 대상 태그가 하드코딩이라
+# 바꿀 수단이 없었기 때문이다. 08-12 n=13 재추첨도 추첨 크기만 바꿔서,
+# `pools.json`(07-29)과 `pools_n13.json`(08-12)이 **md5 동일**이었다.
+# 결과적으로 G1 은 MA200 전략(모멘텀 통과 6,824종목)을 MA 20/60 풀(8,767종목)에서
+# 뽑은 분포에 대고 있었다 — "유니버스가 좁아서"와 "랭킹이 좋아서"를 분리하려고 만든
+# 대조군인데 정작 유니버스가 달랐다.
+#
+# **채택안 설정에서 파생시킨다.** 손으로 베끼면 다음에 모멘텀이 또 바뀔 때 같은 일이
+# 반복된다. 랭킹만 무작위 추첨으로 갈아끼우고 나머지(HARD·안정성 룰·모멘텀 기준·
+# fail-closed)는 그대로 물려받는다.
+_C_MA200_RANDOM = copy.deepcopy(ABLATION_CONFIGS['F_pbr_ma200'])
+_C_MA200_RANDOM.pop('rank_mode', None)      # 안 지우면 _PBRRankPipeline 이 먼저 잡힌다
+_C_MA200_RANDOM['momentum_criterion']['tag'] = 'C_pbr_ma200_random'   # 진단 파일 분리
+_C_MA200_RANDOM.update(use_rim_filter=False, random_n=20)
+ABLATION_CONFIGS['C_pbr_ma200_random'] = _C_MA200_RANDOM
+del _C_MA200_RANDOM
+
 RANDOM_TAGS    = frozenset({'A_random', 'B_hard_random', 'C_stability_random', 'C_no_r6',
-                            'C_pbr_path_random'})
+                            'C_pbr_path_random', 'C_pbr_ma200_random'})
 RANDOM_REPEATS = 500  # C_pbr_path_random은 1,000회 — fast-path 러너에서 별도 지정 (SPEC_10 §3-1)
 
 

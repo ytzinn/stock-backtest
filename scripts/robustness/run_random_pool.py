@@ -48,7 +48,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from backtest.ablation import ABLATION_CONFIGS, build_ablation_pipeline
+from backtest.ablation import ABLATION_CONFIGS, RANDOM_TAGS, build_ablation_pipeline
 from backtest.configs.schedule import (
     CALENDAR_CHOICES,
     RebalancePoint,
@@ -77,7 +77,14 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(mess
                     datefmt='%H:%M:%S')
 log = logging.getLogger(__name__)
 
-TAG     = 'C_pbr_path_random'
+# `[정정 2026-08-15]` TAG 는 상수가 아니라 인자다.
+# 종전에는 'C_pbr_path_random' 하드코딩이라 **귀무분포의 유니버스를 바꿀 수단이 없었다.**
+# 그 태그는 레거시 MA 20/60 풀인데 2026-08-10 채택안이 MA200 으로 바뀌었고, 08-12
+# n=13 재추첨도 `--n-pick` 만 바꿔서 `pools.json`(07-29)과 `pools_n13.json`(08-12)이
+# **md5 동일**로 남았다. 즉 G1 은 MA200 전략을 MA 20/60 풀의 분포에 대고 있었다.
+# `gate_analysis.py` 는 같은 이유로 이미 `--f-tag` 를 인자로 뺐다(2026-08-12) —
+# 대상 쪽만 고치고 풀 쪽은 안 고쳤던 것이다.
+DEFAULT_TAG = 'C_pbr_path_random'
 OUT_DIR = Path('experiments/robustness')
 N_DRAWS = 1000
 # `[정정 2026-08-12]` 귀무분포의 추첨 종목 수는 **판정 대상과 같아야** 한다.
@@ -109,7 +116,7 @@ def _closed_period_pairs(
 
 
 def build_pools(
-    conn, rebalance_points: list[RebalancePoint],
+    conn, rebalance_points: list[RebalancePoint], tag: str = DEFAULT_TAG,
 ) -> tuple[dict[date, list[str]], dict[date, dict], dict[date, dict]]:
     """
     리밸런싱일별 풀(필터 통과 종목, build_universe 반환 순서 그대로 — 셔플 재현에
@@ -124,7 +131,7 @@ def build_pools(
     시장 조회 대상은 pools[t]가 아니라 **전 구간 풀의 합집합**이어야 한다(누락 시
     sell_cost가 KOSPI 기본값으로 조용히 대체돼 tc가 틀린다).
     """
-    pipeline = build_ablation_pipeline(TAG, ABLATION_CONFIGS[TAG], seed=None)
+    pipeline = build_ablation_pipeline(tag, ABLATION_CONFIGS[tag], seed=None)
     pools:      dict[date, list[str]] = {}
     stock_data: dict[date, dict[str, tuple]] = {}
 
@@ -239,7 +246,7 @@ def run_draws(pools, stock_data, markets, n_draws: int, rebalance_points,
 
 def verify_against_engine(conn, pools, stock_data, markets, seed: int,
                           valuation_date: date, rebalance_points,
-                          n_pick: int = DEFAULT_N_PICK) -> None:
+                          n_pick: int = DEFAULT_N_PICK, tag: str = DEFAULT_TAG) -> None:
     """등가성 게이트 3종 (SPEC_13 §9-1a) — 하나라도 실패하면 결과 저장 없이 중단.
 
       기존   : fast-path seed 추첨 vs 전체 엔진 — 편입·gross·turnover (tol 1e-12)
@@ -249,10 +256,10 @@ def verify_against_engine(conn, pools, stock_data, markets, seed: int,
     log.info('[등가성 게이트] seed=%d 전체 엔진 대조 실행 시작', seed)
     # config 의 `random_n` 이 n_stocks 를 이기므로(build_ablation_pipeline) 사본에서 교체.
     # 안 그러면 등가성 게이트가 n_pick=13 추첨을 n=20 엔진과 대조해 항상 실패한다.
-    verify_config = {**ABLATION_CONFIGS[TAG], 'random_n': n_pick}
-    pipeline = build_ablation_pipeline(TAG, verify_config, seed=seed)
+    verify_config = {**ABLATION_CONFIGS[tag], 'random_n': n_pick}
+    pipeline = build_ablation_pipeline(tag, verify_config, seed=seed)
     engine   = BacktestEngine(pipeline)
-    result   = engine.run(rebalance_points, run_name=f'{TAG}_verify', ablation_tag=TAG,
+    result   = engine.run(rebalance_points, run_name=f'{tag}_verify', ablation_tag=tag,
                           valuation_date=valuation_date)
     engine_closed = [r for r in result['period_results']
                     if r['n_gate'] > 0 and not r['is_open_period']]
@@ -336,7 +343,12 @@ def verify_against_engine(conn, pools, stock_data, markets, seed: int,
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description='SPEC_10 C_pbr_path_random fast-path')
+    parser = argparse.ArgumentParser(description='SPEC_10 귀무분포 추첨 fast-path')
+    parser.add_argument('--tag', default=DEFAULT_TAG, choices=sorted(RANDOM_TAGS),
+                        help='추첨 풀을 만들 태그. **판정 대상과 필터 스택이 같아야 한다** '
+                             '— 다르면 "유니버스가 좁아서"와 "랭킹이 좋아서"가 섞인다. '
+                             f'채택안(MA200)용은 `C_pbr_ma200_random`, 레거시 MA 20/60 '
+                             f'경로용은 `{DEFAULT_TAG}`.')
     parser.add_argument('--n-draws',        type=int, default=N_DRAWS)
     parser.add_argument('--n-pick',         type=int, default=DEFAULT_N_PICK,
                         help='추첨 종목 수. **판정 대상 태그의 n 과 같아야 한다.** '
@@ -357,15 +369,22 @@ def main() -> None:
     rebalance_points = list(get_schedule(args.calendar))
     suffix           = tag_suffix(args.calendar)
     n_sfx            = '' if args.n_pick == DEFAULT_N_PICK else f'_n{args.n_pick}'
-    out_tag          = f'{TAG}{n_sfx}{suffix}'
-    log.info('calendar = %s (%d개 앵커) → %s', args.calendar, len(rebalance_points), out_tag)
+    out_tag          = f'{args.tag}{n_sfx}{suffix}'
+    # `pools`·`random_summary` 는 파일명에 태그가 없다 (기존 규약). 태그를 인자로 뺀
+    # 지금 그대로 두면 **다른 유니버스의 결과가 같은 파일을 덮어쓴다** — 07-29 MA 20/60
+    # 기록이 소리 없이 사라진다. 기본 태그는 기존 이름을 유지하고(소비처 3곳:
+    # gate_analysis · momentum_decomposition · preferred_scan), 새 태그만 이름에 붙인다.
+    side_sfx         = f'{n_sfx}{suffix}' if args.tag == DEFAULT_TAG else f'_{out_tag}'
+    log.info('calendar = %s (%d개 앵커) · 풀 태그 %s → %s',
+             args.calendar, len(rebalance_points), args.tag, out_tag)
 
     conn = get_connection()
     try:
-        pools, stock_data, markets = build_pools(conn, rebalance_points)
+        pools, stock_data, markets = build_pools(conn, rebalance_points, tag=args.tag)
         if not args.skip_verify:
             verify_against_engine(conn, pools, stock_data, markets, args.verify_seed,
-                                  valuation_date, rebalance_points, n_pick=args.n_pick)
+                                  valuation_date, rebalance_points, n_pick=args.n_pick,
+                                  tag=args.tag)
         else:
             log.warning('등가성 게이트 생략 (--skip-verify) — 공식 수치로 사용 금지')
     finally:
@@ -386,7 +405,7 @@ def main() -> None:
         w = csv.writer(f)
         w.writerow(['seed', 'rebalance_date', 'ticker', 'weight_eff', 'ret'])
         w.writerows(contribs)
-    (OUT_DIR / f'pools{n_sfx}{suffix}.json').write_text(
+    (OUT_DIR / f'pools{side_sfx}.json').write_text(
         json.dumps({d.isoformat(): p for d, p in pools.items()}, ensure_ascii=False, indent=1),
         encoding='utf-8')
 
@@ -394,7 +413,7 @@ def main() -> None:
     net_cagrs = sorted(r[2] for r in draws)
     n = len(cagrs)
     summary = {
-        'tag': out_tag, 'calendar': args.calendar,
+        'tag': out_tag, 'pool_tag': args.tag, 'calendar': args.calendar,
         'generated_at': datetime.now().isoformat(),
         'n_draws': n,
         # 종목 수를 산출물에 남긴다 — 종전에는 N_PICK 상수에만 있어 소비처가
@@ -411,7 +430,7 @@ def main() -> None:
         'p95_net_cagr': net_cagrs[int(n * 0.95)],
         'pool_sizes': {d.isoformat(): len(p) for d, p in pools.items()},
     }
-    (OUT_DIR / f'random_summary{n_sfx}{suffix}.json').write_text(
+    (OUT_DIR / f'random_summary{side_sfx}.json').write_text(
         json.dumps(summary, indent=2, ensure_ascii=False), encoding='utf-8')
     log.info('완료: n=%d  gross median=%.4f p95=%.4f  |  net median=%.4f p95=%.4f',
              n, summary['median_cagr'], summary['p95_cagr'],
