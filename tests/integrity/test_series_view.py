@@ -32,6 +32,7 @@ from dashboard.series_view import (
     comparison_rows,
     compound_curve,
     excess_curve,
+    grouped_chart_rows,
     provenance_rows,
 )
 
@@ -193,3 +194,50 @@ def test_excess_curve_is_a_difference_of_curves_not_a_sum_of_alphas():
     assert abs(got[-1] - naive) > 0.01, (
         f'누적 초과({got[-1]:.4f})와 구간 알파 합({naive:.4f})이 사실상 같다 — '
         f'"더한 게 아니다"라는 화면 설명이 의미를 잃는다')
+
+
+# ── 세트 묶기 — 아무도 화면에서 사라지지 않는가 ──────────────────────────────
+
+def test_grouped_chart_keeps_every_member_and_separates_sets(catalog):
+    """세트로 묶어 그려도 **멤버가 하나도 빠지면 안 된다.**
+
+    빈 줄을 끼우는 코드가 멤버를 훑어 다시 늘어놓는 구조라, 세트에 안 적힌 태그가
+    조용히 빠질 수 있다. 화면에서 사라진 행은 "그런 실행이 없다"로 읽힌다.
+    """
+    for series in resolve_all(catalog):
+        if series.spec.kind != 'A':
+            continue
+        rows = comparison_rows(series, catalog)
+        chart = grouped_chart_rows(series, rows)
+
+        drawn = [c['label'] for c in chart if not c['spacer']]
+        assert drawn == [r['시나리오'] for r in rows] or sorted(drawn) == sorted(
+            r['시나리오'] for r in rows), (
+            f'{series.id}: 차트에서 빠지거나 늘어난 행이 있다\n'
+            f'  표 {len(rows)}행 / 차트 {len(drawn)}행')
+
+        spacers = [c for c in chart if c['spacer']]
+        if series.spec.groups:
+            assert spacers, f'{series.id}: 세트가 있는데 빈 줄이 하나도 없다'
+            labels = [c['label'] for c in spacers]
+            assert len(labels) == len(set(labels)), (
+                f'{series.id}: 빈 줄 라벨이 겹친다 — Plotly 가 한 칸으로 합쳐 버린다')
+            assert all(c['value'] is None for c in spacers)
+        else:
+            assert not spacers, f'{series.id}: 세트가 없는데 빈 줄이 생겼다'
+
+
+def test_r6_axis_puts_each_on_off_pair_side_by_side(catalog):
+    """R6 축에서 켬/끔이 **붙어** 있어야 한다. 이 축의 요점이 그 대조다."""
+    series = resolve(SERIES_BY_ID['r6_loo'], catalog)
+    chart = grouped_chart_rows(series, comparison_rows(series, catalog))
+    labels = [c['label'] for c in chart]
+
+    for on, off in (('D  ', "D′"), ('E  ', "E′"), ('F  ', "F′"), ('G  ', "G′")):
+        i = next((n for n, s in enumerate(labels) if s.startswith(on)), None)
+        j = next((n for n, s in enumerate(labels) if s.startswith(off)), None)
+        if i is None or j is None:
+            continue
+        assert j == i + 1, (
+            f'{on.strip()} 와 {off} 사이에 다른 행이 끼었다 (i={i}, j={j}) — '
+            f'on/off 대조가 그림에서 안 읽힌다')

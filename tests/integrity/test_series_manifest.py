@@ -95,6 +95,34 @@ def test_glossary_status_table_is_generated_from_the_manifest():
         assert meaning in body, f'용어사전의 `{code}` 설명이 등록 대장과 다르다'
 
 
+def test_groups_only_name_tags_the_axis_actually_owns():
+    """세트에 적은 키는 그 축의 태그여야 한다. 오타면 그 줄이 조용히 안 그려진다."""
+    for s in SERIES:
+        listed = {k for g in s.groups for k in g}
+        stray = listed - set(s.tags)
+        assert not stray, f'{s.id}: 세트에 이 축의 태그가 아닌 키가 있다: {sorted(stray)}'
+        flat = [k for g in s.groups for k in g]
+        assert len(flat) == len(set(flat)), f'{s.id}: 세트에 같은 키가 두 번 들어갔다'
+
+
+def test_grouped_axis_keeps_pairs_together(catalog):
+    """세트가 있으면 **세트 순서**로 정렬된다 — baseline 을 위로 올리지 않는다.
+
+    올리면 `D_rim_only` 가 짝(`D_no_r6`)에서 떨어져, 이 축의 요점인 R6 on/off 대조가
+    그림에서 사라진다. 실제로 그렇게 떠 있었다 (2026-08-15).
+    """
+    for s in SERIES:
+        if not s.groups:
+            continue
+        got = [m.artifact_key for m in resolve(s, catalog).members]
+        want = [k for g in s.groups for k in g if k in got]
+        assert got[:len(want)] == want, (
+            f'{s.id}: 세트 순서가 지켜지지 않았다\n  실제 {got}\n  기대 {want}')
+        if s.baseline:
+            assert got[0] != s.baseline or want[0] == s.baseline, \
+                f'{s.id}: baseline 이 세트 순서를 무시하고 맨 앞으로 올라갔다'
+
+
 def test_evidence_documents_exist():
     """근거 문서가 실재하는가. 파일명을 손으로 적으면 반드시 틀린다.
 

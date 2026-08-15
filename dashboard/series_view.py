@@ -121,6 +121,44 @@ def excess_curve(strategy, benchmark) -> list[float]:
     return [x - y for x, y in zip(s, b)]
 
 
+#: 세트 사이 빈 줄에 쓰는 문자. 눈에 안 보이지만 **길이가 달라 서로 다른 축 범주**가
+#: 된다 — 같은 라벨을 두 번 쓰면 Plotly 가 한 칸으로 합쳐 버려 빈 줄이 하나만 생긴다.
+_SPACER = ' '
+
+
+def grouped_chart_rows(series: Series, rows: list[dict]) -> list[dict]:
+    """가로 막대용 행 — **세트 사이에 빈 줄을 끼운다.**
+
+    R6 on/off 처럼 "같은 구성에서 하나만 바꾼 쌍"이 축의 요점일 때, 열 개 막대를
+    붙여 그리면 어느 둘이 짝인지 눈으로 못 찾는다. 쌍을 붙이고 세트끼리 떼어 놓으면
+    비교가 그림 자체에서 읽힌다.
+
+    세트가 정의되지 않은 축은 그대로 통과시킨다(빈 줄 없음).
+    `rows` 는 `comparison_rows` 의 결과이고 `series.members` 와 **같은 순서**다.
+    """
+    if not series.spec.groups:
+        return [{'label': r['시나리오'], 'value': r['CAGR'], 'spacer': False} for r in rows]
+
+    by_key = {m.artifact_key: r for m, r in zip(series.members, rows)}
+    out: list[dict] = []
+    for i, group in enumerate(series.spec.groups):
+        picked = [by_key[k] for k in group if k in by_key]
+        if not picked:
+            continue
+        if out:
+            out.append({'label': _SPACER * (i + 1), 'value': None, 'spacer': True})
+        out += [{'label': r['시나리오'], 'value': r['CAGR'], 'spacer': False} for r in picked]
+
+    # 세트에 안 적힌 멤버도 반드시 그린다. 빠뜨리면 화면에서 조용히 사라진다.
+    listed = {k for g in series.spec.groups for k in g}
+    rest = [r for m, r in zip(series.members, rows) if m.artifact_key not in listed]
+    if rest:
+        out.append({'label': _SPACER * (len(series.spec.groups) + 1),
+                    'value': None, 'spacer': True})
+        out += [{'label': r['시나리오'], 'value': r['CAGR'], 'spacer': False} for r in rest]
+    return out
+
+
 def provenance_rows(series: Series, catalog: ArtifactCatalog) -> list[dict]:
     """산출물 계보 — "왜 이 태그는 그래프가 없나"를 화면에서 답하게 한다.
 

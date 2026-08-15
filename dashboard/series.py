@@ -99,6 +99,10 @@ class SeriesSpec:
     tags: tuple[str, ...] = ()      # 명시 배정 (우선)
     patterns: tuple[str, ...] = ()  # 명명 규칙 후보
     exclude: tuple[str, ...] = ()   # 패턴에서 뺄 것 (다른 축 소유)
+    # 화면에서 함께 묶어 보여줄 세트. **순서가 곧 표시 순서**이고, 세트 사이에는
+    # 빈 줄이 들어간다. 비어 있으면 baseline 을 맨 앞으로 올리고 나머지는 이름순인데,
+    # 그러면 `D_rim_only` 가 짝(`D_no_r6`)에서 떨어져 on/off 대조가 안 보인다.
+    groups: tuple[tuple[str, ...], ...] = ()
     periods_per_year: int | None = 2   # None = 축마다 다름. 구간 수는 산출물에서 읽는다
     paths: tuple[str, ...] = ()     # B형 원본 (repo 상대 glob)
     renderer: str | None = None     # B형 전용 뷰 키
@@ -169,6 +173,32 @@ C→D 차이가 RIM 모델 자체의 기여를 보여준다.
 """
 
 
+_LOO_NOTES = r"""
+**LOO (leave-one-out, "하나만 빼기")** 는 나머지를 **전부 그대로 둔 채 한 가지만** 끄고
+같은 백테스트를 다시 돌려, 그 하나가 성적에 얼마나 기여했는지 재는 방법이다. 여러 개를
+동시에 바꾸면 차이가 어느 쪽에서 왔는지 말할 수 없기 때문이다.
+
+이 축이 껐다 켜는 것은 **R6** — *adjROE 가 요구수익률(r)보다 낮으면 탈락* 규칙이다.
+
+각 세트는 **같은 구성에서 R6 만 켠 것과 끈 것 한 쌍**이고, **쌍 안의 차이가 곧 R6 의
+기여**다. `′` 가 붙은 쪽이 R6 를 뺀 것이다.
+
+| 세트 | 구성 | R6 켬 | R6 끔 |
+|---|---|---|---|
+| C | Hard + Stability + 랜덤 | `C_stability_random` | `C_no_r6` |
+| D | + RIM 랭킹 | `D_rim_only` | `D_no_r6` |
+| E | + 팩터 스크리너 | `E_screener_rim` | `E_no_r6` |
+| F | + 모멘텀 | `F_momentum_rim` | `F_no_r6` |
+| G | 전체 (E + F) | `G_full` | `G_no_r6` |
+
+> ⚠️ **세트를 가로질러 비교하지 마라.** 예컨대 `C_no_r6` 와 `G_full` 을 견주면 R6 말고도
+> 스크리너·모멘텀이 함께 달라져 있어서, 그 차이는 R6 의 기여가 아니다.
+
+> ⚠️ 이 축은 **RIM 랭킹 경로**의 기록이다. 현행 채택안은 1/PBR 랭킹이라 계보가 다르다 —
+> 여기 수치를 현행 성적으로 인용하지 마라.
+"""
+
+
 # ── 정본 인벤토리 — 16축 ────────────────────────────────────────────────────
 
 SERIES: tuple[SeriesSpec, ...] = (
@@ -182,12 +212,20 @@ SERIES: tuple[SeriesSpec, ...] = (
         status=Status('ARCHIVED', 'RIM 경로 — 랭킹 폐기로 계보 종료', '2026-07', _SPEC05)),
 
     SeriesSpec(
-        id='r6_loo', title='R6 단독 (LOO)', kind='A',
+        id='r6_loo', title='R6 단독 (LOO, leave-one-out)', kind='A',
         changes='R6(adjROE < r) 만 껐다 켠다',
         baseline='D_rim_only',
         tags=('C_stability_random', 'C_no_r6', 'D_rim_only', 'D_no_r6',
               'E_screener_rim', 'E_no_r6', 'F_momentum_rim', 'F_no_r6',
               'G_full', 'G_no_r6'),
+        # R6 켬/끔 한 쌍이 한 세트다. 쌍 안의 차이만이 R6 의 기여다 — 세트를
+        # 가로질러 비교하면 다른 필터까지 함께 달라진다.
+        groups=(('C_stability_random', 'C_no_r6'),
+                ('D_rim_only', 'D_no_r6'),
+                ('E_screener_rim', 'E_no_r6'),
+                ('F_momentum_rim', 'F_no_r6'),
+                ('G_full', 'G_no_r6')),
+        notes=_LOO_NOTES,
         status=Status('ARCHIVED', 'RIM 경로 — 현행은 R6 유지', '2026-07', _SPEC05)),
 
     SeriesSpec(
@@ -348,8 +386,14 @@ def resolve(spec: SeriesSpec, catalog: ArtifactCatalog | None = None) -> Series:
         seen.add(k)
         (members if k in catalog else missing).append(k)
 
-    # baseline 을 맨 앞으로. 비교표에서 기준이 첫 행이어야 눈이 덜 미끄러진다.
-    if spec.baseline in seen:
+    if spec.groups:
+        # 세트가 있으면 **그 순서가 정답이다.** baseline 을 위로 올리지 않는다 —
+        # 올리면 짝에서 떨어져 나가 on/off 대조가 사라진다. 세트에 없는 멤버는
+        # 뒤에 이름순으로 붙인다 (조용히 사라지지 않게).
+        order = {k: i for i, k in enumerate(k for g in spec.groups for k in g)}
+        members.sort(key=lambda k: (order.get(k, len(order)), k))
+    elif spec.baseline in seen:
+        # baseline 을 맨 앞으로. 비교표에서 기준이 첫 행이어야 눈이 덜 미끄러진다.
         members.sort(key=lambda k: (k != spec.baseline, k))
     else:
         members.sort()

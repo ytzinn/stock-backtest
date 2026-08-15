@@ -32,6 +32,7 @@ from dashboard.series_view import (
     comparison_rows,
     compound_curve,
     excess_curve,
+    grouped_chart_rows,
     n_curve,
     provenance_rows,
 )
@@ -215,14 +216,21 @@ else:
         rows = comparison_rows(series, catalog)
         df = pd.DataFrame(rows)
 
+        # 세트가 있는 축은 쌍을 붙이고 세트끼리 떼어 그린다 (R6 on/off 처럼 "하나만
+        # 바꾼 쌍"이 요점인 축에서, 막대를 죽 붙여 놓으면 짝을 눈으로 못 찾는다).
+        chart = grouped_chart_rows(series, rows)
         fig = go.Figure(go.Bar(
-            x=df['CAGR'], y=df['시나리오'], orientation='h',
-            marker_color=['#1d4ed8' if '⟵ 기준' in s else '#93c5fd' for s in df['시나리오']],
-            text=[f'{v:.1f}%' if v is not None else '—' for v in df['CAGR']],
-            textposition='outside', hovertemplate='%{y}<br>CAGR %{x:.2f}%<extra></extra>'))
-        fig.update_layout(height=max(320, len(df) * 30), xaxis_title='CAGR (%)',
+            x=[c['value'] for c in chart], y=[c['label'] for c in chart], orientation='h',
+            marker_color=['rgba(0,0,0,0)' if c['spacer']
+                          else '#1d4ed8' if '⟵ 기준' in c['label'] else '#93c5fd'
+                          for c in chart],
+            text=['' if c['spacer'] else
+                  f"{c['value']:.1f}%" if c['value'] is not None else '—' for c in chart],
+            textposition='outside',
+            hovertemplate='%{y}<br>CAGR %{x:.2f}%<extra></extra>'))
+        fig.update_layout(height=max(320, len(chart) * 30), xaxis_title='CAGR (%)',
                           yaxis={'categoryorder': 'array',
-                                 'categoryarray': list(reversed(df['시나리오']))},
+                                 'categoryarray': [c['label'] for c in reversed(chart)]},
                           margin=dict(l=10, r=80, t=10, b=30), plot_bgcolor='white')
         st.plotly_chart(fig, use_container_width=True)
         st.dataframe(df, use_container_width=True, hide_index=True)
