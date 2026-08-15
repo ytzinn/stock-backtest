@@ -115,3 +115,58 @@ def n_curve(path: Path | None = None) -> dict | None:
     if not path.exists():
         return None
     return json.loads(path.read_text(encoding='utf-8'))
+
+
+# ── B형: 시간분할 과적합 (SPEC_14 §14-3) ────────────────────────────────────
+
+def time_split(path: Path | None = None) -> dict | None:
+    """시간분할 검정 산출물. 없으면 None."""
+    path = path or ROOT / 'experiments/calendar_sens/time_split.json'
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding='utf-8'))
+
+
+def verdict_rule_rows(d: dict) -> list[dict]:
+    """**사전등록 규칙을 실제 값과 나란히** 놓는다. 판정의 근거를 화면에서 재확인한다.
+
+    이 축의 전용 뷰가 원본 파일 목록보다 나은 진짜 이유가 여기다. 판정 문자열만 띄우면
+    `TIME_OVERFIT_CONFIRMED` 가 어떤 문턱을 어떻게 넘어서 나온 말인지 알 수 없고, 그러면
+    사람은 옆에 있는 다른 숫자(ρ, CI)로 사후 설명을 만든다. 규칙은 **수치 산출 전에**
+    커밋됐고(`pre_registered.note`), 그 사실이 판정의 힘 전부다.
+    """
+    pr, f = d['pre_registered'], d['focal']
+    return [
+        {'사전등록 조건': f'앞 절반 순위 ≤ {pr["front_top"]}위',
+         '실제': f'{f["front_rank"]}위', '충족': f['front_rank'] <= pr['front_top']},
+        {'사전등록 조건': f'뒤 절반 순위 > {pr["back_floor"]}위',
+         '실제': f'{f["back_rank"]}위', '충족': f['back_rank'] > pr['back_floor']},
+    ]
+
+
+def bootstrap_excludes_zero(d: dict) -> bool:
+    """bootstrap CI 가 0 을 배제하는가.
+
+    **배제하지 못한다** (CI 상한이 +0.005). 그러니 판정은 ρ 의 유의성이 아니라 초점
+    태그의 사전등록 문턱에서 나온 것이다. 화면이 ρ 와 판정을 나란히 띄우기만 하면
+    "상관이 유의해서 과적합"이라는 없는 주장이 읽힌다 — 그래서 이 사실을 따로 계산해
+    화면에 명시한다.
+    """
+    b = d['bootstrap']
+    return b['ci_low'] > 0 or b['ci_high'] < 0
+
+
+def rank_shift_rows(d: dict) -> list[dict]:
+    """앞→뒤 순위 이동. 초점 태그를 표시한다 (판정의 대상이 그것 하나이므로)."""
+    focal = d['pre_registered']['focal_tag']
+    return [{
+        '태그': r['tag'],
+        '초점': r['tag'] == focal,
+        'horizon': r['horizon'],
+        '앞 순위': r['front_rank'],
+        '뒤 순위': r['back_rank'],
+        '이동': r['back_rank'] - r['front_rank'],
+        '전체 순위': r['full_rank'],
+        '앞 배수': round(r['front_mult'], 3),
+        '뒤 배수': round(r['back_mult'], 3),
+    } for r in sorted(d['rows'], key=lambda r: r['front_rank'])]

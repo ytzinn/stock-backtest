@@ -21,7 +21,9 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from backtest.canonical_state import ROOT
 from dashboard.artifacts import build_catalog
+from dashboard.b_views import B_RENDERERS
 from dashboard.canonical_banner import render_canonical_banner
+from dashboard.glossary import index_rows, terms_for
 from dashboard.series import SERIES, resolve, unassigned
 from dashboard.series_view import (
     MDD_COL,
@@ -151,8 +153,19 @@ st.markdown(
 st.caption(f'**무엇을 바꿨나** — {spec.changes}')
 
 if spec.notes:
-    with st.expander('📖 이 축을 처음 본다면 — 배경 설명', expanded=False):
+    with st.expander('🗺️ 이 축을 처음 본다면 — 배경 설명', expanded=False):
         st.markdown(spec.notes)
+
+# 용어는 **숫자 옆에** 있어야 한다. 별도 페이지에만 두면 헷갈리는 사람은 헷갈리는 줄
+# 모르는 채로 표를 읽는다 — 1.86%p 오염도, 회전율 사고도 그렇게 지나갔다.
+axis_terms = terms_for(spec.id)
+with st.expander(f'📖 이 화면에서 헷갈리는 이름 {len(axis_terms)}개', expanded=False):
+    st.dataframe(pd.DataFrame(index_rows(axis_terms)),
+                 use_container_width=True, hide_index=True)
+    # `st.page_link` 를 쓰지 않는다. AppTest 로 렌더를 검증할 수 없고(페이지 컨텍스트가
+    # 없어 `url_pathname` 으로 죽는다), 검증 못 하는 위젯은 화면에서만 터지는 사고의
+    # 통로였다 (2026-08-14 ScenarioRef 해시). 사이드바 이동으로 충분하다.
+    st.caption('전체 설명과 검색은 사이드바의 **용어사전** 페이지에 있습니다.')
 
 if series.missing:
     st.error(f'매니페스트가 가리키는데 산출물이 없는 키: `{"`, `".join(series.missing)}`')
@@ -160,13 +173,25 @@ if series.missing:
 # ── B형 — 검정/진단 산출물 ─────────────────────────────────────────────────
 
 if spec.kind == 'B':
-    st.info(f'검정·진단 산출물입니다. 전용 뷰(`renderer={spec.renderer}`)는 미구현이라 '
-            f'원본 파일을 나열합니다.')
+    renderer = B_RENDERERS.get(spec.renderer)
+    if renderer is not None:
+        renderer()
+    else:
+        st.info(f'검정·진단 산출물입니다. 전용 뷰(`renderer={spec.renderer}`)는 미구현이라 '
+                f'원본 파일을 나열합니다.')
+
+    # 전용 뷰가 있어도 원본 목록은 남긴다. 뷰는 산출물의 일부만 그리고, 나머지 파일이
+    # 화면에서 사라지면 "없는 것"이 된다 (무결성 검사 8번이 지키는 규칙).
     found = b_type_files(spec)
     if found:
         df_b = pd.DataFrame(found)
         df_b['수정'] = pd.to_datetime(df_b['수정'], unit='s').dt.date
-        st.dataframe(df_b, use_container_width=True, hide_index=True)
+        label = '📂 이 축의 원본 산출물 파일'
+        if renderer is not None:
+            with st.expander(f'{label} {len(found)}개'):
+                st.dataframe(df_b, use_container_width=True, hide_index=True)
+        else:
+            st.dataframe(df_b, use_container_width=True, hide_index=True)
     else:
         st.error('원본 파일이 하나도 없습니다 — 산출물이 서버에만 있거나 경로가 죽었습니다.')
 
