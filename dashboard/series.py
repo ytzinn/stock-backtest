@@ -270,7 +270,13 @@ SERIES: tuple[SeriesSpec, ...] = (
     SeriesSpec(
         id='decomposition', title='성과 분해 / 라이브 전환', kind='B',
         changes='희생자·룰 멤버십·선호 스캔·dry-run',
-        paths=('experiments/analysis/*.json', 'experiments/live/dryrun/manifest.yaml'),
+        # 파일을 **열거한다.** `experiments/analysis/*.json` 으로 훑으면 종목 수 축(#16)의
+        # `n_stocks_curve.json` 까지 삼켜, 분해와 무관한 산출물이 이 축의 원본 목록에
+        # 뜬다 (2026-08-15 발견). A형에서 `exclude` 로 막은 것과 같은 종류의 사고다.
+        paths=('experiments/analysis/momentum_decomposition.json',
+               'experiments/analysis/rule_membership.json',
+               'experiments/analysis/preferred_scan.json',
+               'experiments/live/dryrun/manifest.yaml'),
         renderer='live_decomposition',
         status=Status('EXPLORING', '라이브 전환 준비 중', '2026-08-10',
                       'docs/설계/SPEC_11_decomposition_live_manifest.md')),

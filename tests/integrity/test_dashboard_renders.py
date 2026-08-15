@@ -36,9 +36,12 @@ PAGES = Path(__file__).resolve().parent.parent.parent / 'dashboard/pages'
 
 #: 렌더 경로가 서로 다른 대표 축.
 REPRESENTATIVE = [
-    'layers',        # A형 + notes + 랜덤 분포 탭
-    'n_stocks',      # A형 + 전용 renderer(곡선) + 교차검증
-    'time_overfit',  # B형 raw fallback
+    'layers',              # A형 + notes + 랜덤 분포 탭
+    'n_stocks',            # A형 + 전용 renderer(곡선) + 교차검증
+    'time_overfit',        # B형 전용 뷰 (순위 역전)
+    'calendar_bootstrap',  # B형 전용 뷰 (forest plot · 다중 판정)
+    'decomposition',       # B형 전용 뷰 (사전등록 없는 축)
+    'regime_overlay',      # B형 전용 뷰 (철회된 실행 + 히트맵 + PNG)
 ]
 
 
@@ -95,6 +98,46 @@ def test_time_overfit_view_shows_the_verdict_next_to_its_pre_registered_rule():
         assert must in text, f'시간분할 뷰에 `{must}` 이 화면에 없다'
     assert any('0 을 배제하지 못' in str(getattr(e, 'value', '')) for e in at.warning), \
         'CI 가 0 을 배제하지 못한다는 경고가 화면에 없다 — 없으면 ρ 가 판정 근거로 읽힌다'
+
+
+def test_calendar_bootstrap_view_says_j1_is_undefined_not_zero():
+    """"방향 일치율 0%" 로 읽히지 않게 하는 경고가 화면에 있어야 한다.
+
+    분모가 0인 비율을 0% 로 그리는 것은 화면이 할 수 있는 가장 조용한 거짓말이다 —
+    "캘린더가 룰 결론을 전부 뒤집었다"로 읽히는데 실제 결과는 정반대에 가깝다
+    (뒤집힐 만큼 뚜렷한 방향이 애초에 없었다).
+    """
+    at = _run('series_explorer.py', series_pick=SERIES_BY_ID['calendar_bootstrap'])
+    _assert_clean(at, 'series_explorer[calendar_bootstrap]')
+    assert any('0% 가 아니라 정의되지 않' in str(getattr(e, 'value', ''))
+               for e in at.warning), 'J1 경고가 화면에 없다'
+
+
+def test_regime_overlay_view_flags_the_retracted_run():
+    """철회된 실행이 있다는 사실이 화면 맨 위에 떠야 한다.
+
+    같은 그리드가 두 날짜로 있고 옛것은 버그로 `68/144 통과` 를 냈다. 화면이 말하지
+    않으면 원본 파일 목록에서 그 CSV 를 열어 인용한다 — 이 저장소가 이미 겪은 일이다
+    (2026-07-10 리포트 수치 인용 금지).
+    """
+    at = _run('series_explorer.py', series_pick=SERIES_BY_ID['regime_overlay'])
+    _assert_clean(at, 'series_explorer[regime_overlay]')
+    boxes = ' '.join(str(getattr(e, 'value', '')) for e in at.error)
+    assert '철회된 실행' in boxes, '철회 경고가 화면에 없다'
+    assert '68/144' in boxes, '철회된 수치가 무엇이었는지 화면이 밝히지 않는다'
+
+
+def test_decomposition_view_says_there_is_no_pre_registration():
+    """사전등록이 **없는** 축이라는 사실이 화면에 있어야 한다.
+
+    캘린더 축들과 같은 화면 문법으로 그려지면 같은 무게로 읽힌다. 문턱 없이 사후에
+    본 수치라는 점이 이 축을 읽는 방법 전부다.
+    """
+    at = _run('series_explorer.py', series_pick=SERIES_BY_ID['decomposition'])
+    _assert_clean(at, 'series_explorer[decomposition]')
+    warns = ' '.join(str(getattr(e, 'value', '')) for e in at.warning)
+    assert 'pre_registered' in warns and '탐색적 진단' in warns, \
+        '사전등록 부재 경고가 화면에 없다'
 
 
 def test_glossary_page_renders_and_search_narrows():

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import glob
 import json
+import re
 from pathlib import Path
 
 from dashboard.artifacts import ArtifactCatalog
@@ -154,6 +155,238 @@ def bootstrap_excludes_zero(d: dict) -> bool:
     """
     b = d['bootstrap']
     return b['ci_low'] > 0 or b['ci_high'] < 0
+
+
+def stage_b(path: Path | None = None) -> dict | None:
+    """캘린더 민감도 B단계(block-bootstrap) 산출물. 없으면 None."""
+    path = path or ROOT / 'experiments/calendar_sens/stage_b.json'
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding='utf-8'))
+
+
+def contrast_rows(d: dict) -> list[dict]:
+    """룰 contrast 표. **단일축과 다축을 한 열에서 구분한다.**
+
+    다축 contrast(`C_R3R4`·`C_STAB`)는 룰을 여러 개 동시에 건드리므로 "어느 룰의
+    효과인가"를 말할 수 없다. 같은 표에 섞어 놓고 축 이름만 다르게 적으면 사람은
+    전부 단일 룰 효과로 읽는다 — 산출물이 `single_axis` 를 따로 기록하는 이유다.
+    """
+    rows = []
+    for c in d['contrasts_single_axis'] + d['contrasts_multi_axis']:
+        rows.append({
+            'contrast': c['contrast_id'],
+            '축': c['axis'],
+            '단일축': c['single_axis'],
+            '축 수': c['n_axes'],
+            '반기 e (net)': c['e_semiannual_net'],
+            '안C e (net)': c['e_altC_net'],
+            'δ (안C−반기)': c['delta_point'],
+            'δ CI95 하한': c['delta_ci95'][0],
+            'δ CI95 상한': c['delta_ci95'][1],
+            'δ 0 배제': c['delta_ci95_excludes_zero'],
+            '방향': c['direction_class'],
+        })
+    return rows
+
+
+def direction_hold_is_undefined(d: dict) -> bool:
+    """방향 일치율이 **정의되지 않는가** (분모 0).
+
+    `J1_direction_hold_rate` 가 `null` 인데 화면이 이를 0% 로 그리면 "방향이 하나도
+    유지되지 않았다"는 강한 주장이 된다. 실제로는 **잴 수 있는 contrast 가 하나도
+    없었다** — 7개 전부 `neutral_or_inconclusive` 라 분모가 0이다. "0%"와 "잴 수 없음"은
+    다른 사실이고, 전자는 캘린더가 룰 결론을 뒤집는다는 뜻으로 읽힌다.
+    """
+    m = d['summary_metrics']
+    return m.get('J1_direction_hold_rate') is None or m.get('J1_denominator', 0) == 0
+
+
+def block_sensitivity_rows(d: dict) -> list[dict]:
+    """블록 길이별 "CI 가 0을 배제하는가"의 변화.
+
+    사전등록 블록은 21일이다. 10일·63일에서 결과가 뒤집히는 contrast 가 있다면
+    그 결론은 블록 길이 선택에 얹혀 있다는 뜻이다 — 판정에는 쓰지 않지만(§10-1)
+    화면에는 병기해야 "0을 배제했다"를 단단한 사실로 읽지 않는다.
+    """
+    bls = d.get('block_length_sensitivity') or {}
+    flips = bls.get('flips_vs_block21') or {}
+    rows = []
+    for block in sorted((k for k in bls if k.isdigit()), key=int):
+        b = bls[block]
+        excl = b.get('delta_excludes_zero') or {}
+        rows.append({
+            '블록 (일)': int(block),
+            '사전등록': int(block) == (d['pre_registered'].get('block_days') or 0),
+            'δ_ew CI95 하한': b['delta_ew_ci95'][0],
+            'δ_ew CI95 상한': b['delta_ew_ci95'][1],
+            '0 배제한 contrast': ', '.join(k for k, v in excl.items() if v) or '없음',
+            '21일 대비 뒤집힘': ', '.join(flips.get(block, [])) or '—',
+        })
+    return rows
+
+
+# ── B형: 레짐/타이밍 오버레이 (Phase B) ─────────────────────────────────────
+
+RUNS_DIR = ROOT / 'experiments/runs'
+
+#: 재실행 날짜별 산출물. 최신이 정본이고 **이전 것은 철회된 수치를 담고 있다.**
+_PHASE_B_RE = re.compile(r'^(?P<date>\d{4}-\d{2}-\d{2})_phaseB_(?P<kind>grid|layer2)$')
+
+
+def phase_b_runs(runs_dir: Path | None = None) -> list[dict]:
+    """phaseB 실행을 날짜별로 묶는다. **최신 하나만 정본이다.**
+
+    이 축에는 같은 그리드가 두 날짜로 있다. 2026-07-10 최초 실행은 always-on 비교군의
+    구간 불일치 버그로 `68/144 통과` 라는 결론을 냈고 **그 수치는 철회됐다**
+    (`2026.07.11._REGIME_PHASE_B.md` §3). 2026-07-11 재실행이 `0/144` 다.
+
+    glob 으로 훑어 아무거나 집으면 철회된 68 을 화면에 띄우게 된다. 그래서 날짜로
+    묶고 최신을 정본으로 표시하되, **이전 것을 숨기지 않는다** — 숨기면 왜 두 벌이
+    있는지 모르는 사람이 원본 목록에서 옛 파일을 열어 인용한다.
+    """
+    runs_dir = runs_dir or RUNS_DIR
+    by_date: dict[str, dict] = {}
+    for path in sorted(runs_dir.glob('*_phaseB_*.csv')):
+        m = _PHASE_B_RE.match(path.stem)
+        if not m:
+            continue
+        by_date.setdefault(m['date'], {'date': m['date']})[m['kind']] = path
+
+    runs = sorted(by_date.values(), key=lambda r: r['date'], reverse=True)
+    for i, r in enumerate(runs):
+        r['canonical'] = (i == 0)
+    return runs
+
+
+def layer2_frame(path: Path):
+    """Layer2 CSV. 지표를 계산하지 않고 기록된 열만 읽는다."""
+    import pandas as pd
+    return pd.read_csv(path)
+
+
+def layer2_gate_rows(df) -> list[dict]:
+    """C1~C4 게이트별 통과 수. **전부 통과(=후보)와 개별 통과는 다르다.**
+
+    개별 게이트는 꽤 통과한다(C3 62/144). 그런데 넷을 동시에 넘는 조합이 0이다.
+    개별 숫자만 띄우면 "절반쯤은 되는구나"로 읽히므로 결합 결과를 같은 표에 넣는다.
+    """
+    rows = [{'게이트': c, '통과': int(df[c].sum()), '전체': len(df)}
+            for c in ('C1', 'C2', 'C3', 'C4') if c in df.columns]
+    if 'is_candidate' in df.columns:
+        rows.append({'게이트': '전부 통과 (후보)', '통과': int(df['is_candidate'].sum()),
+                     '전체': len(df)})
+    return rows
+
+
+def alpha_survives_episode_22(df) -> dict:
+    """에피소드 #22 를 빼도 알파가 남는가.
+
+    `total_alpha` 만 보면 절반이 양(+)이라 그럴듯해 보인다. 그런데 #22 를 제외한
+    `ex22_alpha` 가 양인 행은 극소수다 — 알파가 **한 에피소드에 몰려 있다**는 뜻이고,
+    이 축의 결론(부가가치 없음)이 나온 실질적 이유다. 두 숫자를 나란히 두지 않으면
+    화면은 "절반은 알파가 있다"고 말하는 셈이 된다.
+    """
+    return {
+        'n': len(df),
+        'total_positive': int((df['total_alpha'] > 0).sum()),
+        'ex22_positive': int((df['ex22_alpha'] > 0).sum()),
+        'share_warn': int(df['period22_share_warn'].sum())
+        if 'period22_share_warn' in df.columns else 0,
+    }
+
+
+# ── B형: 성과 분해 / 라이브 전환 ────────────────────────────────────────────
+
+ANALYSIS_DIR = ROOT / 'experiments/analysis'
+
+
+def _analysis(name: str) -> dict | None:
+    path = ANALYSIS_DIR / f'{name}.json'
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding='utf-8'))
+
+
+def decomposition() -> dict | None:
+    """모멘텀 성과 분해 산출물."""
+    return _analysis('momentum_decomposition')
+
+
+def rule_membership() -> dict | None:
+    """룰 멤버십(R2 제거 가능성·R4 추가 영향) 산출물."""
+    return _analysis('rule_membership')
+
+
+def preferred_scan() -> dict | None:
+    """우선주 혼입 스캔 산출물."""
+    return _analysis('preferred_scan')
+
+
+#: 이 축의 산출물이 **갖고 있지 않은** 것. 화면이 명시해야 하는 부재다.
+DECOMPOSITION_MISSING_FIELDS = ('pre_registered', 'disclaimer', 'spec')
+
+
+def missing_provenance(d: dict | None) -> tuple[str, ...]:
+    """산출물에 없는 계보 필드. **없음을 화면이 말하게 하려고** 계산한다.
+
+    `calendar_sens/` 산출물은 `pre_registered`·`disclaimer` 를 갖고 있어서 전용 뷰가
+    결과와 사전등록 조건을 나란히 띄울 수 있었다. **분해 산출물은 셋 다 없다.**
+    그 차이를 화면이 말하지 않으면, 사전등록된 검정과 탐색적 진단이 같은 무게로
+    읽힌다 — 이 축의 상태가 `EXPLORING` 인 이유가 바로 그것이다.
+    """
+    if d is None:
+        return DECOMPOSITION_MISSING_FIELDS
+    return tuple(f for f in DECOMPOSITION_MISSING_FIELDS if f not in d)
+
+
+def victim_rows(d: dict) -> list[dict]:
+    """구간별 모멘텀 희생자. **희생자가 이긴 구간을 표시한다.**
+
+    "모멘텀이 걸러낸 종목이 실제로 못했다"는 요약만 보면 필터가 늘 옳은 것처럼 읽힌다.
+    구간 단위로 보면 희생자가 F 를 이긴 구간이 섞여 있고, 그 개수가 필터를 얼마나
+    믿을지를 정한다.
+    """
+    return [{
+        '구간 시작': r['rebalance_date'],
+        '희생자 수': r['n_victims'],
+        '희생자 평균 수익': r['victim_mean_ret'],
+        'F 구간 수익 (gross)': r['f_period_gross'],
+        '희생자가 이겼나': r['victim_mean_ret'] > r['f_period_gross'],
+    } for r in d['momentum_victims']['rows']]
+
+
+def paired_rows(d: dict) -> list[dict]:
+    """F(모멘텀) vs D 구간별 페어 비교."""
+    return [{
+        '구간 시작': r['rebalance_date'],
+        'F net': r['f_net'],
+        'D net': r['d_net'],
+        '차이 (F−D)': r['diff_net'],
+        'F 회전율': r['f_turnover'],
+        'D 회전율': r['d_turnover'],
+        'F 종목': r['f_n'],
+        'D 종목': r['d_n'],
+    } for r in d['paired']['rows']]
+
+
+def membership_verdict_rows(d: dict) -> list[dict]:
+    """룰 멤버십 판정. **어긋난 날짜를 함께 싣는다.**
+
+    `false`/`true` 만 보면 "R2 는 못 뺀다"가 전 구간의 성질처럼 읽힌다. 실제로는
+    20구간 중 **한 날짜**에서만 갈렸다 — 그 사실이 있어야 판정의 강도를 안다.
+    """
+    v = d['verdict']
+    return [
+        {'질문': 'R2 를 결정적으로 뺄 수 있나',
+         '판정': '아니오' if not v['r2_deterministically_removable'] else '예',
+         '어긋난 날짜': ', '.join(v['r2_diff_dates']) or '없음',
+         '해당 구간 수': len(v['r2_diff_dates'])},
+        {'질문': 'R4 를 넣으면 상위 편입이 바뀌나',
+         '판정': '예' if v['r4_addition_changes_top20'] else '아니오',
+         '어긋난 날짜': ', '.join(v['r4_diff_dates']) or '없음',
+         '해당 구간 수': len(v['r4_diff_dates'])},
+    ]
 
 
 def rank_shift_rows(d: dict) -> list[dict]:

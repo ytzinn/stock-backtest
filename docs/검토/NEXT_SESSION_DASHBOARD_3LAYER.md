@@ -7,8 +7,8 @@
 ## 0. 한 줄 요약
 
 설계메모 v3 의 **MVP 필수 항목은 전부 끝났다.** 2차 세션에서 **sub2 용어사전**과
-**B형 전용 뷰 1종(`time_overfit`)** 이 붙었다. 남은 것은 **B형 전용 뷰 3종**과
-**sub1 왜-지도**(사용자와 같이 채워야 하는 내용 작업)다.
+**B형 전용 뷰 4종 전부**가 붙었다. 남은 것은 **sub1 왜-지도** 하나이고, 이건 코드가
+아니라 내용 작업이라 **사용자와 같이 채워야 한다.**
 
 ## 0-1. 2차 세션에 끝낸 것 (2026-08-15)
 
@@ -17,9 +17,9 @@
 | sub2 용어사전 — 7항목, 매니페스트 소유 | `dashboard/glossary.py` |
 | 용어사전 페이지 (검색·범위 필터) | `dashboard/pages/glossary.py` |
 | 축별 용어 패널 (숫자 **옆에** 뜬다) | `series_explorer.py` |
-| B형 전용 뷰 1종 + renderer 레지스트리 | `dashboard/b_views.py` |
-| 시간분할 뷰의 순수 데이터층 | `series_view.py` (`time_split` 외 4함수) |
-| 무결성 검사 25개 추가 (380 → **405 passed**) | `tests/integrity/test_{glossary,b_views,dashboard_renders}.py` |
+| **B형 전용 뷰 4종** + renderer 레지스트리 | `dashboard/b_views.py` |
+| 전용 뷰의 순수 데이터층 (16함수) | `series_view.py` |
+| 무결성 검사 46개 추가 (380 → **426 passed**) | `tests/integrity/test_{glossary,b_views,dashboard_renders}.py` |
 
 **새로 생긴 검사 종류 둘:**
 
@@ -83,21 +83,59 @@
 > 대부분은 **측정 빈도**에서 나온다(23%p). 거래비용 몫은 1%p 다. "비용 때문에 낙폭이
 > 크다"고 읽으면 틀린다. 이 문서 §4 와 `series_view.py` 주석에도 뭉갠 표현이 남아 있다.
 
-### ② B형 전용 뷰 — 1/4 완료
+### ② B형 전용 뷰 ✅ **4종 전부 완료 (2026-08-15)**
 `dashboard/b_views.py` 의 `B_RENDERERS` 에 키를 등록하면 페이지가 디스패치한다.
 없으면 raw fallback (검사 8번이 지킨다). **전용 뷰가 있어도 원본 파일 목록은 접힌 채로
 남긴다** — 뷰는 산출물의 일부만 그리므로 나머지가 화면에서 사라지면 "없는 것"이 된다.
 
-| 시리즈 | 산출물이 가진 것 | 만들 뷰 | 상태 |
-|---|---|---|---|
-| `time_overfit` | `split`, `spearman_front_back`, `bootstrap`, `focal`, `pre_registered` | 전/후반 순위 역전 + Spearman | ✅ **완료** |
-| `calendar_bootstrap` | `contrasts_single_axis`, `contrasts_multi_axis`, `bootstrap_provenance` | contrast 별 신뢰구간 forest plot | 미착수 |
-| `regime_overlay` | phaseB grid CSV 4개 + PNG 6장 | Signal×Tilt 히트맵 | 미착수 |
-| `live_decomposition` | `momentum_victims`, `jaccard`, `rule_membership.verdict` | 희생자 표 + 룰 멤버십 | 미착수 |
+| 시리즈 | 만든 뷰 | 그 뷰가 실제로 막는 오독 |
+|---|---|---|
+| `time_overfit` | 순위 역전 기울기 + 사전등록 규칙 | "ρ 가 유의해서 과적합" (**CI 가 0을 배제 못 한다**) |
+| `calendar_bootstrap` | contrast forest plot + 판정 3종 | "방향 일치율 0%" (**분모가 0이라 정의 불가**) |
+| `live_decomposition` | 희생자·룰 멤버십·Jaccard | "사전등록된 검정" (**이 축엔 문턱이 없다**) |
+| `regime_overlay` | Signal×Tilt 히트맵 + 게이트 | **철회된 68/144 인용** · "total_alpha 절반이 양수" |
 
-**중요**: 이 산출물들은 `pre_registered`·`disclaimer` 필드를 갖고 있다. 전용 뷰는
-**결과와 사전등록 조건을 반드시 함께** 띄워야 한다 — 사후 해석을 막는 것이 raw 목록보다
-전용 뷰가 나은 진짜 이유다.
+> **`pre_registered`·`disclaimer` 가 "이 산출물들"에 다 있다는 §3 옛 서술은 틀렸다.**
+> `calendar_sens/` 것(time_split·stage_b)에만 있다. **분해 산출물 3종은 `pre_registered`·
+> `disclaimer`·`spec` 이 전부 없고**, `preferred_scan.json` 은 `generated_at` 조차 없어
+> 신선도를 판정할 수 없다. 그래서 그 뷰는 **"사전등록이 없다"는 사실 자체를 경고로**
+> 띄운다 (`missing_provenance()`, 검사가 필드 구성 변화를 감시한다).
+
+#### 4종을 만들며 확정된 규칙
+
+**판정을 요약하는 화면은 근거를 함께 띄우지 않으면 raw 목록보다 나쁘다.** 결론만 주고
+확인은 막기 때문이다. 네 뷰 모두 판정 옆에 ① 그 판정을 만든 문턱(또는 문턱이 없다는
+사실) ② 그 결론이 기대는 가정을 함께 놓는다.
+
+**가장 값이 나가는 것은 언제나 경고 한 줄이었다.** 네 축에서 각각:
+
+- `time_overfit` — bootstrap CI `[−0.783, +0.005]` 는 **0을 배제하지 못한다.** 판정은
+  ρ 의 유의성이 아니라 초점 태그의 사전등록 문턱에서 나왔다.
+- `calendar_bootstrap` — `J1_direction_hold_rate` 가 `null` 이고 **분모가 0**이다.
+  0% 로 그리면 "캘린더가 룰 결론을 전부 뒤집었다"가 되는데 실제는 정반대에 가깝다
+  (뒤집힐 만큼 뚜렷한 방향이 애초에 없었다).
+- `regime_overlay` — `total_alpha > 0` 이 **72/144** 인데 `ex22_alpha > 0` 은 **6/144**.
+  알파가 에피소드 #22 하나에 몰려 있다.
+- `live_decomposition` — 희생자 평균은 F 에 뒤지지만 **6개 구간에서는 희생자가 이겼다**
+  (14/20 이 진 것이지 20/20 이 아니다).
+
+**판정 규칙·상수는 산출 스크립트에서 import 한다.** `time_split.judge`·`FRONT_TOP`·
+`BACK_FLOOR`, `stage_b._action` 을 테스트가 직접 불러 산출물과 대조한다. 복제하면
+복제본끼리 어긋나는 걸 아무도 못 잡는다 (CLAUDE.md 상수 재선언 금지와 같은 이유).
+
+#### 이번에 잡은 결함 3건
+
+1. **철회된 실행이 정본으로 잡힐 수 있었다.** `regime_overlay` 에는 같은 그리드가
+   `2026-07-10`(**68/144 통과 — 철회됨**)과 `2026-07-11`(0/144, 정본) 두 벌 있다.
+   glob 순서에 기대면 옛 파일을 집는다. `phase_b_runs()` 가 날짜로 묶어 최신을 정본으로
+   표시하고, **철회된 수치와 그 이유(always-on 비교군 구간 불일치 버그)를 화면 맨 위에
+   띄운다.** 숨기지 않는 이유는, 숨기면 원본 목록에서 그 CSV 를 열어 인용하기 때문이다.
+2. **B형 축들이 같은 파일을 소유하고 있었다.** `decomposition` 의
+   `experiments/analysis/*.json` 이 종목 수 축의 `n_stocks_curve.json` 까지 삼켰다.
+   경로를 열거로 바꾸고 검사를 추가했다(돌연변이로 무는 것 확인).
+3. **Arrow 직렬화 함정을 또 밟았다.** 사전등록 문턱 표에서 한 열에 숫자와 문자열을
+   섞어 Streamlit 이 조용히 타입을 고치고 있었다. 이제 모든 행 생성 함수가
+   `pa.Table.from_pandas` 를 통과하는지 검사한다.
 
 #### `time_overfit` 을 만들고 배운 것 (나머지 3종에 그대로 적용할 것)
 
@@ -164,13 +202,13 @@
 ## 6. 검증 명령
 
 ```bash
-pytest -m "not integration" -q          # 로컬 405 passed
+pytest -m "not integration" -q          # 로컬 426 passed
 python -m scripts.make_canonical --check # 종료코드 0
 ssh milmelmul@100.120.62.97 "cd /opt/stock-backtest && venv/bin/python -m pytest tests/integrity -q"
 ```
 
 화면 검증은 이제 **테스트에 들어 있다** (`tests/integrity/test_dashboard_renders.py`,
-대표 축 3개 + 용어사전 페이지, 1.7초). 전 축(16개)을 돌리려면 그 파일의
+대표 축 6개 + 용어사전 페이지, 2초). 전 축(16개)을 돌리려면 그 파일의
 `REPRESENTATIVE` 를 `[s.id for s in SERIES]` 로 바꿔 한 번 돌려보면 된다.
 
 수동으로 쓸 때도 **축을 지정해야 한다** — 기본값은 레이어 축이라
