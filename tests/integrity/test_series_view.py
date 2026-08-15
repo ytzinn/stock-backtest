@@ -319,6 +319,60 @@ def test_n_stocks_column_says_who_decides_not_a_bare_number():
         f'산출물(F_pbr_ma200_n13, n=13)의 구별이 사라진다')
 
 
+def test_momentum_column_names_the_rule_not_just_yes_or_no():
+    """모멘텀 열이 **판정 기준**을 말하는가. `✓` 로 뭉개면 두 가지가 깨진다.
+
+    ① 짝 대조군이 `C_pbr_path_random`(레거시 MA 20/60)을 MA200·52주·절대수익 태그의
+    짝이라고 부른다 — 유니버스가 다른데 관문을 물어도 된다고 말하는 셈이다.
+    ② 모멘텀 그리드 축이 화면에서 "달라지는 조건 0개" 라고 말한다.
+    """
+    from backtest.ablation import ABLATION_CONFIGS
+    from dashboard.series_view import pipeline_facts
+
+    labels = {t: pipeline_facts(t)['모멘텀'] for t in ABLATION_CONFIGS
+              if pipeline_facts(t)}
+    assert labels['F_pbr_no_r3r4'] == 'MA 20/60', labels['F_pbr_no_r3r4']
+    assert labels['F_pbr_ma200'] == 'MA 200', labels['F_pbr_ma200']
+    assert labels['D_rim_only'] == '—'
+
+    # 파라미터가 같으면 클래스가 달라도 같은 이름 — 두 태그의 gross·net 이 소수점
+    # 6자리까지 같다는 사실이 그 근거다 (`momentum_criteria` 가 같은 산식을 부른다).
+    assert labels['F_pbr_ma_double_adapter'] == labels['F_pbr_no_r3r4'], \
+        '이중MA 어댑터가 레거시와 다른 이름을 받는다 — 같은 필터를 둘로 세게 된다'
+
+    # 그리드 23종이 서로 구별돼야 한다. 뭉쳐지면 그 축이 아무것도 안 바꾼 게 된다.
+    grid = [t for t in labels if t.startswith('F_pbr_')
+            and labels[t] != '—' and 'no_r' not in t and t != 'F_pbr_r6'
+            and t != 'F_pbr_r6only' and t != 'F_pbr_nostab' and t != 'F_pbr_only']
+    assert len(set(labels[t] for t in grid)) == len(grid), (
+        '모멘텀 그리드 태그 중 이름이 겹치는 것이 있다: '
+        f'{sorted((labels[t], t) for t in grid)}')
+
+
+def test_adopted_tag_has_no_matched_random_control():
+    """채택안(`F_pbr_ma200`)에 **짝이 맞는 귀무분포가 없다**는 사실을 못 박는다.
+
+    `C_pbr_path_random` 은 레거시 MA 20/60 풀이다. 채택안은 MA200 이라 유니버스가
+    다르고, 그래서 짝 대조군 열은 `없음` 이어야 한다.
+
+    실제 증거: `experiments/robustness/pools.json`(07-29, n=20)과
+    `pools_n13.json`(08-12, n=13)이 **md5 동일**이다. 08-12 재추첨은 `--n-pick` 만
+    바꿨을 뿐 유니버스를 다시 짓지 않았다 — `run_random_pool.py` 의 `TAG` 가
+    하드코딩이라 모멘텀 기준을 바꿀 수단이 없다.
+
+    풀을 MA200 으로 다시 뽑으면 이 검사가 깨진다. 그때는 **깨지는 게 맞다** —
+    CANONICAL 의 G1 근거가 바뀌었다는 뜻이므로 사람이 봐야 한다.
+    """
+    from scripts.make_tag_matrix import _random_pool, matched_benchmark
+
+    randoms = _random_pool()
+    assert matched_benchmark('F_pbr_ma200', randoms) == '**없음**', (
+        '채택안에 짝 대조군이 생겼다 — 귀무분포를 MA200 풀로 다시 뽑았다면 '
+        'CANONICAL 의 G1 근거와 SPEC_10 §3-1 을 함께 갱신하라')
+    assert matched_benchmark('F_pbr_no_r3r4', randoms) == '`C_pbr_path_random`', \
+        '조상(MA 20/60)의 짝까지 사라졌다 — 매칭이 과하게 엄격해졌다'
+
+
 def test_config_matrix_shows_n_from_the_artifact_key_not_the_tag():
     """종목 수 축이 "달라지는 조건 0개" 라고 말하면 안 된다.
 

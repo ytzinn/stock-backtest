@@ -196,6 +196,61 @@ _CUT_INERT_SIGNALS = ('무작위 추첨', '동일가중 전체', '팩터 복합'
 #: 종목 수 탐침. **기본값(20)과 겹치지 않는 아무 수**면 된다.
 _N_PROBE = 7
 
+#: 이동평균 계열의 기본 파라미터. 기본값이면 라벨에서 생략해 눈이 미끄러지지 않게 한다.
+_MA_DEFAULTS = {'confirm_days': 5, 'slope_lookback': 20}
+
+
+def _ma_label(a: dict) -> str:
+    """이중 이동평균 라벨. **파라미터가 같으면 같은 이름이 나와야 한다.**
+
+    레거시 `MomentumFilter` 와 `MADoubleAdapterCriterion` 은 클래스가 다르지만 같은
+    `_momentum_filter()` 를 부른다 (`momentum_criteria.py` 모듈 docstring — "산식
+    재작성 금지"). 실제로 `F_pbr_no_r3r4` 와 `F_pbr_ma_double_adapter` 는 gross·net 이
+    소수점 6자리까지 같다. 클래스 이름으로 가르면 같은 필터를 둘로 세게 된다.
+    """
+    out = f"MA {a['ma_short']}/{a['ma_long']}"
+    for k, short in (('confirm_days', 'cd'), ('slope_lookback', 'sl')):
+        if a.get(k) != _MA_DEFAULTS[k]:
+            out += f' {short}{a[k]}'
+    return out
+
+
+def momentum_rule(pipeline) -> str:
+    """**무엇으로 추세를 판정하나.** `✓` 하나로 뭉개면 안 된다.
+
+    뭉갰을 때 두 가지가 조용히 깨진다. ① 짝 대조군 판정이 `C_pbr_path_random`
+    (레거시 MA 20/60)을 MA200·52주·절대수익 태그의 짝이라고 부른다 — **유니버스가
+    다른데** 관문을 물어도 된다고 말하는 셈이다. ② 모멘텀 그리드 축이 화면에서
+    "달라지는 조건 0개" 라고 말한다. 그 축의 유일한 변수가 모멘텀인데도.
+
+    모르는 기준이 새로 생기면 `name` 과 파라미터를 그대로 붙여 **절대 다른 것과 같아
+    보이지 않게** 한다. 조용히 뭉쳐지는 쪽이 훨씬 위험하다.
+    """
+    for f in pipeline.filters:
+        n = type(f).__name__
+        if n == 'MomentumFilter':
+            return _ma_label({k: getattr(f, k) for k in
+                              ('ma_short', 'ma_long', 'confirm_days', 'slope_lookback')})
+        if n != 'MomentumCriterionFilter':
+            continue
+        c = f.criterion
+        a = {k: v for k, v in vars(c).items() if not k.startswith('_')}
+        name = getattr(c, 'name', type(c).__name__)
+        if name == 'ma_double_adapter':
+            return _ma_label(a)
+        if name == 'ma200':
+            return f"MA {a['ma_window']}"          # 단일 이동평균 (창 하나)
+        if name == '52w_high':
+            return f"52주 고가 {a['threshold']:.0%}"
+        if name == 'abs_return':
+            return f"절대수익 {a['formation_days']}d"
+        if name == 'market_residual_blitz_subset':
+            return f"시장초과 {a['formation_days']}d"
+        if name == 'sign_count':
+            return f"부호수 {a['formation_days']}d"
+        return f'{name} {sorted(a.items())}'       # 미등록 기준 — 뭉개지 않는다
+    return '—'
+
 
 def n_stocks_rule(base_tag: str, cfg: dict) -> str:
     """**태그가 종목 수를 박아 두는가**, 아니면 실행 때 정해지는가.
@@ -255,7 +310,9 @@ def pipeline_facts(base_tag: str) -> dict:
         'Hard 필터': '✓' if 'HardFilter' in names else '—',
         '안정성 룰': '·'.join(rules) if rules else '—',
         '스크리너': '✓' if 'FactorScreener' in names else '—',
-        '모멘텀': '✓' if any('Momentum' in n for n in names) else '—',
+        # `✓` 가 아니라 **판정 기준**이다. 짝 대조군 매칭이 이 값을 쓰므로, 뭉개면
+        # 레거시 MA 20/60 풀을 MA200 전략의 귀무분포라고 부르게 된다.
+        '모멘텀': momentum_rule(p),
         '밸류에이션 컷': cut,
         '종목 수': n_stocks_rule(base_tag, cfg),
     }
