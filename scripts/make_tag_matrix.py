@@ -36,8 +36,9 @@ import sys
 from pathlib import Path
 
 from backtest.ablation import ABLATION_CONFIGS
-from dashboard.series import SERIES
+from dashboard.series import SERIES, claimed_keys
 from dashboard.series_view import pipeline_facts
+from dashboard.tags import AXIS_EXPLAINS, class_of, note_of
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s',
                     datefmt='%H:%M:%S')
@@ -54,8 +55,14 @@ _RANDOM_SIGNALS = ('무작위 추첨',)
 
 
 def _axes_of(tag: str) -> list[str]:
-    """이 태그가 등록된 축들. 다대다라 여럿일 수 있다."""
-    return [s.id for s in SERIES if tag in s.tags]
+    """이 태그가 등록된 축들. 다대다라 여럿일 수 있다.
+
+    **명시 배정만 세면 안 된다** — 모멘텀 그리드처럼 패턴으로 붙는 축이 있어서,
+    `spec.tags` 만 보면 23개가 통째로 "미배정"으로 잡힌다. 배정 규칙은
+    `series.claimed_keys` 가 단일 정의다.
+    """
+    tags = sorted(ABLATION_CONFIGS)
+    return [s.id for s in SERIES if tag in claimed_keys(s, tags)]
 
 
 def _random_pool() -> dict[str, dict]:
@@ -103,11 +110,14 @@ def render() -> str:
         '  대보게 되므로 관문 판정을 내리면 안 된다 (SPEC_10 §1).',
         '- **소속 축** — 대시보드 등록 대장(`dashboard/series.py`)에서 이 태그를 쓰는 축.',
         '  비어 있으면 화면 어디에도 안 뜬다.',
+        '- **왜 만들었나** — 축과 조건만으로는 알 수 없는 것만 적는다. 모멘텀 그리드나',
+        '  룰 조합처럼 **축이 곧 이유인 태그는 비워 둔다** (열이 이미 답하는 것을 다시',
+        '  적으면 중복이고, 중복한 설명은 갈라진다). 내용은 `dashboard/tags.py` 소유.',
         '',
         f'총 **{len(tags)}개** 태그.',
         '',
-        '| 태그 | 랭킹 신호 | 안정성 룰 | Hard | 스크리너 | 모멘텀 | 밸류에이션 컷 | 짝 대조군 | 소속 축 |',
-        '|---|---|---|---|---|---|---|---|---|',
+        '| 태그 | 분류 | 랭킹 신호 | 안정성 룰 | Hard | 스크리너 | 모멘텀 | 밸류에이션 컷 | 짝 대조군 | 소속 축 | 왜 만들었나 |',
+        '|---|---|---|---|---|---|---|---|---|---|---|',
     ]
 
     for tag in tags:
@@ -116,12 +126,15 @@ def render() -> str:
             continue
         axes = _axes_of(tag)
         lines.append(
-            f'| `{tag}` | {f["랭킹 신호"]} | {f["안정성 룰"]} | {f["Hard 필터"]} | '
-            f'{f["스크리너"]} | {f["모멘텀"]} | {f["밸류에이션 컷"]} | '
+            f'| `{tag}` | {class_of(tag) or "—"} | {f["랭킹 신호"]} | {f["안정성 룰"]} | '
+            f'{f["Hard 필터"]} | {f["스크리너"]} | {f["모멘텀"]} | {f["밸류에이션 컷"]} | '
             f'{matched_benchmark(tag, randoms)} | '
-            f'{", ".join(axes) if axes else "**미배정**"} |')
+            f'{", ".join(axes) if axes else "**미배정**"} | '
+            f'{note_of(tag) or ("축 설명 참조" if set(axes) & set(AXIS_EXPLAINS) else "**없음**")} |')
 
     orphans = [t for t in tags if not _axes_of(t)]
+    unexplained = [t for t in tags if not note_of(t)
+                   and not set(_axes_of(t)) & set(AXIS_EXPLAINS)]
     unbenched = [t for t in tags
                  if matched_benchmark(t, randoms) == '**없음**']
     lines += [
@@ -143,6 +156,16 @@ def render() -> str:
         '',
     ]
     lines += [f'- `{t}`' for t in orphans] or ['- (없음)']
+    lines += [
+        '',
+        '## 왜 만들었는지 안 적힌 태그',
+        '',
+        f'축이 설명해 주지도 않고 개별 설명도 없는 태그가 **{len(unexplained)}개**. '
+        '조건표만으로는 "왜 이 조합을 굳이 만들었나"를 알 수 없는 자리다. '
+        '설명은 `dashboard/tags.py` 에 추가한다.',
+        '',
+    ]
+    lines += [f'- `{t}`' for t in unexplained] or ['- (없음)']
     lines.append('')
     return '\n'.join(lines)
 

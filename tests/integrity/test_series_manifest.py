@@ -455,3 +455,34 @@ def test_tag_matrix_is_current():
     assert r.returncode == 0, (
         'TAG_MATRIX.md 가 낡았다 — `python -m scripts.make_tag_matrix` 로 재생성하라\n'
         + (r.stderr or r.stdout))
+
+
+def test_every_tag_note_points_at_a_real_tag():
+    """태그 설명이 실재하는 태그를 가리키는가. 오타면 영영 안 뜬다."""
+    from dashboard.tags import CLASSES, TAG_NOTES
+
+    stray = sorted(set(TAG_NOTES) - set(ABLATION_CONFIGS))
+    assert not stray, f'존재하지 않는 태그에 설명이 달려 있다: {stray}'
+    for tag, (cls, note) in TAG_NOTES.items():
+        assert cls in CLASSES, f'{tag}: 알 수 없는 분류 {cls}'
+        # 길이를 요구하지 않는다. "R1 단독 leave-one-out." 처럼 한 줄로 끝나는 것이
+        # 옳은 설명인 태그가 많다 — 비어 있지만 않으면 된다.
+        assert note.strip(), f'{tag}: 설명이 비었다'
+
+
+def test_frozen_audit_registry_is_marked_as_superseded():
+    """동결된 감사 스냅샷이 **현행으로 오해되지 않게** 표시돼 있는가.
+
+    이 파일은 2026-07-12 시점 33개의 기록이고 갱신하지 않는다. 표시가 없으면 다음
+    사람이 "태그 목록"으로 열어 보고 39개가 빠진 걸 현행으로 읽는다 — 실제로 그
+    상태로 한 달을 지냈다.
+    """
+    import json
+
+    path = ROOT / 'tests/baselines/SCENARIO_REGISTRY.json'
+    if not path.exists():
+        pytest.skip('감사 레지스트리가 없다 (지웠다면 감사 문서 참조도 정리했는지 확인).')
+    meta = json.loads(path.read_text(encoding='utf-8'))['_meta']
+    assert 'TAG_MATRIX' in meta.get('superseded_by', ''), \
+        '동결 기록에 후속 문서 표시가 없다'
+    assert '동결' in meta.get('status', ''), '동결 상태 표시가 없다'

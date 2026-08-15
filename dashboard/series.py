@@ -422,8 +422,13 @@ _WHY_RANKING = WhyMap(
         r'RIM 은 −2.44\~−2.59%p 로 확실히 미달이지만, **1/PBR 도 +0.05%p 로 겨우 닿는다**'
         '(11.2830% vs `C_no_r6` p95 11.2348%). 즉 ① 이 말해 주는 것은 "RIM 이 랜덤에 '
         '못 미친다"까지이고, **"그러므로 1/PBR 이 낫다"는 말해 주지 않는다.** 그건 아래 '
-        'head-to-head 가 말한다. 참고로 채택안은 자기 짝 관문(G1)을 +4.72%p 로 통과한다 '
-        '(20.33% vs p95 15.61%, 99.2 백분위).',
+        'head-to-head 가 말한다.',
+        '**채택안의 관문(G1) 수치를 여기 끌어와 비교하지 마라.** 채택안은 자기 짝 관문을 '
+        '통과하지만(20.33% vs p95 15.61%), 그 관문은 **다른 눈금**이다 — 귀무분포가 '
+        '모멘텀 통과 풀에서 n=13 으로 1,000회 뽑은 것이고, 이 축의 관문은 모멘텀 없는 '
+        '풀에서 n=20 으로 500회 뽑은 것이다. 전략 쪽도 랭킹만이 아니라 모멘텀(MA200)·'
+        '종목 수·룰 집합·컷이 전부 다르다. 두 마진(−2.59%p 와 +4.72%p)을 나란히 놓으면 '
+        '**여섯 가지 차이의 합을 랭킹의 차이로 읽게 된다.**',
         '**모멘텀이 없는 경로에서는 1/PBR 이 크게 앞선다** (+2.49%p, R6 를 양쪽 다 끈 짝 기준). '
         '게다가 회전율이 낮아 비용을 뺀 net 에서 격차가 더 벌어진다 — 순위를 매기는 신호를 '
         '바꿨을 뿐인데 거래비용까지 같이 줄어드는 셈이다.',
@@ -508,6 +513,7 @@ _WHY_RANKING = WhyMap(
         ('②(전 구성 PBR 열위)가 4쌍 중 2쌍에서 뒤집혀 더는 성립하지 않는다', '검증된 사실'),
         ('1/PBR 도 같은 관문을 +0.05%p 로 겨우 넘는다 (RIM 은 −2.44%p 미달)', '검증된 사실'),
         ('랭킹만의 효과가 컷 상태에 따라 부호가 뒤집힌다 (stage_b 2×2)', '검증된 사실'),
+        ('채택안 G1 과 이 축의 관문은 귀무분포가 달라 마진을 비교할 수 없다', '검증된 사실'),
         ('1/PBR 의 회전율이 더 낮다', '검증된 사실'),
         ('모멘텀 경로에서는 RIM 이 근소 우위', '검증된 사실'),
         ('"RIM ≠ 저PBR 재포장"이 룩어헤드 산물이었다는 판정', '검증된 사실'),
@@ -716,14 +722,26 @@ SERIES_BY_ID = {s.id: s for s in SERIES}
 
 # ── 해석 ────────────────────────────────────────────────────────────────────
 
+def claimed_keys(spec: SeriesSpec, available: list[str]) -> list[str]:
+    """이 축이 주장하는 키 — 명시 배정 + 패턴 후보 − 제외.
+
+    **배정 규칙의 단일 정의다.** `resolve()` 는 산출물 카탈로그를, 태그 매트릭스는
+    `ABLATION_CONFIGS` 를 넘긴다. 이걸 안 나눠 두면 매트릭스가 명시 태그만 세어
+    패턴으로 붙은 축(모멘텀 그리드 23개)을 통째로 "미배정"이라 보고한다 — 실제로
+    그렇게 틀렸다 (2026-08-15).
+    """
+    keys = list(spec.tags)
+    for pat in spec.patterns:
+        keys += [k for k in available if fnmatch.fnmatchcase(k, pat)]
+    for pat in spec.exclude:
+        keys = [k for k in keys if not fnmatch.fnmatchcase(k, pat)]
+    return keys
+
+
 def resolve(spec: SeriesSpec, catalog: ArtifactCatalog | None = None) -> Series:
     """스펙 + 카탈로그 → 실제 멤버. 없는 키는 **버리지 않고 `missing` 으로 보고한다.**"""
     catalog = catalog if catalog is not None else build_catalog()
-    keys = list(spec.tags)
-    for pat in spec.patterns:
-        keys += [k for k in catalog.keys() if fnmatch.fnmatchcase(k, pat)]
-    for pat in spec.exclude:
-        keys = [k for k in keys if not fnmatch.fnmatchcase(k, pat)]
+    keys = claimed_keys(spec, catalog.keys())
 
     seen: set[str] = set()
     members, missing = [], []
