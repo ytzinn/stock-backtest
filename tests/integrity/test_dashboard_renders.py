@@ -42,6 +42,8 @@ REPRESENTATIVE = [
     'calendar_bootstrap',  # B형 전용 뷰 (forest plot · 다중 판정)
     'decomposition',       # B형 전용 뷰 (사전등록 없는 축)
     'regime_overlay',      # B형 전용 뷰 (철회된 실행 + 히트맵 + PNG)
+    'pbr_rules',           # A형 + 왜-지도 + 세트 + "다른 데 있는 태그"
+    'benchmarks',          # A형인데 `paths` 를 쓴다 (원본 목록이 B형 전용이었다)
 ]
 
 
@@ -98,6 +100,55 @@ def test_series_explorer_shows_the_glossary_next_to_the_numbers():
     labels = [e.label for e in at.expander]
     assert any('헷갈리는 이름' in (lab or '') for lab in labels), \
         f'용어 패널이 화면에 없다. 현재 패널: {labels}'
+
+
+def test_axis_shows_the_tags_whose_numbers_live_elsewhere():
+    """비교표에 행이 없는 전략이 **어디에 값이 있는지** 화면이 말해야 한다.
+
+    넷이 그 상태로 방치돼 있었다. 특히 `C_pbr_path_random` 은 채택안 G1 관문의
+    귀무분포 그 자체인데, ablation 산출물이 없다는 이유만으로 화면 어디에도 안 떴다.
+    안 띄우면 그 전략은 존재하지 않는 것과 같다 (2026-08-15).
+    """
+    for series_id, tag in (('pbr_rules', 'F_pbr_no_r3r4r5'),
+                           ('benchmarks', 'C_pbr_path_random'),
+                           ('ranking_signal', 'F_rimrank_no_r3r4')):
+        at = _run('series_explorer.py', series_pick=SERIES_BY_ID[series_id])
+        _assert_clean(at, f'series_explorer[{series_id}]')
+        labels = [e.label or '' for e in at.expander]
+        assert any('비교표에 없는 전략' in lab for lab in labels), \
+            f'{series_id}: "다른 데 있는 태그" 패널이 화면에 없다. 현재 패널: {labels}'
+        frames = ' '.join(df.value.to_csv() for df in at.dataframe)
+        assert tag in frames, f'{series_id}: `{tag}` 이 화면 어느 표에도 없다'
+
+
+def test_axis_never_calls_a_relocated_tag_missing():
+    """"다른 데 있다"가 빨간 "산출물 없음" 오류로 뜨면 안 된다.
+
+    정상 상태를 영구 오류로 띄우면, 진짜 유실이 났을 때 아무도 그 줄을 안 읽는다.
+    """
+    for series_id in ('pbr_rules', 'benchmarks', 'ranking_signal'):
+        at = _run('series_explorer.py', series_pick=SERIES_BY_ID[series_id])
+        _assert_clean(at, f'series_explorer[{series_id}]')
+        errs = ' '.join(str(getattr(e, 'value', '')) for e in at.error)
+        assert '산출물이 없는 키' not in errs, \
+            f'{series_id}: 산출물이 다른 데 있는 태그를 유실로 띄운다 — {errs}'
+
+
+def test_pbr_rules_axis_says_the_adopted_set_is_not_the_leader():
+    """이 축의 첫 줄이 화면에 떠야 한다 — 채택안이 CAGR 1등이 아니라는 사실.
+
+    표만 보면 사람은 맨 위 숫자를 채택 근거로 읽는다. 실제 근거는 "1등과의 격차가
+    한 구간·한 종목에서 나왔고 낙폭은 채택안이 최저" 라서, 그 설명이 빠지면
+    화면은 채택 결정과 반대되는 인상을 준다.
+    """
+    at = _run('series_explorer.py', series_pick=SERIES_BY_ID['pbr_rules'])
+    _assert_clean(at, 'series_explorer[pbr_rules]')
+    text = ' '.join(
+        str(getattr(e, 'value', '') or getattr(e, 'body', ''))
+        for group in (at.markdown, at.caption, at.warning, at.info)
+        for e in group)
+    for must in ('1등이 아니다', '2025-08-20', 'max 선택 금지', '−31.83%'):
+        assert must in text, f'PBR 룰 축 왜-지도에 `{must}` 이 화면에 없다'
 
 
 def test_time_overfit_view_shows_the_verdict_next_to_its_pre_registered_rule():

@@ -29,7 +29,7 @@
 | `A_random` | RANDOM | 무작위 추첨 | — | — | — | — | n/a | — | layers | 무작위 20종목 선택, seed x rebalance_date 복합 시드, 500회 반복. 결과: A_random_dist.csv (experiments/ablation/, gitignore됨).  |
 | `B_hard_random` | RANDOM | 무작위 추첨 | — | ✓ | — | — | n/a | — | layers | HardFilter만 통과 후 무작위 선택, 500회 반복. B_hard_random_dist.csv.  |
 | `C_no_r6` | RANDOM | 무작위 추첨 | R1·R2·R3·R4·R5 | ✓ | — | — | n/a | — | r6_loo | 이름과 달리 코드상 RANDOM_TAGS에 포함(use_rim_filter=False, random_n=20) — Hard+Stability(R6 제외) 통과 후 무작위 선택. C_no_r6_dist.csv.  |
-| `C_pbr_path_random` | RANDOM | 무작위 추첨 | R1·R2·R5·R6 | ✓ | — | ✓ | n/a | — | **미배정** | SPEC_10 §3-1 이 **채택 후보 전용으로 새로 만든 짝 대조군.** 기존 `C_stability_random` 은 룰이 전 6개인 데다 모멘텀을 안 태워서, 채택안(룰 {R1,R2,R5,R6} + 모멘텀)의 관문으로 쓰면 "유니버스가 좁아서"와 "랭킹이 좋아서"가 섞인다. 그래서 **모멘텀 통과 풀에서 무작위 20종목**을 1,000회 뽑는다 (p95 추정 안정화). G1 관문의 귀무분포가 이것이다. |
+| `C_pbr_path_random` | RANDOM | 무작위 추첨 | R1·R2·R5·R6 | ✓ | — | ✓ | n/a | — | benchmarks | SPEC_10 §3-1 이 **채택 후보 전용으로 새로 만든 짝 대조군.** 기존 `C_stability_random` 은 룰이 전 6개인 데다 모멘텀을 안 태워서, 채택안(룰 {R1,R2,R5,R6} + 모멘텀)의 관문으로 쓰면 "유니버스가 좁아서"와 "랭킹이 좋아서"가 섞인다. 그래서 **모멘텀 통과 풀에서 무작위 20종목**을 1,000회 뽑는다 (p95 추정 안정화). G1 관문의 귀무분포가 이것이다. |
 | `C_stability_random` | RANDOM | 무작위 추첨 | R1·R2·R3·R4·R5·R6 | ✓ | — | — | n/a | — | layers, r6_loo | Hard+Stability(기본 전체 6룰) 통과 후 무작위 선택, 500회 반복. C_stability_random_dist.csv.  |
 | `D_factor_only` | DIAGNOSTIC | 팩터 복합 | R1·R2·R3·R4·R5 | ✓ | — | — | n/a | `C_no_r6` | ranking_signal | RIM 없이 FactorScreener 4팩터 합산 점수로 직접 랭킹 — 신호분리 대조군 (스크리너 자체는 폐기됐으나 진단 목적 보존).  |
 | `D_no_r1` | DIAGNOSTIC | RIM 상승여력 | R2·R3·R4·R5·R6 | ✓ | — | — | ✓ | **없음** | stability_loo_d | R1 단독 leave-one-out.  |
@@ -85,15 +85,15 @@
 | `F_pbr_no_r2r3r4` | — | 1/PBR | R1·R5·R6 | ✓ | — | ✓ | — | **없음** | pbr_rules | 축 설명 참조 |
 | `F_pbr_no_r3r4` | DIAGNOSTIC | 1/PBR | R1·R2·R5·R6 | ✓ | — | ✓ | — | `C_pbr_path_random` | momentum_grid, pbr_rules, ranking_signal, calendar_phase | **PBR 경로의 공통 기준선.** 룰 조합·캘린더·랭킹 분해·모멘텀 그리드가 전부 이 태그를 baseline 으로 쓴다. 2026-07-18 에 채택 후보로 지목됐고, 이후 모멘텀 기준을 MA200 으로 바꾸고 종목 수를 13 으로 줄인 것이 현행 채택안이다 — 즉 **현행안의 직계 조상이지 현행안이 아니다.** |
 | `F_pbr_no_r3r4_parent` | DIAGNOSTIC | 1/PBR (지배지분) | R1·R2·R5·R6 | ✓ | — | ✓ | — | `C_pbr_path_random` | ranking_signal | PBR 분모를 자본총계가 아니라 **지배기업소유주지분**으로 바꾼 랭킹 변형 (`rank_mode=pbr_parent`, SPEC_11 §3). 이름의 `_parent` 를 "부모 실행"으로 오독하기 쉬워 한동안 어느 축에도 배정되지 않은 채 남아 있었다. |
-| `F_pbr_no_r3r4_rimcut` | DIAGNOSTIC | 1/PBR | R1·R2·R5·R6 | ✓ | — | ✓ | ✓ | `C_pbr_path_random` | **미배정** | SPEC_14 §14-1 **랭킹×컷 2×2 의 한 칸** — 1/PBR 랭킹에 밸류에이션 컷을 켠 설정. 현행안(`F_pbr_no_r3r4`, 컷 없음)에 컷만 더한 것이라 `C_RIMCUT`(랭킹 고정, 컷 효과)의 변량이고, `C_RANK_CUT`(컷 켠 상태의 랭킹 효과)의 기준이기도 하다. |
-| `F_pbr_no_r3r4r5` | DIAGNOSTIC | 1/PBR | R1·R2·R6 | ✓ | — | ✓ | — | **없음** | **미배정** | SPEC_14 캘린더 민감도의 `C_R5` contrast 를 만들려고 **새로 생성한 태그** (룰 {R1,R2,R6}). 현행안에서 R5 만 더 뺀 구성이며, 그 전에는 R5 단독 대조가 아예 존재하지 않아 contrast 를 구성할 수 없었다. |
+| `F_pbr_no_r3r4_rimcut` | DIAGNOSTIC | 1/PBR | R1·R2·R5·R6 | ✓ | — | ✓ | ✓ | `C_pbr_path_random` | ranking_signal | SPEC_14 §14-1 **랭킹×컷 2×2 의 한 칸** — 1/PBR 랭킹에 밸류에이션 컷을 켠 설정. 현행안(`F_pbr_no_r3r4`, 컷 없음)에 컷만 더한 것이라 `C_RIMCUT`(랭킹 고정, 컷 효과)의 변량이고, `C_RANK_CUT`(컷 켠 상태의 랭킹 효과)의 기준이기도 하다. |
+| `F_pbr_no_r3r4r5` | DIAGNOSTIC | 1/PBR | R1·R2·R6 | ✓ | — | ✓ | — | **없음** | pbr_rules | SPEC_14 캘린더 민감도의 `C_R5` contrast 를 만들려고 **새로 생성한 태그** (룰 {R1,R2,R6}). 현행안에서 R5 만 더 뺀 구성이며, 그 전에는 R5 단독 대조가 아예 존재하지 않아 contrast 를 구성할 수 없었다. |
 | `F_pbr_no_r3r4r6` | — | 1/PBR | R1·R2·R5 | ✓ | — | ✓ | — | **없음** | pbr_rules | 축 설명 참조 |
 | `F_pbr_nostab` | — | 1/PBR | — | ✓ | — | ✓ | — | **없음** | pbr_rules | 축 설명 참조 |
 | `F_pbr_only` | DIAGNOSTIC | 1/PBR | R1·R2·R3·R4·R5 | ✓ | — | ✓ | — | **없음** | ranking_signal | RIM 랭킹 자리에 1/PBR 만 넣은 모멘텀 경로 대조군. 2026-07-18 판정의 head-to-head 쌍 `F_no_r6 vs F_pbr_only` 의 한쪽이다 — 그 쌍은 **양쪽 다 R6 가 꺼져 있어** 랭킹만 견줄 수 있게 맞춰져 있다. |
 | `F_pbr_r6` | DIAGNOSTIC | 1/PBR | R1·R2·R3·R4·R5·R6 | ✓ | — | ✓ | — | **없음** | pbr_rules, ranking_signal | 1/PBR 랭킹에 안정성 룰을 **R1~R6 전부** 켠 설정. `F_momentum_rim`(RIM, 같은 전 6룰)과 룰이 정확히 같아, 2026-07-18 판정에서 "R1~R6 동일조건" head-to-head 쌍으로 쓰였다. |
 | `F_pbr_r6only` | — | 1/PBR | R6 | ✓ | — | ✓ | — | **없음** | pbr_rules | 축 설명 참조 |
 | `F_pbr_signcount126` | — | 1/PBR | R1·R2·R5·R6 | ✓ | — | ✓ | — | `C_pbr_path_random` | momentum_grid | 축 설명 참조 |
-| `F_rimrank_no_r3r4` | DIAGNOSTIC | RIM 상승여력 | R1·R2·R5·R6 | ✓ | — | ✓ | — | `C_pbr_path_random` | **미배정** | SPEC_14 §14-1 **랭킹×컷 2×2 의 한 칸** — RIM 랭킹인데 밸류에이션 컷은 끈 설정. 기본 태그들에서는 랭킹을 바꾸면 컷이 함께 따라 움직여 "랭킹만의 효과"를 잴 수 없어서, 컷을 독립 스위치로 빼고 만든 신규 태그다. `C_RANK_NOCUT`(컷 끈 상태의 랭킹 효과)의 변량 쪽. |
+| `F_rimrank_no_r3r4` | DIAGNOSTIC | RIM 상승여력 | R1·R2·R5·R6 | ✓ | — | ✓ | — | `C_pbr_path_random` | ranking_signal | SPEC_14 §14-1 **랭킹×컷 2×2 의 한 칸** — RIM 랭킹인데 밸류에이션 컷은 끈 설정. 기본 태그들에서는 랭킹을 바꾸면 컷이 함께 따라 움직여 "랭킹만의 효과"를 잴 수 없어서, 컷을 독립 스위치로 빼고 만든 신규 태그다. `C_RANK_NOCUT`(컷 끈 상태의 랭킹 효과)의 변량 쪽. |
 | `G_full` | ARCHIVE | RIM 상승여력 | R1·R2·R3·R4·R5·R6 | ✓ | ✓ | ✓ | ✓ | **없음** | layers, r6_loo, stability_all | 스크리너+모멘텀+RIM 풀 파이프라인. 스크리너 폐기로 더 이상 채택 후보 아님.  |
 | `G_no_r6` | ARCHIVE | RIM 상승여력 | R1·R2·R3·R4·R5 | ✓ | ✓ | ✓ | ✓ | **없음** | r6_loo | G_full의 R6 leave-one-out. 동일 사유로 ARCHIVE.  |
 | `H_no_stability` | ARCHIVE | RIM 상승여력 | — | ✓ | ✓ | ✓ | ✓ | **없음** | layers, stability_all | SPEC_05 부록A 주석(backtest/ablation.py:72-74)에 명시: use_screener=True까지 같이 꺼져 stability·screener 두 축이 동시에 달라 교란됨. F_no_stability_clean/D_no_stability로 대체됨.  |
@@ -139,12 +139,9 @@
 
 ## 등록 대장에 없는 태그
 
-축 어디에도 안 들어간 태그가 **4개**. 화면에 안 뜨므로 만들어 두고 잊기 쉽다.
+축 어디에도 안 들어간 태그가 **0개**. 화면에 안 뜨므로 만들어 두고 잊기 쉽다.
 
-- `C_pbr_path_random`
-- `F_pbr_no_r3r4_rimcut`
-- `F_pbr_no_r3r4r5`
-- `F_rimrank_no_r3r4`
+- (없음)
 
 ## 왜 만들었는지 안 적힌 태그
 

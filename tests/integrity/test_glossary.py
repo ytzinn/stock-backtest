@@ -175,6 +175,14 @@ def test_markdown_text_has_no_accidental_strikethrough():
             targets.append((f'{s.id}.why.delta[{d.label}]', f'{d.label} {d.note}'))
         for detail, _ in w.understanding:
             targets.append((f'{s.id}.why.understanding', detail))
+        targets.append((f'{s.id}.why.next_step', w.next_step))
+
+    # "다른 데 있는 태그" 표도 마크다운으로 뜬다. 왜-지도를 빠뜨렸다가 사고가 난
+    # 것과 같은 자리라, 새 칸이 생길 때마다 여기에 더한다.
+    for s in SERIES:
+        for e in s.elsewhere:
+            targets.append((f'{s.id}.elsewhere[{e.tag}].why', e.why))
+            targets.append((f'{s.id}.elsewhere[{e.tag}].note', e.note))
 
     bad = []
     for name, text in targets:

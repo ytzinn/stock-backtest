@@ -199,6 +199,67 @@ def test_b_series_paths_resolve(catalog):
     assert not dead, 'B형 원본 경로가 아무 파일도 가리키지 않는다:\n  ' + '\n  '.join(dead)
 
 
+# ── 산출물이 다른 데 있는 태그 (`elsewhere`) ────────────────────────────────
+
+def test_elsewhere_tags_are_real_configs():
+    """`elsewhere` 가 실재하는 태그를 가리키고, 같은 축이 두 번 갖지 않는가.
+
+    오타면 태그 매트릭스가 그 태그를 계속 `미배정` 이라 부르는데, 축에는 배정했다고
+    적혀 있어서 아무도 다시 안 본다 — 조용히 틀리는 통로다.
+    """
+    for s in SERIES:
+        claimed = set(s.tags)
+        for e in s.elsewhere:
+            assert e.tag in ABLATION_CONFIGS, \
+                f'{s.id}: `{e.tag}` 은 ABLATION_CONFIGS 에 없다'
+            assert e.tag not in claimed, (
+                f'{s.id}: `{e.tag}` 이 tags 와 elsewhere 양쪽에 있다 — 산출물이 '
+                f'있으면 멤버, 없으면 elsewhere 다. 둘 다일 수 없다')
+            assert e.where, f'{s.id}/{e.tag}: 값이 어디 있는지 안 적혀 있다'
+            assert e.why.strip(), (
+                f'{s.id}/{e.tag}: 왜 ablation 산출물이 없는지 안 적혀 있다 — '
+                f'그 이유가 없으면 다음 사람은 유실로 읽는다')
+
+
+def test_elsewhere_really_has_no_artifact(catalog):
+    """`elsewhere` 로 적힌 태그에 산출물이 **생기면** 검사가 깨져야 한다.
+
+    `run_ablation` 을 태우면 그날부터 비교표의 멤버가 될 수 있다. 그런데 등록 대장이
+    계속 "다른 데 있다"고 적고 있으면, 화면은 있는 그래프를 안 그리면서 "산출물이
+    없다"는 낡은 설명을 띄운다. 되돌리기 쉬운 쪽으로 깨뜨린다.
+    """
+    stale = [(s.id, e.tag) for s in SERIES for e in s.elsewhere if e.tag in catalog]
+    assert not stale, (
+        f'이제 산출물이 있는데 elsewhere 로 남아 있다: {stale} — '
+        f'해당 항목을 지우고 `tags` 로 옮겨라')
+
+
+def test_elsewhere_is_not_reported_as_missing(catalog):
+    """"다른 데 있다"가 "없다"로 뜨면 안 된다.
+
+    `missing` 은 화면에서 빨간 오류다. 정상 상태가 영구 오류로 뜨면 진짜 유실이 났을 때
+    아무도 그 줄을 안 읽는다 — 늑대소년이 되는 고전적 경로다.
+    """
+    for s in SERIES:
+        if not s.elsewhere:
+            continue
+        got = resolve(s, catalog)
+        overlap = {e.tag for e in s.elsewhere} & set(got.missing)
+        assert not overlap, f'{s.id}: elsewhere 태그가 missing 으로도 잡힌다: {overlap}'
+
+
+def test_elsewhere_paths_point_at_something(catalog):
+    """값이 있다고 적은 경로 중 **최소 하나**는 이 PC 에 실재해야 한다.
+
+    전부 요구하지는 않는다 — 산출물 상당수가 git 미추적이라 "서버엔 있고 개발 PC 엔
+    없다"가 정상이고, 화면도 그 비율을 그대로 띄운다. 다만 하나도 안 맞으면 경로가
+    죽은 것이고, 그건 "근거가 있다"는 인상만 주고 확인은 막는다.
+    """
+    dead = [f'{s.id}/{e.tag}: {e.where}' for s in SERIES for e in s.elsewhere
+            if not any((ROOT / p).exists() for p in e.where)]
+    assert not dead, '값이 있다고 적힌 경로가 하나도 실재하지 않는다:\n  ' + '\n  '.join(dead)
+
+
 def test_unassigned_artifacts_are_reported(catalog):
     """어느 축에도 없는 산출물은 **경고로 드러낸다.** 실패는 아니다.
 
@@ -387,6 +448,108 @@ def test_pbr_ranking_turns_over_less(catalog):
     assert net_gap > gross_gap, (
         f'net 격차({net_gap:+.2%})가 gross({gross_gap:+.2%})보다 크지 않다 — '
         f'"비용을 빼면 더 벌어진다"는 서술이 무효다')
+
+
+# ── PBR 룰 조합 축의 왜-지도가 주장하는 사실들 ──────────────────────────────
+#
+# 이 축의 왜-지도는 채택 근거를 담는다. 재발행으로 사실이 바뀌면 **검사가 깨져서**
+# 문구를 고치게 만들어야 한다 — 안 그러면 `[검증된 사실]` 이라 적힌 거짓이 남는다.
+# 수치는 여기 재선언하지 않는다. 산출물이 기록한 값을 읽어 **관계**만 확인한다.
+
+_ADOPTED_RULES = 'F_pbr_no_r3r4'          # {R1,R2,R5,R6} — 이 축의 baseline
+
+
+def _rule_cagr(catalog, key: str) -> float:
+    return catalog.require(key).metrics['cagr']
+
+
+def test_pbr_rules_adopted_set_is_not_the_cagr_leader(catalog):
+    """"채택안은 이 표의 1등이 아니다"가 아직 사실인가.
+
+    이 문장이 왜-지도의 첫 줄이고, 그래서 "그럼 왜 안 바꿨나"(1구간·1종목 + max 선택
+    금지)라는 설명이 뒤따른다. 순위가 다시 뒤집히면 그 설명 전체가 필요 없어진다.
+    """
+    adopted = _rule_cagr(catalog, _ADOPTED_RULES)
+    minus_r2 = _rule_cagr(catalog, 'F_pbr_no_r2r3r4')
+    assert minus_r2 > adopted, (
+        f'R2 를 뺀 조합({minus_r2:.4%})이 더 이상 채택안({adopted:.4%})을 앞서지 않는다 — '
+        f'왜-지도의 첫 줄과 "그런데도 교체하지 않았다"는 서술을 다시 써라')
+    gap = (minus_r2 - adopted) * 100
+    assert gap < 0.4, (
+        f'격차가 {gap:+.2f}%p 로 커졌다 — 왜-지도는 이것을 2026-07-16 눈금'
+        f'(0.4~2%p 는 구간 의존) **아래**라고 적었다. 그 근거가 무효다')
+
+
+def test_pbr_rules_adopted_set_has_the_shallowest_drawdown(catalog):
+    """"낙폭에서는 채택안이 유일한 최저"가 아직 사실인가.
+
+    CAGR 1등이 아닌데도 이 조합을 쓰는 이유의 절반이 여기 있다. MDD 는 음수이므로
+    **가장 큰 값**이 가장 얕은 낙폭이다.
+    """
+    axis = resolve(SERIES_BY_ID['pbr_rules'], catalog)
+    mdds = {m.artifact_key: catalog.require(m.artifact_key).metrics['mdd']
+            for m in axis.members}
+    adopted = mdds[_ADOPTED_RULES]
+    worse = {k: v for k, v in mdds.items() if v > adopted}
+    assert not worse, f'채택안보다 얕은 낙폭의 조합이 생겼다: {worse}'
+    # 쌍둥이(R2 제거)만 동률이어야 한다. 셋 이상이 동률이면 "유일한 최저"가 아니다.
+    tied = {k for k, v in mdds.items() if v == adopted} - {_ADOPTED_RULES}
+    assert tied == {'F_pbr_no_r2r3r4'}, (
+        f'동률 조합이 바뀌었다: {tied} — 왜-지도의 "R2 를 뺀 쌍둥이와 동률" 을 고쳐라')
+
+
+def test_rule_contributions_are_not_additive(catalog):
+    """"룰의 기여는 더할 수 없다" — R6 의 부호가 바탕에 따라 뒤집히는가.
+
+    아무것도 없는 위에 R6 만 켜면 해롭고, `{R1,R2,R5}` 위에 얹으면 도움이 된다.
+    이 뒤집힘이 사라지면 LOO 값을 합산해도 된다는 뜻이 되어, 왜-지도의 경고가 무효다.
+    """
+    alone = _rule_cagr(catalog, 'F_pbr_r6only') - _rule_cagr(catalog, 'F_pbr_nostab')
+    on_top = _rule_cagr(catalog, _ADOPTED_RULES) - _rule_cagr(catalog, 'F_pbr_no_r3r4r6')
+    assert alone < 0, (
+        f'R6 를 혼자 켰을 때 더 이상 해롭지 않다 ({alone:+.2%}) — '
+        f'"룰 기여는 덧셈이 아니다"의 근거 절반이 사라졌다')
+    assert on_top > 0, (
+        f'R6 를 {{R1,R2,R5}} 위에 얹었을 때 더 이상 도움이 안 된다 ({on_top:+.2%})')
+
+
+def test_r1_and_r2_are_partial_substitutes(catalog):
+    """"R1 이 있으면 R2 는 무해, 없으면 강한 기여" — 부호가 아직 갈리는가."""
+    with_r1 = _rule_cagr(catalog, 'F_pbr_no_r2r3r4') - _rule_cagr(catalog, _ADOPTED_RULES)
+    without_r1 = (_rule_cagr(catalog, 'F_pbr_no_r1r2r3r4')
+                  - _rule_cagr(catalog, 'F_pbr_no_r1r3r4'))
+    assert with_r1 > 0 > without_r1, (
+        f'R2 제거의 부호가 더 이상 갈리지 않는다 (R1 있음 {with_r1:+.2%} · '
+        f'R1 없음 {without_r1:+.2%}) — "부분 대체재" 서술을 고쳐라')
+    assert abs(without_r1) > abs(with_r1), (
+        f'R1 이 없을 때의 R2 기여({without_r1:+.2%})가 있을 때({with_r1:+.2%})보다 '
+        f'크지 않다 — "R1 이 없으면 R2 가 강하게 일한다"가 무효다')
+
+
+def test_stability_layer_is_net_positive_on_the_pbr_path(catalog):
+    """"PBR 경로에서 안정성 레이어는 순기여" — RIM 경로의 순감 반전과 반대인가.
+
+    이 대비가 왜-지도의 한 줄이고, RIM 경로 축들(`stability_all`)의 결론을 이 축으로
+    끌어오지 말라는 근거다.
+    """
+    off, on = catalog.require('F_pbr_nostab'), catalog.require(_ADOPTED_RULES)
+    assert on.metrics['cagr'] > off.metrics['cagr'], \
+        'PBR 경로에서 안정성을 끄는 쪽이 더 낫다 — 왜-지도 서술을 고쳐라'
+    assert on.metrics['mdd'] > off.metrics['mdd'], \
+        '안정성을 꺼도 낙폭이 나빠지지 않는다 — "MDD −40.2% 로 최악" 서술이 무효다'
+
+
+def test_r5_has_no_single_axis_cell_in_this_axis(catalog):
+    """"R5 칸이 이 표에 없다"가 아직 사실인가.
+
+    있으면 왜-지도가 없다고 거짓말하는 것이고, 동시에 `elsewhere` 항목도 낡은 것이다.
+    R1·R2·R6 는 반대로 **있어야** 한다 — 없으면 "넷 중 R5 만" 이 틀린다.
+    """
+    keys = {m.artifact_key for m in resolve(SERIES_BY_ID['pbr_rules'], catalog).members}
+    assert 'F_pbr_no_r3r4r5' not in keys, \
+        'R5 단독 대조 산출물이 생겼다 — 왜-지도의 "R5 칸이 없다"와 elsewhere 를 지워라'
+    for tag in ('F_pbr_no_r1r3r4', 'F_pbr_no_r2r3r4', 'F_pbr_no_r3r4r6'):
+        assert tag in keys, f'{tag}: 단독 대조가 사라졌다 — "넷 중 R5 만" 서술이 틀린다'
 
 
 def test_why_map_deltas_stay_inside_one_set(catalog):

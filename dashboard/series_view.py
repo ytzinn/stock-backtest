@@ -321,6 +321,30 @@ def provenance_rows(series: Series, catalog: ArtifactCatalog) -> list[dict]:
     return rows
 
 
+def elsewhere_rows(spec: SeriesSpec) -> list[dict]:
+    """이 축에 속하지만 ablation 산출물이 없는 태그 — **어디에 값이 있나.**
+
+    화면이 이 표를 띄우지 않으면 그 태그는 존재하지 않는 것과 같다. 실제로 넷이
+    그 상태였다 — `C_pbr_path_random` 은 채택안 G1 관문의 귀무분포 그 자체인데
+    비교표에도 계보표에도 안 나왔다 (2026-08-15).
+
+    **개발 PC 에 파일이 있는지도 함께 적는다.** 산출물 상당수가 git 미추적이라
+    "서버엔 있는데 여기 없다"가 정상이고, 그 사실을 말하지 않으면 사람이 경로를
+    의심하며 ssh 로 파일을 세러 간다 (계보표를 만든 것과 같은 이유).
+    """
+    rows = []
+    for e in spec.elsewhere:
+        here = [p for p in e.where if (ROOT / p).exists()]
+        rows.append({
+            '전략': e.tag,
+            '값이 있는 곳': ' · '.join(f'`{p}`' for p in e.where),
+            '개발 PC': f'{len(here)}/{len(e.where)}',
+            '왜 비교표에 없나': e.why,
+            '읽을 때': e.note or '—',
+        })
+    return rows
+
+
 def b_type_files(spec: SeriesSpec) -> list[dict]:
     """B형 원본 파일 목록 (전용 뷰가 없을 때의 raw fallback).
 

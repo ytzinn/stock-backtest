@@ -113,6 +113,30 @@ class Delta:
 
 
 @dataclass(frozen=True)
+class Elsewhere:
+    """이 축에 속하지만 **`experiments/ablation/` 에 산출물이 없는** 태그.
+
+    `missing` 과 혼동하면 안 된다. `missing` 은 *"있어야 하는데 없다"* — 유실이거나
+    개발 PC 에 안 받아진 것이고, 화면이 빨간 오류로 띄운다. 여기는 *"애초에 그 형태로
+    존재하지 않는다"* 다. 카탈로그가 `source='file'` 과 `source='summary'` 를 나눠 둔
+    것과 같은 종류의 구별이고, 뭉개면 **정상 상태가 영구 오류로 뜬다.**
+
+    실제로 넷 다 그렇다. `C_pbr_path_random` 은 `run_random_pool.py` fast-path 가
+    `experiments/robustness/` 로 뽑고, 랭킹×컷 2×2 세 태그는 캘린더 민감도 B단계가
+    `experiments/calendar_sens/stage_b.json` 안에서만 굴린다. `run_ablation` 을 한
+    번도 태운 적이 없으니 `{tag}.json` 이 있을 리 없다.
+
+    그래도 **축에는 배정한다.** 안 하면 태그 매트릭스가 `미배정` 이라 부르고 화면
+    어디에도 안 떠서, 판정의 근거가 된 태그가 만들어 두고 잊은 것처럼 남는다.
+    """
+
+    tag: str
+    where: tuple[str, ...]   # 값이 실제로 있는 산출물 (repo 상대 경로)
+    why: str                 # 왜 ablation 산출물이 없나
+    note: str = ''           # 그 값을 읽을 때의 주의 (기간·눈금이 다르다 등)
+
+
+@dataclass(frozen=True)
 class WhyMap:
     """왜-지도 (sub1) — "6개월 뒤 따라잡기"가 목적이다. 판정 재현이 아니다.
 
@@ -151,6 +175,9 @@ class SeriesSpec:
     tags: tuple[str, ...] = ()      # 명시 배정 (우선)
     patterns: tuple[str, ...] = ()  # 명명 규칙 후보
     exclude: tuple[str, ...] = ()   # 패턴에서 뺄 것 (다른 축 소유)
+    # 이 축에 속하지만 ablation 산출물이 없는 태그. 배정으로는 세되(`claimed_keys`)
+    # 비교표 멤버로도 `missing` 으로도 잡지 않는다 — 없는 게 아니라 다른 데 있다.
+    elsewhere: tuple[Elsewhere, ...] = ()
     # 화면에서 함께 묶어 보여줄 세트. **순서가 곧 표시 순서**이고, 세트 사이에는
     # 빈 줄이 들어간다. 비어 있으면 baseline 을 맨 앞으로 올리고 나머지는 이름순인데,
     # 그러면 `D_rim_only` 가 짝(`D_no_r6`)에서 떨어져 on/off 대조가 안 보인다.
@@ -208,6 +235,20 @@ LABELS: dict[str, str] = {
     'D_pbr_no_r3r4':      'D  1/PBR (−R3·R4)',
     'F_pbr_only':         'F  1/PBR + 모멘텀 (−R6)',
     'F_pbr_no_r3r4_parent': 'F  1/PBR (분모=지배지분)',
+    # PBR 룰 조합 축. **이 축에서만 쓰이는 태그에만 붙인다** — 라벨은 전역이라
+    # 여러 축에 든 태그(`F_pbr_r6`·`F_pbr_no_r3r4`)에 이 축의 어법으로 이름을 달면
+    # 다른 축에서 엉뚱하게 읽힌다. 룰 집합을 이름에 넣는 이유는 `F_pbr_no_r1r3r4`
+    # 같은 키가 "무엇이 빠졌나"를 이름으로 말해 주지 않기 때문이다.
+    # `F_pbr_r6` 만 두 축(pbr_rules · ranking_signal)에 든다. 그래서 **양쪽에서 맞는
+    # 이름**을 쓴다 — 룰 축에서는 "R3·R4 를 되돌린 것", 랭킹 축에서는 "RIM 쪽 짝과
+    # 룰이 같은 1/PBR" 이 요점이라 둘 다 필요하다.
+    'F_pbr_r6':           '1/PBR · {R1~R6} 전부',
+    'F_pbr_no_r1r3r4':    '{R2,R5,R6}  − R1',
+    'F_pbr_no_r2r3r4':    '{R1,R5,R6}  − R2',
+    'F_pbr_no_r3r4r6':    '{R1,R2,R5}  − R6',
+    'F_pbr_no_r1r2r3r4':  '{R5,R6}  − R1·R2 (사다리)',
+    'F_pbr_r6only':       '{R6} 만 (사다리)',
+    'F_pbr_nostab':       '{} 안정성 없음 (사다리)',
 }
 
 # raw 문자열이다. 본문의 `\~` 는 **마크다운 이스케이프**라 파이썬이 건드리면 안 된다 —
@@ -530,6 +571,131 @@ _WHY_RANKING = WhyMap(
 )
 
 
+_TTM_REISSUE = 'experiments/runs/2026.07.30._TTM_REISSUE_OFFICIAL.md'
+
+# raw 문자열이다 — 물결표 두 개가 한 줄에 있으면 Streamlit 이 그 사이를 취소선으로
+# 긋는다. 본문의 `\~` 는 마크다운 이스케이프라 파이썬이 건드리면 안 된다.
+_WHY_PBR_RULES = WhyMap(
+    reading=(
+        r'**채택안은 이 표의 1등이 아니다.** `{R1,R5,R6}`(R2 를 뺀 것)이 15.93% 로 '
+        r'채택안 15.82% 를 **+0.11%p** 앞선다. 그런데 그 우위는 21개 리밸런싱 중 '
+        r'**단 한 구간(2025-08-20)의 종목 한 개 교체**에서 전부 나오고, MDD·Sharpe·'
+        r'Robustness 는 소수점까지 같다. SPEC_13 §9-6 "max 선택 금지" 에 따라 '
+        r'교체하지 않았다.',
+        r'**낙폭에서는 채택안이 유일한 최저다.** 다른 룰 조합은 전부 −35.5% \~ −40.2% '
+        r'구간인데 채택안만 **−31.83%** 다(R2 를 뺀 쌍둥이와 동률). CAGR 열만 보고 '
+        r'순위를 매기면 이 축이 실제로 고른 것이 무엇인지 안 보인다.',
+        r'**룰의 기여는 더할 수 없다.** R6 를 아무것도 없는 위에 혼자 켜면 오히려 '
+        r'**해롭고**(`{}` 14.46% → `{R6}` 14.11%, −0.35%p), 같은 R6 를 `{R1,R2,R5}` '
+        r'위에 얹으면 **+1.20%p** 다. 하나씩 뺀 값들을 합산해 "룰별 기여"라 부르면 틀린다.',
+        r'**R1 과 R2 는 부분 대체재다.** R1 이 있으면 R2 는 있으나 마나(−0.11%p)이고, '
+        r'R1 이 없으면 R2 가 **+0.92%p** 로 강하게 일한다. 그래서 "R2 를 빼도 되나"는 '
+        r'R2 만 보고 답할 수 없다.',
+        r'**PBR 경로에서 안정성 레이어는 명확한 순기여다** — 통째로 끄면 −1.36%p 에 '
+        r'MDD 가 −40.2% 로 최악이다. RIM 경로에서 관측된 순감 반전'
+        r'(`F_no_stability_clean` > `F`)은 여기 적용되지 않는다.',
+        r'**R5 칸이 이 표에 없다.** 채택 룰 넷 중 R5 만 단독 대조가 늦게 만들어져'
+        r'(`F_pbr_no_r3r4r5`), 구간 지표 산출물이 아직 없다. 값은 아래 **다른 데 있는 '
+        r'태그** 표의 캘린더 민감도 contrast 로만 존재한다 — R5 를 빼면 net 로그연율 '
+        r'−0.96%p 지만 CI95 가 0 을 포함한다.',
+        r'**캘린더를 바꿔도 이 축의 결론은 확정되지 않는다.** 단일축 contrast 5개'
+        r'(R1·R2·R5·R6·모멘텀)가 **전부** `neutral_or_inconclusive` 라, 방향 일치율의 '
+        r'분모가 0 이다. "캘린더가 룰 결론을 뒤집지 않았다"가 아니라 **뒤집혔는지 잴 수 '
+        r'없었다**는 뜻이다.',
+    ),
+    variable='1/PBR 랭킹·모멘텀·HardFilter 를 고정한 채 **안정성 룰 집합만** 바꾼다. '
+             'R3·R4 는 전 조합에서 빠져 있고(유해로 판정), 바뀌는 것은 R1·R2·R5·R6 의 '
+             '조합이다.',
+    question='현행 채택안의 안정성 룰 `{R1,R2,R5,R6}` 은 왜 이 넷인가? 하나 빼거나 '
+             '전부 끄면 얼마가 달라지나?',
+    failure_mode='"안정성 룰이 많을수록 안전하다"와 그 반대인 "룰은 유니버스만 좁힌다"를 '
+                 '둘 다 막는다. 실제 사다리는 단조가 아니다 — 룰을 더 빼면 더 나빠지다가 '
+                 '전부 빼면 다시 올라간다.',
+    deltas=(
+        Delta('R1 제거', 'F_pbr_no_r3r4', 'F_pbr_no_r1r3r4',
+              '단일축. R1 이 이 조합의 지지 역할을 한다'),
+        Delta('R2 제거', 'F_pbr_no_r3r4', 'F_pbr_no_r2r3r4',
+              '단일축. **오르는데도 채택하지 않았다** — 우위 전부가 2025-08-20 한 구간의 '
+              '종목 1개 교체(363280 → 021050)에서 나온다'),
+        Delta('R6 제거', 'F_pbr_no_r3r4', 'F_pbr_no_r3r4r6', '단일축'),
+        Delta('R3·R4 복원', 'F_pbr_no_r3r4', 'F_pbr_r6',
+              '**2축이다** — 함께 폐기된 쌍이라 한 번에 되돌린다. 어느 쪽이 유해한지는 '
+              '이 값으로 못 가른다 (SPEC_14 는 `C_R3R4` 를 다축으로 분류한다)',
+              crosses_sets=True),
+        Delta('안정성 전체 제거', 'F_pbr_no_r3r4', 'F_pbr_nostab',
+              '**다축**. 네 룰이 한꺼번에 빠진다 — 레이어의 총 기여이지 어느 룰의 기여도 '
+              '아니다', crosses_sets=True),
+        Delta('R1 이 없을 때의 R2', 'F_pbr_no_r1r3r4', 'F_pbr_no_r1r2r3r4',
+              'R1·R2 가 부분 대체재라는 근거. 위의 "R2 제거"(−0.11%p)와 부호가 반대다. '
+              '**사다리 셀이라 판정에는 쓰지 않는다**', crosses_sets=True),
+        Delta('아무것도 없는 위에 R6 만', 'F_pbr_nostab', 'F_pbr_r6only',
+              'R6 를 혼자 켜면 해롭다 — 룰 기여가 덧셈이 아니라는 증거'),
+    ),
+    history=(
+        '**2026-07-18 PBR 경로 안정성 분해.** 미검증 셀 둘(`F_pbr_nostab`·`F_pbr_r6only`)을 '
+        '채워 사다리를 완성하고, `{R1,R2,R5,R6}` 을 채택 후보로 확정했다. 당시 근거는 '
+        '**"CAGR·net·Sharpe·MDD 전 지표 최적"** 이었다. 같은 문서가 **R3·R4 만이 유해**'
+        f'하다고 적었다(복원 시 −1.28%p). (`{_PIT_OFFICIAL}` §2-1)',
+        '**2026-07-30 TTM 재발행에서 그 근거의 절반이 무너졌다.** `{R1,R5,R6}` 이 CAGR·net '
+        '양쪽에서 채택안을 앞질러 **"전 지표 최적"은 더 이상 사실이 아니다.** 그런데도 '
+        '교체하지 않았다 — 우위가 1구간·1종목에서 전부 나오고 리스크 지표가 동일해서다. '
+        f'(`{_TTM_REISSUE}` §7)',
+        '같은 재발행이 **R2 멤버십을 다시 쟀다.** 바뀐 구간 수는 1/21 로 같았지만 '
+        '**교체된 종목이 완전히 달라졌다**(021050↔092230 → 363280→021050). 옛 수치를 '
+        '재검증 없이 인용했으면 존재하지 않는 종목 쌍을 근거로 댈 뻔했다.',
+        '**R1 사다리는 진단 전용이다.** 사용자 요청으로 **결과를 본 뒤** 추가한 셀이라 '
+        '채택 후보가 될 수 없다고 그때 명시됐고, SPEC_14 도 2축 이상 동시 변경이라는 '
+        '이유로 판정에서 뺐다. (SPEC_14 §6-3·§7-4)',
+        '**2026-08-06 판정 contrast 를 실행 전에 못박다가 구멍이 드러났다.** 채택 룰 넷 중 '
+        'R5 만 단독 대조가 아예 없어서 `F_pbr_no_r3r4r5` 를 새로 만들었다. '
+        '(SPEC_14 §6-3, §12 N5)',
+        '**2026-08-10 캘린더 민감도 B단계 — 전부 불확정.** 단일축 5개가 모두 '
+        '`neutral_or_inconclusive` 로 나와 판정은 `NO_AUTOMATIC_ACTION` 이다. 룰이 '
+        '견고하다는 증거도, 흔들린다는 증거도 나오지 않았다.',
+        '**2026-08-11–12 현행 채택안 확정.** 이 룰 집합을 **고정한 채** 모멘텀을 '
+        'MA200 으로, 종목 수를 13 으로 바꾼 것이 지금의 운영 기준이다. 룰 집합 자체는 '
+        '그 두 변경 뒤에 재검토된 적이 없다.',
+    ),
+    warnings=(
+        '**이 축의 어느 행에도 p95 를 대지 마라.** 룰을 바꾸면 유니버스가 바뀌는데, '
+        '조건이 맞는 무작위 분포는 채택안 구성(`{R1,R2,R5,R6}` + 모멘텀)에만 있다'
+        '(`C_pbr_path_random`). `docs/TAG_MATRIX.md` 의 **짝 대조군** 열이 이 축의 '
+        '태그 전부에 `없음` 이라고 적혀 있는 이유다.',
+        '**사다리 셋(`{R5,R6}`·`{R6}`·`{}`)으로 판정하지 마라.** 2축 이상이 동시에 '
+        '달라지는 탐색 셀이고, 그중 R1 사다리는 **결과를 본 뒤 추가**됐다. 방향을 '
+        '읽는 용도이지 후보를 고르는 용도가 아니다.',
+        '**CAGR 순서로 읽으면 이 축이 실제로 고른 것을 놓친다.** 1등(`{R1,R5,R6}`)과 '
+        '채택안의 차이는 0.11%p 인데, 2026-07-16 에 세운 눈금은 '
+        r'**0.4\~2%p 차이는 구간 의존**이다. 그 눈금 아래의 격차다.',
+        '**이 축의 수치는 모멘텀 MA 20/60 · 종목 수 20 계보다.** 현행 채택안은 MA200 · '
+        'n=13 이라 성적표가 다르다 (`F_pbr_no_r3r4` 15.82% vs `F_pbr_ma200_n13` 20.33%). '
+        '여기 값을 현행 성적으로 인용하면 틀린다.',
+    ),
+    understanding=(
+        (r'`{R1,R5,R6}` 이 CAGR·net 에서 채택안을 앞선다 (+0.11%p)', '검증된 사실'),
+        ('그 우위가 1구간(2025-08-20)·종목 1개에서 전부 나온다', '검증된 사실'),
+        ('채택안이 MDD 최저다 (R2 제거 쌍둥이와 동률)', '검증된 사실'),
+        ('R1·R2 가 부분 대체재다 (R1 유무로 R2 기여의 부호가 갈린다)', '검증된 사실'),
+        ('R6 는 혼자 켜면 해롭고 R1·R2·R5 위에서는 도움이 된다', '검증된 사실'),
+        ('PBR 경로에서 안정성 레이어가 순기여다 (RIM 경로와 반대)', '검증된 사실'),
+        ('캘린더 민감도 단일축 5개가 전부 불확정이다', '검증된 사실'),
+        ('R5 단독 기여 — 구간 지표 산출물이 없어 이 표로는 못 잰다', '확실하지 않은 사실'),
+        ('룰끼리 상호작용하는 통로 (어느 종목군에서 겹치나)', '확실하지 않은 사실'),
+        ('R2 를 유지한 것이 옳은지 — 격차가 노이즈 눈금 아래라 어느 쪽도 증명 안 됐다',
+         'Claude 의견'),
+        ('MA200·n=13 으로 바꾼 뒤에도 이 룰 집합이 최적인지', '확실하지 않은 사실'),
+    ),
+    sources=(_PIT_OFFICIAL, _TTM_REISSUE, _SPEC14,
+             'experiments/calendar_sens/stage_b.json',
+             'experiments/analysis/rule_membership.json'),
+    next_step='룰 집합이 정해지자 질문이 둘로 갈라졌다. **이 조합이 같은 유니버스의 무작위 '
+              '추첨을 이기는가**(채택 후보 대조군 축 — G1·G2 는 통과했고 G5 낙폭에서 '
+              '떨어졌다) 와 **캘린더를 바꿔도 이 룰 결론이 유지되는가**(캘린더 민감도 축 — '
+              '전부 불확정으로 나왔다).',
+    next_axes=('benchmarks', 'calendar_bootstrap'),
+)
+
+
 # ── 정본 인벤토리 — 16축 ────────────────────────────────────────────────────
 
 SERIES: tuple[SeriesSpec, ...] = (
@@ -605,6 +771,30 @@ SERIES: tuple[SeriesSpec, ...] = (
         tags=('F_pbr_no_r3r4', 'F_pbr_no_r1r2r3r4', 'F_pbr_no_r1r3r4',
               'F_pbr_no_r2r3r4', 'F_pbr_no_r3r4r6', 'F_pbr_nostab',
               'F_pbr_r6only', 'F_pbr_r6'),
+        # 세 덩어리로 나눈다. **판정에 쓸 수 있는 값인지가 세트를 가른다.**
+        # ① 현행안과 룰 하나만 다른 단일축 대조 ② R3·R4 를 함께 되돌린 2축
+        # ③ 2축 이상이 동시에 달라지는 사다리(SPEC_14 §7-4 탐색 셀, 판정 비사용).
+        # 섞어 놓으면 사후에 추가된 사다리 셀이 단일축 대조와 같은 무게로 읽힌다.
+        groups=(('F_pbr_no_r3r4', 'F_pbr_no_r1r3r4', 'F_pbr_no_r2r3r4',
+                 'F_pbr_no_r3r4r6'),
+                ('F_pbr_r6',),
+                ('F_pbr_no_r1r2r3r4', 'F_pbr_r6only', 'F_pbr_nostab')),
+        # 채택 룰 넷 중 **R5 만** 단독 대조가 늦게 만들어져 구간 지표 산출물이 없다.
+        # 배정하지 않으면 화면에 R1·R2·R6 칸만 있고 R5 칸은 존재 자체가 안 보인다.
+        elsewhere=(Elsewhere(
+            'F_pbr_no_r3r4r5',
+            where=('experiments/calendar_sens/stage_b.json',
+                   'experiments/calendar_sens/stage_b_tables.md',
+                   'experiments/runs/2026.08.10._CALENDAR_SENS_B.md'),
+            why='SPEC_14 §6-3 이 판정 contrast 를 못박다가 "R5 단독 대조가 없다"를 발견해 '
+                '`[확정 2026-08-06]` 로 새로 만든 태그다. 캘린더 민감도 B단계 하네스에서만 '
+                '굴렸고 `run_ablation` 은 아직 태우지 않았다 — 그래서 이 축의 비교표에 '
+                '행이 없다.',
+            note='`C_R5` — R5 를 빼면 net 로그연율 **−0.96%p** 지만 CI95 '
+                 '[−2.00%p, +0.05%p] 가 0 을 포함해 `neutral_or_inconclusive` 다. '
+                 '**반기 gross 참고값이 없다**(`semiannual_gross_ref_full_period: null`) — '
+                 '다른 행의 CAGR 과 같은 눈금이 아니므로 표에 끼워 넣어 읽지 마라.'),),
+        why=_WHY_PBR_RULES,
         status=Status('ADOPTED', '{R1,R2,R5,R6} 채택', '2026-08', _SPEC10)),
 
     SeriesSpec(
@@ -631,6 +821,34 @@ SERIES: tuple[SeriesSpec, ...] = (
                 ('F_momentum_rim', 'F_pbr_r6'),
                 ('F_no_r3r4', 'F_pbr_no_r3r4'),
                 ('D_pbr_no_r3r4', 'D_factor_only', 'F_pbr_no_r3r4_parent')),
+        # 이 축의 표는 랭킹과 밸류에이션 컷이 함께 움직이는 **다축 비교**다. 컷을
+        # 독립 스위치로 뺀 2×2 의 나머지 두 칸이 이 둘인데, 캘린더 민감도 B단계가
+        # 자기 하네스 안에서만 돌려 ablation 산출물이 없다. 배정하지 않으면
+        # "랭킹만의 효과는 다른 곳에 있다"는 왜-지도 문장이 가리키는 태그가
+        # 화면 어디에도 없게 된다.
+        elsewhere=(
+            Elsewhere(
+                'F_rimrank_no_r3r4',
+                where=('experiments/calendar_sens/stage_b.json',
+                       'experiments/calendar_sens/stage_b_tables.md',
+                       'experiments/runs/2026.08.10._CALENDAR_SENS_B.md'),
+                why='SPEC_14 §14-1 랭킹×컷 2×2 전용으로 만든 태그라 캘린더 민감도 B단계 '
+                    '하네스(`scripts/calendar_sens/stage_b.py`)에서만 굴렸다. '
+                    '`run_ablation` 을 태운 적이 없어 구간 지표 산출물이 없다.',
+                note='`contrasts_rank_cut_2x2` 의 `C_RANK_NOCUT` — **컷을 끈 상태의 랭킹 '
+                     '효과.** net 로그연율 −2.31%p(1/PBR 이 앞섬), CI95 는 0 을 포함해 '
+                     '`neutral_or_inconclusive` 다.'),
+            Elsewhere(
+                'F_pbr_no_r3r4_rimcut',
+                where=('experiments/calendar_sens/stage_b.json',
+                       'experiments/calendar_sens/stage_b_tables.md',
+                       'experiments/runs/2026.08.10._CALENDAR_SENS_B.md'),
+                why='위와 같다 — 2×2 의 나머지 한 칸이라 B단계 하네스에서만 산출됐다.',
+                note='`C_RIMCUT`(랭킹 고정·컷만 켬) 의 변량이자 `C_RANK_CUT`(컷 켠 상태의 '
+                     '랭킹 효과) 의 **기준**이다. 컷을 켜면 랭킹의 부호가 뒤집혀 RIM 이 '
+                     '+0.95%p 앞선다 — "어느 랭킹이 낫다"를 컷을 고정하지 않고 말할 수 '
+                     '없는 이유가 이 한 쌍이다.'),
+        ),
         why=_WHY_RANKING,
         status=Status('CLOSED_FAIL', 'RIM 랭킹 근거 상실 → 1/PBR 로 교체', '2026-07', _SPEC10)),
 
@@ -646,6 +864,24 @@ SERIES: tuple[SeriesSpec, ...] = (
         changes='귀무(랜덤 추첨)·EW 벤치와 대조',
         baseline='F_pbr_ma200_n13',
         tags=('U_pbr_path_ew', 'F_pbr_ma200_n13'),
+        # G1 의 귀무분포다. `run_random_pool.py` fast-path 가 뽑으므로 ablation
+        # 산출물이 없고, 그래서 이 축의 **판정 근거인데 화면에 없었다.**
+        elsewhere=(Elsewhere(
+            'C_pbr_path_random',
+            where=('experiments/robustness/random_summary_n13.json',
+                   'experiments/robustness/C_pbr_path_random_n13_draws.csv',
+                   'experiments/robustness/gate_results_F_pbr_ma200_n13.json',
+                   'experiments/robustness/random_summary.json',
+                   'experiments/robustness/C_pbr_path_random_draws.csv',
+                   'experiments/robustness/gate_results.json'),
+            why='무작위 추첨 1,000회를 `scripts/robustness/run_random_pool.py` fast-path 가 '
+                '돌려 `experiments/robustness/` 로 뽑는다. `run_ablation` 을 타지 않으므로 '
+                '`experiments/ablation/` 에는 원래 없다.',
+            note='**종목 수가 다른 두 벌이 같은 태그 이름을 쓴다.** 현행 채택안'
+                 '(`F_pbr_ma200_n13`)의 관문은 `_n13` 쪽(p95 15.61%)이고, `_n13` 이 없는 '
+                 '파일은 조상(`F_pbr_no_r3r4`)을 재던 n=20 벌(p95 14.15%)이다. 섞어 읽으면 '
+                 '2026-08-12 에 회전율을 틀리게 적은 것과 같은 종류의 사고가 난다 — '
+                 '판정에 쓸 값은 `gate_results_*.json` 의 `draws_tag` 가 가리키는 쪽 하나뿐이다.'),),
         paths=('experiments/robustness/C_pbr_path_random_draws.csv',
                'experiments/robustness/random_summary_n13.json',
                'experiments/robustness/gate_results_F_pbr_ma200_n13.json'),
@@ -735,13 +971,19 @@ def claimed_keys(spec: SeriesSpec, available: list[str]) -> list[str]:
         keys += [k for k in available if fnmatch.fnmatchcase(k, pat)]
     for pat in spec.exclude:
         keys = [k for k in keys if not fnmatch.fnmatchcase(k, pat)]
-    return keys
+    # 산출물이 다른 데 있는 태그도 **배정된 것**이다. 빼면 태그 매트릭스가 다시
+    # `미배정` 이라 부르고, 판정 근거인 태그가 잊힌 것처럼 남는다.
+    return keys + [e.tag for e in spec.elsewhere]
 
 
 def resolve(spec: SeriesSpec, catalog: ArtifactCatalog | None = None) -> Series:
     """스펙 + 카탈로그 → 실제 멤버. 없는 키는 **버리지 않고 `missing` 으로 보고한다.**"""
     catalog = catalog if catalog is not None else build_catalog()
     keys = claimed_keys(spec, catalog.keys())
+    # 산출물이 다른 데 있다고 등록 대장이 이미 말한 태그는 **없는 게 아니다.**
+    # `missing` 에 넣으면 화면이 빨간 오류를 영구히 띄우고, 그러면 진짜 유실이
+    # 났을 때 아무도 그 줄을 안 읽는다.
+    elsewhere = {e.tag for e in spec.elsewhere}
 
     seen: set[str] = set()
     members, missing = [], []
@@ -749,7 +991,10 @@ def resolve(spec: SeriesSpec, catalog: ArtifactCatalog | None = None) -> Series:
         if k in seen:
             continue
         seen.add(k)
-        (members if k in catalog else missing).append(k)
+        if k in catalog:
+            members.append(k)
+        elif k not in elsewhere:
+            missing.append(k)
 
     if spec.groups:
         # 세트가 있으면 **그 순서가 정답이다.** baseline 을 위로 올리지 않는다 —

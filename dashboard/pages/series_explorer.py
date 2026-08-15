@@ -42,6 +42,7 @@ from dashboard.series_view import (
     config_matrix,
     delta_rows_for,
     dist_vintage_gap,
+    elsewhere_rows,
     excess_curve,
     grouped_chart_rows,
     n_curve,
@@ -244,6 +245,21 @@ with st.expander(f'📖 이 화면에서 헷갈리는 이름 {len(axis_terms)}�
 if series.missing:
     st.error(f'등록 대장이 가리키는데 산출물이 없는 키: `{"`, `".join(series.missing)}`')
 
+# 이 축에 속하지만 ablation 산출물이 없는 전략. 위의 빨간 오류와 **다른 사실**이다 —
+# 유실이 아니라 애초에 그 형태로 존재하지 않는다. 안 띄우면 판정의 근거가 된 전략이
+# 화면 어디에도 없게 된다 (채택안 G1 의 귀무분포가 실제로 그랬다).
+els = elsewhere_rows(spec)
+if els:
+    with st.expander(f'📦 이 축에 속하지만 비교표에 없는 전략 {len(els)}개 — 값은 어디에 있나',
+                     expanded=False):
+        st.dataframe(pd.DataFrame(els), use_container_width=True, hide_index=True)
+        st.caption(
+            '`experiments/ablation/{키}.json` 이 없는 전략입니다. **없어진 게 아니라 '
+            '`run_ablation` 을 태운 적이 없는 것**이라, 값은 위 경로의 산출물 안에만 '
+            '있습니다. `개발 PC` 는 그 경로 중 몇 개가 이 PC 에 실재하는지입니다 — '
+            '산출물 상당수가 git 미추적이라 **서버가 원본**입니다. '
+            '기간·눈금이 다른 경우가 있으니 `읽을 때` 를 먼저 보세요.')
+
 # ── B형 — 검정/진단 산출물 ─────────────────────────────────────────────────
 
 if spec.kind == 'B':
@@ -334,6 +350,17 @@ else:
                     '플래그를 화면이 다시 해석한 값이 아니라 `build_ablation_pipeline` 로 '
                     '**실제 조립한 파이프라인**에서 읽은 값입니다. 달라지는 조건이 2개 '
                     '이상이면 두 행의 차이를 **어느 한 조건의 효과로 부를 수 없습니다.**')
+
+        # A형에도 `paths` 를 쓰는 축이 있다 — 채택 후보 대조군 축은 관문 산출물
+        # 세 개를 등록해 뒀는데, 원본 목록을 **B형에서만** 그리고 있어서 화면 어디에도
+        # 안 떴다 (2026-08-15 발견). B형 raw fallback 의 규칙("자료가 화면에서 사라지지
+        # 않아야 한다")은 유형과 무관하다.
+        a_files = b_type_files(spec)
+        if a_files:
+            with st.expander(f'📂 이 축의 원본 산출물 파일 {len(a_files)}개'):
+                df_a = pd.DataFrame(a_files)
+                df_a['수정'] = pd.to_datetime(df_a['수정'], unit='s').dt.date
+                st.dataframe(df_a, use_container_width=True, hide_index=True)
 
         with st.expander('🧬 산출물 계보 — 왜 이 전략은 그래프가 없나'):
             st.write('산출물 상당수가 git 미추적이라 개발 PC 와 서버가 다릅니다. '
