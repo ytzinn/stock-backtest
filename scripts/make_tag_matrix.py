@@ -37,7 +37,7 @@ from pathlib import Path
 
 from backtest.ablation import ABLATION_CONFIGS
 from dashboard.artifacts import ScenarioRef
-from dashboard.series import SERIES, _split_variant, claimed_keys
+from dashboard.series import CALENDAR_VARIANTS, SERIES, _split_variant, claimed_keys
 from dashboard.series_view import pipeline_facts
 from dashboard.tags import AXIS_EXPLAINS, class_of, note_of
 
@@ -171,6 +171,23 @@ def render() -> str:
         '  적으면 중복이고, 중복한 설명은 갈라진다). 내용은 `dashboard/tags.py` 소유.',
         '',
         f'총 **{len(tags)}개** 태그.',
+        '',
+        '## 이 표에 행이 없는 것 — 실행 파라미터로 파생된 키',
+        '',
+        '행은 `ABLATION_CONFIGS` 의 키다. 그래서 **설정이 아니라 실행 때 정해지는 것**은',
+        '행이 없다. 산출물은 있는데 여기 안 보인다면 십중팔구 이 둘이다.',
+        '',
+        f'- **종목 수 변형** `{{태그}}_n{{K}}` — `run_ablation --n-stocks K` 가 만든다.',
+        '  현행 채택안의 종목 수 스윕(`F_pbr_ma200_n10`·`_n12`·`_n13`·`_n20`)이 여기 속한다.',
+        '  조건은 부모 태그 행과 같고 **종목 수만** 다르다. 성적 비교는 대시보드',
+        '  `종목 수 민감도` 축에 있다.',
+        f'- **캘린더 변형** `{{태그}}_A`/`_C` — {" · ".join(CALENDAR_VARIANTS.values())}.',
+        '  런타임 파생이라 부모 태그만 설정에 있다. `캘린더 — 위상/빈도` 축 참조.',
+        '',
+        '**일부러 행을 안 만든다.** 넣으려면 이 문서가 `experiments/ablation/` 을 읽어야',
+        '하는데, 그러면 **코드의 순수 함수**라는 성질이 깨져 누가 ablation 을 돌릴 때마다',
+        '`--check` 가 코드와 무관하게 실패한다. 대신 **종목 수** 열이 "태그가 값을 박아',
+        '두는가"를 적어 어디를 봐야 하는지 가리킨다.',
         '',
         '| 태그 | 분류 | 랭킹 신호 | 안정성 룰 | Hard | 스크리너 | 모멘텀 | 밸류에이션 컷 | 종목 수 | 짝 대조군 | 소속 축 | 왜 만들었나 |',
         '|---|---|---|---|---|---|---|---|---|---|---|---|',

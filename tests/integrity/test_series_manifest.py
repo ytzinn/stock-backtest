@@ -666,6 +666,41 @@ def test_matrix_axis_membership_survives_key_suffixes():
             f'매트릭스가 그걸 못 알아본다. 현재: {sorted(axes)}')
 
 
+def test_no_artifact_is_silently_missing_from_the_matrix(catalog):
+    """산출물이 매트릭스에 **행이 없다면 그 이유가 설명돼야** 한다.
+
+    행은 `ABLATION_CONFIGS` 키다. 실행 파라미터로 파생된 키(`_n{K}` 종목 수,
+    `_A`/`_C` 캘린더)는 설정이 아니라 행이 없는데, 그걸 문서가 말하지 않으면 73행을
+    보고 "이게 전부"라고 읽는다 — 실제로 종목 수 스윕 4개가 그렇게 안 보였다
+    (2026-08-15 사용자 발견).
+
+    새로운 종류의 파생 키가 생기면 여기서 걸려서, 문서에 설명을 추가하게 만든다.
+    """
+    from scripts.make_tag_matrix import _base_tag
+
+    unexplained = []
+    for key in catalog.keys():
+        if key in ABLATION_CONFIGS:          # 행이 있다
+            continue
+        parent = _base_tag(key)
+        if parent != key and parent in ABLATION_CONFIGS:   # 알려진 파생 키
+            continue
+        unexplained.append(key)
+    assert not unexplained, (
+        f'매트릭스에 행도 없고 알려진 파생 키도 아닌 산출물: {sorted(unexplained)} — '
+        f'`이 표에 행이 없는 것` 절에 설명을 추가하거나 ABLATION_CONFIGS 에 등록하라')
+
+
+def test_matrix_explains_the_derived_keys_it_omits():
+    """생략한 것을 문서가 실제로 설명하는가. 절이 사라지면 깨진다."""
+    from scripts.make_tag_matrix import render
+
+    body = render()
+    assert '이 표에 행이 없는 것' in body, '생략 설명 절이 사라졌다'
+    for must in ('_n{K}', '--n-stocks', '캘린더 변형', '순수 함수'):
+        assert must in body, f'생략 설명에 `{must}` 이 없다'
+
+
 def test_every_tag_note_points_at_a_real_tag():
     """태그 설명이 실재하는 태그를 가리키는가. 오타면 영영 안 뜬다."""
     from dashboard.tags import CLASSES, TAG_NOTES
