@@ -30,6 +30,8 @@ from dashboard.series_view import (
     MDD_COL,
     b_type_files,
     comparison_rows,
+    compound_curve,
+    excess_curve,
     n_curve,
     provenance_rows,
 )
@@ -291,6 +293,76 @@ else:
                                   legend=dict(orientation='h', y=-0.35, font_size=10))
                 st.plotly_chart(fig, use_container_width=True)
 
+                # ── 누적 수익률 · 알파 ───────────────────────────────────────
+                # 위 막대와 **같은 행·같은 기준**(gross, 게이트 통과 구간)을 쓴다.
+                # 한 탭 안에서 gross 막대와 net 곡선을 섞으면 같은 전략이 두 값으로
+                # 보이고, 그게 이 저장소가 반복해서 밟은 함정이다.
+                def _rows_for(ref):
+                    d = _periods(str(catalog.require(ref.artifact_key).sidecars['periods']))
+                    d = d[(d['rebalance_date'].dt.date >= lo)
+                          & (d['rebalance_date'].dt.date <= hi)]
+                    return d[d['n_gate'] > 0] if 'n_gate' in d.columns else d
+
+                st.subheader('누적 수익률')
+                fig_cum = go.Figure()
+                for ref in picked:
+                    d = _rows_for(ref)
+                    fig_cum.add_trace(go.Scatter(
+                        x=d['rebalance_date'].dt.strftime('%Y-%m'),
+                        y=[v * 100 for v in compound_curve(d['period_return'])],
+                        name=ref.display, mode='lines+markers',
+                        hovertemplate='%{x}<br>누적 %{y:.1f}%<extra></extra>'))
+                for col, name, dash in (('kospi_return', 'KOSPI', 'dash'),
+                                        ('kosdaq_return', 'KOSDAQ', 'dot')):
+                    if col in d0.columns:
+                        fig_cum.add_trace(go.Scatter(
+                            x=d0['rebalance_date'].dt.strftime('%Y-%m'),
+                            y=[v * 100 for v in compound_curve(d0[col])],
+                            name=name, mode='lines',
+                            line=dict(width=1.5, dash=dash, color='#94a3b8')))
+                fig_cum.add_hline(y=0, line_color='#334155', line_width=1)
+                fig_cum.update_layout(
+                    height=360, yaxis_title='누적 수익률 (%)',
+                    xaxis=dict(type='category', tickangle=-45, tickfont_size=10),
+                    margin=dict(t=10, b=60), plot_bgcolor='white',
+                    legend=dict(orientation='h', y=-0.35, font_size=10))
+                st.plotly_chart(fig_cum, use_container_width=True)
+                st.caption(
+                    '구간 수익률을 곱으로 이어 붙인 것입니다 — **gross · 구간 기준**이고 '
+                    '위 슬라이더로 고른 범위만 반영합니다. 거래비용은 빠져 있지 않고 '
+                    '애초에 들어가 있지 않습니다(net 은 아래 구간별 수치 표에 있습니다). '
+                    '**끝값을 연율화해 CAGR 로 쓰지 마세요** — 이 탭은 게이트 통과 구간을 '
+                    '세고 공식 수치는 완결 구간만 셉니다.')
+
+                if 'kospi_return' in d0.columns:
+                    st.subheader('알파 (vs KOSPI)')
+                    fig_a = go.Figure()
+                    for ref in picked:
+                        d = _rows_for(ref)
+                        x = d['rebalance_date'].dt.strftime('%Y-%m')
+                        fig_a.add_trace(go.Bar(
+                            x=x, y=(d['period_return'] - d['kospi_return']) * 100,
+                            name=f'{ref.display} · 구간',
+                            hovertemplate='%{x}<br>구간 알파 %{y:.2f}%p<extra></extra>'))
+                        fig_a.add_trace(go.Scatter(
+                            x=x, y=[v * 100 for v in
+                                    excess_curve(d['period_return'], d['kospi_return'])],
+                            name=f'{ref.display} · 누적', mode='lines+markers', yaxis='y2',
+                            hovertemplate='%{x}<br>누적 초과 %{y:.1f}%p<extra></extra>'))
+                    fig_a.add_hline(y=0, line_color='#334155', line_width=1)
+                    fig_a.update_layout(
+                        height=360, barmode='group', yaxis_title='구간 알파 (%p)',
+                        yaxis2=dict(title='누적 초과 (%p)', overlaying='y', side='right'),
+                        xaxis=dict(type='category', tickangle=-45, tickfont_size=10),
+                        margin=dict(t=10, b=60), plot_bgcolor='white',
+                        legend=dict(orientation='h', y=-0.35, font_size=10))
+                    st.plotly_chart(fig_a, use_container_width=True)
+                    st.caption(
+                        '막대는 구간별 초과(전략 − KOSPI), 선은 **누적 초과**입니다. '
+                        '누적 초과는 구간 알파를 더한 값이 **아니라** 두 누적 곡선의 '
+                        '차이입니다 — 수익률은 곱으로 쌓이므로 더하면 기간이 길수록 '
+                        '어긋납니다. 오른쪽 축이 누적입니다.')
+
                 st.subheader('필터별 통과 종목 수')
                 d = _periods(str(catalog.require(picked[0].artifact_key).sidecars['periods']))
                 d = d[(d['rebalance_date'].dt.date >= lo) & (d['rebalance_date'].dt.date <= hi)]
@@ -345,7 +417,9 @@ else:
                 c[2].metric('p95', f'{p95:.1f}%')
                 fig = go.Figure(go.Histogram(x=cagr, nbinsx=40, marker_color='#cbd5e1',
                                              name='랜덤 분포'))
-                fig.add_vline(x=p95, line_dash='dash', line_color='#dc2626',
+                # 캡션이 '점선'이라 부르므로 실제로도 점선이어야 한다. 말과 그림이
+                # 어긋나면 읽는 사람이 다른 선을 찾는다.
+                fig.add_vline(x=p95, line_dash='dot', line_color='#dc2626',
                               annotation_text=f'p95 {p95:.1f}%')
                 for r in det:
                     v = catalog.require(r.artifact_key).metrics['cagr'] * 100
@@ -356,7 +430,7 @@ else:
                                   margin=dict(t=30, b=30), plot_bgcolor='white',
                                   showlegend=False)
                 st.plotly_chart(fig, use_container_width=True)
-            st.caption('세로선은 이 축의 결정적 실행 CAGR 입니다. 빨간 파선(p95)을 넘어야 '
+            st.caption('세로선은 이 축의 결정적 실행 CAGR 입니다. 빨간 점선(p95)을 넘어야 '
                        '"무작위로도 나올 수 있는 성적"이 아니라고 말할 수 있습니다.')
 
 # ── 미배정 산출물 ───────────────────────────────────────────────────────────

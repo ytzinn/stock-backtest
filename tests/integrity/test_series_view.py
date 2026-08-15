@@ -30,6 +30,8 @@ from dashboard.series_view import (
     SHARPE_COL,
     b_type_files,
     comparison_rows,
+    compound_curve,
+    excess_curve,
     provenance_rows,
 )
 
@@ -154,3 +156,40 @@ def test_provenance_distinguishes_untracked_from_unknown(catalog):
     values = {r['git 추적'] for r in provenance_rows(series, catalog)}
     assert values <= {'추적', '미추적', '판정 불가'}, f'알 수 없는 상태: {values}'
     assert values, '계보 행이 비었다'
+
+
+# ── 누적 곡선 — 곱으로 쌓는가 ────────────────────────────────────────────────
+
+def test_compound_curve_multiplies_and_does_not_add():
+    """누적은 Π(1+r)−1 이다. 더하면 기간이 길수록 어긋난다.
+
+    구간 수익률을 그냥 더해 "누적"이라 부르는 실수는 흔하고, 짧은 구간에서는 값이
+    비슷해 눈으로 안 잡힌다. 20구간짜리 화면에서는 확실히 갈라진다.
+    """
+    r = [0.10, -0.10]
+    assert compound_curve(r) == pytest.approx([0.10, -0.01])   # 합이면 0.0 이 된다
+    assert compound_curve([]) == []
+    assert compound_curve([0.05]) == pytest.approx([0.05])
+
+    acc = 1.0
+    for got, x in zip(compound_curve([0.1, 0.2, -0.05, 0.3]), [0.1, 0.2, -0.05, 0.3]):
+        acc *= 1 + x
+        assert got == pytest.approx(acc - 1)
+
+
+def test_excess_curve_is_a_difference_of_curves_not_a_sum_of_alphas():
+    """누적 초과 = 전략 누적 − 벤치 누적.
+
+    구간 알파를 더한 값과 **다르다.** 화면 캡션이 그렇게 설명하므로, 둘이 실제로
+    갈라지는지 여기서 못 박는다 — 갈라지지 않으면 그 설명이 공허하다.
+    """
+    s = [0.20, 0.15, -0.10, 0.25]
+    b = [0.05, 0.10, -0.05, 0.05]
+
+    got = excess_curve(s, b)
+    assert got[-1] == pytest.approx(compound_curve(s)[-1] - compound_curve(b)[-1])
+
+    naive = sum(x - y for x, y in zip(s, b))
+    assert abs(got[-1] - naive) > 0.01, (
+        f'누적 초과({got[-1]:.4f})와 구간 알파 합({naive:.4f})이 사실상 같다 — '
+        f'"더한 게 아니다"라는 화면 설명이 의미를 잃는다')

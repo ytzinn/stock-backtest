@@ -93,6 +93,34 @@ def comparison_rows(series: Series, catalog: ArtifactCatalog) -> list[dict]:
     return rows
 
 
+def compound_curve(returns) -> list[float]:
+    """구간 수익률을 누적 수익률로 접는다 — Π(1+r) − 1.
+
+    **공식 지표가 아니다. 그림용이다.** 화면이 지표를 다시 계산하지 않는다는 규칙은
+    CAGR·MDD·Sharpe 같은 **판정에 쓰이는 값**에 대한 것이고, 이 함수는 이미 기록된
+    구간 수익률을 눈으로 따라가게 이어 붙일 뿐이다.
+
+    그래도 위험은 남는다: 곡선의 끝값을 연율화하면 공식 CAGR 과 어긋난다. 이 탭이
+    게이트 통과 구간(21)을 쓰는데 공식 수치는 완결 구간(20)만 세기 때문이다. 그래서
+    화면은 축 제목과 캡션에 **기준을 박아** 두고, 끝값을 크게 띄우지 않는다.
+    """
+    out, acc = [], 1.0
+    for r in returns:
+        acc *= 1.0 + float(r)
+        out.append(acc - 1.0)
+    return out
+
+
+def excess_curve(strategy, benchmark) -> list[float]:
+    """누적 초과 = 전략 누적 − 벤치마크 누적.
+
+    구간별 알파를 그냥 더하지 않는다. 수익률은 곱으로 쌓이므로 합으로 재면 기간이
+    길수록 어긋난다. 두 누적 곡선의 차이가 "같은 기간 동안 얼마나 앞섰나"의 정직한 답이다.
+    """
+    s, b = compound_curve(strategy), compound_curve(benchmark)
+    return [x - y for x, y in zip(s, b)]
+
+
 def provenance_rows(series: Series, catalog: ArtifactCatalog) -> list[dict]:
     """산출물 계보 — "왜 이 태그는 그래프가 없나"를 화면에서 답하게 한다.
 
