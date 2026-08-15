@@ -193,6 +193,35 @@ _RANK_NAMES = {
 #: `rim_threshold` 가 설정돼 있어도 컷이 걸리지 않으므로 `n/a` 로 적는다.
 _CUT_INERT_SIGNALS = ('무작위 추첨', '동일가중 전체', '팩터 복합')
 
+#: 종목 수 탐침. **기본값(20)과 겹치지 않는 아무 수**면 된다.
+_N_PROBE = 7
+
+
+def n_stocks_rule(base_tag: str, cfg: dict) -> str:
+    """**태그가 종목 수를 박아 두는가**, 아니면 실행 때 정해지는가.
+
+    숫자 하나로 적으면 안 된다. `n_stocks` 는 `build_ablation_pipeline` 의 인자이고
+    `run_ablation --n-stocks` 로 정해지는 **실행 파라미터**라, 태그 대부분에 대해
+    "20" 이라고 쓰면 거짓이 된다 — 현행 채택안 `F_pbr_ma200` 의 운영 설정은 **13** 이고
+    산출물 키도 `F_pbr_ma200_n13` 이다. 태그와 산출물 키를 뭉갠 것이 2026-08-12 에
+    회전율을 92.31% 대신 95.00% 로 적게 만든 바로 그 사고다.
+
+    그래서 **조립기에 물어본다.** 기본으로 한 번, 기본값과 겹치지 않는 값으로 한 번
+    조립해서 결과가 따라 움직이면 실행 인자이고, 안 움직이면 태그가 박아 둔 것이다.
+    플래그(`random_n`)를 다시 해석하는 대신 함수의 행동을 재는 것이라, "해석 규칙의
+    단일 정의는 `build_ablation_pipeline`" 이라는 이 파일의 규칙과 같은 방식이다.
+    """
+    default = build_ablation_pipeline(base_tag, cfg).n_stocks
+    probed = build_ablation_pipeline(base_tag, cfg, n_stocks=_N_PROBE).n_stocks
+    if default is None:
+        return '상한 없음 (전 종목)'
+    if probed == default:
+        return f'{default} 고정 (추첨)'
+    # "실행 인자" 라고만 적으면 **"n 을 안 건드렸다"** 로 읽힌다. 실제로는 그 반대다 —
+    # n 은 독립변수로 쓸어 본 축이고(`F_pbr_ma200` → `_n10`·`_n12`·`_n13`·`_n20`),
+    # 그 값이 태그가 아니라 **산출물 키**에 붙어 있을 뿐이다. 어디를 봐야 하는지를 적는다.
+    return f'산출물 키 참조 (기본 {default})'
+
 
 @lru_cache(maxsize=None)
 def pipeline_facts(base_tag: str) -> dict:
@@ -228,6 +257,7 @@ def pipeline_facts(base_tag: str) -> dict:
         '스크리너': '✓' if 'FactorScreener' in names else '—',
         '모멘텀': '✓' if any('Momentum' in n for n in names) else '—',
         '밸류에이션 컷': cut,
+        '종목 수': n_stocks_rule(base_tag, cfg),
     }
 
 
@@ -248,6 +278,14 @@ def config_matrix(series: Series) -> list[dict]:
         facts = pipeline_facts(ref.base_tag)
         if not facts:
             continue
+        # **화면은 태그가 아니라 산출물을 그린다.** `pipeline_facts` 는 태그 단위라
+        # 종목 수를 "실행 인자" 로밖에 못 적는데, 산출물 키에 `_n{K}` 가 있으면 그
+        # 실행이 무엇을 골랐는지 이미 안다. 태그 답을 그대로 두면 종목 수 축이
+        # "달라지는 조건 0개" 라고 말하고(그 축의 유일한 변수가 n 인데도),
+        # 채택 산출물 옆에 `기본 20` 이 뜬다 — 태그와 산출물 키를 뭉개는 그 사고다.
+        n = ref.params.get('n_stocks')
+        if n is not None:
+            facts = {**facts, '종목 수': f'{n} (산출물 키)'}
         rows.append({CONFIG_KEY_COL: ref.display, **facts})
     return rows
 

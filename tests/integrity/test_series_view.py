@@ -283,6 +283,66 @@ def test_random_distribution_matches_the_summary_median(catalog):
             UserWarning, stacklevel=2)
 
 
+def test_n_stocks_column_says_who_decides_not_a_bare_number():
+    """종목 수 열이 **숫자가 아니라 출처**를 말하는가.
+
+    `n_stocks` 는 `run_ablation --n-stocks` 로 정해지는 실행 인자다. 태그 대부분에
+    `20` 이라고 적으면 거짓이 된다 — 현행 채택안은 태그 `F_pbr_ma200` · 산출물
+    `F_pbr_ma200_n13`(n=13)이다. 그 구별이 사라져서 2026-08-12 에 n=13 운영이 n=20
+    산출물을 읽었다. 누가 "보기 좋게" 숫자만 남기면 이 검사가 깨져야 한다.
+    """
+    from backtest.ablation import ABLATION_CONFIGS, build_ablation_pipeline
+    from dashboard.series_view import _N_PROBE, n_stocks_rule, pipeline_facts
+
+    assert _N_PROBE != build_ablation_pipeline(
+        'F_pbr_no_r3r4', ABLATION_CONFIGS['F_pbr_no_r3r4']).n_stocks, \
+        '탐침 값이 기본값과 같아졌다 — 세 상태를 더 이상 가르지 못한다'
+
+    by_rule: dict[str, list[str]] = {}
+    for tag, cfg in ABLATION_CONFIGS.items():
+        by_rule.setdefault(n_stocks_rule(tag, cfg), []).append(tag)
+
+    # 세 상태가 전부 살아 있어야 한다. 하나로 뭉개지면 열이 아무것도 말하지 않는다.
+    assert len(by_rule) == 3, f'종목 수 상태가 3개가 아니다: {sorted(by_rule)}'
+
+    fixed = next(v for k, v in by_rule.items() if '고정' in k)
+    assert set(fixed) == {t for t, c in ABLATION_CONFIGS.items() if 'random_n' in c}, \
+        '`고정` 이 무작위 추첨 태그와 어긋난다'
+    uncapped = next(v for k, v in by_rule.items() if '상한 없음' in k)
+    assert uncapped == ['U_pbr_path_ew'], f'상한 없는 태그가 바뀌었다: {uncapped}'
+
+    # 채택 태그는 산출물 쪽을 가리켜야 한다. 여기 숫자가 박히면 n=13 이 안 보인다 —
+    # 이 태그는 산출물이 다섯(n 미기록·10·12·13·20)이라 애초에 한 값으로 못 적는다.
+    adopted = pipeline_facts('F_pbr_ma200')['종목 수']
+    assert adopted.startswith('산출물 키 참조'), (
+        f'채택 태그의 종목 수가 `{adopted}` 로 적힌다 — 태그(F_pbr_ma200)와 '
+        f'산출물(F_pbr_ma200_n13, n=13)의 구별이 사라진다')
+
+
+def test_config_matrix_shows_n_from_the_artifact_key_not_the_tag():
+    """종목 수 축이 "달라지는 조건 0개" 라고 말하면 안 된다.
+
+    화면은 태그가 아니라 **산출물**을 그린다. 태그 단위 답("실행 인자")을 그대로 쓰면,
+    n 이 유일한 변수인 축이 아무것도 안 달라진다고 말하고 채택 산출물(n=13) 옆에
+    `기본 20` 이 뜬다 — 태그와 산출물 키를 뭉개는 그 사고다.
+    """
+    from dashboard.artifacts import build_catalog
+    from dashboard.series import SERIES_BY_ID, resolve
+    from dashboard.series_view import config_matrix, varying_columns
+
+    catalog = build_catalog()
+    if not len(catalog):
+        pytest.skip('experiments/ablation 산출물이 없다 (git 미추적).')
+
+    rows = config_matrix(resolve(SERIES_BY_ID['n_stocks'], catalog))
+    if len(rows) < 2:
+        pytest.skip('종목 수 축 산출물이 이 PC 에 2개 미만이다.')
+    assert varying_columns(rows) == ['종목 수'], (
+        f'종목 수 축에서 달라지는 조건이 `종목 수` 하나가 아니다: {varying_columns(rows)}')
+    assert all('산출물 키' in r['종목 수'] for r in rows), \
+        '종목 수 축 행이 산출물 키의 n 을 안 쓴다 — 전부 "실행 인자" 로 뭉개졌다'
+
+
 def test_cut_inert_paths_really_bypass_the_valuation_cut():
     """"컷 n/a" 표시의 근거 — 그 경로들이 정말 `passes_rim_cut` 을 안 타는가.
 
