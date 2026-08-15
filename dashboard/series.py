@@ -1,4 +1,4 @@
-"""SERIES 매니페스트 — "이 축으로 무엇을 비교하나?"
+"""SERIES 등록 대장 — "이 축으로 무엇을 비교하나?"
 
 카탈로그(`dashboard/artifacts.py`)가 "무엇이 존재하는가"를 답하면, 여기는 **어떤 축으로
 무엇을 나란히 놓는가**를 답한다. 둘을 나눈 이유가 있다.
@@ -9,7 +9,7 @@
 랭킹 분해의 공통 baseline 이고, `D_rim_only` 는 레이어와 LOO 양쪽에 들어간다. "파일을
 시리즈로 분류"하면 한 태그를 한 곳에만 넣게 되어 표현이 불가능해진다.
 
-## 매니페스트가 배정을 소유한다
+## 등록 대장이 배정을 소유한다
 
 명명 규칙(`patterns`)으로 후보를 채우되, 최종 배정은 이 파일이 소유한다. 자동 수집만
 믿으면 새 태그가 조용히 아무 축에도 안 들어가거나 엉뚱한 축에 붙는다. 어디에도 배정되지
@@ -51,7 +51,7 @@ def _split_variant(ref: ScenarioRef) -> ScenarioRef:
 
 
 #: 유형 코드 → (짧은 이름, 이 유형이 무엇인지). **화면이 `A` 라고만 쓰지 않게 하려고**
-#: 매니페스트가 뜻까지 갖는다. 코드만 띄우면 처음 보는 사람은 뜻을 물어볼 데가 없다.
+#: 등록 대장이 뜻까지 갖는다. 코드만 띄우면 처음 보는 사람은 뜻을 물어볼 데가 없다.
 KIND_MEANING: dict[str, tuple[str, str]] = {
     'A': ('태그 성과 비교',
           'ablation 산출물(`{artifact_key}.json`)이 기록한 지표를 나란히 놓는 축이다. '
@@ -109,7 +109,7 @@ class SeriesSpec:
 class Series:
     spec: SeriesSpec
     members: tuple[ScenarioRef, ...]
-    missing: tuple[str, ...] = field(default=())   # 매니페스트엔 있는데 산출물이 없는 키
+    missing: tuple[str, ...] = field(default=())   # 등록 대장엔 있는데 산출물이 없는 키
 
     @property
     def id(self) -> str:

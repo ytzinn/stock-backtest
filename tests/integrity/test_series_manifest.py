@@ -1,11 +1,16 @@
-"""시리즈 매니페스트와 산출물의 정합성 (설계메모 v3 §8 검사 1·2·4·5·6·9).
+"""시리즈 등록 대장과 산출물의 정합성 (설계메모 v3 §8 검사 1·2·4·5·6·9).
 
-매니페스트는 "이 축으로 무엇을 비교하나"를 적은 지도다. 지도가 가리키는 곳에 땅이
+> **파일 이름의 `manifest` 는 옛 이름이다.** 2026-08-15 에 이 개념을 "매니페스트"에서
+> **"등록 대장"**으로 바꿨다 — 이 저장소에서 매니페스트는 이미 다른 두 파일
+> (`experiments/live/dryrun/manifest.yaml`, `experiments/ARTIFACTS_MANIFEST.json`)을
+> 가리키고 있어 셋이 겹쳤다. 파일명·식별자는 git 이력이 끊기지 않게 그대로 뒀다.
+
+등록 대장은 "이 축으로 무엇을 비교하나"를 적은 지도다. 지도가 가리키는 곳에 땅이
 없거나, 땅은 있는데 지도 어디에도 안 적혀 있으면 화면이 조용히 거짓말한다.
 
 여기서 잡는 것:
 
-1. 매니페스트가 가리키는 태그가 실재하는가 (`missing` 이 비어야 한다)
+1. 등록 대장이 가리키는 태그가 실재하는가 (`missing` 이 비어야 한다)
 2. `base_tag` 가 `ABLATION_CONFIGS` 에 실재하는가 — 오타난 태그가 조용히 무시되지 않게
 4. 어디에도 배정 안 된 산출물이 있는가 (실패가 아니라 **warning** — 만들어 놓고 잊은 것)
 5. 한 태그가 여러 축에 들어가도 되는가 (다대다 모델이 실제로 쓰이는지 증명)
@@ -44,7 +49,7 @@ def catalog():
     return c
 
 
-# ── 매니페스트 자체의 형태 (산출물 없이도 항상 돈다) ─────────────────────────
+# ── 등록 대장 자체의 형태 (산출물 없이도 항상 돈다) ─────────────────────────
 
 def test_series_ids_are_unique():
     ids = [s.id for s in SERIES]
@@ -61,7 +66,7 @@ def test_series_shape_is_valid():
 
 
 def test_every_code_on_screen_has_a_meaning():
-    """화면이 `A`·`ARCHIVED` 같은 코드만 띄우지 않게, 뜻이 매니페스트에 있어야 한다.
+    """화면이 `A`·`ARCHIVED` 같은 코드만 띄우지 않게, 뜻이 등록 대장에 있어야 한다.
 
     코드만 보이면 처음 보는 사람은 뜻을 물어볼 데가 없고, 대개 틀린 쪽으로 짐작한다
     (`ARCHIVED` 를 "실험이 틀렸다"로 읽는 것이 대표적이다 — 실제로는 전제가 교체된 것).
@@ -77,7 +82,7 @@ def test_every_code_on_screen_has_a_meaning():
 
 
 def test_glossary_status_table_is_generated_from_the_manifest():
-    """용어사전의 상태 표가 매니페스트 정의에서 생성되는가.
+    """용어사전의 상태 표가 등록 대장 정의에서 생성되는가.
 
     같은 5개 코드를 두 곳에 손으로 적으면 한쪽만 고쳐진다. 용어사전은
     `STATUS_MEANING` 을 읽어 표를 만들므로, 여기서 그 연결이 살아 있는지 확인한다.
@@ -87,7 +92,7 @@ def test_glossary_status_table_is_generated_from_the_manifest():
     body = GLOSSARY_BY_ID['status_codes'].body
     for code, meaning in STATUS_MEANING.items():
         assert f'`{code}`' in body, f'용어사전에 `{code}` 가 없다'
-        assert meaning in body, f'용어사전의 `{code}` 설명이 매니페스트와 다르다'
+        assert meaning in body, f'용어사전의 `{code}` 설명이 등록 대장과 다르다'
 
 
 def test_evidence_documents_exist():
@@ -101,12 +106,12 @@ def test_evidence_documents_exist():
     assert not dead, '근거 문서 경로가 없다:\n  ' + '\n  '.join(dead)
 
 
-# ── 매니페스트 ↔ 산출물 ──────────────────────────────────────────────────────
+# ── 등록 대장 ↔ 산출물 ──────────────────────────────────────────────────────
 
 def test_every_manifest_tag_exists(catalog):
-    """매니페스트가 가리키는 태그가 실재해야 한다. 없으면 화면에 빈 칸이 뜬다."""
+    """등록 대장이 가리키는 태그가 실재해야 한다. 없으면 화면에 빈 칸이 뜬다."""
     dangling = {s.spec.id: list(s.missing) for s in resolve_all(catalog) if s.missing}
-    assert not dangling, f'매니페스트에 있는데 산출물이 없는 태그: {dangling}'
+    assert not dangling, f'등록 대장에 있는데 산출물이 없는 태그: {dangling}'
 
 
 def test_every_base_tag_is_a_real_config(catalog):

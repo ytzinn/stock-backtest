@@ -1,7 +1,7 @@
 """용어사전 (sub2) — 같은 이름이 다른 것을 가리키는 자리의 목록.
 
-내용은 여기 없다. `dashboard/glossary.py` 매니페스트가 소유하고 이 화면은 그리기만
-한다 — 시리즈 매니페스트와 같은 구조다. 설명글을 화면 스크립트에 박으면 검사가 닿지
+내용은 여기 없다. `dashboard/glossary.py` 등록 대장이 소유하고 이 화면은 그리기만
+한다 — 시리즈 등록 대장과 같은 구조다. 설명글을 화면 스크립트에 박으면 검사가 닿지
 않아 조용히 낡는다 (`tests/integrity/test_glossary.py` 가 본문의 숫자를 산출물과 대조한다).
 """
 from __future__ import annotations

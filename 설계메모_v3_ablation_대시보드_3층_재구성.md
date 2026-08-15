@@ -74,7 +74,7 @@
 [ArtifactCatalog]   각 항목: path, artifact_key, exists_local, git_tracked, manifested, generated_at
         │  membership — "이 축으로 무엇을 비교하나?"
         ▼
-[SERIES 매니페스트]  members[] = ScenarioRef 목록 (다대다 허용)
+[SERIES 등록 대장]  members[] = ScenarioRef 목록 (다대다 허용)
         ▼
 [SeriesViewModel] → [A 제네릭 뷰 / B 진단 뷰] → Streamlit main
 ```
@@ -102,7 +102,7 @@ class ScenarioRef:
 
 ### 3-2. 태그 수집 = 파일 스캔 자동 (제외 규칙 필수) `[v3 수정]`
 glob으로 존재하는 artifact를 catalog화. 시리즈 membership은 명명 규칙으로 후보를 채우되
-**할당은 매니페스트가 소유**(수동 override 허용). 기록 목적이므로 자동 수집이 맞다.
+**할당은 등록 대장이 소유**(수동 override 허용). 기록 목적이므로 자동 수집이 맞다.
 
 **단, 그냥 훑으면 유령 태그가 생긴다.** `experiments/ablation/` 에는 여러 태그 결과를 묶은
 요약 파일 `summary.json` · `summary_A.json` · `summary_C.json` 이 함께 있어, 이름만 보면
@@ -138,11 +138,11 @@ dashboard/pages/series_explorer.py   main 층 (드롭다운 = 축 선택)
 `ABLATION_CONFIGS` 키일 때만** 뗀다 — 이름 끝만 보고 자르면 `_A` 로 끝나는 멀쩡한
 태그를 망가뜨린다. "잘랐더니 아는 config 가 나왔다"가 파싱이 옳았다는 증거다.
 
-**검사 10개** (`tests/integrity/test_series_manifest.py`): 매니페스트 태그 실재 / base_tag ∈
+**검사 10개** (`tests/integrity/test_series_manifest.py`): 등록 대장 태그 실재 / base_tag ∈
 ABLATION_CONFIGS / B형 경로 해석 / 미배정 warning / **다대다가 실제로 쓰이는지** /
 캘린더 접미사 분리 / A형 멤버 ≥2 / 두 축의 키 중복 소유 금지 / 근거 문서 실재 / id 유일.
 
-> **근거 문서 검사가 즉시 값을 했다.** 매니페스트를 쓰면서 SPEC 파일명 4개를 틀리게 적었다
+> **근거 문서 검사가 즉시 값을 했다.** 등록 대장을 쓰면서 SPEC 파일명 4개를 틀리게 적었다
 > (`SPEC_05_ablation.md` → 실제 `SPEC_05_backtest.md` 등). 죽은 링크는 근거가 아니라
 > 근거인 척이고, 이 저장소는 같은 실수를 이미 두 번 커밋한 적이 있다.
 
@@ -407,7 +407,7 @@ R1~R5 중 하나를 끈다 (기준 파이프라인 = D_rim_only, RIM 경로).
 
 **무결성 검사는 다른 걸 본다: 파일과 목록이 서로 안 어긋나는가.**
 
-새 대시보드는 "어떤 시리즈에 어떤 태그가 들어간다"는 **매니페스트(목록 파일)** 를 두고,
+새 대시보드는 "어떤 시리즈에 어떤 태그가 들어간다"는 **등록 대장**을 두고,
 화면은 그 목록을 보고 `experiments/` 의 파일을 찾아 읽는다. 그러면 둘이 따로 놀 수 있다 —
 목록엔 있는데 파일이 없거나, 파일 이름은 맞는데 안에 든 게 **다른 설정의 결과**이거나.
 **계산은 전부 정상인데 화면만 거짓말하는 상태**가 된다.

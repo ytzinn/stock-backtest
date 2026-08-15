@@ -14,7 +14,7 @@
 
 | 항목 | 파일 |
 |---|---|
-| sub2 용어사전 — 7항목, 매니페스트 소유 | `dashboard/glossary.py` |
+| sub2 용어사전 — 7항목, 등록 대장 소유 | `dashboard/glossary.py` |
 | 용어사전 페이지 (검색·범위 필터) | `dashboard/pages/glossary.py` |
 | 축별 용어 패널 (숫자 **옆에** 뜬다) | `series_explorer.py` |
 | **B형 전용 뷰 4종** + renderer 레지스트리 | `dashboard/b_views.py` |
@@ -37,7 +37,7 @@
 | 대시보드 오염 수리 (CSV 재계산 삭제 → 산출물 직접 읽기) | `3fd3844` |
 | 무결성 검사 신설 (`tests/integrity/`) | `3fd3844` |
 | `collect()` 공용화 (`backtest/canonical_state.py`) | `3fd3844` |
-| ArtifactCatalog + ScenarioRef 다대다 membership, 16축 매니페스트 | `8823ca5` |
+| ArtifactCatalog + ScenarioRef 다대다 membership, 16축 등록 대장 | `8823ca5` |
 | 캘린더 메타데이터 기록 + 레거시 `ablation.py` 통합·삭제 | `b3561e1` |
 | 종목 수 곡선 산출물화 (`scripts/analysis/n_stocks_curve.py`) | `10d961e`, `611a651` |
 | 검사 7·8번, 산출물 계보 UI, systemd 유닛 편입 | `4a59ef6` |

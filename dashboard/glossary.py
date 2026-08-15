@@ -1,13 +1,13 @@
 """용어사전 (sub2) — 이 저장소에서 **같은 이름이 다른 것을 가리키는 자리**의 목록.
 
-## 왜 산문이 아니라 매니페스트인가
+## 왜 산문이 아니라 등록 대장인가
 
 용어 혼동은 이 프로젝트가 실제로 손해를 본 결함 유형이다. 2026-08-12 회전율 사고
 (`tag` vs `artifact_key`), 2026-08-14 CAGR 1.86%p 오염(구간 수 세 층)이 둘 다 "이름은
 같은데 가리키는 게 다르다"에서 나왔다. 그런 설명을 검토 문서 산문에만 두면 ① 화면 옆에
 없어서 볼 사람이 안 보고 ② 숫자가 바뀌어도 아무도 안 고친다.
 
-그래서 `SeriesSpec.notes` 와 같은 방식을 쓴다 — **매니페스트가 내용을 소유하고, 검사가
+그래서 `SeriesSpec.notes` 와 같은 방식을 쓴다 — **등록 대장이 내용을 소유하고, 검사가
 그 내용을 실제 산출물과 대조한다** (`tests/integrity/test_glossary.py`). 여기 적힌
 23·21·20 이나 −34.14%·−58.12% 는 장식이 아니라 **검사 대상**이다. 산출물이 바뀌면
 검사가 깨져서 이 파일을 고치게 만든다.
@@ -24,7 +24,7 @@ from dataclasses import dataclass
 
 from dashboard.series import STATUS_MEANING
 
-#: 상태 코드 표는 매니페스트(`dashboard/series.py`)의 정의에서 **생성한다.**
+#: 상태 코드 표는 등록 대장(`dashboard/series.py`)의 정의에서 **생성한다.**
 #: 여기 손으로 다시 적으면 화면과 사전이 갈라지고, 갈라지면 한쪽만 고쳐진다.
 _STATUS_TABLE = '\n'.join(f'| **`{code}`** | {meaning} |'
                           for code, meaning in STATUS_MEANING.items())
@@ -87,7 +87,7 @@ GLOSSARY: tuple[Term, ...] = (
         aliases=('base_tag', 'ScenarioRef', 'F_pbr_ma200', '_n13'),
         series=(),
         sources=('dashboard/artifacts.py:43', 'scripts/live/freeze_rebalance.py:141'),
-        incident='2026-08-12 — n=13 운영이 n=20 tape 을 읽어 매니페스트 회전율이 0.9231 대신 0.9500 으로 기록됐다. 에러는 나지 않았다.',
+        incident='2026-08-12 — n=13 운영이 n=20 tape 을 읽어 라이브 매니페스트(`manifest.yaml`)의 회전율이 0.9231 대신 0.9500 으로 기록됐다. 에러는 나지 않았다.',
         body="""
 - **`tag`** (= `base_tag`) — 전략 설정의 이름. `ABLATION_CONFIGS` 의 키다. 예: `F_pbr_ma200`
 - **`artifact_key`** — 산출물 파일의 이름. `{tag}_n{종목수}` 규약. 예: `F_pbr_ma200_n13`
@@ -212,6 +212,32 @@ FAIL 인 것도 일별 net −58.12% 기준이고, 이것이 현행 채택 보�
 > **절단 곡선은 gross · 구간 기준이다.** net 과 일별 MDD 는 이 방법으로 구할 수 없다 —
 > 회전율이 n 에 따라 달라지고, 일별 지표의 SSOT 는 NAV 이기 때문이다. 곡선의
 > MDD·Sharpe 를 [mdd_basis] 의 일별 값과 비교하지 마라.
+"""),
+
+    Term(
+        id='registry_vs_manifest',
+        term='등록 대장 vs 매니페스트',
+        one_line='한 저장소에서 "매니페스트"가 세 가지를 가리켰다. 축 목록은 이제 등록 대장이라 부른다.',
+        aliases=('manifest', '매니페스트', 'series.py', 'ARTIFACTS_MANIFEST', 'manifest.yaml'),
+        series=(),
+        sources=('dashboard/series.py', 'experiments/live/dryrun/manifest.yaml',
+                 'experiments/ARTIFACTS_MANIFEST.json'),
+        incident='',
+        body="""
+2026-08-15 이전에는 셋을 전부 "매니페스트"라고 불렀다. 서로 다른 것들이다.
+
+| 지금 이름 | 무엇 | 어디 |
+|---|---|---|
+| **등록 대장** | 어떤 축으로 무엇을 비교하나. 16축의 배정을 **소유**한다 | `dashboard/series.py` |
+| **라이브 매니페스트** | 이번 리밸런싱에 실제로 편입할 종목·예상 회전율 | `experiments/live/dryrun/manifest.yaml` |
+| **산출물 매니페스트** | git 미추적 대용량 산출물의 sha256 무결성 목록 | `experiments/ARTIFACTS_MANIFEST.json` |
+
+**등록 대장**은 "여기 등록된 것이 공식"이라는 뜻이다. 자동 수집(명명 규칙)으로 후보를
+채우되 **최종 배정은 대장이 소유**하고, 어디에도 등록되지 않은 산출물은 조용히 사라지지
+않고 경고로 드러난다(`unassigned()`).
+
+> `tests/integrity/test_series_manifest.py` 는 **파일 이름만 옛 말로 남아 있다.**
+> git 이력이 끊기지 않게 식별자·파일명은 그대로 뒀다 — 내용은 전부 등록 대장이다.
 """),
 
     Term(
