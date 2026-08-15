@@ -1,0 +1,172 @@
+"""태그 조건 매트릭스 생성기 — `docs/TAG_MATRIX.md`.
+
+## 왜 필요한가
+
+`ABLATION_CONFIGS` 는 **플래그**를 담는다. 그런데 그 플래그를 조건으로 바꾸려면 규칙을
+알아야 한다: `stability_rules` 가 있으면 그 집합, 없으면 `stability_r6`(기본 True)로
+R6 만 빼고, `rank_mode` 가 없으면 `use_rim_filter` 에 따라 RIM 또는 무작위, 밸류에이션
+컷은 경로마다 기본이 다르다. 그 해석을 사람이 머릿속으로 하면 **틀린다.**
+
+2026-08-15 에 실제로 틀렸다. `D_rim_only` 와 `D_pbr_only` 를 "랭킹만 다른 짝"으로 보고
+증분을 냈는데, 실제로는 **랭킹·R6·밸류에이션 컷 셋**이 함께 달랐다. 이름과 플래그만
+보면 안 보이고, 조건으로 펴 놓으면 한눈에 보인다.
+
+## 무엇을 담는가
+
+**코드에서만 결정되는 것**만 담는다 — 조건, 소속 축, 짝이 맞는 랜덤 대조군.
+성과 수치는 담지 않는다. 재발행 때마다 낡을 뿐 아니라 `docs/CANONICAL.md` 와 권위가
+겹치기 때문이다. 이 문서는 **코드의 순수 함수**이고, 그래서 `--check` 가 의미를 갖는다.
+
+## 짝이 맞는 대조군
+
+`D ≥ C_p95` 같은 관문을 물으려면 **같은 유니버스에서 무작위로 뽑은** 분포가 있어야 한다.
+룰 구성이 다르면 "랭킹의 기여"와 "유니버스가 달라서"가 분리되지 않는다 (SPEC_10 §1).
+그래서 각 태그마다 조건이 일치하는 랜덤 시나리오를 찾아 적고, 없으면 **없다고 적는다** —
+없는 걸 모르면 엉뚱한 분포에 대보고 FAIL 이라 부르게 된다.
+
+실행:
+    venv/bin/python -m scripts.make_tag_matrix           # 생성
+    venv/bin/python -m scripts.make_tag_matrix --check   # 낡았으면 종료코드 1
+"""
+from __future__ import annotations
+
+import argparse
+import logging
+import sys
+from pathlib import Path
+
+from backtest.ablation import ABLATION_CONFIGS
+from dashboard.series import SERIES
+from dashboard.series_view import pipeline_facts
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s',
+                    datefmt='%H:%M:%S')
+log = logging.getLogger(__name__)
+
+ROOT = Path(__file__).resolve().parent.parent
+OUT = ROOT / 'docs/TAG_MATRIX.md'
+
+#: 대조군이 되려면 이 조건들이 전부 같아야 한다. 랭킹 신호는 당연히 다르다
+#: (한쪽은 무작위 추첨) — 그게 관문이 재려는 바로 그 차이다.
+_MATCH_KEYS = ('Hard 필터', '안정성 룰', '스크리너', '모멘텀')
+
+_RANDOM_SIGNALS = ('무작위 추첨',)
+
+
+def _axes_of(tag: str) -> list[str]:
+    """이 태그가 등록된 축들. 다대다라 여럿일 수 있다."""
+    return [s.id for s in SERIES if tag in s.tags]
+
+
+def _random_pool() -> dict[str, dict]:
+    return {t: f for t in sorted(ABLATION_CONFIGS)
+            if (f := pipeline_facts(t)) and f['랭킹 신호'] in _RANDOM_SIGNALS}
+
+
+def matched_benchmark(tag: str, randoms: dict[str, dict]) -> str:
+    """조건이 일치하는 무작위 대조군. 없으면 `—`.
+
+    **없다고 적는 것이 이 열의 요점이다.** `D_pbr_no_r3r4`(룰 {R1,R2,R5,R6})에 맞는
+    랜덤 분포는 없는데, 그걸 모르고 `C_stability_random`(전 6룰) p95 에 대보면 유니버스가
+    다른 비교를 관문 판정처럼 읽게 된다.
+    """
+    facts = pipeline_facts(tag)
+    if not facts or facts['랭킹 신호'] in _RANDOM_SIGNALS:
+        return '—'
+    hits = [t for t, f in randoms.items()
+            if all(f[k] == facts[k] for k in _MATCH_KEYS)]
+    return ' · '.join(f'`{t}`' for t in hits) if hits else '**없음**'
+
+
+def render() -> str:
+    randoms = _random_pool()
+    tags = sorted(ABLATION_CONFIGS)
+
+    lines = [
+        '# 태그 조건 매트릭스',
+        '',
+        '> **생성물이다. 손으로 고치지 마라.** `scripts/make_tag_matrix.py` 가 만든다.',
+        '> 값은 플래그를 다시 해석한 것이 아니라 `build_ablation_pipeline` 으로 **실제',
+        '> 조립한 파이프라인**에서 읽는다 — 해석 규칙의 단일 정의가 그 함수이기 때문이다.',
+        '',
+        '성과 수치는 없다. 이 문서는 **코드의 순수 함수**이고, 수치의 권위는',
+        '`docs/CANONICAL.md` 와 산출물에 있다.',
+        '',
+        '## 읽는 법',
+        '',
+        '- **안정성 룰** — 실제로 적용되는 룰 집합. `stability_r6`·`stability_rules` 를',
+        '  해석한 결과다.',
+        '- **밸류에이션 컷** — RIM 적정가 대비 고평가 종목을 빼는 단계. 랭킹을 1/PBR 로',
+        '  바꾸면 **함께 사라진다** — 두 조건이 한 몸이라 "랭킹만의 효과"를 잴 수 없다.',
+        '- **짝 대조군** — 조건이 같은 무작위 추첨 시나리오. `D ≥ C_p95` 같은 관문은',
+        '  **이 열에 값이 있을 때만** 물을 수 있다. `없음` 이면 유니버스가 다른 분포에',
+        '  대보게 되므로 관문 판정을 내리면 안 된다 (SPEC_10 §1).',
+        '- **소속 축** — 대시보드 등록 대장(`dashboard/series.py`)에서 이 태그를 쓰는 축.',
+        '  비어 있으면 화면 어디에도 안 뜬다.',
+        '',
+        f'총 **{len(tags)}개** 태그.',
+        '',
+        '| 태그 | 랭킹 신호 | 안정성 룰 | Hard | 스크리너 | 모멘텀 | 밸류에이션 컷 | 짝 대조군 | 소속 축 |',
+        '|---|---|---|---|---|---|---|---|---|',
+    ]
+
+    for tag in tags:
+        f = pipeline_facts(tag)
+        if not f:
+            continue
+        axes = _axes_of(tag)
+        lines.append(
+            f'| `{tag}` | {f["랭킹 신호"]} | {f["안정성 룰"]} | {f["Hard 필터"]} | '
+            f'{f["스크리너"]} | {f["모멘텀"]} | {f["밸류에이션 컷"]} | '
+            f'{matched_benchmark(tag, randoms)} | '
+            f'{", ".join(axes) if axes else "**미배정**"} |')
+
+    orphans = [t for t in tags if not _axes_of(t)]
+    unbenched = [t for t in tags
+                 if matched_benchmark(t, randoms) == '**없음**']
+    lines += [
+        '',
+        '## 관문을 물을 수 없는 태그',
+        '',
+        f'짝이 맞는 무작위 대조군이 없는 태그가 **{len(unbenched)}개** 있다. 이들에게 '
+        '`D ≥ C_p95` 형태의 관문을 물으면, 룰 구성이 다른 유니버스에서 뽑은 분포와 '
+        '견주는 것이라 판정이 성립하지 않는다.',
+        '',
+    ]
+    lines += [f'- `{t}`' for t in unbenched] or ['- (없음)']
+    lines += [
+        '',
+        '## 등록 대장에 없는 태그',
+        '',
+        f'축 어디에도 안 들어간 태그가 **{len(orphans)}개**. 화면에 안 뜨므로 '
+        '만들어 두고 잊기 쉽다.',
+        '',
+    ]
+    lines += [f'- `{t}`' for t in orphans] or ['- (없음)']
+    lines.append('')
+    return '\n'.join(lines)
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description='태그 조건 매트릭스 생성')
+    ap.add_argument('--check', action='store_true',
+                    help='낡았으면 종료코드 1 (파일을 쓰지 않는다)')
+    args = ap.parse_args()
+
+    body = render()
+    if args.check:
+        # 줄바꿈을 정규화해 비교한다. git 이 CRLF/LF 로 다르게 체크아웃해도 같은
+        # 내용이면 같다고 봐야 한다 (make_canonical 의 _sha256 과 같은 이유).
+        current = OUT.read_text(encoding='utf-8') if OUT.exists() else ''
+        if current.replace('\r\n', '\n') != body.replace('\r\n', '\n'):
+            log.error('%s 가 낡았다 — `python -m scripts.make_tag_matrix` 로 재생성하라', OUT)
+            sys.exit(1)
+        log.info('%s 최신 상태', OUT)
+        return
+
+    OUT.write_text(body, encoding='utf-8')
+    log.info('%s 생성 (%d개 태그)', OUT, len(ABLATION_CONFIGS))
+
+
+if __name__ == '__main__':
+    main()

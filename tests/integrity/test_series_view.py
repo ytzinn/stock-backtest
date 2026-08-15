@@ -281,3 +281,42 @@ def test_random_distribution_matches_the_summary_median(catalog):
             + '. 화면이 경고로 알리고 있다. 해소하려면 랜덤 시나리오를 현행 코드로 '
               '재실행해야 하는데 그건 기준선 재산출이라 사용자 승인이 필요하다.',
             UserWarning, stacklevel=2)
+
+
+def test_cut_inert_paths_really_bypass_the_valuation_cut():
+    """"컷 n/a" 표시의 근거 — 그 경로들이 정말 `passes_rim_cut` 을 안 타는가.
+
+    `rim_threshold` 는 객체에 남아 있지만 `score_and_rank` 를 통째로 오버라이드하면
+    기본 구현의 컷 분기가 실행되지 않는다. 값만 보고 `✓` 로 적으면 "고평가 종목을
+    뺐다"는 없는 사실이 화면에 생긴다 (2026-08-15 매트릭스 만들며 발견).
+
+    RIM 경로는 반대로 **기본 구현을 그대로 써야** 컷이 걸린다 — 그것도 함께 못 박는다.
+    """
+    from backtest.ablation import ABLATION_CONFIGS, build_ablation_pipeline
+    from backtest.pipeline import BacktestPipeline
+    from dashboard.series_view import _CUT_INERT_SIGNALS, pipeline_facts
+
+    seen = set()
+    for tag in ABLATION_CONFIGS:
+        facts = pipeline_facts(tag)
+        if not facts:
+            continue
+        p = build_ablation_pipeline(tag, ABLATION_CONFIGS[tag])
+        overrides = type(p).score_and_rank is not BacktestPipeline.score_and_rank
+        signal = facts['랭킹 신호']
+        seen.add(signal)
+
+        if signal in _CUT_INERT_SIGNALS:
+            assert overrides, (
+                f'{tag}({signal}): 기본 `score_and_rank` 를 쓰는데 컷을 n/a 로 적고 있다 — '
+                f'실제로는 컷이 걸린다')
+            assert facts['밸류에이션 컷'] == 'n/a'
+        elif signal == 'RIM 상승여력':
+            assert not overrides, (
+                f'{tag}: RIM 경로가 `score_and_rank` 를 오버라이드한다 — 컷 표시 근거를 '
+                f'다시 확인하라')
+            # RIM 경로라고 컷이 항상 켜진 것은 아니다. SPEC_14 §14-1 이 컷을 랭킹과
+            # **독립 스위치**로 뺐고, `F_rimrank_no_r3r4` 가 그 2×2 의 한 칸이다.
+            assert facts['밸류에이션 컷'] in ('✓', '—')
+
+    assert {'무작위 추첨', 'RIM 상승여력'} <= seen, '검사가 공허하다 — 경로가 안 잡혔다'

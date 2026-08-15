@@ -189,6 +189,10 @@ _RANK_NAMES = {
     '_AllEqualWeightPipeline':     '동일가중 전체',
 }
 
+#: 이 경로들은 `score_and_rank` 를 오버라이드해 `passes_rim_cut` 을 호출하지 않는다.
+#: `rim_threshold` 가 설정돼 있어도 컷이 걸리지 않으므로 `n/a` 로 적는다.
+_CUT_INERT_SIGNALS = ('무작위 추첨', '동일가중 전체', '팩터 복합')
+
 
 @lru_cache(maxsize=None)
 def pipeline_facts(base_tag: str) -> dict:
@@ -210,13 +214,20 @@ def pipeline_facts(base_tag: str) -> dict:
     if type(p).__name__ == '_PBRRankPipeline' and getattr(p, 'equity_mode', '') == 'parent':
         rank = '1/PBR (지배지분)'
 
+    # 밸류에이션 컷이 **실제로 거는가**. `rim_threshold` 값만 보면 안 된다 —
+    # 무작위·동일가중·팩터 경로는 `score_and_rank` 를 통째로 오버라이드해서
+    # `passes_rim_cut` 을 아예 호출하지 않는다. 값은 남아 있는데 걸리지 않으므로
+    # `✓` 로 적으면 "고평가 종목을 뺐다"는 없는 사실이 생긴다.
+    cut = 'n/a' if rank in _CUT_INERT_SIGNALS else (
+        '✓' if getattr(p, 'rim_threshold', None) is not None else '—')
+
     return {
         '랭킹 신호': rank,
         'Hard 필터': '✓' if 'HardFilter' in names else '—',
         '안정성 룰': '·'.join(rules) if rules else '—',
         '스크리너': '✓' if 'FactorScreener' in names else '—',
         '모멘텀': '✓' if any('Momentum' in n for n in names) else '—',
-        '밸류에이션 컷': '✓' if getattr(p, 'rim_threshold', None) is not None else '—',
+        '밸류에이션 컷': cut,
     }
 
 

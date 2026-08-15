@@ -437,3 +437,21 @@ def test_config_matrix_reads_the_real_pipeline(catalog):
         'R6 차이가 사라졌다 — 증분표의 짝(D_no_r6)을 다시 검토하라'
     assert rim['밸류에이션 컷'] != pbr['밸류에이션 컷'], \
         '밸류에이션 컷 차이가 사라졌다 — "본질적으로 다축"이라는 서술을 고쳐라'
+
+
+def test_tag_matrix_is_current():
+    """`docs/TAG_MATRIX.md` 가 코드와 맞는가.
+
+    이 문서는 **코드의 순수 함수**다 (조건·소속 축·짝 대조군만 담고 성과 수치는 안 담는다).
+    그래서 낡았는지 기계가 판정할 수 있고, 낡으면 실패해야 한다 — 앞선 사례가
+    `tests/baselines/SCENARIO_REGISTRY.json` 이다. 2026-07-12 에 33개로 만들어졌고
+    지금 태그는 72개인데, 신선도 검사가 없어서 **아무도 모른 채 39개가 빠져 있었다.**
+    """
+    import subprocess
+    import sys
+
+    r = subprocess.run([sys.executable, '-m', 'scripts.make_tag_matrix', '--check'],
+                       cwd=ROOT, capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, (
+        'TAG_MATRIX.md 가 낡았다 — `python -m scripts.make_tag_matrix` 로 재생성하라\n'
+        + (r.stderr or r.stdout))
