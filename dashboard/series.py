@@ -88,6 +88,31 @@ class Status:
         return STATUS_MEANING.get(self.code, '')
 
 
+#: `내 이해` 칸에 붙일 수 있는 라벨. 이 저장소의 문서 표기 규약과 같다 —
+#: 확인한 것과 해석한 것을 같은 무게로 적으면 나중에 구별할 방법이 없다.
+CONFIDENCE = ('검증된 사실', 'Claude 의견', '확실하지 않은 사실')
+
+
+@dataclass(frozen=True)
+class WhyMap:
+    """왜-지도 (sub1) — "6개월 뒤 따라잡기"가 목적이다. 판정 재현이 아니다.
+
+    성적표(A형 비교표)는 **무엇이 나왔나**를 답하지만 **왜 이 축이 있고 무엇이 결정
+    됐나**는 답하지 못한다. 그 계보는 SPEC·검토 문서에 흩어져 있어서, 6개월 뒤에
+    화면만 보면 "그래서 이걸 왜 봤더라"가 된다.
+
+    `history` 가 핵심이다. 결론만 적으면 다음 사람이 같은 실험을 다시 한다.
+    """
+
+    variable: str                                   # 무엇을 바꾸나
+    question: str                                   # 이 축이 답하는 질문
+    failure_mode: str                               # 이 축이 막는 착각
+    history: tuple[str, ...]                        # 먹여준 결정 (시간순)
+    warnings: tuple[str, ...] = ()                  # 탐색 경고
+    understanding: tuple[tuple[str, str], ...] = ()  # (세부, 라벨)
+    sources: tuple[str, ...] = ()                   # 근거 문서 (repo 상대 경로)
+
+
 @dataclass(frozen=True)
 class SeriesSpec:
     id: str
@@ -107,6 +132,7 @@ class SeriesSpec:
     paths: tuple[str, ...] = ()     # B형 원본 (repo 상대 glob)
     renderer: str | None = None     # B형 전용 뷰 키
     notes: str = ''                 # 축을 처음 보는 사람에게 필요한 배경 (마크다운)
+    why: WhyMap | None = None       # 왜-지도 (sub1). 없으면 화면에 그 칸이 안 뜬다
 
 
 @dataclass(frozen=True)
@@ -199,6 +225,84 @@ _LOO_NOTES = r"""
 """
 
 
+_APPENDIX_A = 'docs/설계/SPEC_05_부록A_StabilityFilter검증.md'
+
+_WHY_LAYERS = WhyMap(
+    variable='필터 레이어를 A→G 로 하나씩 쌓는다 (Hard → Stability → 스크리너/모멘텀 → RIM). '
+             'H 는 G 에서 Stability 를 뺀 대조군으로 만들어졌다.',
+    question='각 레이어가 성적에 얼마나 기여하나? 특히 **C→D 차이가 RIM 모델 자체의 기여**다.',
+    failure_mode='"파이프라인 전체가 좋다"는 뭉뚱그린 주장. 어느 레이어가 일하는지 모른 채 '
+                 '전부 유지하면, 사족인 레이어가 비용과 회전율만 올리며 남는다.',
+    history=(
+        '**2026-07-02** Phase 2 ablation 최초 실행 — 레이어별 기여를 처음 관측했다.',
+        '**2026-07-05 팩터 스크리너 폐기.** E(스크리너 추가)가 D 보다 **−5.7%p** 였다. '
+        '현행 경로에서 빠졌고, 그래서 지금 채택안에는 스크리너가 없다. (부록A §0)',
+        '**2026-07-05 게이트 지표가 틀렸다는 지적.** 당시 게이트는 `C > B (p95 기준)` 였는데 '
+        'Stability 는 상방이 아니라 **하방을 막는** 필터다 — B→C 에서 p5 +2.63%p · '
+        '중앙값 +2.12%p 인데 p95 는 **−0.19%p** 로 오히려 낮아진다. 상방 지표로 판정하면 '
+        '"기여 없음"이라는 반대 결론이 나온다. (부록A §0·§1)',
+        '**2026-07 RIM 랭킹 폐기 → 1/PBR 경로로 교체.** 이 축의 계보는 여기서 끝났다. '
+        '이후 결정은 PBR 경로 축들(`pbr_rules`·`momentum_grid`)에서 이어진다.',
+    ),
+    warnings=(
+        '**H 는 Stability 대조군이 아니다.** `H_no_stability` 는 `use_stability=False` 인 동시에 '
+        '`use_screener=True` 인데 F 는 스크리너가 꺼져 있다 — 두 축이 함께 달라져 교란됐다. '
+        '**F−H 를 "Stability 의 기여"로 읽으면 틀린다.** (부록A §2, 지금도 코드가 그렇다)',
+        '**A~C 와 D~H 는 값의 종류가 다르다.** 앞 셋은 무작위 추첨 500회의 **중앙값**이고 '
+        '뒤는 **단일 결정적 실행**이다. 그래서 화면에서 두 덩어리를 떼어 그린다.',
+        '이 축은 **RIM 랭킹 경로**의 기록이다. 현행 채택안은 1/PBR 랭킹이라 계보가 다르다 — '
+        '여기 수치를 현행 성적으로 인용하면 틀린다.',
+    ),
+    understanding=(
+        ('레이어를 쌓아 기여를 분리한다는 논리', '검증된 사실'),
+        ('스크리너 폐기 근거 (E vs D −5.7%p)', '검증된 사실'),
+        ('H 의 교란 (stability·screener 동시 변경)', '검증된 사실'),
+        ('"Stability 는 하방 방어형 필터"라는 해석', 'Claude 의견'),
+        ('레이어별 차이가 통계적으로 유의한지', '확실하지 않은 사실'),
+    ),
+    sources=(_APPENDIX_A, 'docs/설계/SPEC_05_backtest.md'),
+)
+
+_WHY_R6 = WhyMap(
+    variable='R6(adjROE < 요구수익률이면 탈락)만 껐다 켠다. 나머지 구성은 세트 안에서 고정.',
+    question='안정성 필터 **안에서** R6 이 실제로 일하는가? 6개 룰 중 주력인가?',
+    failure_mode='"안정성 필터가 통째로 기여한다"는 뭉뚱그린 착각. 어느 룰이 일하는지 모르면 '
+                 '사족인 룰이 유니버스만 좁히며 남는다.',
+    history=(
+        '**2026-07-05** R6 을 단독 격리해 처음 쟀다 — 랜덤 유니버스 기준 중앙값 **+1.39%p**, '
+        'p5 +0.93%p, p95 +0.90%p. 하방만 막는 게 아니라 **수익·하방 동시**로 움직여, '
+        '필터 내부의 **주력**으로 판단했다. (부록A §1)',
+        '같은 문서에서 **R1~R5 합계**는 중앙값 +0.73%p · p5 +1.70%p 로 **하방 방어 편중**이었다. '
+        '다만 R1~R5 **개별**은 그때까지 한 번도 격리된 적이 없었고, 그래서 `안정성 룰 개별` 축이 '
+        '따로 만들어졌다.',
+        '가설 `R6 > R1≈R4≈R5 > R2≈R3` 은 **불확실**로 남았다 — R6 격리치 외에는 측정된 적이 '
+        '없다. (부록A G-4)',
+        '**현행 채택안은 R6 을 유지한다** — `{R1,R2,R5,R6}`. 다만 그 결정은 이 축(RIM 경로)이 '
+        '아니라 PBR 경로의 룰 조합 축에서 내려졌다.',
+    ),
+    warnings=(
+        '**세트를 가로질러 비교하지 마라.** 쌍 안의 차이만이 R6 의 기여다. `C_no_r6` 와 '
+        '`G_full` 을 견주면 스크리너·모멘텀까지 달라져 있다.',
+        '**부호가 세트마다 뒤집힌다.** 지금 산출물 기준 C·D·F 에서는 R6 을 켜는 쪽이 낫지만 '
+        '**E·G 에서는 끄는 쪽이 낫다.** E·G 는 팩터 스크리너가 켜진 두 세트이고(`use_screener=True`), '
+        '그 스크리너는 2026-07-05 에 폐기됐다. `[Claude 의견]` 스크리너와 R6 이 같은 종목을 '
+        '두 번 거르는 상호작용으로 보이나 **검증된 적 없다.**',
+        '`_no_r6` 의 **holdings** 4개는 상폐 판정 버그 수정(2026-07-06) 이전에 만들어져 '
+        '**종목 단위 표시는 신뢰할 수 없다.** 집계 지표는 영향 없음이 확인됐다 '
+        '(GAPS.md `PROV-ABL-001`).',
+    ),
+    understanding=(
+        ('LOO 로 룰 기여를 분리한다는 논리', '검증된 사실'),
+        ('R6 격리치 +1.39%p (2026-07-02 랜덤 기준)', '검증된 사실'),
+        ('E·G 에서 R6 의 부호가 뒤집힌다', '검증된 사실'),
+        ('뒤집힘의 원인이 스크리너와의 상호작용', 'Claude 의견'),
+        ('R1~R5 개별 기여의 순위', '확실하지 않은 사실'),
+        ('R6 을 유지한다는 현행 결정이 RIM 경로 근거와 무관한지', '확실하지 않은 사실'),
+    ),
+    sources=(_APPENDIX_A, 'docs/audit/GAPS.md'),
+)
+
+
 # ── 정본 인벤토리 — 16축 ────────────────────────────────────────────────────
 
 SERIES: tuple[SeriesSpec, ...] = (
@@ -208,7 +312,13 @@ SERIES: tuple[SeriesSpec, ...] = (
         baseline='D_rim_only',
         tags=('A_random', 'B_hard_random', 'C_stability_random', 'D_rim_only',
               'E_screener_rim', 'F_momentum_rim', 'G_full', 'H_no_stability'),
-        notes=_LAYER_NOTES,
+        # A→H 누적 순서가 이 축의 전부다. baseline(D)을 맨 위로 올리면 "쌓아 간다"는
+        # 이야기가 끊긴다. 세 덩어리로 나눈 이유는 **값의 종류가 다르기 때문**이다 —
+        # A~C 는 500회 추첨의 중앙값, D~G 는 단일 결정적 실행, H 는 대조군이다.
+        groups=(('A_random', 'B_hard_random', 'C_stability_random'),
+                ('D_rim_only', 'E_screener_rim', 'F_momentum_rim', 'G_full'),
+                ('H_no_stability',)),
+        notes=_LAYER_NOTES, why=_WHY_LAYERS,
         status=Status('ARCHIVED', 'RIM 경로 — 랭킹 폐기로 계보 종료', '2026-07', _SPEC05)),
 
     SeriesSpec(
@@ -225,7 +335,7 @@ SERIES: tuple[SeriesSpec, ...] = (
                 ('E_screener_rim', 'E_no_r6'),
                 ('F_momentum_rim', 'F_no_r6'),
                 ('G_full', 'G_no_r6')),
-        notes=_LOO_NOTES,
+        notes=_LOO_NOTES, why=_WHY_R6,
         status=Status('ARCHIVED', 'RIM 경로 — 현행은 R6 유지', '2026-07', _SPEC05)),
 
     SeriesSpec(

@@ -170,3 +170,27 @@ def test_glossary_page_renders_and_search_narrows():
     _assert_clean(at, 'glossary/search')
     assert len(at.expander) == 1, \
         f'`artifact_key` 검색이 좁혀지지 않는다 (항목 {len(at.expander)}개)'
+
+
+@pytest.mark.parametrize('series_id', ['layers', 'r6_loo'])
+def test_why_map_panel_reaches_the_screen(series_id):
+    """왜-지도가 실제로 화면에 뜨는가.
+
+    등록 대장에만 있고 화면에 안 뜨면 아무도 안 읽는다 — 그게 이 계보가 여태 검토
+    문서에만 흩어져 있던 상태였다. 결정 이력과 경고가 함께 떠야 한다.
+    """
+    from dashboard.series import SERIES_BY_ID as _BY_ID
+
+    spec = _BY_ID[series_id]
+    at = _run('series_explorer.py', series_pick=spec)
+    _assert_clean(at, f'series_explorer[{series_id}]')
+
+    labels = [e.label or '' for e in at.expander]
+    assert any('왜 이 축이 있나' in lab for lab in labels), \
+        f'왜-지도 패널이 화면에 없다. 현재 패널: {labels}'
+
+    text = ' '.join(str(getattr(e, 'value', '')) for e in at.markdown)
+    assert spec.why.history[0][:20] in text, '먹여준 결정이 화면에 없다'
+    warned = ' '.join(str(getattr(e, 'value', '')) for e in at.warning)
+    for w in spec.why.warnings:
+        assert w[:20] in warned, f'탐색 경고가 화면에 없다: {w[:40]}'

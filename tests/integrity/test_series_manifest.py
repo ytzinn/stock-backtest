@@ -30,8 +30,10 @@ from backtest.canonical_state import ROOT
 from dashboard.artifacts import build_catalog
 from dashboard.series import (
     CALENDAR_VARIANTS,
+    CONFIDENCE,
     KIND_MEANING,
     SERIES,
+    SERIES_BY_ID,
     STATUS_MEANING,
     resolve,
     resolve_all,
@@ -237,3 +239,82 @@ def test_scenario_ref_is_hashable():
     assert len({a, b}) == 1                      # 집합·dict 키로 쓸 수 있어야 한다
     assert a.params == {'n_stocks': 13}          # 해시에서 뺐어도 값은 살아 있어야 한다
     assert len({r for s in resolve_all() for r in s.members}) > 0
+
+
+# ── 왜-지도 (sub1) ───────────────────────────────────────────────────────────
+
+def test_why_maps_are_well_formed():
+    """왜-지도의 라벨과 필수 칸. `history` 가 비면 "결정 이력"이 아니다."""
+    for s in SERIES:
+        if s.why is None:
+            continue
+        w = s.why
+        assert w.variable and w.question and w.failure_mode, f'{s.id}: 왜-지도 빈 칸'
+        assert w.history, f'{s.id}: 먹여준 결정이 비었다 — 결론만 남으면 같은 실험을 다시 한다'
+        for detail, label in w.understanding:
+            assert label in CONFIDENCE, (
+                f'{s.id}: 알 수 없는 확신 라벨 `{label}` (허용 {CONFIDENCE})')
+            assert detail.strip(), f'{s.id}: 내 이해 항목이 비었다'
+
+
+def test_why_map_sources_exist():
+    """왜-지도가 인용하는 문서가 실재해야 한다.
+
+    계보를 적으면서 근거 경로를 틀리게 적는 것이 이 저장소의 단골 실수다
+    (시리즈 근거 문서에서 4건, 미해결 과제에서 2건).
+    """
+    dead = [f'{s.id}: {src}' for s in SERIES if s.why
+            for src in s.why.sources if not (ROOT / src).exists()]
+    assert not dead, '왜-지도 근거 문서가 없다:\n  ' + '\n  '.join(dead)
+
+
+def test_r6_sign_flip_claim_still_holds(catalog):
+    """왜-지도가 "E·G 에서 R6 의 부호가 뒤집힌다"고 적었다. 산출물이 아직 그런가.
+
+    이 문장은 화면에서 `[검증된 사실]` 로 표시되므로, 재발행으로 사실이 바뀌면
+    **검사가 깨져서** 문구를 고치게 만들어야 한다. 안 그러면 검증됐다고 적힌 거짓이
+    남는다 — 왜-지도에서 가장 위험한 실패 모드다.
+    """
+    from dashboard.series_view import comparison_rows
+
+    series = resolve(SERIES_BY_ID['r6_loo'], catalog)
+    rows = {m.artifact_key: r for m, r in zip(series.members, comparison_rows(series, catalog))}
+
+    def gap(on: str, off: str) -> float | None:
+        a, b = rows.get(on), rows.get(off)
+        if not a or not b or a['CAGR'] is None or b['CAGR'] is None:
+            return None
+        return a['CAGR'] - b['CAGR']          # R6 켬 − 끔
+
+    helps = {k: gap(*v) for k, v in {
+        'C': ('C_stability_random', 'C_no_r6'),
+        'D': ('D_rim_only', 'D_no_r6'),
+        'F': ('F_momentum_rim', 'F_no_r6')}.items()}
+    hurts = {k: gap(*v) for k, v in {
+        'E': ('E_screener_rim', 'E_no_r6'),
+        'G': ('G_full', 'G_no_r6')}.items()}
+
+    for name, d in helps.items():
+        if d is not None:
+            assert d > 0, (f'{name} 세트에서 R6 이 더 이상 도움이 안 된다 ({d:+.2f}%p) — '
+                           f'왜-지도의 "C·D·F 는 켜는 쪽이 낫다"를 고쳐라')
+    for name, d in hurts.items():
+        if d is not None:
+            assert d < 0, (f'{name} 세트에서 R6 이 더 이상 해롭지 않다 ({d:+.2f}%p) — '
+                           f'왜-지도의 "E·G 는 끄는 쪽이 낫다"를 고쳐라')
+
+
+def test_screener_is_what_separates_the_flipped_sets():
+    """부호가 뒤집힌 두 세트(E·G)가 정말 **스크리너가 켜진** 세트인가.
+
+    왜-지도가 그 상호작용을 `[Claude 의견]` 으로 적었다. 해석은 의견이어도 되지만,
+    그 의견이 딛고 선 **설정 사실**은 참이어야 한다.
+    """
+    flipped = {'E_screener_rim', 'G_full'}
+    kept = {'C_stability_random', 'D_rim_only', 'F_momentum_rim'}
+    for tag in flipped:
+        assert ABLATION_CONFIGS[tag].get('use_screener') is True, \
+            f'{tag}: 스크리너가 꺼져 있다 — 왜-지도의 상호작용 서술 근거가 사라졌다'
+    for tag in kept - {'C_stability_random'}:      # C 는 랜덤 추첨 계열
+        assert not ABLATION_CONFIGS[tag].get('use_screener'), \
+            f'{tag}: 스크리너가 켜져 있다 — 두 덩어리를 가르는 축이 스크리너가 아니다'

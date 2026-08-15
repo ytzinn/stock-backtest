@@ -163,6 +163,34 @@ if spec.notes:
     with st.expander('🗺️ 이 축을 처음 본다면 — 배경 설명', expanded=False):
         st.markdown(spec.notes)
 
+# 왜-지도(sub1). 성적표는 "무엇이 나왔나"를 답하지만 "왜 이 축이 있고 무엇이 결정
+# 됐나"는 답하지 못한다. 목적은 판정 재현이 아니라 **6개월 뒤 따라잡기**다.
+if spec.why is not None:
+    w = spec.why
+    with st.expander('🧭 왜 이 축이 있나 — 결정 이력', expanded=False):
+        st.markdown(f'**무엇을 바꾸나** — {w.variable}')
+        st.markdown(f'**답하는 질문** — {w.question}')
+        st.markdown(f'**막는 착각** — {w.failure_mode}')
+
+        st.markdown('##### 먹여준 결정')
+        st.markdown('\n'.join(f'{i}. {h}' for i, h in enumerate(w.history, 1)))
+
+        if w.warnings:
+            st.markdown('##### 탐색 경고')
+            for warn in w.warnings:
+                st.warning(warn)
+
+        if w.understanding:
+            st.markdown('##### 내 이해 — 확인한 것과 해석한 것')
+            st.dataframe(
+                pd.DataFrame([{'세부': d, '확신': label} for d, label in w.understanding]),
+                use_container_width=True, hide_index=True)
+            st.caption('`검증된 사실` = 문서·코드·산출물로 확인 · `Claude 의견` = 해석 · '
+                       '`확실하지 않은 사실` = 미확정. 셋을 같은 무게로 적으면 나중에 '
+                       '구별할 방법이 없어집니다.')
+        if w.sources:
+            st.caption('근거 ' + ' · '.join(f'`{s}`' for s in w.sources))
+
 # 용어는 **숫자 옆에** 있어야 한다. 별도 페이지에만 두면 헷갈리는 사람은 헷갈리는 줄
 # 모르는 채로 표를 읽는다 — 1.86%p 오염도, 회전율 사고도 그렇게 지나갔다.
 axis_terms = terms_for(spec.id)
