@@ -138,13 +138,48 @@ def test_index_rows_are_renderable():
         '표 행에 빈 칸이나 비문자열이 있다 — Arrow 직렬화가 터진다'
 
 
+def test_markdown_text_has_no_accidental_strikethrough():
+    """물결표 두 개가 한 줄에 있으면 그 사이가 **취소선으로 그어진다.**
+
+    Streamlit 의 마크다운은 `~한 개`로도 취소선을 만든다. `A~C ... D~H` 처럼 범위를
+    두 번 쓰면 두 물결표가 짝을 이뤄 문장 절반이 그어져 나간다 — 2026-08-15 에 레이어
+    축 배경 설명이 실제로 그렇게 떠 있었다. 코드 스팬(`` `...` ``) 안이나 백슬래시로
+    이스케이프한 `\\~` 는 안전하다.
+
+    화면에 마크다운으로 뜨는 문자열 전부를 훑는다: 축 배경 설명 · 용어 본문 · 유형/상태 뜻.
+    """
+    from dashboard.series import KIND_MEANING, SERIES, STATUS_MEANING
+
+    targets: list[tuple[str, str]] = []
+    targets += [(f'SERIES[{s.id}].notes', s.notes) for s in SERIES if s.notes]
+    targets += [(f'GLOSSARY[{t.id}].body', t.body) for t in GLOSSARY]
+    targets += [(f'GLOSSARY[{t.id}].one_line', t.one_line) for t in GLOSSARY]
+    targets += [(f'KIND_MEANING[{k}]', v[1]) for k, v in KIND_MEANING.items()]
+    targets += [(f'STATUS_MEANING[{k}]', v) for k, v in STATUS_MEANING.items()]
+
+    bad = []
+    for name, text in targets:
+        for i, line in enumerate(text.splitlines(), 1):
+            stripped = re.sub(r'`[^`]*`', '', line)      # 코드 스팬 제거
+            stripped = stripped.replace('\\~', '')       # 이스케이프된 것 제거
+            if stripped.count('~') >= 2:
+                bad.append(f'{name} L{i}: {line.strip()[:70]}')
+    assert not bad, (
+        '한 줄에 물결표가 둘 이상이라 취소선으로 렌더된다 (`\\~` 로 이스케이프하라):\n  '
+        + '\n  '.join(bad))
+
+
 # ── 값 — 본문의 숫자를 산출물에서 다시 계산해 대조한다 ───────────────────────
 
-def test_period_layer_numbers_match_the_artifacts(adopted):
-    """23 → 21 → 20 이 실제 산출물의 숫자인가.
+def test_period_count_shown_is_the_closed_count(adopted):
+    """화면의 `구간` 열이 **완결 구간**인가.
 
-    이 셋이 어긋나면 화면 설명이 사람을 틀린 계산으로 이끈다. 1.86%p 오염이 바로
-    그 경로였다 — 21 로 세고 연수를 구간수÷2 로 잡았다.
+    용어사전의 `구간 수 23 → 21 → 20` 항목은 2026-08-15 에 뺐다 — 화면이 어느 축에서든
+    완결 구간(20)만 보여주므로 23·21 이라는 다른 층이 화면에 나타나지 않고, 안 보이는
+    구분을 사전에 실어 두면 오히려 헷갈린다는 판단이었다.
+
+    다만 **화면이 정말 완결 구간을 보여주는지**는 계속 확인해야 한다. 그게 무너지면
+    항목을 뺀 근거도 같이 무너진다. (재계산 금지 경고는 구간별 탭 캡션에 그대로 있다.)
     """
     key = adopted['key']
     csv = cs.ABL_DIR / f'{key}_periods.csv'
@@ -155,14 +190,14 @@ def test_period_layer_numbers_match_the_artifacts(adopted):
     raw, gated = len(df), int((df['n_gate'] > 0).sum())
     closed = adopted['abl_tag']['n_periods']
 
-    body = GLOSSARY_BY_ID['period_layers'].body
-    assert key in body, (
-        f'용어사전이 예로 든 태그가 현행 채택안({key})이 아니다 — 채택안이 바뀌면 '
-        f'표의 숫자도 함께 갱신해야 한다.')
-    for n, label in ((raw, '구간 CSV 원본 행'), (gated, 'n_gate>0'), (closed, '완결 구간')):
-        assert f'**{n}**' in body, f'{label} 이 실제로는 {n} 인데 용어사전 표에 없다'
-    assert raw >= gated >= closed, (
-        f'세 층의 대소가 뒤집혔다 ({raw}/{gated}/{closed}) — 용어사전 서술이 무효다')
+    assert raw >= gated >= closed, f'세 층의 대소가 뒤집혔다 ({raw}/{gated}/{closed})'
+    assert 'period_layers' not in GLOSSARY_BY_ID, \
+        '구간 수 항목이 되살아났다 — 뺀 이유(화면엔 완결 구간만 뜬다)를 다시 확인하라'
+
+    from dashboard.artifacts import build_catalog
+    cat = build_catalog()
+    assert cat.require(key).n_periods == closed, \
+        '화면이 읽는 `n_periods` 가 완결 구간이 아니다 — 세 층이 화면에 새어 나온다'
 
 
 def test_mdd_basis_numbers_match_the_artifacts(adopted):

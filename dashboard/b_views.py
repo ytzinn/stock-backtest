@@ -66,15 +66,15 @@ def _rank_reversal_chart(rows: list[dict], n_tags: int) -> go.Figure:
             x=['앞 절반<br>2016–2021', '뒤 절반<br>2021–2026'],
             y=[r['앞 순위'], r['뒤 순위']],
             mode='lines+markers+text',
-            name=r['태그'],
-            text=[r['태그'] if focal else '', r['태그'] if focal else ''],
+            name=r['전략'],
+            text=[r['전략'] if focal else '', r['전략'] if focal else ''],
             textposition=['middle left', 'middle right'],
             textfont=dict(size=11, color='#dc2626'),
             line=dict(color='#dc2626' if focal else '#cbd5e1',
                       width=3 if focal else 1.5),
             marker=dict(size=9 if focal else 5),
             opacity=1.0 if focal else 0.65,
-            hovertemplate=f'<b>{r["태그"]}</b><br>%{{x}} %{{y}}위<extra></extra>'))
+            hovertemplate=f'<b>{r["전략"]}</b><br>%{{x}} %{{y}}위<extra></extra>'))
     fig.update_layout(
         height=460, showlegend=False, plot_bgcolor='white',
         margin=dict(t=20, b=20, l=90, r=90),
@@ -127,7 +127,7 @@ def render_time_overfit() -> None:
         st.warning(
             f"**ρ 의 신뢰구간은 0 을 배제하지 못합니다** "
             f"(상한 {boot['ci_high']:+.3f}). 즉 이 판정은 순위상관이 통계적으로 "
-            f"유의해서 나온 것이 **아니라**, 초점 태그가 위 사전등록 문턱을 넘었기 "
+            f"유의해서 나온 것이 **아니라**, 초점 전략이 위 사전등록 문턱을 넘었기 "
             f"때문입니다. ρ 는 방향을 보여주는 참고 통계량입니다 — "
             f"'상관이 유의하므로 과적합'이라고 인용하지 마세요.")
 
@@ -136,11 +136,11 @@ def render_time_overfit() -> None:
     rows = rank_shift_rows(d)
     st.plotly_chart(_rank_reversal_chart(rows, len(rows)), use_container_width=True)
     st.caption(
-        f"태그 {len(rows)}개(가격 전용, 재무 스택 고정). 선이 서로 교차할수록 앞 절반의 "
-        f"성적 순위가 뒤 절반에서 유지되지 않는다는 뜻입니다. 빨간 선이 초점 태그 "
+        f"전략 {len(rows)}개(가격 전용, 재무 스택 고정). 선이 서로 교차할수록 앞 절반의 "
+        f"성적 순위가 뒤 절반에서 유지되지 않는다는 뜻입니다. 빨간 선이 초점 전략 "
         f"`{pr['focal_tag']}`(MA 20/60, 당시 현행안)입니다.")
 
-    with st.expander('순위 표 — 태그별 앞·뒤 배수와 순위'):
+    with st.expander('순위 표 — 전략별 앞·뒤 배수와 순위'):
         st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True,
                      column_config={'초점': st.column_config.CheckboxColumn(disabled=True)})
         st.caption('배수는 반쪽별 net 총복리 Π(1+net) 입니다. 같은 구간 집합이라 '

@@ -11,10 +11,12 @@
 from __future__ import annotations
 
 import glob
+import inspect
 import json
 import re
 from pathlib import Path
 
+from backtest.ablation import build_ablation_pipeline
 from dashboard.artifacts import ArtifactCatalog
 from dashboard.series import Series, SeriesSpec
 
@@ -27,6 +29,30 @@ SHARPE_COL = 'Sharpe (구간 기준)'
 
 #: 비교표가 **읽어도 되는** 지표의 출처. 일별 NAV 는 여기 없다 — 의도적이다.
 METRIC_SOURCE = 'ablation_artifact'
+
+#: 기본 종목 수. 재선언하지 않고 `build_ablation_pipeline` 시그니처에서 읽는다
+#: (CLAUDE.md 상수 재선언 금지). `scripts/run_ablation.py` 도 같은 곳에서 읽으므로
+#: 권위는 한 군데 — 파이프라인 시그니처 — 에만 있다.
+DEFAULT_N_STOCKS: int = inspect.signature(
+    build_ablation_pipeline).parameters['n_stocks'].default
+
+
+def n_stocks_display(artifact, ref) -> tuple[str, bool]:
+    """화면에 쓸 종목 수와 **그게 기록된 값인지 여부**.
+
+    산출물 76개 중 `n_stocks` 를 기록한 것은 4개뿐이다. 필드가 2026-08-12 에야
+    추가돼서(`run_ablation` 커밋 `0dfa0b1`), 그 전에 만든 72개는 필드가 없던 시절의
+    파일이다. 값이 없는 게 아니라 **적히지 않았을 뿐**이고, 실제 n 은 이름 규약으로
+    정해진다 — `_n{K}` 접미사가 있으면 K, 없으면 파이프라인 기본값이다.
+
+    그래서 빈칸('미기록')으로 두면 "모른다"로 읽혀 과하고, 그냥 `20` 으로 적으면
+    기록된 13 과 구별이 사라져 위험하다(그 구별이 사라져서 2026-08-12 사고가 났다).
+    **값과 출처를 함께** 돌려준다.
+    """
+    if artifact.n_stocks is not None:
+        return str(artifact.n_stocks), True
+    inferred = ref.params.get('n_stocks', DEFAULT_N_STOCKS)
+    return f'{inferred} (규약)', False
 
 
 def _pct(v, digits: int = 2):
@@ -59,7 +85,7 @@ def comparison_rows(series: Series, catalog: ArtifactCatalog) -> list[dict]:
             # "이름으로 간주한 20"을 화면에서 구별할 수 있게 표기한다. 한 열에 숫자와
             # '—' 를 섞으면 Arrow 직렬화가 터지므로 열 단위로 타입을 통일한다.
             '구간': str(a.n_periods) if a.n_periods is not None else '—',
-            'n': str(a.n_stocks) if a.n_stocks is not None else '미기록',
+            'n': n_stocks_display(a, ref)[0],
             '캘린더': (m.get('calendar') or {}).get('id', '미기록'),
             '산출': (a.generated_at or '')[:10],
             '출처': '분포집계' if a.source == 'summary' else '단일실행',
@@ -393,7 +419,9 @@ def rank_shift_rows(d: dict) -> list[dict]:
     """앞→뒤 순위 이동. 초점 태그를 표시한다 (판정의 대상이 그것 하나이므로)."""
     focal = d['pre_registered']['focal_tag']
     return [{
-        '태그': r['tag'],
+        # 화면 용어는 **전략**이다. 코드·산출물의 `tag` 와 같은 것을 가리키지만,
+        # 처음 보는 사람에게 "태그"는 분류 라벨처럼 읽힌다 (용어사전 `strategy_vs_tag`).
+        '전략': r['tag'],
         '초점': r['tag'] == focal,
         'horizon': r['horizon'],
         '앞 순위': r['front_rank'],

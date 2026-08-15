@@ -26,6 +26,7 @@ from dashboard.canonical_banner import render_canonical_banner
 from dashboard.glossary import index_rows, terms_for
 from dashboard.series import KIND_MEANING, SERIES, resolve, unassigned
 from dashboard.series_view import (
+    DEFAULT_N_STOCKS,
     MDD_COL,
     b_type_files,
     comparison_rows,
@@ -224,15 +225,21 @@ else:
         st.plotly_chart(fig, use_container_width=True)
         st.dataframe(df, use_container_width=True, hide_index=True)
         st.caption(
-            'MDD·Sharpe 는 **구간 기준**으로 열 전체를 통일했습니다. 일별 NAV 가 있는 태그는 '
+            'MDD·Sharpe 는 **구간 기준**으로 열 전체를 통일했습니다. 일별 NAV 가 있는 전략은 '
             '76개 중 14개뿐이라, 있는 행만 일별 값으로 채우면 한 열에 두 정의가 섞입니다 '
-            '(같은 태그에서 −34.14% vs −58.12%). 일별 값은 위 현행 채택 배너에 있습니다. '
+            '(같은 전략에서 −34.14% vs −58.12%). 일별 값은 위 현행 채택 배너에 있습니다. '
             '`분포집계` 행은 500회 반복의 중앙값이라 단일 실행 지표가 없습니다.')
+        st.caption(
+            f'`n` 의 **(규약)** 은 종목 수가 산출물에 적혀 있지 않아 **이름에서** 정한 '
+            f'값이라는 뜻입니다. 기록 필드가 2026-08-12 에야 생겨서, 그 전에 만든 산출물 '
+            f'72개(전체 76개 중)에는 애초에 그 칸이 없습니다. 값을 모르는 게 아니라 '
+            f'적히지 않은 것이고, `_n13` 처럼 접미사가 있으면 그 수, 없으면 기본값 '
+            f'{DEFAULT_N_STOCKS} 입니다. 괄호 없는 숫자만 산출물이 직접 기록한 값입니다.')
 
-        with st.expander('🧬 산출물 계보 — 왜 이 태그는 그래프가 없나'):
+        with st.expander('🧬 산출물 계보 — 왜 이 전략은 그래프가 없나'):
             st.write('산출물 상당수가 git 미추적이라 개발 PC 와 서버가 다릅니다. '
                      '구간 CSV 가 없으면 [구간별] 탭에, 분포 CSV 가 없으면 [랜덤 분포] '
-                     '탭에 그 태그가 안 나옵니다.')
+                     '탭에 그 전략이 안 나옵니다.')
             st.dataframe(pd.DataFrame(provenance_rows(series, catalog)),
                          use_container_width=True, hide_index=True)
 

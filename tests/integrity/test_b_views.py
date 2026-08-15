@@ -171,7 +171,7 @@ def test_rank_shift_rows_cover_every_tag_and_mark_one_focal(ts):
     assert len(rows) == len(ts['rows']), '태그가 표에서 누락됐다'
     focal = [r for r in rows if r['초점']]
     assert len(focal) == 1, f'초점 태그가 {len(focal)}개다 — 정확히 하나여야 한다'
-    assert focal[0]['태그'] == ts['pre_registered']['focal_tag']
+    assert focal[0]['전략'] == ts['pre_registered']['focal_tag']
     assert focal[0]['이동'] == focal[0]['뒤 순위'] - focal[0]['앞 순위']
     # 앞 순위 오름차순이어야 기울기 그래프의 왼쪽 축이 정렬돼 보인다.
     assert [r['앞 순위'] for r in rows] == sorted(r['앞 순위'] for r in rows)
