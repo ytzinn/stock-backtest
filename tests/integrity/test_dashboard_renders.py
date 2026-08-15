@@ -172,7 +172,7 @@ def test_glossary_page_renders_and_search_narrows():
         f'`artifact_key` 검색이 좁혀지지 않는다 (항목 {len(at.expander)}개)'
 
 
-@pytest.mark.parametrize('series_id', ['layers', 'r6_loo'])
+@pytest.mark.parametrize('series_id', ['layers', 'r6_loo', 'ranking_signal'])
 def test_why_map_panel_reaches_the_screen(series_id):
     """왜-지도가 실제로 화면에 뜨는가.
 

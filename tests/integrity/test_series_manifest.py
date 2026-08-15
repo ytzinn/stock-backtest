@@ -334,3 +334,54 @@ def test_why_map_next_axes_point_at_real_axes():
             assert nxt != s.id, f'{s.id}: 자기 자신을 다음 축으로 가리킨다'
         if s.why.next_axes:
             assert s.why.next_step, f'{s.id}: 이어받는 축만 있고 설명이 없다'
+
+
+def test_rim_ranking_gate_still_fails(catalog):
+    """랭킹 축 왜-지도의 1차 근거 — `D >= C_p95` 미달 — 이 아직 사실인가.
+
+    이 축의 결론("RIM 랭킹 근거 상실")은 순위표가 아니라 **이 관문 하나**에서 나온다.
+    모멘텀 경로에서는 RIM 이 근소하게 앞서므로, 관문이 뒤집히면 결론 전체를 다시 봐야
+    한다. 재발행으로 그렇게 되면 이 검사가 깨져서 왜-지도를 고치게 만든다.
+
+    2026-07-30 재발행 기준: D 9.5408% vs C_p95 12.1345% (−2.59%p).
+    """
+    d = catalog.require('D_rim_only').metrics['cagr']
+    c_p95 = catalog.require('C_stability_random').metrics['p95_cagr']
+    assert d < c_p95, (
+        f'RIM 랭킹(D {d:.4%})이 이제 랜덤 p95({c_p95:.4%})를 넘는다 — '
+        f'"근거 상실" 판정의 1차 관문이 뒤집혔다. 왜-지도와 축 status 를 다시 보라')
+
+
+def test_ranking_signal_direction_flips_between_paths(catalog):
+    """모멘텀 유무로 RIM↔1/PBR 우열이 **뒤집힌다**는 서술이 아직 맞는가.
+
+    왜-지도가 이 뒤집힘을 `[검증된 사실]` 로 적고, "모멘텀 경로 한 줄만 뽑아 인용하지
+    마라"는 경고의 근거로 쓴다. 뒤집힘이 사라지면 그 경고도 다시 써야 한다.
+    """
+    def cagr(key):
+        return catalog.require(key).metrics['cagr']
+
+    no_mom = cagr('D_pbr_only') - cagr('D_rim_only')      # 1/PBR − RIM
+    with_mom = cagr('F_pbr_only') - cagr('F_momentum_rim')
+
+    assert no_mom > 0, (
+        f'모멘텀 없는 경로에서 1/PBR 이 더 이상 앞서지 않는다 ({no_mom:+.2%}) — '
+        f'왜-지도 서술을 고쳐라')
+    assert with_mom < 0, (
+        f'모멘텀 경로에서 RIM 이 더 이상 앞서지 않는다 ({with_mom:+.2%}) — '
+        f'"여기서만 RIM 이 앞선다"는 서술이 무효다')
+    assert abs(with_mom) < abs(no_mom), (
+        f'모멘텀 경로의 격차({with_mom:+.2%})가 모멘텀 없는 경로({no_mom:+.2%})보다 커졌다 '
+        f'— "근소 우위"라는 표현을 재검토하라')
+
+
+def test_pbr_ranking_turns_over_less(catalog):
+    """"1/PBR 은 회전율이 낮아 net 에서 격차가 더 벌어진다"가 사실인가."""
+    rim, pbr = catalog.require('D_rim_only'), catalog.require('D_pbr_only')
+    assert pbr.metrics['avg_turnover'] < rim.metrics['avg_turnover'], \
+        '1/PBR 의 회전율이 더 이상 낮지 않다 — 왜-지도의 비용 서술을 고쳐라'
+    gross_gap = pbr.metrics['cagr'] - rim.metrics['cagr']
+    net_gap = pbr.metrics['net_cagr'] - rim.metrics['net_cagr']
+    assert net_gap > gross_gap, (
+        f'net 격차({net_gap:+.2%})가 gross({gross_gap:+.2%})보다 크지 않다 — '
+        f'"비용을 빼면 더 벌어진다"는 서술이 무효다')
