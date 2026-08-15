@@ -1,6 +1,6 @@
 {
   "tag": "F_pbr_ma200_n13",
-  "run_at": "2026-08-12T13:49:09.890777",
+  "run_at": "2026-08-15T12:42:45.696659",
   "seed": null,
   "cagr": 0.20332883254284506,
   "net_cagr": 0.18689083784884652,
@@ -16,5 +16,15 @@
   "cagr_optimistic": 0.20568015444249976,
   "cagr_conservative": 0.19767603388818888,
   "n_periods": 20,
-  "n_stocks": 13
+  "n_stocks": 13,
+  "calendar": {
+    "id": "SEMIANNUAL",
+    "n_anchors": 23,
+    "report_types": {
+      "FY": 12,
+      "H1": 11
+    },
+    "first_anchor": "2015-04-03",
+    "last_anchor": "2026-04-03"
+  }
 }

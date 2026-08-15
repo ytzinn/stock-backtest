@@ -644,6 +644,28 @@ def test_canonical_class_tracks_the_live_setting():
         f'채택안이 바뀌면 낡는다. 운영 설정에서 파생되게 두라')
 
 
+def test_matrix_axis_membership_survives_key_suffixes():
+    """소속 축이 **산출물 키 접미사를 되돌려** 세는가.
+
+    등록 대장은 키로 배정하고(`F_pbr_ma200_n13`) 매트릭스는 태그 단위다. 문자열로만
+    맞추면 현행 채택안의 소속 축이 `momentum_grid` 하나로 뜬다 — 정작 관문(`benchmarks`)
+    과 종목 수 축에서 쓰이는데 그 사실이 채택안 행에서 사라진다 (2026-08-15 사용자 발견).
+    """
+    from dashboard.tags import adopted_tag
+    from scripts.make_tag_matrix import _axes_of, _base_tag
+
+    assert _base_tag('F_pbr_ma200_n13') == 'F_pbr_ma200'
+    assert _base_tag('F_pbr_no_r3r4_A') == 'F_pbr_no_r3r4'
+    assert _base_tag('F_pbr_ma5_20') == 'F_pbr_ma5_20', \
+        '`_n` 없는 숫자 접미사를 종목 수로 오해했다'
+
+    axes = set(_axes_of(adopted_tag()))
+    for must in ('benchmarks', 'n_stocks'):
+        assert must in axes, (
+            f'채택안의 소속 축에 `{must}` 이 없다 — 등록 대장은 `_n13` 키로 배정하는데 '
+            f'매트릭스가 그걸 못 알아본다. 현재: {sorted(axes)}')
+
+
 def test_every_tag_note_points_at_a_real_tag():
     """태그 설명이 실재하는 태그를 가리키는가. 오타면 영영 안 뜬다."""
     from dashboard.tags import CLASSES, TAG_NOTES

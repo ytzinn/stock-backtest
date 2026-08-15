@@ -1,25 +1,25 @@
 {
-  "generated_at": "2026-08-12T13:43:29.866508",
+  "generated_at": "2026-08-15T12:55:24.720778",
   "pre_registered": "2026-07-19 (SPEC_10 §5) — 실행 후 수정 금지",
   "tag": "F_pbr_ma200_n13",
   "n_stocks": 13,
   "u_tag": "U_pbr_path_ew",
-  "draws_tag": "C_pbr_path_random_n13",
+  "draws_tag": "C_pbr_ma200_random_n13",
   "draws_n_stocks": 13,
   "hard_gates": {
     "G1": {
       "pass": true,
       "not_computed_reason": null,
       "f_cagr": 0.20332883254284506,
-      "random_p95": 0.15613015111119988,
-      "f_percentile_in_null": 0.992,
+      "random_p95": 0.15474465234698154,
+      "f_percentile_in_null": 0.994,
       "n_draws": 1000
     },
     "G2": {
       "pass": true,
       "f_net_cagr": 0.18689083784884652,
-      "u_ew_net_cagr": 0.06930046051159122,
-      "margin_pp": 11.759037733725531
+      "u_ew_net_cagr": 0.06930043934973251,
+      "margin_pp": 11.759039849911401
     },
     "G5": {
       "pass": false,
@@ -31,8 +31,8 @@
     "G3_loo": {
       "f_reversal_count": 0,
       "f_reversal_periods": [],
-      "null_mean": 1.288,
-      "share_of_draws_more_dependent": 0.6619999999999999,
+      "null_mean": 1.264,
+      "share_of_draws_more_dependent": 0.6779999999999999,
       "warn": false
     },
     "G4_topk": {
@@ -43,25 +43,25 @@
       },
       "2": {
         "f_margin_after_removal": 2.6633091835730918,
-        "share_of_draws_below_f": 0.996,
+        "share_of_draws_below_f": 0.994,
         "warn": false
       },
       "3": {
         "f_margin_after_removal": 2.4000361452529733,
-        "share_of_draws_below_f": 0.997,
+        "share_of_draws_below_f": 0.998,
         "warn": false
       }
     },
     "g4_warn": false,
     "G6_sign_test": {
-      "positive": 16,
+      "positive": 15,
       "n_effective": 20,
-      "p_value": 0.01181793212890625,
+      "p_value": 0.04138946533203125,
       "note": "n=20 검정력 낮음 — 참고용 (사전 등록 명기)"
     },
     "G7_halves": {
-      "first_half_margin": 0.5764006602998744,
-      "last_half_margin": 1.3816133684980905,
+      "first_half_margin": 0.51632069313083,
+      "last_half_margin": 1.3992950137103333,
       "direction_consistent": true
     }
   },

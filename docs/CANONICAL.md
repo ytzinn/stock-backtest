@@ -24,22 +24,22 @@
 
 | 지표 | 값 | 출처 | 산출 일자 |
 |---|---|---|---|
-| 구간 CAGR (gross) | 20.3329% | `ablation/F_pbr_ma200_n13.json` | 2026-08-12T13:49:09 |
-| 구간 CAGR (net) | 18.6891% | `ablation/F_pbr_ma200_n13.json` | 2026-08-12T13:49:09 |
-| 완결 구간 수 | 20 | `ablation/F_pbr_ma200_n13.json` | 2026-08-12T13:49:09 |
-| **일별 net CAGR** | **18.5525%** | `daily_nav/summary.json` | 2026-08-11T23:35:40 |
-| 일별 net MDD | -58.12% | `daily_nav/summary.json` | 2026-08-11T23:35:40 |
-| 일별 net Sharpe | 0.725 | `daily_nav/summary.json` | 2026-08-11T23:35:40 |
+| 구간 CAGR (gross) | 20.3329% | `ablation/F_pbr_ma200_n13.json` | 2026-08-15T12:42:45 |
+| 구간 CAGR (net) | 18.6891% | `ablation/F_pbr_ma200_n13.json` | 2026-08-15T12:42:45 |
+| 완결 구간 수 | 20 | `ablation/F_pbr_ma200_n13.json` | 2026-08-15T12:42:45 |
+| **일별 net CAGR** | **18.5525%** | `daily_nav/summary.json` | 2026-08-15T12:52:21 |
+| 일별 net MDD | -58.12% | `daily_nav/summary.json` | 2026-08-15T12:52:21 |
+| 일별 net Sharpe | 0.725 | `daily_nav/summary.json` | 2026-08-15T12:52:21 |
 
 Sharpe·MDD 의 SSOT 는 일별 NAV 다 (SPEC_13 §9-1). 구간 지표는 엔진 산술값이다.
 
 ## SPEC_10 하드 게이트
 
-대상 `F_pbr_ma200_n13` · 귀무분포 `C_pbr_path_random_n13` (13종목) · 산출 2026-08-12T13:43:29
+대상 `F_pbr_ma200_n13` · 귀무분포 `C_pbr_ma200_random_n13` (13종목) · 산출 2026-08-15T12:55:24
 
 | 게이트 | 판정 | 근거 |
 |---|---|---|
-| G1 | PASS | CAGR 20.33% vs 귀무 p95 15.61% |
+| G1 | PASS | CAGR 20.33% vs 귀무 p95 15.47% |
 | G2 | PASS | net 18.69% vs U 6.93% |
 | G5 | **FAIL** | 일별 net MDD -58.12% vs 한계 -45.00% |
 
@@ -82,9 +82,9 @@ Sharpe·MDD 의 SSOT 는 일별 NAV 다 (SPEC_13 §9-1). 구간 지표는 엔진
 
 | 파일 | sha256(앞 16) |
 |---|---|
-| `experiments/ablation/summary.json` | f2839c3620434bda |
-| `experiments/ablation/F_pbr_ma200_n13.json` | 2dd881b92484c088 |
-| `experiments/daily_nav/summary.json` | d9313004882d1bde |
-| `experiments/robustness/gate_results_F_pbr_ma200_n13.json` | 49db2dace297b722 |
+| `experiments/ablation/summary.json` | 555e21eeb47202ae |
+| `experiments/ablation/F_pbr_ma200_n13.json` | 848b940ce37588c6 |
+| `experiments/daily_nav/summary.json` | 585079aebb0178d2 |
+| `experiments/robustness/gate_results_F_pbr_ma200_n13.json` | 6d14f0a3087f8aa7 |
 | `experiments/live/dryrun/manifest.yaml` | 7f3064fff5799ce0 |
 | `docs/open_issues.yaml` | 04c519b0e612a0af |

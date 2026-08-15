@@ -38,17 +38,22 @@
   있다. 관문을 물 때는 `experiments/robustness/gate_results_*.json` 의
   `draws_n_stocks` 가 대상의 `n_stocks` 와 같은지 반드시 확인하라.
 
-  > ⚠️ **현행 채택안 `F_pbr_ma200` 의 짝 대조군은 `없음` 이다.** 유일한 모멘텀
-  > 경로 대조군 `C_pbr_path_random` 이 레거시 `MA 20/60` 풀이기 때문이다.
-  > `experiments/robustness/pools.json`(07-29, n=20)과 `pools_n13.json`
-  > (08-12, n=13)이 **md5 동일**이다 — 08-12 재추첨은 `--n-pick` 만 바꿨고
-  > 유니버스는 다시 짓지 않았다(`run_random_pool.py` 의 `TAG` 가 하드코딩이라
-  > 모멘텀 기준을 바꿀 수단이 없다). 즉 **SPEC_10 G1 은 MA200 전략을 MA 20/60
-  > 풀의 귀무분포에 대고 있다.** 판정이 뒤집힌다는 뜻은 아니다 — 더 좁은 풀의
-  > p95 가 오를지 내릴지는 재본 적이 없다. `docs/CANONICAL.md` 의 G1 PASS 를
-  > 인용할 때 이 사실을 함께 적어라.
+  > **`[해소 2026-08-15]`** 2026-08-15 이전에는 채택안(MA200)의 관문이 레거시
+  > `MA 20/60` 풀(`C_pbr_path_random`)에 걸려 있었다. `pools.json`(07-29, n=20)과
+  > `pools_n13.json`(08-12, n=13)이 **md5 동일**인 것이 증거다 — 08-12 재추첨은
+  > `--n-pick` 만 바꿨고 유니버스는 다시 짓지 않았다(`run_random_pool.py` 의 대상
+  > 태그가 하드코딩이라 모멘텀을 바꿀 수단이 없었다). 지금은 채택안 설정에서
+  > 파생된 `C_pbr_ma200_random` 으로 다시 뽑았다 — 풀이 8,229 → **6,445 종목**으로
+  > 좁아졌고 p95 는 15.61% → **15.47%** 다. **판정은 그대로 G1 PASS**
+  > (20.33% ≥ 15.47%, 귀무분포 백분위 99.4%).
+
+  > ⚠️ **G2 는 아직 같은 불일치가 남아 있다.** 벤치마크 `U_pbr_path_ew` 의 모멘텀이
+  > `MA 20/60` 이라, 채택안(MA 200)을 **다른 유니버스의 동일가중**과 견준다.
+  > 사전등록 게이트의 벤치마크 교체는 별도 결정 사항이라 그대로 뒀다.
 - **소속 축** — 대시보드 등록 대장(`dashboard/series.py`)에서 이 태그를 쓰는 축.
-  비어 있으면 화면 어디에도 안 뜬다.
+  비어 있으면 화면 어디에도 안 뜬다. 등록 대장은 **산출물 키**로 배정하므로
+  (`F_pbr_ma200_n13`, `F_pbr_no_r3r4_A`) 접미사를 되돌려 센다 — 안 그러면 현행
+  채택안의 소속 축에서 관문·종목 수 축이 빠진다.
 - **왜 만들었나** — 축과 조건만으로는 알 수 없는 것만 적는다. 모멘텀 그리드나
   룰 조합처럼 **축이 곧 이유인 태그는 비워 둔다** (열이 이미 답하는 것을 다시
   적으면 중복이고, 중복한 설명은 갈라진다). 내용은 `dashboard/tags.py` 소유.
@@ -60,7 +65,7 @@
 | `A_random` | RANDOM | 무작위 추첨 | — | — | — | — | n/a | 20 고정 (추첨) | — | layers | 무작위 20종목 선택, seed x rebalance_date 복합 시드, 500회 반복. 결과: A_random_dist.csv (experiments/ablation/, gitignore됨).  |
 | `B_hard_random` | RANDOM | 무작위 추첨 | — | ✓ | — | — | n/a | 20 고정 (추첨) | — | layers | HardFilter만 통과 후 무작위 선택, 500회 반복. B_hard_random_dist.csv.  |
 | `C_no_r6` | RANDOM | 무작위 추첨 | R1·R2·R3·R4·R5 | ✓ | — | — | n/a | 20 고정 (추첨) | — | r6_loo | 이름과 달리 코드상 RANDOM_TAGS에 포함(use_rim_filter=False, random_n=20) — Hard+Stability(R6 제외) 통과 후 무작위 선택. C_no_r6_dist.csv.  |
-| `C_pbr_ma200_random` | — | 무작위 추첨 | R1·R2·R5·R6 | ✓ | — | MA 200 | n/a | 20 고정 (추첨) | — | **미배정** | **없음** |
+| `C_pbr_ma200_random` | — | 무작위 추첨 | R1·R2·R5·R6 | ✓ | — | MA 200 | n/a | 20 고정 (추첨) | — | benchmarks | **없음** |
 | `C_pbr_path_random` | RANDOM | 무작위 추첨 | R1·R2·R5·R6 | ✓ | — | MA 20/60 | n/a | 20 고정 (추첨) | — | benchmarks | SPEC_10 §3-1 이 **채택 후보 전용으로 새로 만든 짝 대조군.** 기존 `C_stability_random` 은 룰이 전 6개인 데다 모멘텀을 안 태워서, 채택안(룰 {R1,R2,R5,R6} + 모멘텀)의 관문으로 쓰면 "유니버스가 좁아서"와 "랭킹이 좋아서"가 섞인다. 그래서 **모멘텀 통과 풀에서 무작위 20종목**을 1,000회 뽑는다 (p95 추정 안정화). G1 관문의 귀무분포가 이것이다. |
 | `C_stability_random` | RANDOM | 무작위 추첨 | R1·R2·R3·R4·R5·R6 | ✓ | — | — | n/a | 20 고정 (추첨) | — | layers, r6_loo | Hard+Stability(기본 전체 6룰) 통과 후 무작위 선택, 500회 반복. C_stability_random_dist.csv.  |
 | `D_factor_only` | DIAGNOSTIC | 팩터 복합 | R1·R2·R3·R4·R5 | ✓ | — | — | n/a | 산출물 키 참조 (기본 20) | `C_no_r6` | ranking_signal | RIM 없이 FactorScreener 4팩터 합산 점수로 직접 랭킹 — 신호분리 대조군 (스크리너 자체는 폐기됐으나 진단 목적 보존).  |
@@ -97,7 +102,7 @@
 | `F_pbr_ma100` | — | 1/PBR | R1·R2·R5·R6 | ✓ | — | MA 100 | — | 산출물 키 참조 (기본 20) | **없음** | momentum_grid | 축 설명 참조 |
 | `F_pbr_ma120_200` | — | 1/PBR | R1·R2·R5·R6 | ✓ | — | MA 120/200 | — | 산출물 키 참조 (기본 20) | **없음** | momentum_grid | 축 설명 참조 |
 | `F_pbr_ma150` | — | 1/PBR | R1·R2·R5·R6 | ✓ | — | MA 150 | — | 산출물 키 참조 (기본 20) | **없음** | momentum_grid | 축 설명 참조 |
-| `F_pbr_ma200` | CANONICAL | 1/PBR | R1·R2·R5·R6 | ✓ | — | MA 200 | — | 산출물 키 참조 (기본 20) | `C_pbr_ma200_random` | momentum_grid | 축 설명 참조 |
+| `F_pbr_ma200` | CANONICAL | 1/PBR | R1·R2·R5·R6 | ✓ | — | MA 200 | — | 산출물 키 참조 (기본 20) | `C_pbr_ma200_random` | momentum_grid, benchmarks, n_stocks | 축 설명 참조 |
 | `F_pbr_ma2060_cd3` | — | 1/PBR | R1·R2·R5·R6 | ✓ | — | MA 20/60 cd3 | — | 산출물 키 참조 (기본 20) | **없음** | momentum_grid | 축 설명 참조 |
 | `F_pbr_ma2060_cd7` | — | 1/PBR | R1·R2·R5·R6 | ✓ | — | MA 20/60 cd7 | — | 산출물 키 참조 (기본 20) | **없음** | momentum_grid | 축 설명 참조 |
 | `F_pbr_ma2060_sl10` | — | 1/PBR | R1·R2·R5·R6 | ✓ | — | MA 20/60 sl10 | — | 산출물 키 참조 (기본 20) | **없음** | momentum_grid | 축 설명 참조 |
@@ -192,9 +197,9 @@
 
 ## 등록 대장에 없는 태그
 
-축 어디에도 안 들어간 태그가 **1개**. 화면에 안 뜨므로 만들어 두고 잊기 쉽다.
+축 어디에도 안 들어간 태그가 **0개**. 화면에 안 뜨므로 만들어 두고 잊기 쉽다.
 
-- `C_pbr_ma200_random`
+- (없음)
 
 ## 왜 만들었는지 안 적힌 태그
 

@@ -866,23 +866,37 @@ SERIES: tuple[SeriesSpec, ...] = (
         tags=('U_pbr_path_ew', 'F_pbr_ma200_n13'),
         # G1 의 귀무분포다. `run_random_pool.py` fast-path 가 뽑으므로 ablation
         # 산출물이 없고, 그래서 이 축의 **판정 근거인데 화면에 없었다.**
-        elsewhere=(Elsewhere(
-            'C_pbr_path_random',
-            where=('experiments/robustness/random_summary_n13.json',
-                   'experiments/robustness/C_pbr_path_random_n13_draws.csv',
-                   'experiments/robustness/gate_results_F_pbr_ma200_n13.json',
-                   'experiments/robustness/random_summary.json',
-                   'experiments/robustness/C_pbr_path_random_draws.csv',
-                   'experiments/robustness/gate_results.json'),
-            why='무작위 추첨 1,000회를 `scripts/robustness/run_random_pool.py` fast-path 가 '
-                '돌려 `experiments/robustness/` 로 뽑는다. `run_ablation` 을 타지 않으므로 '
-                '`experiments/ablation/` 에는 원래 없다.',
-            note='**종목 수가 다른 두 벌이 같은 태그 이름을 쓴다.** 현행 채택안'
-                 '(`F_pbr_ma200_n13`)의 관문은 `_n13` 쪽(p95 15.61%)이고, `_n13` 이 없는 '
-                 '파일은 조상(`F_pbr_no_r3r4`)을 재던 n=20 벌(p95 14.15%)이다. 섞어 읽으면 '
-                 '2026-08-12 에 회전율을 틀리게 적은 것과 같은 종류의 사고가 난다 — '
-                 '판정에 쓸 값은 `gate_results_*.json` 의 `draws_tag` 가 가리키는 쪽 하나뿐이다.'),),
-        paths=('experiments/robustness/C_pbr_path_random_draws.csv',
+        # 둘을 나란히 싣는다 — 현행 관문(MA200 풀)과 그 전에 쓰던 풀(MA 20/60).
+        # 옛것을 지우면 "왜 판정이 바뀌었나"를 화면에서 답할 수 없다.
+        elsewhere=(
+            Elsewhere(
+                'C_pbr_ma200_random',
+                where=('experiments/robustness/random_summary_C_pbr_ma200_random_n13.json',
+                       'experiments/robustness/C_pbr_ma200_random_n13_draws.csv',
+                       'experiments/robustness/gate_results_F_pbr_ma200_n13.json'),
+                why='무작위 추첨 1,000회를 `scripts/robustness/run_random_pool.py` fast-path 가 '
+                    '돌려 `experiments/robustness/` 로 뽑는다. `run_ablation` 을 타지 '
+                    '않으므로 `experiments/ablation/` 에는 원래 없다.',
+                note='**현행 G1 의 귀무분포.** 채택안 설정에서 파생돼(랭킹만 무작위 추첨으로 '
+                     '교체) HARD·룰·모멘텀 기준이 전부 같다 — 그래서 이 관문이 재는 것이 '
+                     '**랭킹의 기여**다. 2026-08-15 재발행 산출.'),
+            Elsewhere(
+                'C_pbr_path_random',
+                where=('experiments/robustness/random_summary_n13.json',
+                       'experiments/robustness/C_pbr_path_random_n13_draws.csv',
+                       'experiments/robustness/random_summary.json',
+                       'experiments/robustness/C_pbr_path_random_draws.csv',
+                       'experiments/robustness/gate_results.json'),
+                why='위와 같은 fast-path 산출물이다. **더 이상 채택안의 관문이 아니다** — '
+                    '레거시 MA 20/60 풀이라 조상 `F_pbr_no_r3r4` 계보에만 짝이 맞는다.',
+                note='**세 벌이 이름을 나눠 쓴다.** `_n13` 없는 것은 n=20(p95 14.15%), '
+                     '`_n13` 은 n=13 이지만 **풀이 MA 20/60** 이다(p95 15.61%) — '
+                     '`pools.json`(07-29)과 `pools_n13.json`(08-12)이 md5 동일인 것이 그 '
+                     '증거다. 2026-08-15 이전 G1 은 MA200 전략을 이 분포에 대고 있었다. '
+                     '판정에 쓸 값은 `gate_results_*.json` 의 `draws_tag` 가 가리키는 '
+                     '쪽 하나뿐이다.'),
+        ),
+        paths=('experiments/robustness/random_summary_C_pbr_ma200_random_n13.json',
                'experiments/robustness/random_summary_n13.json',
                'experiments/robustness/gate_results_F_pbr_ma200_n13.json'),
         status=Status('CLOSED_FAIL', 'G1·G2 PASS · G5 FAIL → 채택 보류', '2026-08-12', _SPEC10)),

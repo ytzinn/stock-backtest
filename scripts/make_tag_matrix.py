@@ -36,7 +36,8 @@ import sys
 from pathlib import Path
 
 from backtest.ablation import ABLATION_CONFIGS
-from dashboard.series import SERIES, claimed_keys
+from dashboard.artifacts import ScenarioRef
+from dashboard.series import SERIES, _split_variant, claimed_keys
 from dashboard.series_view import pipeline_facts
 from dashboard.tags import AXIS_EXPLAINS, class_of, note_of
 
@@ -54,15 +55,34 @@ _MATCH_KEYS = ('Hard 필터', '안정성 룰', '스크리너', '모멘텀')
 _RANDOM_SIGNALS = ('무작위 추첨',)
 
 
+def _base_tag(key: str) -> str:
+    """산출물 키 → 태그. `_n{K}`(종목 수)·`_A`/`_C`(캘린더) 접미사를 되돌린다.
+
+    분해 규칙을 여기 베끼지 않는다 — `ScenarioRef.from_key` 와 `series._split_variant`
+    가 이미 단일 정의이고, 캘린더 접미사는 "떼어낸 나머지가 실제 config 일 때만" 뗀다
+    는 판정까지 들어 있다 (`..._A` 로 끝나는 멀쩡한 태그를 망가뜨리지 않으려고).
+    """
+    return _split_variant(ScenarioRef.from_key(key)).base_tag
+
+
 def _axes_of(tag: str) -> list[str]:
     """이 태그가 등록된 축들. 다대다라 여럿일 수 있다.
 
     **명시 배정만 세면 안 된다** — 모멘텀 그리드처럼 패턴으로 붙는 축이 있어서,
     `spec.tags` 만 보면 23개가 통째로 "미배정"으로 잡힌다. 배정 규칙은
     `series.claimed_keys` 가 단일 정의다.
+
+    **키 변형도 되돌려 센다.** 등록 대장은 산출물 키로 배정하는데(`F_pbr_ma200_n13`,
+    `F_pbr_no_r3r4_A`) 이 문서는 **태그** 단위다. 문자열로만 맞추면 현행 채택안
+    `F_pbr_ma200` 의 소속 축이 `momentum_grid` 하나로 뜬다 — 정작 관문(`benchmarks`)과
+    종목 수 축에서 쓰이는데 그 사실이 채택안 행에서 사라진다 (2026-08-15 사용자 발견).
     """
-    tags = sorted(ABLATION_CONFIGS)
-    return [s.id for s in SERIES if tag in claimed_keys(s, tags)]
+    # 후보에 **등록 대장이 명시한 산출물 키도** 넣는다. 종목 수 축은
+    # `F_pbr_ma200_n*` 패턴으로 붙는데, 설정 이름만 넘기면 `_n13` 이 없어 아무것도
+    # 안 걸린다 — 채택안 행에서 그 축이 통째로 빠진다.
+    available = sorted(set(ABLATION_CONFIGS) | {k for s in SERIES for k in s.tags})
+    return [s.id for s in SERIES
+            if any(_base_tag(k) == tag for k in claimed_keys(s, available))]
 
 
 def _random_pool() -> dict[str, dict]:
@@ -130,17 +150,22 @@ def render() -> str:
         '  있다. 관문을 물 때는 `experiments/robustness/gate_results_*.json` 의',
         '  `draws_n_stocks` 가 대상의 `n_stocks` 와 같은지 반드시 확인하라.',
         '',
-        '  > ⚠️ **현행 채택안 `F_pbr_ma200` 의 짝 대조군은 `없음` 이다.** 유일한 모멘텀',
-        '  > 경로 대조군 `C_pbr_path_random` 이 레거시 `MA 20/60` 풀이기 때문이다.',
-        '  > `experiments/robustness/pools.json`(07-29, n=20)과 `pools_n13.json`',
-        '  > (08-12, n=13)이 **md5 동일**이다 — 08-12 재추첨은 `--n-pick` 만 바꿨고',
-        '  > 유니버스는 다시 짓지 않았다(`run_random_pool.py` 의 `TAG` 가 하드코딩이라',
-        '  > 모멘텀 기준을 바꿀 수단이 없다). 즉 **SPEC_10 G1 은 MA200 전략을 MA 20/60',
-        '  > 풀의 귀무분포에 대고 있다.** 판정이 뒤집힌다는 뜻은 아니다 — 더 좁은 풀의',
-        '  > p95 가 오를지 내릴지는 재본 적이 없다. `docs/CANONICAL.md` 의 G1 PASS 를',
-        '  > 인용할 때 이 사실을 함께 적어라.',
+        '  > **`[해소 2026-08-15]`** 2026-08-15 이전에는 채택안(MA200)의 관문이 레거시',
+        '  > `MA 20/60` 풀(`C_pbr_path_random`)에 걸려 있었다. `pools.json`(07-29, n=20)과',
+        '  > `pools_n13.json`(08-12, n=13)이 **md5 동일**인 것이 증거다 — 08-12 재추첨은',
+        '  > `--n-pick` 만 바꿨고 유니버스는 다시 짓지 않았다(`run_random_pool.py` 의 대상',
+        '  > 태그가 하드코딩이라 모멘텀을 바꿀 수단이 없었다). 지금은 채택안 설정에서',
+        '  > 파생된 `C_pbr_ma200_random` 으로 다시 뽑았다 — 풀이 8,229 → **6,445 종목**으로',
+        '  > 좁아졌고 p95 는 15.61% → **15.47%** 다. **판정은 그대로 G1 PASS**',
+        '  > (20.33% ≥ 15.47%, 귀무분포 백분위 99.4%).',
+        '',
+        '  > ⚠️ **G2 는 아직 같은 불일치가 남아 있다.** 벤치마크 `U_pbr_path_ew` 의 모멘텀이',
+        '  > `MA 20/60` 이라, 채택안(MA 200)을 **다른 유니버스의 동일가중**과 견준다.',
+        '  > 사전등록 게이트의 벤치마크 교체는 별도 결정 사항이라 그대로 뒀다.',
         '- **소속 축** — 대시보드 등록 대장(`dashboard/series.py`)에서 이 태그를 쓰는 축.',
-        '  비어 있으면 화면 어디에도 안 뜬다.',
+        '  비어 있으면 화면 어디에도 안 뜬다. 등록 대장은 **산출물 키**로 배정하므로',
+        '  (`F_pbr_ma200_n13`, `F_pbr_no_r3r4_A`) 접미사를 되돌려 센다 — 안 그러면 현행',
+        '  채택안의 소속 축에서 관문·종목 수 축이 빠진다.',
         '- **왜 만들었나** — 축과 조건만으로는 알 수 없는 것만 적는다. 모멘텀 그리드나',
         '  룰 조합처럼 **축이 곧 이유인 태그는 비워 둔다** (열이 이미 답하는 것을 다시',
         '  적으면 중복이고, 중복한 설명은 갈라진다). 내용은 `dashboard/tags.py` 소유.',

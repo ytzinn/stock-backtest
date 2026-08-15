@@ -1,19 +1,30 @@
 {
   "tag": "U_pbr_path_ew",
-  "run_at": "2026-07-29T14:03:54.692462",
+  "run_at": "2026-08-15T12:46:15.503381",
   "seed": null,
-  "cagr": 0.08250692801577553,
-  "net_cagr": 0.06930046051159122,
-  "alpha": -0.023607682418639975,
-  "alpha_kosdaq": 0.03909838480342698,
-  "sharpe": 0.3133783676845921,
-  "net_sharpe": 0.2645613784786802,
-  "mdd": -0.291168865752525,
+  "cagr": 0.08250690668111127,
+  "net_cagr": 0.06930043934973251,
+  "alpha": -0.023607703753304232,
+  "alpha_kosdaq": 0.03909836346876272,
+  "sharpe": 0.31337828986961264,
+  "net_sharpe": 0.2645613003921775,
+  "mdd": -0.2911688086980646,
   "robustness": 0.45,
   "benchmark_cagr": 0.1061146104344155,
   "kosdaq_cagr": 0.04340854321234855,
   "avg_turnover": 0.7092706808909459,
-  "cagr_optimistic": 0.08472956706382884,
-  "cagr_conservative": 0.07731927726174503,
-  "n_periods": 20
+  "cagr_optimistic": 0.08472954569218927,
+  "cagr_conservative": 0.07731925601390066,
+  "n_periods": 20,
+  "n_stocks": 20,
+  "calendar": {
+    "id": "SEMIANNUAL",
+    "n_anchors": 23,
+    "report_types": {
+      "FY": 12,
+      "H1": 11
+    },
+    "first_anchor": "2015-04-03",
+    "last_anchor": "2026-04-03"
+  }
 }
