@@ -50,6 +50,29 @@ def _split_variant(ref: ScenarioRef) -> ScenarioRef:
     return ref
 
 
+#: 유형 코드 → (짧은 이름, 이 유형이 무엇인지). **화면이 `A` 라고만 쓰지 않게 하려고**
+#: 매니페스트가 뜻까지 갖는다. 코드만 띄우면 처음 보는 사람은 뜻을 물어볼 데가 없다.
+KIND_MEANING: dict[str, tuple[str, str]] = {
+    'A': ('태그 성과 비교',
+          'ablation 산출물(`{artifact_key}.json`)이 기록한 지표를 나란히 놓는 축이다. '
+          '비교표·구간별·랜덤 분포로 그린다. **화면은 지표를 계산하지 않고 읽기만 한다.**'),
+    'B': ('검정 · 진단 산출물',
+          '성과 비교가 아니라 가설 검정·진단 결과다. 전용 뷰가 판정과 **그 판정을 만든 '
+          '문턱**(또는 문턱이 없다는 사실)을 함께 띄운다 — 결론만 주면 사후 해석을 부른다.'),
+}
+
+#: 상태 코드 → 뜻. 용어사전(`dashboard/glossary.py`)이 이 정의를 그대로 쓴다.
+#: 두 곳에 각자 적으면 한쪽만 고쳐진다 — 이 저장소가 이미 겪은 실패다.
+STATUS_MEANING: dict[str, str] = {
+    'ADOPTED':     '현행 운영 기준으로 채택됐다. `docs/CANONICAL.md` 와 일치해야 한다.',
+    'CLOSED_PASS': '검정을 통과하고 종결됐다.',
+    'CLOSED_FAIL': '검정에서 떨어져 종결됐다. **결론이 난 것이지 미완이 아니다.**',
+    'EXPLORING':   '아직 진행 중이다. 여기 수치를 결론으로 인용하면 안 된다.',
+    'ARCHIVED':    '계보 자체가 끝났다. 실험이 틀린 게 아니라 **전제가 교체됐다** — '
+                   '그 수치는 당시엔 정확하지만 현행 성적으로 인용하면 틀린다.',
+}
+
+
 @dataclass(frozen=True)
 class Status:
     """판정·종결 상태. 문자열 하나로 두면 "종결만 보기" 같은 필터가 불가능하다."""
@@ -58,6 +81,11 @@ class Status:
     label: str
     as_of: str
     source: str
+
+    @property
+    def meaning(self) -> str:
+        """코드의 뜻. 화면이 코드만 띄우지 않게 한다."""
+        return STATUS_MEANING.get(self.code, '')
 
 
 @dataclass(frozen=True)

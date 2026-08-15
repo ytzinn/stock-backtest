@@ -24,8 +24,10 @@ from backtest.ablation import ABLATION_CONFIGS
 from backtest.canonical_state import ROOT
 from dashboard.artifacts import build_catalog
 from dashboard.series import (
-    SERIES,
     CALENDAR_VARIANTS,
+    KIND_MEANING,
+    SERIES,
+    STATUS_MEANING,
     resolve,
     resolve_all,
     unassigned,
@@ -56,6 +58,36 @@ def test_series_shape_is_valid():
         assert s.status.label and s.status.as_of, f'{s.id}: status 라벨·일자 누락'
         if s.kind == 'B':
             assert s.paths, f'{s.id}: B형인데 원본 경로가 없다 — 화면에 띄울 게 없다'
+
+
+def test_every_code_on_screen_has_a_meaning():
+    """화면이 `A`·`ARCHIVED` 같은 코드만 띄우지 않게, 뜻이 매니페스트에 있어야 한다.
+
+    코드만 보이면 처음 보는 사람은 뜻을 물어볼 데가 없고, 대개 틀린 쪽으로 짐작한다
+    (`ARCHIVED` 를 "실험이 틀렸다"로 읽는 것이 대표적이다 — 실제로는 전제가 교체된 것).
+    """
+    assert set(STATUS_MEANING) == VALID_CODES, (
+        f'상태 코드와 뜻 목록이 어긋난다: 뜻 없음 {VALID_CODES - set(STATUS_MEANING)} · '
+        f'쓰이지 않는 뜻 {set(STATUS_MEANING) - VALID_CODES}')
+    for s in SERIES:
+        assert s.status.meaning, f'{s.id}: 상태 `{s.status.code}` 의 뜻이 비었다'
+        assert s.kind in KIND_MEANING, f'{s.id}: 유형 `{s.kind}` 의 뜻이 없다'
+    for code, meaning in STATUS_MEANING.items():
+        assert len(meaning) > 10, f'{code}: 뜻이 사실상 비었다'
+
+
+def test_glossary_status_table_is_generated_from_the_manifest():
+    """용어사전의 상태 표가 매니페스트 정의에서 생성되는가.
+
+    같은 5개 코드를 두 곳에 손으로 적으면 한쪽만 고쳐진다. 용어사전은
+    `STATUS_MEANING` 을 읽어 표를 만들므로, 여기서 그 연결이 살아 있는지 확인한다.
+    """
+    from dashboard.glossary import GLOSSARY_BY_ID
+
+    body = GLOSSARY_BY_ID['status_codes'].body
+    for code, meaning in STATUS_MEANING.items():
+        assert f'`{code}`' in body, f'용어사전에 `{code}` 가 없다'
+        assert meaning in body, f'용어사전의 `{code}` 설명이 매니페스트와 다르다'
 
 
 def test_evidence_documents_exist():

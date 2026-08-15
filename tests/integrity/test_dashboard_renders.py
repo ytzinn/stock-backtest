@@ -67,6 +67,26 @@ def test_series_explorer_renders_each_representative_axis(series_id):
     _assert_clean(at, f'series_explorer[{series_id}]')
 
 
+@pytest.mark.parametrize('series_id', ['layers', 'time_overfit', 'decomposition'])
+def test_header_explains_the_kind_and_status_codes(series_id):
+    """유형·상태가 **고른 축에 맞게** 뜨고, 코드가 아니라 뜻까지 보여야 한다.
+
+    예전에는 이 둘이 필터(multiselect)여서 화면 첫 줄이 "무엇을 볼까"가 아니라
+    "무엇을 걸러낼까"로 시작했고, 골라도 `A`·`ARCHIVED` 라는 코드만 남았다.
+    """
+    from dashboard.series import KIND_MEANING
+
+    spec = SERIES_BY_ID[series_id]
+    at = _run('series_explorer.py', series_pick=spec)
+    _assert_clean(at, f'series_explorer[{series_id}]')
+
+    caps = ' '.join(str(getattr(c, 'value', '')) for c in at.caption)
+    assert KIND_MEANING[spec.kind][1] in caps, \
+        f'유형 {spec.kind} 의 설명이 화면에 없다 — 코드만 띄우고 있다'
+    assert spec.status.meaning in caps, \
+        f'상태 {spec.status.code} 의 뜻이 화면에 없다'
+
+
 def test_series_explorer_shows_the_glossary_next_to_the_numbers():
     """용어 패널이 실제로 화면에 뜨는가.
 

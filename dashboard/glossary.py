@@ -22,6 +22,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from dashboard.series import STATUS_MEANING
+
+#: 상태 코드 표는 매니페스트(`dashboard/series.py`)의 정의에서 **생성한다.**
+#: 여기 손으로 다시 적으면 화면과 사전이 갈라지고, 갈라지면 한쪽만 고쳐진다.
+_STATUS_TABLE = '\n'.join(f'| **`{code}`** | {meaning} |'
+                          for code, meaning in STATUS_MEANING.items())
+
 
 @dataclass(frozen=True)
 class Term:
@@ -213,16 +220,12 @@ FAIL 인 것도 일별 net −58.12% 기준이고, 이것이 현행 채택 보�
         one_line='축의 판정 상태. ARCHIVED 는 "틀렸다"가 아니라 "계보가 끝났다"는 뜻이다.',
         aliases=('ADOPTED', 'CLOSED_FAIL', 'CLOSED_PASS', 'EXPLORING', 'ARCHIVED', 'Status'),
         series=(),
-        sources=('dashboard/series.py:53',),
+        sources=('dashboard/series.py',),
         incident='',
-        body="""
+        body=f"""
 | 코드 | 뜻 |
 |---|---|
-| **`ADOPTED`** | 현행 운영 기준으로 채택됐다. `docs/CANONICAL.md` 와 일치해야 한다 |
-| **`CLOSED_PASS`** | 검정을 통과하고 종결됐다 |
-| **`CLOSED_FAIL`** | 검정에서 떨어져 종결됐다. 결론이 난 것이지 미완이 아니다 |
-| **`EXPLORING`** | 아직 진행 중. 여기 수치를 결론으로 인용하면 안 된다 |
-| **`ARCHIVED`** | 계보 자체가 끝났다. 실험이 틀린 게 아니라 **전제가 교체됐다** |
+{_STATUS_TABLE}
 
 `ARCHIVED` 가 가장 오해받는다. 레이어 ablation(A~H) 축은 전부 **RIM 랭킹 경로**의
 기록인데, 현행 채택안은 1/PBR 랭킹이라 계보가 다르다. 그 수치들은 그 당시 정확하지만

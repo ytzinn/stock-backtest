@@ -24,7 +24,7 @@ from dashboard.artifacts import build_catalog
 from dashboard.b_views import B_RENDERERS
 from dashboard.canonical_banner import render_canonical_banner
 from dashboard.glossary import index_rows, terms_for
-from dashboard.series import SERIES, resolve, unassigned
+from dashboard.series import KIND_MEANING, SERIES, resolve, unassigned
 from dashboard.series_view import (
     MDD_COL,
     b_type_files,
@@ -126,30 +126,33 @@ if not len(catalog):
 
 # ── 축 선택 ─────────────────────────────────────────────────────────────────
 
-col_kind, col_status, col_series = st.columns([1, 1.4, 3])
-kinds = col_kind.multiselect('유형', ['A', 'B'], default=['A', 'B'],
-                             help='A=태그 성과 비교 · B=검정/진단 산출물')
-codes = sorted({s.status.code for s in SERIES})
-picked_codes = col_status.multiselect('상태', codes, default=codes)
-
-candidates = [s for s in SERIES if s.kind in kinds and s.status.code in picked_codes]
-if not candidates:
-    st.info('조건에 맞는 시리즈가 없습니다.')
-    st.stop()
-
-spec = col_series.selectbox(
-    '시리즈 (변수 축)', candidates, key='series_pick',
-    format_func=lambda s: f'[{s.kind}] {s.title} — {s.changes}')
+# 축을 먼저 고르고, 유형·상태는 **고른 축을 설명하는 값**으로 따라온다. 예전에는
+# 유형·상태가 필터(multiselect)였는데, 그러면 화면 첫 줄이 "무엇을 볼까"가 아니라
+# "무엇을 걸러낼까"로 시작한다. 축이 16개뿐이라 거를 이유도 없었다.
+spec = st.selectbox(
+    '시리즈 (변수 축)', SERIES, key='series_pick',
+    format_func=lambda s: f'{s.title} — {s.changes}')
 
 series = resolve(spec, catalog)
+kind_name, kind_desc = KIND_MEANING[spec.kind]
 color = STATUS_COLOR.get(spec.status.code, '#64748b')
-st.markdown(
-    f"<span style='background:{color};color:white;padding:2px 10px;border-radius:6px;"
-    f"font-size:0.8rem'>{spec.status.code}</span> "
-    f"<b>{spec.status.label}</b> "
-    f"<span style='color:#6b7280;font-size:0.82rem'>· {spec.status.as_of} · 근거 "
-    f"<code>{spec.status.source}</code></span>",
-    unsafe_allow_html=True)
+
+col_kind, col_status = st.columns(2)
+with col_kind:
+    st.markdown(
+        f"<span style='background:#475569;color:white;padding:2px 10px;"
+        f"border-radius:6px;font-size:0.8rem'>유형 {spec.kind}</span> "
+        f"<b>{kind_name}</b>", unsafe_allow_html=True)
+    st.caption(kind_desc)
+with col_status:
+    st.markdown(
+        f"<span style='background:{color};color:white;padding:2px 10px;"
+        f"border-radius:6px;font-size:0.8rem'>{spec.status.code}</span> "
+        f"<b>{spec.status.label}</b> "
+        f"<span style='color:#6b7280;font-size:0.82rem'>· {spec.status.as_of} · 근거 "
+        f"<code>{spec.status.source}</code></span>", unsafe_allow_html=True)
+    st.caption(spec.status.meaning)
+
 st.caption(f'**무엇을 바꿨나** — {spec.changes}')
 
 if spec.notes:
