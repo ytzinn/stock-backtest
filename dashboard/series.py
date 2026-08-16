@@ -1099,9 +1099,6 @@ _META_FILES = ('.gitkeep', 'README.md', 'ARTIFACTS_MANIFEST.json')
 #: 깨진다(새 사각지대) ② 아무 파일도 안 걸리는 패턴이 남으면 깨진다(해소됐으니 지워라).
 #: `dashboard/claims.KNOWN` 과 같은 자기만료 구조다.
 UNCOVERED: dict[str, str] = {
-    'experiments/momentum_criteria/*smoke_test*': (
-        '배관 점검용 임시 산출물. 판정에도 화면에도 안 쓴다 — 지워도 되지만 누가 왜 '
-        '남겼는지 몰라 건드리지 않는다 (2026-08-16).'),
     'experiments/robustness/pools*.json': (
         '추첨 풀 스냅샷 — 감사·재현용. `momentum_decomposition`·`preferred_scan` 이 '
         '읽지만 화면에는 없다 (2026-08-16).'),
