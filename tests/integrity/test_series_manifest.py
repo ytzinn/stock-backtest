@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import glob
+import re
 import warnings
 
 import pytest
@@ -265,6 +266,50 @@ def test_elsewhere_paths_point_at_something(catalog):
     dead = [f'{s.id}/{e.tag}: {e.where}' for s in SERIES for e in s.elsewhere
             if not any((ROOT / p).exists() for p in e.where)]
     assert not dead, '값이 있다고 적힌 경로가 하나도 실재하지 않는다:\n  ' + '\n  '.join(dead)
+
+
+#: 실행 리포트가 "이 수치는 이제 아니다"를 선언하는 관례. `2026.07.17.` 이 처음 썼다.
+_SUPERSEDED = re.compile(r'⚠️\s*\*\*(대체됨|철회됨|폐기됨)')
+_BANNER_HEAD_LINES = 20
+
+
+def test_every_run_report_is_cited_or_marked_superseded():
+    """실행 리포트는 **어디선가 인용되거나, 대체됐다고 스스로 밝히거나** 둘 중 하나다.
+
+    둘 다 아니면 지뢰다 — 아무도 안 가리키는데 "공식 판정"이라고 적힌 문서가 남아
+    있으면, 나중에 검색으로 찾은 사람이 낡은 수치를 그대로 인용한다. 이 저장소는
+    이미 그 사고를 겪었다(2026-07-10 phaseB 의 `68/144` 가 철회 후에도 인용됐다).
+
+    2026-08-16 에 처음 재 보니 6개가 그 상태였고, 그중 `2026.07.20._PBR_GATE_OFFICIAL.md`
+    는 **G1 수치가 세 번 갈린 뒤**에도 아무 표시가 없었다.
+
+    배너 관례는 `2026.07.17._FROZEN_SNAPSHOT_OFFICIAL.md` 가 세웠다 —
+    머리말에 `⚠️ **대체됨 (날짜)**` 와 **후속 문서 포인터**를 함께 적는다.
+    """
+    runs = ROOT / 'experiments/runs'
+    if not runs.is_dir():
+        pytest.skip('experiments/runs 가 없다.')
+
+    # 저장소 전체에서 인용처를 찾는다 — 루트의 CLAUDE.md·MASTER.md 도 인용처다.
+    blob = []
+    for p in ROOT.rglob('*'):
+        if (p.is_file() and p.suffix in ('.py', '.md', '.yaml', '.yml')
+                and 'experiments/runs' not in p.as_posix() and '.git' not in p.parts):
+            try:
+                blob.append(p.read_text(encoding='utf-8'))
+            except (OSError, UnicodeDecodeError):
+                pass
+    cited_in = '\n'.join(blob)
+
+    orphans = []
+    for report in sorted(runs.glob('*.md')):
+        head = '\n'.join(
+            report.read_text(encoding='utf-8').splitlines()[:_BANNER_HEAD_LINES])
+        if report.name not in cited_in and not _SUPERSEDED.search(head):
+            orphans.append(report.name)
+    assert not orphans, (
+        '인용되지도 않고 대체 표시도 없는 실행 리포트:\n  ' + '\n  '.join(orphans) +
+        '\n어딘가에서 인용하거나, 머리말에 `⚠️ **대체됨 (날짜)**` 와 후속 문서를 적어라')
 
 
 def test_no_new_unreachable_artifact_family(catalog):
