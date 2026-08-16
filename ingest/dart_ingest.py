@@ -821,15 +821,37 @@ def ingest_company(dart: DartAPI, ticker: str, corp_code: str,
         for year, report_type in collect_targets:
             reprt_code = REPRT_CODE[report_type]
             items = dart.get_financial_statement(corp_code, year, reprt_code, fs_div)
+            used_div = fs_div
+
+            # 연결↔별도 폴백. fs_div 는 종목당 한 번(최근 FY 기준)만 정하는데, 자회사를
+            # 정리한 회사는 그 시점부터 연결을 못 내고 별도만 낸다. 반대 방향도 있다 —
+            # 최근이 연결이면 초기의 별도 시기가 통째로 날아간다.
+            # 폴백이 없으면 DART 에 멀쩡히 있는 재무제표를 `0개 계정 저장` 으로 조용히
+            # 버린다. 에러가 아니라 로그만 남아 여태 안 보였다.
+            #   2026-08-16 실측: 45개사(수집대상의 1.8%), 누락 342구간(회사당 평균 7.6).
+            #   001750 은 24구간 중 23개가 비어 있었다.
+            # 소비 쪽은 원래 혼재를 전제하고 CFS 우선 규칙을 갖고 있다 —
+            #   data_access.load_pit_series_ttm(ROW_NUMBER ... CFS THEN 1)
+            #   dq_gate._load_accounts(CORR-GATE-001, ORDER BY OFS 먼저→CFS 덮어쓰기)
+            # 즉 이 폴백은 설계를 어기는 게 아니라 어긋나 있던 수집을 설계에 맞춘다.
+            if not items:
+                alt_div = 'OFS' if fs_div == 'CFS' else 'CFS'
+                items = dart.get_financial_statement(corp_code, year, reprt_code, alt_div)
+                if items:
+                    used_div = alt_div
+                    log.info(f'{ticker} {year} {report_type}: '
+                             f'{fs_div} 없음 → {alt_div} 로 수집 ({len(items)}행)')
+                time.sleep(0.1)
+
             if items:
                 n = _upsert_financials(
-                    cur, ticker, corp_code, year, report_type, fs_div, items
+                    cur, ticker, corp_code, year, report_type, used_div, items
                 )
                 total += n
-                _deduplicate_equity_variants(cur, ticker, year, report_type, fs_div)
+                _deduplicate_equity_variants(cur, ticker, year, report_type, used_div)
                 try:
-                    _check_bs_integrity(cur, ticker, year, report_type, fs_div)
-                    _check_frmtrm_consistency(cur, ticker, year, report_type, fs_div)
+                    _check_bs_integrity(cur, ticker, year, report_type, used_div)
+                    _check_frmtrm_consistency(cur, ticker, year, report_type, used_div)
                 except Exception as e:
                     log.warning(f'{ticker} {year} {report_type} 검증 오류(무시): {e}')
             time.sleep(0.1)
