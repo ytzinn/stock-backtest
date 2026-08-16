@@ -33,11 +33,15 @@ from dashboard.series_view import (
     calendar_gate_results,
     calendar_gate_rows,
     contrast_rows,
+    coverage_common_dates,
     daily_nav_summary,
     decomposition,
+    diagnostics_provenance,
     direction_hold_is_undefined,
     g5_verdict,
+    mc0_manifest,
     mdd_layers,
+    momentum_coverage_rows,
     nav_gate_rows,
     layer2_frame,
     layer2_gate_rows,
@@ -667,6 +671,74 @@ def render_daily_nav() -> None:
                 st.info('정합 CSV 가 이 PC 에 없습니다 — 서버가 원본입니다.')
 
 
+def render_momentum_coverage() -> None:
+    """모멘텀 판정 진단 — **fail-closed 커버리지와 사전등록**.
+
+    이 축은 기준별 **성적**만 보여줬다. 그런데 성적이 신호에서 온 것인지 유니버스가
+    좁아져서 온 것인지는 커버리지를 봐야 갈린다 — 요구 이력이 긴 기준일수록 자료가
+    모자란 종목을 많이 버린다. 진단 26개 파일이 화면 밖에 있었다 (2026-08-16).
+    """
+    from dashboard.series import SERIES_BY_ID, resolve
+
+    m = mc0_manifest()
+    if m is not None:
+        pre = m.get('committed_before_results_viewed')
+        st.markdown(
+            f"<span style='background:{'#16a34a' if pre else '#d97706'};color:white;"
+            f"padding:3px 12px;border-radius:6px;font-size:0.85rem'>"
+            f"{'결과 열람 전 커밋' if pre else '사전등록 불명'}</span> "
+            f"<b>{m.get('spec')}</b> · {m.get('committed_at')}", unsafe_allow_html=True)
+        st.caption(
+            f"기준선 `{m.get('baseline_tag')}` · 배관 양성대조군 "
+            f"`{m.get('pipeline_positive_control_tag')}` "
+            f"(게이트 {(m.get('pipeline_gate_result') or {}).get('status')}). "
+            f"**사전등록이 이 축의 힘 전부입니다** — 23개 기준을 돌려 최고를 고르는 것은 "
+            f"그리드서치이고, 그래서 SPEC_12 §6-2 가 결과를 즉시 채택 근거로 쓰는 것을 "
+            f"막습니다.")
+
+    tags = [r.base_tag for r in
+            resolve(SERIES_BY_ID['momentum_grid']).members]
+    rows = momentum_coverage_rows(sorted(set(tags)))
+    if not rows:
+        st.info('모멘텀 진단 산출물이 없습니다 — 서버가 원본입니다.')
+        return
+
+    st.subheader('fail-closed 커버리지 — 자료가 모자라 걸러진 종목')
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True,
+                 column_config={'자료 부족 비율':
+                                st.column_config.NumberColumn(format='%.2f%%')})
+    common = coverage_common_dates(sorted(set(tags)))
+    st.caption(
+        f'**공통 리밸런싱일 {len(common)}개**({common[0]} ~ {common[-1]})에서만 셉니다. '
+        f'`F_pbr_ma200` 의 진단 파일에는 라이브 dry-run 신호일이 하나 더 있어서 '
+        f'(freeze 실행이 같은 파일에 덧붙였습니다) 그대로 합치면 분모가 큰 태그 하나만 '
+        f'비율이 낮게 나옵니다.' if common else '')
+    st.caption(
+        'HardFilter 는 상장 6개월(약 124거래일)에서 유니버스에 넣는데, 요구 이력이 그보다 '
+        '긴 기준(MA200 은 200일)은 그 틈의 종목을 **신호가 좋아서가 아니라 자료가 없어서** '
+        '통과시킬 수 있었습니다. 2026-08-12 에 `on_insufficient=reject` 로 일괄 고정했고'
+        '(fail-closed), 이 표는 그 조치가 실제로 몇 종목을 거르는지입니다. '
+        '**비율이 크면 그 기준의 성적은 신호가 아니라 유니버스 축소의 결과일 수 있습니다.**')
+
+    # ── 계보 경고 — 이 파일은 실행마다 덧붙는다 ─────────────────────────────
+    prov = {t: diagnostics_provenance(t) for t in sorted(set(tags))}
+    worst = max((p for p in prov.values() if p), key=lambda p: p['overlaps'], default=None)
+    if worst and worst['overlaps'] > 1:
+        st.warning(
+            f"**이 진단 파일은 실행마다 덧붙고 실행 표시가 없습니다.** 가장 심한 것이 "
+            f"{worst['dates']}개 날짜에 {worst['entries']}항목({worst['overlaps']}배)이고, "
+            f"같은 날짜의 값이 실행마다 다릅니다. 합계를 내거나 처음 것을 읽으면 "
+            f"**폐기된 실행의 수치**를 쓰게 됩니다. 위 표는 날짜별 **마지막 출현**만 "
+            f"쓰는데, 그게 현행이 맞다는 것은 채택안 구간 CSV 의 `momentum_passed` 와 "
+            f"**23/23 일치**로 확인했습니다(처음 출현은 2/23). `run_at`·실행 id 가 없어 "
+            f"몇 번째 실행인지는 알 수 없습니다 — TAPE-ASYNC 와 같은 종류의 계보 결손입니다.")
+        with st.expander('파일별 겹침'):
+            st.dataframe(pd.DataFrame(
+                [{'전략': t, '항목': p['entries'], '날짜': p['dates'], '겹침': p['overlaps']}
+                 for t, p in sorted(prov.items()) if p]),
+                use_container_width=True, hide_index=True)
+
+
 def render_calendar_gates() -> None:
     """캘린더 후보(안A·안C)의 **관문 판정과 사전등록 문턱**.
 
@@ -743,4 +815,5 @@ B_RENDERERS = {
     # A형 축에도 붙는다 — 비교표 아래에 관문 판정을 덧그린다. 페이지가 유형과
     # 무관하게 이 표를 찾으므로, 전용 뷰가 B형 전용이라는 제약은 없다.
     'calendar_gates': render_calendar_gates,
+    'momentum_coverage': render_momentum_coverage,
 }

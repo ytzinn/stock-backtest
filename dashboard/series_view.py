@@ -787,6 +787,113 @@ def reconciliation_rows(tag: str, path: Path | None = None) -> list[dict]:
     return out
 
 
+# ── 모멘텀 판정 진단 (SPEC_12 — fail-closed 커버리지) ───────────────────────
+
+MC_DIR = ROOT / 'experiments/momentum_criteria'
+
+
+def momentum_diagnostics(tag: str, mc_dir: Path | None = None) -> list[dict]:
+    """모멘텀 기준의 리밸런싱일별 진단 — **날짜별 마지막 출현만.**
+
+    이 파일은 **실행마다 덧붙고 run 표시가 없다.** `F_pbr_ma200` 은 24개 날짜에
+    311항목(13배)이고 같은 날짜의 값이 실행마다 다르다(2016-04-05 이 283 → 271).
+    합계를 내거나 처음 것을 읽으면 **폐기된 실행의 수치**를 쓰게 된다.
+
+    run 표시가 없으므로 "날짜별 마지막 출현"이 유일하게 정의 가능한 규칙이다. 그게
+    현행이 맞다는 것은 산출물로 확인했다 — 채택안 구간 CSV 의 `momentum_passed` 와
+    **23/23 일치**한다(처음 출현은 2/23). `tests/integrity` 가 그 대조를 계속 지킨다.
+    """
+    path = (mc_dir or MC_DIR) / f'{tag}_diagnostics_summary.json'
+    if not path.exists():
+        return []
+    rows: dict[str, dict] = {}
+    for r in json.loads(path.read_text(encoding='utf-8')):
+        rows[r['rebalance_date']] = r          # 뒤에 나온 것이 이긴다
+    return [rows[d] for d in sorted(rows)]
+
+
+def diagnostics_provenance(tag: str, mc_dir: Path | None = None) -> dict:
+    """이 진단 파일이 **몇 번의 실행을 담고 있나.** 화면이 그 사실을 말해야 한다.
+
+    `run_at`·실행 id 가 없어서 몇 번째 실행인지 알 수 없다 — 겹친 횟수만 셀 수 있다.
+    TAPE-ASYNC(홀딩스 tape 에 생성 시각·코드 SHA 가 없다)와 같은 종류의 계보 결손이다.
+    """
+    path = (mc_dir or MC_DIR) / f'{tag}_diagnostics_summary.json'
+    if not path.exists():
+        return {}
+    raw = json.loads(path.read_text(encoding='utf-8'))
+    dates = [r['rebalance_date'] for r in raw]
+    return {'entries': len(raw), 'dates': len(set(dates)),
+            'overlaps': round(len(raw) / max(len(set(dates)), 1), 1)}
+
+
+def coverage_common_dates(tags: list[str], mc_dir: Path | None = None) -> list[str]:
+    """비교에 쓸 **공통 리밸런싱일**. 기준마다 날짜 집합이 다르면 합계를 못 견준다.
+
+    `F_pbr_ma200` 의 진단 파일에는 백테스트 리밸런싱일 23개 말고 **라이브 dry-run
+    신호일(2026-08-10)** 이 하나 더 있다 — freeze 실행이 같은 파일에 덧붙였고, 거기만
+    `invalid` 상태가 있다. 그대로 합계를 내면 24일짜리와 23일짜리를 나란히 놓게 된다.
+    캘린더 관문이 `common_period` 로 맞춘 것과 같은 이유로 교집합을 쓴다.
+    """
+    sets = [ {r['rebalance_date'] for r in momentum_diagnostics(t, mc_dir)}
+             for t in tags ]
+    sets = [s for s in sets if s]
+    if not sets:
+        return []
+    common = set.intersection(*sets)
+    return sorted(common)
+
+
+def momentum_coverage_rows(tags: list[str], mc_dir: Path | None = None) -> list[dict]:
+    """기준별 **fail-closed 커버리지** — 자료가 모자라 걸러진 종목이 얼마나 되나.
+
+    HardFilter 는 상장 6개월(약 124거래일)에서 유니버스에 넣는데, 요구 이력이 그보다
+    긴 기준(MA200 은 200일)은 그 틈의 종목을 "신호가 좋아서가 아니라 자료가 없어서"
+    통과시킬 수 있었다. 2026-08-12 에 `on_insufficient='reject'` 로 일괄 고정했고
+    (fail-closed), 그 조치가 실제로 몇 종목을 거르는지가 이 표다.
+
+    커버리지가 크면 그 기준의 성적은 "신호"가 아니라 **유니버스 축소**의 결과일 수 있다.
+
+    **공통 날짜에서만 센다** (`coverage_common_dates`). 안 그러면 라이브 신호일이 섞인
+    태그 하나만 분모가 커져, 비율이 실제보다 낮게 나온다.
+    """
+    dates = set(coverage_common_dates(tags, mc_dir))
+    rows = []
+    for tag in tags:
+        diag = [r for r in momentum_diagnostics(tag, mc_dir)
+                if r['rebalance_date'] in dates]
+        if not diag:
+            continue
+        status: dict[str, int] = {}
+        passed = rejected = 0
+        for r in diag:
+            passed += r.get('n_passed') or 0
+            rejected += r.get('n_rejected') or 0
+            for k, v in (r.get('data_status_counts') or {}).items():
+                status[k] = status.get(k, 0) + v
+        total = sum(status.values())
+        insufficient = status.get('insufficient', 0)
+        rows.append({
+            '전략': tag,
+            '판정 기준': diag[0].get('criterion', '—'),
+            '평가 종목(누적)': total,
+            '통과': passed,
+            '탈락': rejected,
+            '자료 부족': insufficient,
+            '자료 부족 비율': None if not total else round(insufficient / total * 100, 2),
+            '구간': len(diag),
+        })
+    return sorted(rows, key=lambda r: -(r['자료 부족 비율'] or 0))
+
+
+def mc0_manifest(mc_dir: Path | None = None) -> dict | None:
+    """SPEC_12 사전등록 매니페스트. **결과 열람 전에 커밋됐다는 사실**이 요점이다."""
+    path = (mc_dir or MC_DIR) / 'MC0_manifest.json'
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding='utf-8'))
+
+
 # ── 캘린더 후보의 관문 (SPEC_13 Q-H) ────────────────────────────────────────
 
 ROB_DIR = ROOT / 'experiments/robustness'

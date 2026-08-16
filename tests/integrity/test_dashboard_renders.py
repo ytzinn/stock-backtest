@@ -46,6 +46,7 @@ REPRESENTATIVE = [
     'benchmarks',          # A형인데 `paths` 를 쓴다 (원본 목록이 B형 전용이었다)
     'daily_nav',           # B형 전용 뷰 (G5 판정 + 낙폭 세 층)
     'calendar_phase',      # A형인데 전용 뷰가 붙는다 (관문 판정 덧그리기)
+    'momentum_grid',       # A형 + 전용 뷰 (fail-closed 커버리지 + 사전등록)
 ]
 
 
@@ -270,6 +271,84 @@ def test_daily_nav_view_flags_tags_whose_reconciliation_failed():
     warns = ' '.join(str(getattr(e, 'value', '')) for e in at.warning)
     assert '정합 게이트가 실패한 전략' in warns, '정합 실패 경고가 화면에 없다'
     assert failed[0]['전략'] in warns, f"{failed[0]['전략']} 이 경고에 안 적혀 있다"
+
+
+def test_momentum_diagnostics_last_occurrence_is_the_current_run():
+    """진단 파일에서 **날짜별 마지막 출현이 현행**이라는 규칙을 산출물로 못 박는다.
+
+    이 파일들은 실행마다 덧붙고 `run_at`·실행 id 가 없다 (`F_pbr_ma200` 은 24개 날짜에
+    311항목). 같은 날짜의 값이 실행마다 다르므로, 합계를 내거나 처음 것을 읽으면
+    **폐기된 실행의 수치**를 쓰게 된다.
+
+    "마지막이 현행"은 가정이 아니라 확인된 사실이어야 한다 — 채택안 구간 CSV 의
+    `momentum_passed` 와 대조한다. 쓰기 방식이 바뀌면(예: 덮어쓰기로 전환, 순서 변경)
+    여기서 깨져서 규칙을 다시 세우게 만든다.
+    """
+    import csv
+
+    from backtest.canonical_state import ROOT as REPO_ROOT
+    from dashboard.series_view import momentum_diagnostics
+
+    csv_path = REPO_ROOT / 'experiments/ablation/F_pbr_ma200_n13_periods.csv'
+    if not csv_path.exists() or not momentum_diagnostics('F_pbr_ma200'):
+        pytest.skip('구간 CSV 또는 진단 산출물이 없다 (git 미추적).')
+
+    with csv_path.open(encoding='utf-8') as f:
+        expected = {r['rebalance_date']: int(r['momentum_passed'])
+                    for r in csv.DictReader(f) if r.get('momentum_passed')}
+    got = {r['rebalance_date']: r['n_passed'] for r in momentum_diagnostics('F_pbr_ma200')}
+
+    mismatch = {d: (n, got.get(d)) for d, n in expected.items() if got.get(d) != n}
+    assert not mismatch, (
+        f'진단의 마지막 출현이 실제 실행과 다르다: {mismatch} — '
+        f'"날짜별 마지막이 현행"이라는 규칙이 더 이상 성립하지 않는다')
+
+
+def test_momentum_coverage_compares_on_common_dates():
+    """커버리지를 **공통 날짜**에서 재는가. 분모가 다르면 비율을 못 견준다.
+
+    `F_pbr_ma200` 의 진단 파일에는 라이브 dry-run 신호일이 하나 더 있다 — freeze
+    실행이 같은 파일에 덧붙였다. 그대로 합치면 그 태그만 분모가 커져 자료 부족 비율이
+    실제보다 낮게 나온다. 캘린더 관문이 `common_period` 로 맞춘 것과 같은 이유다.
+    """
+    from dashboard.series import SERIES_BY_ID, resolve
+    from dashboard.series_view import coverage_common_dates, momentum_coverage_rows
+
+    tags = sorted({r.base_tag for r in resolve(SERIES_BY_ID['momentum_grid']).members})
+    rows = momentum_coverage_rows(tags)
+    if len(rows) < 2:
+        pytest.skip('모멘텀 진단 산출물이 부족하다 (서버가 원본).')
+
+    assert len({r['평가 종목(누적)'] for r in rows}) == 1, (
+        f'분모가 태그마다 다르다 — 공통 날짜로 안 맞춰졌다: '
+        f'{sorted({r["평가 종목(누적)"] for r in rows})}')
+    assert len({r['구간'] for r in rows}) == 1
+
+    common = coverage_common_dates(tags)
+    assert common and len(common) == rows[0]['구간']
+
+    # 요구 이력이 길수록 자료 부족이 많아야 한다 — 이 표가 말하려는 것이 그것이다.
+    by_tag = {r['전략']: r['자료 부족 비율'] for r in rows}
+    if {'F_pbr_ma300', 'F_pbr_ma5_20'} <= by_tag.keys():
+        assert by_tag['F_pbr_ma300'] > by_tag['F_pbr_ma5_20'], \
+            '창이 긴 기준의 자료 부족이 더 많지 않다 — 캡션의 설명이 무효다'
+
+
+def test_momentum_axis_warns_that_diagnostics_accumulate():
+    """진단 파일이 **덧붙는다**는 사실이 화면에 떠야 한다.
+
+    안 띄우면 다음 사람이 합계를 내고 폐기된 실행의 수치를 인용한다.
+    """
+    from dashboard.series_view import diagnostics_provenance
+
+    if not diagnostics_provenance('F_pbr_ma200'):
+        pytest.skip('진단 산출물이 없다.')
+
+    at = _run('series_explorer.py', series_pick=SERIES_BY_ID['momentum_grid'])
+    _assert_clean(at, 'series_explorer[momentum_grid]')
+    warns = ' '.join(str(getattr(e, 'value', '')) for e in at.warning)
+    assert '덧붙고' in warns and '마지막 출현' in warns, \
+        '진단 파일이 누적된다는 경고가 화면에 없다'
 
 
 def test_calendar_axis_shows_the_gates_behind_its_verdict():
