@@ -188,7 +188,14 @@ def test_many_to_many_membership_is_exercised(catalog):
 
 
 def test_b_series_paths_resolve(catalog):
-    """B형 원본 glob 이 최소 하나의 실제 파일로 해석돼야 한다."""
+    """B형 원본 glob 이 최소 하나의 실제 파일로 해석돼야 한다 — 오타난 경로 잡기.
+
+    **원본 트리에서만 엄격하다.** 개발 PC 는 대용량 산출물을 git 미추적으로 일부만
+    갖고 있어서(`*_daily_positions.csv` 는 서버에만 있다) 여기서 "아무것도 안 걸린다"가
+    오타인지 파일이 없는 건지 구별되지 않는다. 배포마다 서버에서 같은 검사가 돈다.
+    """
+    if _partial_mirror():
+        pytest.skip(f'부분 사본이다 ({ROOT}). 죽은 경로 판정은 원본 트리에서만.')
     dead = []
     for s in SERIES:
         if s.kind != 'B':
@@ -288,6 +295,15 @@ def test_no_new_unreachable_artifact_family(catalog):
 _AUTHORITATIVE_TREE = '/opt/stock-backtest'
 
 
+def _partial_mirror() -> bool:
+    """이 트리가 산출물 **부분 사본**인가.
+
+    "없다"가 두 가지를 뜻하는 자리에서는 실패시키지 않는다 — 구별 못 하는 판정을
+    빨간불로 만들면 늑대소년이 되고, 그러면 진짜 신호도 같이 무시된다.
+    """
+    return ROOT.as_posix() != _AUTHORITATIVE_TREE
+
+
 def test_uncovered_patterns_expire_when_covered():
     """**아무 파일도 안 걸리는 `UNCOVERED` 패턴은 지워야 한다.**
 
@@ -304,7 +320,7 @@ def test_uncovered_patterns_expire_when_covered():
 
     from dashboard.series import UNCOVERED, unreachable_files
 
-    if ROOT.as_posix() != _AUTHORITATIVE_TREE:
+    if _partial_mirror():
         pytest.skip(f'부분 사본이다 ({ROOT}). 만료 판정은 원본 트리'
                     f'({_AUTHORITATIVE_TREE})에서만 — 서버 배포 검사가 잡는다.')
 
