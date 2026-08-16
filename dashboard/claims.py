@@ -39,6 +39,7 @@ from __future__ import annotations
 import copy
 import json
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 from backtest.ablation import ABLATION_CONFIGS
@@ -145,6 +146,125 @@ def _contrast_claims() -> list[Violation]:
                 'calendar_sens/stage_b.json',
                 f"{c['contrast_id']}: single_axis={c.get('single_axis')}",
                 f'실제 축 {len(axes)}개', ('contrast_single', c['contrast_id'], v)))
+    return out
+
+
+#: 참조 성과값은 소수점 6자리로 기록된다. 반올림 반경의 절반이 허용오차다.
+_REF_TOL = 5e-7
+
+#: `years` 는 (E−S).days / 365.25 로 계산된다 (`stage_b` 의 `g_definition`).
+_DAYS_PER_YEAR = 365.25
+
+
+def _stage_b(path: Path | None = None) -> dict | None:
+    path = path or ROOT / 'experiments/calendar_sens/stage_b.json'
+    return json.loads(path.read_text(encoding='utf-8')) if path.exists() else None
+
+
+def _blocks(d: dict) -> list[tuple[str, list, dict | None]]:
+    """(블록 이름, 셀들, 블록이 선언한 window). 룰 블록은 자기 window 선언이 없다."""
+    rc = d.get('contrasts_rank_cut_2x2') or {}
+    return [
+        ('rule', d.get('contrasts_single_axis', []) + d.get('contrasts_multi_axis', []),
+         None),
+        ('rank_cut', rc.get('cells', []), rc.get('window')),
+    ]
+
+
+def _window_claims(path: Path | None = None) -> list[Violation]:
+    """`stage_b` 의 **기간 선언**이 자기 셀들과 맞는가.
+
+    이 블록들은 기간이 서로 다르다 — 룰 contrast 는 2016-05-18 부터인데 랭킹×컷은
+    2017-05-18 부터다(RIM 스코어가 TTM 순이익을 요구해서 2016 중간결산 앵커에서
+    포트폴리오가 0종목이 된다). **δ 를 블록 사이에서 비교하면 랭킹 차이가 아니라
+    "1년 현금보유 vs 1년 투자" 차이를 재게 된다.** 산출물이 그 사실을
+    `not_comparable_with` 로 적어 두는데 아무도 대조하지 않았다.
+    """
+    d = _stage_b(path)
+    if d is None:
+        return []
+    out = []
+    common = d.get('common_period') or {}
+    for name, cells, decl in _blocks(d):
+        if not cells:
+            continue
+        wins = {(c.get('window'), c.get('window_start'), c.get('window_end'))
+                for c in cells}
+        if len(wins) > 1:
+            out.append(Violation(
+                'calendar_sens/stage_b.json', f'{name} 블록의 셀이 한 기간을 쓴다',
+                f'{len(wins)}종이 섞여 있다 — {sorted(wins)}', ('window_mixed', name, '')))
+        if decl:
+            bad = [c['contrast_id'] for c in cells
+                   if (c.get('window_start'), c.get('window_end'))
+                   != (decl.get('start'), decl.get('end'))]
+            if bad:
+                out.append(Violation(
+                    'calendar_sens/stage_b.json',
+                    f'{name} 블록이 {decl.get("start")}~{decl.get("end")} 라고 선언했다',
+                    f'셀이 다른 기간이다 — {bad}', ('window_decl', name, '')))
+        # 기간이 공통 기간과 다르면 **비교 금지 표시가 있어야** 한다.
+        start = next(iter(wins))[1]
+        if decl and start != common.get('S') and not decl.get('why'):
+            out.append(Violation(
+                'calendar_sens/stage_b.json',
+                f'{name} 블록이 공통 기간과 다른 창을 쓴다',
+                '왜 다른지(`why`)가 적혀 있지 않다 — 기간이 다른 δ 를 견주게 된다',
+                ('window_unexplained', name, '')))
+
+    # `years` 산술 자기정합 — 기록과 계산이 어긋나면 연율화가 통째로 틀린다.
+    for label, S, E, yrs in [
+        ('common_period', common.get('S'), common.get('E'), common.get('years')),
+        *[(f'{n} window', (w or {}).get('start'), (w or {}).get('end'),
+           (w or {}).get('years')) for n, _c, w in _blocks(d) if w],
+    ]:
+        if not (S and E and yrs):
+            continue
+        calc = (date.fromisoformat(E) - date.fromisoformat(S)).days / _DAYS_PER_YEAR
+        if abs(yrs - calc) > 1e-9:
+            out.append(Violation(
+                'calendar_sens/stage_b.json', f'{label}: years={yrs}',
+                f'(E−S)/365.25 = {calc} — 연율화 분모가 어긋난다',
+                ('window_years', label, '')))
+    return out
+
+
+def _reference_claims(path: Path | None = None) -> list[Violation]:
+    """`stage_b` 가 적어 둔 **반기 참조 성과값**이 ablation 산출물과 같은가.
+
+    두 산출물 계열을 잇는 유일한 검사다. `semiannual_gross_ref_full_period` 는
+    ablation 의 gross CAGR 을 베껴 온 값이라, **그 태그를 재실행하면 조용히 낡는다.**
+    전 contrast 의 baseline 이 `F_pbr_no_r3r4` 라 그 하나만 재실행해도 블록 전체가
+    어긋난다 — 2026-08-15 재발행이 마침 다른 태그(F_pbr_ma200·U_pbr_path_ew)여서
+    비껴갔을 뿐이다.
+    """
+    d = _stage_b(path)
+    if d is None:
+        return []
+    summary_path = ROOT / 'experiments/ablation/summary.json'
+    if not summary_path.exists():
+        return []
+    scen = json.loads(summary_path.read_text(encoding='utf-8')).get('scenarios') or {}
+
+    out = []
+    for _name, cells, _decl in _blocks(d):
+        for c in cells:
+            ref = c.get('semiannual_gross_ref_full_period')
+            if ref is None:            # 신규 태그 — 참조값이 없다고 스스로 적었다
+                continue
+            got = (scen.get(c['variant_tag']) or {}).get('cagr')
+            if got is None:
+                out.append(Violation(
+                    'calendar_sens/stage_b.json',
+                    f"{c['contrast_id']}: `{c['variant_tag']}` 의 반기 참조값 {ref}",
+                    '그 태그가 ablation summary 에 없다 — 대조할 수 없다',
+                    ('ref_missing', c['contrast_id'], c['variant_tag'])))
+            elif abs(got - ref) > _REF_TOL:
+                out.append(Violation(
+                    'calendar_sens/stage_b.json',
+                    f"{c['contrast_id']}: 반기 참조값 {ref}",
+                    f'산출물은 {got:.6f} — 그 태그를 재실행하고 stage_b 는 안 돌렸다',
+                    ('ref_stale', c['contrast_id'], c['variant_tag'])))
     return out
 
 
@@ -257,8 +377,12 @@ def _delta_claims() -> list[Violation]:
 
 def verify() -> list[Violation]:
     """모든 주장을 검증하고 **예외로 등록되지 않은** 위반만 돌려준다."""
-    found = _contrast_claims() + _gate_claims() + _delta_claims()
-    return [v for v in found if v.key not in KNOWN]
+    return [v for v in _all_claims() if v.key not in KNOWN]
+
+
+def _all_claims() -> list[Violation]:
+    return (_contrast_claims() + _gate_claims() + _delta_claims()
+            + _window_claims() + _reference_claims())
 
 
 def stale_exemptions() -> list[tuple]:
@@ -267,7 +391,7 @@ def stale_exemptions() -> list[tuple]:
     예외가 자기만료되지 않으면 억제 목록이 되고, 억제 목록은 시간이 지나면
     아무도 안 보는 사각지대가 된다 — 지금 매트릭스가 그랬던 것과 같은 실패다.
     """
-    live = {v.key for v in _contrast_claims() + _gate_claims() + _delta_claims()}
+    live = {v.key for v in _all_claims()}
     return sorted(k for k in KNOWN if k not in live)
 
 

@@ -170,6 +170,72 @@ def test_the_g2_mismatch_is_registered_not_forgotten():
         'G2 벤치의 불일치 내용이 바뀌었다 — 예외 사유를 다시 확인하라'
 
 
+def _stage_b_copy(tmp_path, mutate) -> object:
+    """`stage_b.json` 사본을 고쳐 검사가 무는지 본다. **원본은 건드리지 않는다.**"""
+    import json
+
+    from dashboard.claims import ROOT
+
+    src = ROOT / 'experiments/calendar_sens/stage_b.json'
+    if not src.exists():
+        pytest.skip('stage_b 산출물이 없다 (서버가 원본).')
+    d = json.loads(src.read_text(encoding='utf-8'))
+    mutate(d)
+    out = tmp_path / 'stage_b.json'
+    out.write_text(json.dumps(d, ensure_ascii=False), encoding='utf-8')
+    return out
+
+
+def test_window_claims_hold_and_the_check_bites(tmp_path):
+    """블록별 **기간 선언**이 자기 셀들과 맞는가, 그리고 어긋나면 잡히는가.
+
+    룰 contrast 는 2016-05-18 부터인데 랭킹×컷은 2017-05-18 부터다 — RIM 스코어가
+    TTM 순이익을 요구해 2016 중간결산 앵커에서 포트폴리오가 0종목이 되기 때문이다.
+    **δ 를 블록 사이에서 비교하면 랭킹 차이가 아니라 "1년 현금보유 vs 1년 투자"를
+    재게 된다.** 산출물이 `not_comparable_with` 로 적어 두는데 아무도 대조하지 않았다.
+    """
+    from dashboard.claims import _window_claims
+
+    assert not _window_claims(), '현행 stage_b 의 기간 선언이 이미 어긋나 있다'
+
+    # 연율화 분모를 흔든다 — 이게 틀리면 모든 CAGR 이 틀린다.
+    def break_years(d):
+        d['common_period']['years'] = d['common_period']['years'] + 1.0
+
+    got = _window_claims(_stage_b_copy(tmp_path, break_years))
+    assert any(v.key[0] == 'window_years' for v in got), \
+        f'years 를 흔들었는데 검사가 조용하다 ({[v.key for v in got]})'
+
+    # 블록 안에서 기간을 섞는다.
+    def mix_window(d):
+        d['contrasts_single_axis'][0]['window_start'] = '2018-01-01'
+
+    got = _window_claims(_stage_b_copy(tmp_path, mix_window))
+    assert any(v.key[0] == 'window_mixed' for v in got)
+
+
+def test_reference_values_track_the_ablation_artifacts(tmp_path):
+    """`stage_b` 의 **반기 참조값**이 ablation 산출물과 같은가.
+
+    두 산출물 계열을 잇는 유일한 검사다. `semiannual_gross_ref_full_period` 는
+    ablation 의 gross CAGR 을 베껴 온 값이라 **그 태그를 재실행하면 조용히 낡는다.**
+    전 contrast 의 baseline 이 `F_pbr_no_r3r4` 라 그 하나만 재실행해도 블록 전체가
+    어긋난다 — 2026-08-15 재발행이 마침 다른 태그여서 비껴갔을 뿐이다.
+    """
+    from dashboard.claims import _reference_claims
+
+    assert not _reference_claims(), (
+        '참조값이 이미 낡았다 — stage_b 가 인용하는 태그를 재실행하고 stage_b 를 '
+        '안 돌렸다는 뜻이다')
+
+    def drift(d):
+        d['contrasts_single_axis'][0]['semiannual_gross_ref_full_period'] = 0.999
+
+    got = _reference_claims(_stage_b_copy(tmp_path, drift))
+    assert any(v.key[0] == 'ref_stale' for v in got), \
+        f'참조값을 흔들었는데 검사가 조용하다 ({[v.key for v in got]})'
+
+
 @pytest.mark.parametrize('bad_axes', [0, 99])
 def test_checker_actually_fires(bad_axes):
     """검사가 **살아 있는지** 확인한다. 통과만 하는 검사는 없는 것과 같다."""
