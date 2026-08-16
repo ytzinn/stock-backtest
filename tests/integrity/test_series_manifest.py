@@ -666,6 +666,73 @@ def test_matrix_axis_membership_survives_key_suffixes():
             f'매트릭스가 그걸 못 알아본다. 현재: {sorted(axes)}')
 
 
+def test_derived_keys_have_their_own_rows(catalog):
+    """종목 수·캘린더를 독립변수로 쓸어 본 실행이 **표에 행으로 있는가.**
+
+    처음엔 설명 절만 두고 행은 안 만들었다. 사용자가 두 번 물었고 — 표를 훑는 사람은
+    보이는 행이 전부라고 읽는다. 설명은 표를 대신하지 못한다 (2026-08-16).
+    """
+    from scripts.make_tag_matrix import all_rows
+
+    rows = set(all_rows())
+    derived = {k for k in catalog.keys() if k not in ABLATION_CONFIGS}
+    missing = sorted(derived - rows)
+    assert not missing, f'산출물은 있는데 표에 행이 없다: {missing}'
+    assert 'F_pbr_ma200_n13' in rows, '현행 채택 산출물의 행이 없다'
+
+
+def test_derived_rows_are_distinguishable_from_their_parent(catalog):
+    """파생 행이 부모와 **적어도 한 열에서** 달라야 한다.
+
+    안 그러면 표에서 구별이 안 되고, 구별 안 되는 행은 짝 대조군도 같은 답을 받는다.
+    캘린더 열이 없던 동안 `F_pbr_no_r3r4_A` 와 `_C` 가 정확히 그 상태였다.
+    """
+    from scripts.make_tag_matrix import _base_tag, _row_facts
+
+    for key in catalog.keys():
+        if key in ABLATION_CONFIGS:
+            continue
+        parent = _base_tag(key)
+        if parent not in ABLATION_CONFIGS:
+            continue
+        child, base = _row_facts(key), _row_facts(parent)
+        diff = [c for c in child if child[c] != base.get(c)]
+        assert diff, (
+            f'{key} 가 부모 `{parent}` 와 모든 열이 같다 — 표에서 구별되지 않는다. '
+            f'달라지는 축을 담을 열이 없다는 뜻이다')
+
+
+def test_identical_conditions_imply_identical_performance(catalog):
+    """조건이 같은 행끼리 **성적도 같은가.** 다르면 열이 하나 모자란 것이다.
+
+    이 검사가 다른 것들과 다른 점: 설정이 아니라 **결과**를 본다. 돌연변이 탐침은
+    설정 키만 훑으므로 "설정에는 없는데 결과를 가르는 것"(실행 인자·코드 경로)을 못
+    본다. 여기서는 조건표가 같다고 말한 두 행의 산출물을 실제로 대조하므로, 표가
+    놓친 차원이 **성적 차이로** 드러난다.
+
+    지금 같은 묶음 둘은 진짜로 같다 — `F_pbr_ma200`(기본 20) vs `_n20`, 그리고
+    `F_pbr_ma_double_adapter` vs `F_pbr_no_r3r4`(같은 산식을 다른 배관으로 부른다).
+    부동소수 끝자리까지 일치한다.
+    """
+    from scripts.make_tag_matrix import twin_groups
+
+    for group in twin_groups():
+        present = [k for k in group if k in catalog]
+        if len(present) < 2:
+            continue
+        head = catalog.require(present[0]).metrics
+        for other in present[1:]:
+            got = catalog.require(other).metrics
+            for m in ('cagr', 'net_cagr', 'mdd', 'sharpe', 'avg_turnover'):
+                a, b = head.get(m), got.get(m)
+                if a is None or b is None:
+                    continue
+                assert abs(a - b) < 1e-12, (
+                    f'`{present[0]}` 와 `{other}` 는 조건이 같은데 {m} 이 다르다 '
+                    f'({a} vs {b}) — 조건표가 못 보는 차원이 성적을 가르고 있다. '
+                    f'열을 추가하라')
+
+
 def test_no_artifact_is_silently_missing_from_the_matrix(catalog):
     """산출물이 매트릭스에 **행이 없다면 그 이유가 설명돼야** 한다.
 
@@ -691,14 +758,22 @@ def test_no_artifact_is_silently_missing_from_the_matrix(catalog):
         f'`이 표에 행이 없는 것` 절에 설명을 추가하거나 ABLATION_CONFIGS 에 등록하라')
 
 
-def test_matrix_explains_the_derived_keys_it_omits():
-    """생략한 것을 문서가 실제로 설명하는가. 절이 사라지면 깨진다."""
+def test_matrix_shows_derived_keys_and_says_why(catalog):
+    """파생 키가 **본문 표에** 있고, 왜 싣는지도 적혀 있는가.
+
+    2026-08-16 이전에는 설명 절만 두고 행을 안 만들었다. 사용자가 두 번 물어서
+    바꿨다 — 표를 훑는 사람은 보이는 행이 전부라고 읽으므로, 설명은 표를 대신하지
+    못한다. 되돌아가면 이 검사가 깨진다.
+    """
     from scripts.make_tag_matrix import render
 
     body = render()
-    assert '이 표에 행이 없는 것' in body, '생략 설명 절이 사라졌다'
-    for must in ('_n{K}', '--n-stocks', '캘린더 변형', '순수 함수'):
-        assert must in body, f'생략 설명에 `{must}` 이 없다'
+    assert '파생 키도 행으로 싣는다' in body, '파생 키 설명 절이 사라졌다'
+    for must in ('--n-stocks', '캘린더', '조건이 완전히 같은 행'):
+        assert must in body, f'`{must}` 설명이 없다'
+    for key in ('F_pbr_ma200_n13', 'F_pbr_no_r3r4_A'):
+        if key in catalog:
+            assert f'| `{key}` |' in body, f'`{key}` 가 본문 표에 행으로 없다'
 
 
 def test_every_tag_note_points_at_a_real_tag():
