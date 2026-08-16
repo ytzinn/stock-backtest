@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import fnmatch
 from dataclasses import dataclass, field, replace
+from pathlib import Path
 
 from backtest.ablation import ABLATION_CONFIGS
 from dashboard.artifacts import ArtifactCatalog, ScenarioRef, build_catalog
@@ -1039,7 +1040,95 @@ def resolve_all(catalog: ArtifactCatalog | None = None) -> list[Series]:
 
 
 def unassigned(catalog: ArtifactCatalog | None = None) -> list[str]:
-    """어느 축에도 안 들어간 산출물. 조용히 사라지게 두지 않는다."""
+    """어느 축에도 안 들어간 **ablation 산출물**. 조용히 사라지게 두지 않는다.
+
+    이 함수는 `experiments/ablation/` 만 본다 — 카탈로그가 거기만 훑기 때문이다.
+    나머지 계열(일별 NAV·robustness·momentum_criteria·runs)은 `unreachable_files()`
+    가 센다. 둘을 나눈 이유: 여기는 **태그**가 단위이고 저기는 **파일**이 단위다.
+    """
     catalog = catalog if catalog is not None else build_catalog()
     used = {m.artifact_key for s in resolve_all(catalog) for m in s.members}
     return sorted(k for k in catalog.keys() if k not in used)
+
+
+#: 산출물이 아닌 파일. 도달범위 계산에서 뺀다 (메타·자리표시자).
+_META_FILES = ('.gitkeep', 'README.md', 'ARTIFACTS_MANIFEST.json')
+
+#: **도달 불가로 알고 있는 계열** — 사유와 날짜를 함께 적는다.
+#:
+#: 억제 목록이 아니다. 검사가 두 방향으로 지킨다: ① 이 밖에서 새 파일이 나오면
+#: 깨진다(새 사각지대) ② 아무 파일도 안 걸리는 패턴이 남으면 깨진다(해소됐으니 지워라).
+#: `dashboard/claims.KNOWN` 과 같은 자기만료 구조다.
+UNCOVERED: dict[str, str] = {
+    'experiments/daily_nav/*': (
+        '일별 NAV — **Sharpe·MDD 의 SSOT 이고 G5 판정(−58.12%)이 여기서 나온다**'
+        '(SPEC_13 §9-1). 그런데 전용 축이 없어 CANONICAL 배너가 값만 띄운다. '
+        '구간별 재구성·정합 CSV 는 화면 어디에도 없다. 축 신설 대기 (2026-08-16).'),
+    'experiments/momentum_criteria/*': (
+        '모멘텀 판정 기준별 진단 — fail-closed 커버리지(요구 이력 부족으로 걸러진 '
+        '종목 수)를 담는다. 모멘텀 그리드 축이 성적만 보여주고 이 진단은 안 가리킨다. '
+        '축 확장 대기 (2026-08-16).'),
+    'experiments/robustness/pools*.json': (
+        '추첨 풀 스냅샷 — 감사·재현용. `momentum_decomposition`·`preferred_scan` 이 '
+        '읽지만 화면에는 없다 (2026-08-16).'),
+    'experiments/robustness/qg_results_*.json': (
+        '캘린더 A/C 의 관문 결과 — `calendar_phase` 축이 안A/안C 를 비교하는데 **그 '
+        '판정 근거를 아무 데서도 안 가리킨다.** G1 귀무분포가 안 보이던 것과 같은 '
+        '상황이다. 배정 대기 (2026-08-16).'),
+    'experiments/robustness/random_summary_[AC].json': (
+        '캘린더 A/C 의 귀무분포 요약 — 위와 같은 이유 (2026-08-16).'),
+    'experiments/robustness/*.csv.gz': (
+        '추첨 구간·기여도 원본(대용량, git 미추적). `gate_analysis` 가 G3′·G4′ 에 '
+        '쓰지만 화면은 요약만 띄운다 (2026-08-16).'),
+    'experiments/runs/*': (
+        '실행 리포트 아카이브. 축이 **인용할 때만** 도달한다(왜-지도 `sources`·B형 '
+        '`paths`). 전부를 화면에 걸 대상은 아니지만, 인용되지 않은 것이 쌓이면 '
+        '철회된 수치를 누가 다시 인용한다 — 2026-07-10 리포트가 그랬다 (2026-08-16).'),
+}
+
+
+def unreachable_files(root: Path | None = None) -> list[str]:
+    """등록 대장에서 **화면으로 도달할 수 없는** 산출물 파일.
+
+    `unassigned()` 는 `experiments/ablation/` 만 훑는다. 그래서 나머지 다섯 계열은
+    구조적으로 안 세어졌다 — 매트릭스가 설정만 세던 것과 **같은 모양의 사각지대**다.
+    2026-08-16 에 처음 재 보니 223개 중 **93개**가 도달 불가였고, 그중에는 G5 판정의
+    SSOT 인 일별 NAV 36개와 캘린더 A/C 관문 산출물 6개가 들어 있었다.
+
+    "도달 불가"는 "안 쓰인다"가 아니다. 대부분은 코드가 읽는데 **화면에 없을** 뿐이고,
+    그게 위험한 이유는 `C_pbr_path_random` 이 G1 귀무분포인데 안 보이던 것과 같다 —
+    판정의 근거가 화면 밖에 있으면 아무도 그게 낡았는지 모른다.
+    """
+    import glob as _glob
+
+    root = root or Path(__file__).resolve().parent.parent
+    exp = root / 'experiments'
+    if not exp.is_dir():
+        return []
+
+    reachable: set[Path] = set()
+    for spec in SERIES:
+        for pattern in spec.paths:
+            reachable |= {Path(p).resolve() for p in _glob.glob(str(root / pattern))}
+        for e in spec.elsewhere:
+            reachable |= {(root / w).resolve() for w in e.where if (root / w).exists()}
+        # 왜-지도의 **근거 문서도 등록 대장의 포인터다.** 처음 재 볼 때 이걸 빼먹어서
+        # `2026.07.18._PIT_OFFICIAL.md` 같은 인용 문서가 "도달 불가"로 잡혔다.
+        if spec.why:
+            reachable |= {(root / s).resolve() for s in spec.why.sources
+                          if (root / s).exists()}
+        if (root / spec.status.source).exists():
+            reachable.add((root / spec.status.source).resolve())
+
+    catalog = build_catalog()
+    for art in catalog:
+        if art.path:
+            reachable.add(art.path.resolve())
+        reachable |= {p.resolve() for p in art.sidecars.values()}
+    # 묶음 요약은 태그가 아니라 카탈로그의 재료다 (`build_catalog` 가 읽는다).
+    reachable |= {p.resolve() for p in (exp / 'ablation').glob('summary*.json')}
+
+    return sorted(
+        p.relative_to(root).as_posix()
+        for p in exp.rglob('*')
+        if p.is_file() and p.name not in _META_FILES and p.resolve() not in reachable)

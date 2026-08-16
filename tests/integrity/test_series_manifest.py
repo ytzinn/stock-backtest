@@ -260,6 +260,56 @@ def test_elsewhere_paths_point_at_something(catalog):
     assert not dead, '값이 있다고 적힌 경로가 하나도 실재하지 않는다:\n  ' + '\n  '.join(dead)
 
 
+def test_no_new_unreachable_artifact_family(catalog):
+    """등록 대장에서 화면으로 **도달할 수 없는** 산출물이 새로 생기면 깨진다.
+
+    `unassigned()` 는 `experiments/ablation/` 만 훑는다. 그래서 나머지 다섯 계열은
+    구조적으로 안 세어졌고, 2026-08-16 에 처음 재 보니 223개 중 86개가 도달 불가였다 —
+    그중에 **G5 판정의 SSOT 인 일별 NAV 36개**와 **캘린더 A/C 관문 산출물 6개**가
+    들어 있었다. 매트릭스가 설정만 세던 것과 같은 모양의 사각지대다.
+
+    한 번에 다 배정할 수 없으므로 **래칫**으로 관리한다: 알고 있는 계열은
+    `UNCOVERED` 에 사유·날짜와 함께 적고, 그 밖에서 새 파일이 나오면 여기서 걸린다.
+    """
+    import fnmatch as _fn
+
+    from dashboard.series import UNCOVERED, unreachable_files
+
+    left = [p for p in unreachable_files()
+            if not any(_fn.fnmatch(p, pat) for pat in UNCOVERED)]
+    assert not left, (
+        '등록 대장에서 도달할 수 없는 새 산출물:\n  ' + '\n  '.join(left) +
+        '\n축에 배정하거나(`paths`·`elsewhere`), 지금 못 하면 '
+        '`series.UNCOVERED` 에 사유와 날짜를 적어라')
+
+
+def test_uncovered_patterns_expire_when_covered():
+    """**아무 파일도 안 걸리는 `UNCOVERED` 패턴은 지워야 한다.**
+
+    자기만료가 없으면 억제 목록이 되고, 억제 목록은 시간이 지나면 아무도 안 보는
+    사각지대가 된다 — 이 저장소가 이미 두 번 겪은 실패다.
+    """
+    import fnmatch as _fn
+
+    from dashboard.series import UNCOVERED, unreachable_files
+
+    left = unreachable_files()
+    stale = [pat for pat in UNCOVERED
+             if not any(_fn.fnmatch(p, pat) for p in left)]
+    assert not stale, (
+        f'해소된 계열이 `UNCOVERED` 에 남아 있다: {stale} — 지워라. '
+        f'남겨 두면 같은 자리에 새 사각지대가 생겨도 조용히 통과한다')
+
+
+def test_uncovered_entries_record_why_and_when():
+    """사유·날짜가 없으면 다음 사람이 지워도 되는지 알 수 없다."""
+    from dashboard.series import UNCOVERED
+
+    for pat, reason in UNCOVERED.items():
+        assert len(reason) > 30, f'{pat}: 사유가 사실상 비었다'
+        assert '2026' in reason, f'{pat}: 언제 내린 판단인지 없다'
+
+
 def test_unassigned_artifacts_are_reported(catalog):
     """어느 축에도 없는 산출물은 **경고로 드러낸다.** 실패는 아니다.
 
