@@ -215,6 +215,23 @@ def _ma_label(a: dict) -> str:
     return out
 
 
+def _screener_label(pipeline, names: list[str]) -> str:
+    """스크리너를 **무슨 가중으로** 돌리나. `✓` 하나로 뭉개면 안 된다.
+
+    `screener_weights` 는 설정 키인데 어떤 열도 반응하지 않아, 단일 팩터 변형 넷
+    (`E_gpa_only`·`E_op_only`·`E_pbr_only`·`E_rev_only`)이 매트릭스에서 **11개 열이
+    전부 같게** 보였다. 서로 다른 네 실험이 표에서 구별되지 않으면 짝 대조군도 넷이
+    같은 답을 받는다. 돌연변이 탐침(`dashboard/claims.blind_spots`)이 찾아낸 사각지대다.
+    """
+    scr = next((f for f in pipeline.filters if type(f).__name__ == 'FactorScreener'), None)
+    if scr is None:
+        return '—'
+    w = getattr(scr, 'weights', None) or {}
+    hot = sorted(k for k, v in w.items() if v)
+    # 단일 팩터면 그 이름을, 복합이면 `✓` (기본 복합 가중은 축 설명이 답한다).
+    return f'✓ {hot[0]}' if len(hot) == 1 else '✓'
+
+
 def momentum_rule(pipeline) -> str:
     """**무엇으로 추세를 판정하나.** `✓` 하나로 뭉개면 안 된다.
 
@@ -280,15 +297,22 @@ def n_stocks_rule(base_tag: str, cfg: dict) -> str:
 
 @lru_cache(maxsize=None)
 def pipeline_facts(base_tag: str) -> dict:
+    """등록된 설정의 조건표. 없는 태그면 빈 dict."""
+    cfg = ABLATION_CONFIGS.get(base_tag)
+    return _facts_of(base_tag, cfg) if cfg is not None else {}
+
+
+def _facts_of(base_tag: str, cfg: dict) -> dict:
     """설정을 **실제로 조립해** 읽는다. 플래그를 화면이 다시 해석하지 않는다.
 
     `stability_r6`·`stability_rules`·`rank_mode`·`rim_cut` 의 조합 규칙은
     `build_ablation_pipeline` 이 단일 정의다. 화면이 그 분기를 베껴 쓰면 둘이 어긋나는
     날 화면만 조용히 틀린다. 그래서 같은 함수로 조립한 뒤 결과물을 들여다본다.
+
+    **설정을 인자로 받는다** — 등록된 것뿐 아니라 임의 설정으로도 불러야 하기 때문이다.
+    사각지대 탐침(`dashboard/claims.blind_spots`)이 설정 키를 하나씩 흔들어 이 표가
+    반응하는지 재는데, 캐시된 태그 단위 함수로는 그걸 할 수 없다.
     """
-    cfg = ABLATION_CONFIGS.get(base_tag)
-    if cfg is None:
-        return {}
     p = build_ablation_pipeline(base_tag, cfg)
     names = [type(f).__name__ for f in p.filters]
     stability = next((f for f in p.filters if type(f).__name__ == 'StabilityFilter'), None)
@@ -309,7 +333,7 @@ def pipeline_facts(base_tag: str) -> dict:
         '랭킹 신호': rank,
         'Hard 필터': '✓' if 'HardFilter' in names else '—',
         '안정성 룰': '·'.join(rules) if rules else '—',
-        '스크리너': '✓' if 'FactorScreener' in names else '—',
+        '스크리너': _screener_label(p, names),
         # `✓` 가 아니라 **판정 기준**이다. 짝 대조군 매칭이 이 값을 쓰므로, 뭉개면
         # 레거시 MA 20/60 풀을 MA200 전략의 귀무분포라고 부르게 된다.
         '모멘텀': momentum_rule(p),

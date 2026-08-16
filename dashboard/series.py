@@ -106,6 +106,10 @@ class Delta:
     base: str        # 기준 artifact_key
     variant: str     # 바꾼 쪽 artifact_key
     note: str = ''
+    # 이 뺄셈이 **실제로 몇 개를 바꾸나**. 산문으로 적힌 주의는 기계가 못 읽는다 —
+    # `dashboard/claims` 가 조건표와 대조해 어긋나면 검사를 깨뜨린다. 룰은 하나하나가
+    # 축이다(`stage_b` 의 `n_axes` 와 같은 눈금). 기본 1 = "하나만 바꾼 짝".
+    axes: int = 1
     # 세트를 가로지르는 비교인가. 기본은 금지다 — 세트를 넘으면 여러 조건이 함께
     # 달라진 값이 "무엇을 바꿨나" 한 줄로 뜬다. 그래도 필요한 자리가 있어서(무작위
     # 추첨 vs 모델 선택) **명시적으로 켤 때만** 허용하고, 화면이 그 사실을 표시한다.
@@ -327,11 +331,11 @@ _WHY_LAYERS = WhyMap(
         Delta('Hard 필터 추가', 'A_random', 'B_hard_random',
               '거래대금·상장기간 컷. 수익률이 아니라 현실성을 위한 필터다'),
         Delta('Stability 추가', 'B_hard_random', 'C_stability_random',
-              '재무 하드룰 6개. 중앙값보다 p5(바닥)에서 더 크게 움직인다'),
+              '재무 하드룰 6개. 중앙값보다 p5(바닥)에서 더 크게 움직인다', axes=6),
         Delta('RIM 랭킹으로 선택', 'C_stability_random', 'D_rim_only',
               '같은 풀에서 무작위 추첨 대신 RIM 순위로 고른다 = RIM 모델의 기여. '
               '추첨 중앙값과 단일 실행을 견주는 것이라 값의 종류가 다르다',
-              crosses_sets=True),
+              crosses_sets=True, axes=2),
         Delta('스크리너 추가', 'D_rim_only', 'E_screener_rim', '2026-07-05 폐기'),
         Delta('모멘텀 추가', 'D_rim_only', 'F_momentum_rim', '현행 경로가 물려받은 레이어'),
         Delta('스크리너 추가 (모멘텀 위에)', 'F_momentum_rim', 'G_full',
@@ -498,14 +502,16 @@ _WHY_RANKING = WhyMap(
     # 그냥 빼면 랭킹·R6·밸류에이션 컷 셋이 한꺼번에 달라진 값을 "랭킹의 차이"로 읽게 된다.
     # SPEC_13 §9-9 가 쓴 짝도 `D_no_r6` vs `D_pbr_only`, `F_no_r6` vs `F_pbr_only` 다.
     deltas=(
+        # 넷 다 **2축이다** — 랭킹을 바꾸면 밸류에이션 컷이 함께 사라진다(위 `reading`
+        # 참조). 그 사실이 산문에만 있어서 기계는 단일축으로 읽고 있었다.
         Delta('① 모멘텀 없음 (R6 둘 다 끔)', 'D_no_r6', 'D_pbr_only',
-              '2026-07-18 에 PBR +2.26%p. 회전율도 함께 내려간다'),
+              '2026-07-18 에 PBR +2.26%p. 회전율도 함께 내려간다', axes=2),
         Delta('② 모멘텀 있음 (R6 둘 다 끔)', 'F_no_r6', 'F_pbr_only',
-              '07-18 엔 PBR +1.89%p 였다 — 재발행 뒤 **RIM 쪽으로 뒤집힘**'),
+              '07-18 엔 PBR +1.89%p 였다 — 재발행 뒤 **RIM 쪽으로 뒤집힘**', axes=2),
         Delta(r'③ 룰 R1\~R6 동일', 'F_momentum_rim', 'F_pbr_r6',
-              '07-18 엔 PBR +1.09%p 였다 — 재발행 뒤 **RIM 쪽으로 뒤집힘**'),
+              '07-18 엔 PBR +1.09%p 였다 — 재발행 뒤 **RIM 쪽으로 뒤집힘**', axes=2),
         Delta('④ R3·R4 제거', 'F_no_r3r4', 'F_pbr_no_r3r4',
-              '07-18 엔 PBR +2.37%p. 방향은 유지, 격차는 줄었다'),
+              '07-18 엔 PBR +2.37%p. 방향은 유지, 격차는 줄었다', axes=2),
         Delta('R6 를 켜면 (RIM 경로)', 'D_no_r6', 'D_rim_only',
               '위 쌍들이 R6 를 맞춰 둔 이유 — 이만큼이 랭킹과 무관하게 움직인다'),
     ),
@@ -621,10 +627,10 @@ _WHY_PBR_RULES = WhyMap(
         Delta('R3·R4 복원', 'F_pbr_no_r3r4', 'F_pbr_r6',
               '**2축이다** — 함께 폐기된 쌍이라 한 번에 되돌린다. 어느 쪽이 유해한지는 '
               '이 값으로 못 가른다 (SPEC_14 는 `C_R3R4` 를 다축으로 분류한다)',
-              crosses_sets=True),
+              crosses_sets=True, axes=2),
         Delta('안정성 전체 제거', 'F_pbr_no_r3r4', 'F_pbr_nostab',
               '**다축**. 네 룰이 한꺼번에 빠진다 — 레이어의 총 기여이지 어느 룰의 기여도 '
-              '아니다', crosses_sets=True),
+              '아니다', crosses_sets=True, axes=4),
         Delta('R1 이 없을 때의 R2', 'F_pbr_no_r1r3r4', 'F_pbr_no_r1r2r3r4',
               'R1·R2 가 부분 대체재라는 근거. 위의 "R2 제거"(−0.11%p)와 부호가 반대다. '
               '**사다리 셀이라 판정에는 쓰지 않는다**', crosses_sets=True),

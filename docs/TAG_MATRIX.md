@@ -96,11 +96,11 @@
 | `D_pbr_no_r3r4` | DIAGNOSTIC | 1/PBR | R1·R2·R5·R6 | ✓ | — | — | — | 산출물 키 참조 (기본 20) | **없음** | ranking_signal | 모멘텀을 뺀 1/PBR 경로 — 현행 룰 {R1,R2,R5,R6} 을 유지한 채 모멘텀만 없앤 구성이다. 랭킹 신호 분리에서 "모멘텀 없는 층"의 PBR 쪽 값을 준다. |
 | `D_pbr_only` | DIAGNOSTIC | 1/PBR | R1·R2·R3·R4·R5 | ✓ | — | — | — | 산출물 키 참조 (기본 20) | `C_no_r6` | ranking_signal | RIM 업사이드 랭킹 대신 1/PBR 랭킹 — RIM 알파가 저PBR 재포장인지 신호분리 검증.  |
 | `D_rim_only` | DIAGNOSTIC | RIM 상승여력 | R1·R2·R3·R4·R5·R6 | ✓ | — | — | ✓ | 산출물 키 참조 (기본 20) | `C_stability_random` | layers, r6_loo, stability_loo_d, stability_all, ranking_signal | RIM 유효성(D>C) 판정용 핵심 대조군. 스크리너/모멘텀 없이 Hard+Stability(전체 6룰 기본)+RIM만.  |
-| `E_gpa_only` | ARCHIVE | RIM 상승여력 | R1·R2·R3·R4·R5·R6 | ✓ | ✓ | — | ✓ | 산출물 키 참조 (기본 20) | **없음** | screener_single | 폐기된 스크리너의 단일 팩터(gpa) 변형.  |
+| `E_gpa_only` | ARCHIVE | RIM 상승여력 | R1·R2·R3·R4·R5·R6 | ✓ | ✓ gpa | — | ✓ | 산출물 키 참조 (기본 20) | **없음** | screener_single | 폐기된 스크리너의 단일 팩터(gpa) 변형.  |
 | `E_no_r6` | ARCHIVE | RIM 상승여력 | R1·R2·R3·R4·R5 | ✓ | ✓ | — | ✓ | 산출물 키 참조 (기본 20) | **없음** | r6_loo | 폐기된 스크리너 경로의 R6 leave-one-out.  |
-| `E_op_only` | ARCHIVE | RIM 상승여력 | R1·R2·R3·R4·R5·R6 | ✓ | ✓ | — | ✓ | 산출물 키 참조 (기본 20) | **없음** | screener_single | 폐기된 스크리너의 단일 팩터(op_yoy) 변형.  |
-| `E_pbr_only` | ARCHIVE | RIM 상승여력 | R1·R2·R3·R4·R5·R6 | ✓ | ✓ | — | ✓ | 산출물 키 참조 (기본 20) | **없음** | screener_single | 폐기된 스크리너의 단일 팩터(inv_pbr) 변형.  |
-| `E_rev_only` | ARCHIVE | RIM 상승여력 | R1·R2·R3·R4·R5·R6 | ✓ | ✓ | — | ✓ | 산출물 키 참조 (기본 20) | **없음** | screener_single | 폐기된 스크리너의 단일 팩터(rev_yoy) 변형.  |
+| `E_op_only` | ARCHIVE | RIM 상승여력 | R1·R2·R3·R4·R5·R6 | ✓ | ✓ op_yoy | — | ✓ | 산출물 키 참조 (기본 20) | **없음** | screener_single | 폐기된 스크리너의 단일 팩터(op_yoy) 변형.  |
+| `E_pbr_only` | ARCHIVE | RIM 상승여력 | R1·R2·R3·R4·R5·R6 | ✓ | ✓ inv_pbr | — | ✓ | 산출물 키 참조 (기본 20) | **없음** | screener_single | 폐기된 스크리너의 단일 팩터(inv_pbr) 변형.  |
+| `E_rev_only` | ARCHIVE | RIM 상승여력 | R1·R2·R3·R4·R5·R6 | ✓ | ✓ rev_yoy | — | ✓ | 산출물 키 참조 (기본 20) | **없음** | screener_single | 폐기된 스크리너의 단일 팩터(rev_yoy) 변형.  |
 | `E_screener_rim` | ARCHIVE | RIM 상승여력 | R1·R2·R3·R4·R5·R6 | ✓ | ✓ | — | ✓ | 산출물 키 참조 (기본 20) | **없음** | layers, r6_loo, screener_single | FactorScreener 폐기(2026-07-05, phase2_rim.py:7 주석). 원칙 5에 따라 삭제하지 않고 기록 보존.  |
 | `F_momentum_rim` | DIAGNOSTIC | RIM 상승여력 | R1·R2·R3·R4·R5·R6 | ✓ | — | MA 20/60 | ✓ | 산출물 키 참조 (기본 20) | **없음** | layers, r6_loo, stability_combo_f, stability_all, ranking_signal | 모멘텀 기여도(F>D) 판정용. 단, stability_rules 미지정 → 기본값(R1~R6 전체)이라 CANONICAL(R1,R4,R5,R6)과 필터 구성이 다르다. GAPS.md DOC-ABL-002 참조.  |
 | `F_no_r2` | DIAGNOSTIC | RIM 상승여력 | R1·R3·R4·R5·R6 | ✓ | — | MA 20/60 | ✓ | 산출물 키 참조 (기본 20) | **없음** | stability_combo_f | F 계열에서 R2 단독 제외.  |
