@@ -23,6 +23,7 @@ from tenacity import retry, retry_if_not_exception_type, stop_after_attempt, wai
 
 from ingest.connection import db_conn
 from ingest.logging_config import configure_logging
+from ingest.xbrl_mapper import XBRL_TO_ACCOUNT
 
 load_dotenv()
 configure_logging('dart.log')
@@ -52,6 +53,11 @@ ACCOUNT_ALIASES: dict[str, list[str]] = {
     '매출액':           ['매출액', '수익(매출액)', '영업수익', '매출', '순매출액'],
     '매출총이익':       ['매출총이익', '매출이익'],
     '영업이익':         ['영업이익', '영업이익(손실)', '영업손익'],
+    # 여기에 `반기순이익`·`연결당기순이익(손실)` 을 **일부러 넣지 않는다.**
+    # 한글 표기는 보고서 종류마다 달라지고(사업=당기/반기=반기/분기=분기) 서식마다도
+    # 흔들려서, 별칭을 늘리는 방식은 새 표기가 나올 때마다 조용히 계정을 잃는다.
+    # 실제로 그렇게 10년을 잃었다 — H1 당기순이익 확보율 2016년 94.4% → 2026년 66.7%.
+    # 표기 축을 쫓는 대신 `standardize_by_account_id()` 가 XBRL 태그로 잡는다.
     '당기순이익':       ['당기순이익', '당기순이익(손실)', '분기순이익',
                         '분기순이익(손실)', '연결당기순이익'],
     '자본총계':             ['자본총계', '자본합계', '자본', '자본계', '자본의총계', '반기말자본', '반기말'],
@@ -115,6 +121,35 @@ _BS_ACCOUNTS: frozenset = frozenset(
 def standardize_account(raw_nm: str) -> Optional[str]:
     """DART 계정명 → 표준명. 매핑 없으면 None."""
     return _RAW_TO_STD.get(raw_nm.replace(' ', ''))
+
+
+def standardize_by_account_id(account_id: str) -> Optional[str]:
+    """XBRL 태그 ID → 표준명. 매핑 없으면 None.
+
+    `fnlttSinglAcntAll` 응답의 `account_id` 는 IFRS 택소노미 ID 다
+    (`ifrs-full_ProfitLoss`, `dart_ShortTermBorrowings` …). 우리는 이 필드를 받아놓고
+    여태 버렸다 — 그래서 한글 표기가 흔들릴 때마다 계정을 통째로 잃었다.
+
+    한글 이름은 보고서 종류마다 달라진다: 사업보고서 `당기순이익`, 반기보고서
+    `반기순이익`, 분기보고서 `분기순이익`. 별칭에 `반기순이익` 이 없어서 H1 당기순이익
+    확보율이 2016년 94.4% → 2026년 66.7% 로 흘러내렸고, TTM(FY−H1+H1)이 H1 값 두 개를
+    요구하는 탓에 R6 가 실제로 계산된 종목은 57% 뿐이었다. 계정이 없으면
+    stability_filter 의 R6 조건문은 건너뛰어지고 그 종목은 **자동 통과**한다.
+
+    XBRL ID 는 그 셋을 모두 `ifrs-full_ProfitLoss` 하나로 준다. 2026 반기 110종목
+    실측: 당기순이익 68.2% → 100.0%, 매출액 64.5% → 97.3%.
+
+    매핑표는 `xbrl_mapper.XBRL_TO_ACCOUNT` 단일 정의를 쓴다(복제 금지). 다만 그 표에
+    차입금 계열이 없어서 **한글 이름을 대체하지 않고 보완만 한다** — 순서는 호출부에서
+    `standardize_account()` 우선이다.
+    """
+    if not account_id:
+        return None
+    aid = account_id.strip()
+    if not aid or aid.startswith('-'):        # '-표준계정코드 미사용-'
+        return None
+    local = aid.split('_', 1)[1] if '_' in aid else aid
+    return XBRL_TO_ACCOUNT.get(local)
 
 
 # ── DART API ───────────────────────────────────────────────────────────────────
@@ -265,7 +300,10 @@ def _upsert_financials(cur, ticker: str, corp_code: str, year: int,
     for item in items:
         raw_nm = (item.get('account_nm') or '').strip()
         sj_nm  = (item.get('sj_nm') or '').replace(' ', '')
-        std_nm = standardize_account(raw_nm)
+        acct_id = (item.get('account_id') or '').strip()
+        # 한글 이름 우선 — 지금 맞게 잡히는 건 비트 단위로 보존한다.
+        # 못 잡을 때만 XBRL 태그 ID 로 보완한다 (표기 흔들림에 면역).
+        std_nm = standardize_account(raw_nm) or standardize_by_account_id(acct_id)
         if std_nm is None:
             cleaned = raw_nm.replace(' ', '')
             if sj_nm in _SJ_BS:
@@ -284,6 +322,20 @@ def _upsert_financials(cur, ticker: str, corp_code: str, year: int,
                         )
                     continue
             else:
+                # 손익계산서·현금흐름표 미매핑 계정.
+                # 여기가 **여태 아무 기록도 안 남기던 사각지대**였다 — 위 BS 분기는
+                # 'alias 보강용' 이라고 목적까지 적어두고 로깅했는데, IS/CF 는 그냥
+                # continue 였다. 그래서 `반기순이익` 이 10년간 조용히 버려지는 동안
+                # 로그에 단서가 한 줄도 없었고, 2026-05 의 dart_ni_repair 는 증상(빈 행)만
+                # 반복해서 기웠다. 감지 장치가 없으면 같은 사고가 다른 계정에서 되풀이된다.
+                if sj_nm in _SJ_IS or sj_nm in _SJ_CF:
+                    if any(kw in cleaned for kw in
+                           ('순이익', '순손실', '매출', '영업이익', '영업손실',
+                            '영업활동', '투자활동', '재무활동')):
+                        log.info(
+                            f'ALIAS_MISS_ISCF {ticker} {year} {report_type} '
+                            f'fs_div={fs_div} sj={sj_nm} raw="{raw_nm}" id="{acct_id}"'
+                        )
                 continue
 
         allowed_sj = _CANONICAL_SJ.get(std_nm)
