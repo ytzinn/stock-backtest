@@ -961,6 +961,22 @@ SERIES: tuple[SeriesSpec, ...] = (
                       'docs/설계/SPEC_11_decomposition_live_manifest.md')),
 
     SeriesSpec(
+        id='daily_nav', title='일별 NAV — 낙폭·G5 판정', kind='B',
+        changes='구간 지표를 일별 경로로 재구성한다 (측정 빈도 × 비용)',
+        # **G5 FAIL 이 여기서 나온다.** 채택 보류의 유일한 사유이고 Sharpe·MDD 의
+        # SSOT 인데(SPEC_13 §9-1) 축이 없어 36개 파일이 화면 밖에 있었다 — CANONICAL
+        # 배너가 값만 띄웠다. 판정 근거가 화면에 없으면 낡아도 아무도 모른다
+        # (`C_pbr_path_random` 이 G1 귀무분포인데 안 보이던 것과 같은 상황).
+        paths=('experiments/daily_nav/summary.json',
+               'experiments/daily_nav/summary_[AC].json',
+               'experiments/daily_nav/benchmarks_daily.csv',
+               'experiments/daily_nav/*_daily_nav.csv',
+               'experiments/daily_nav/*_reconciliation.csv'),
+        renderer='daily_nav',
+        status=Status('CLOSED_FAIL', 'G5 FAIL — 일별 net MDD −58.12% (한계 −45%)',
+                      '2026-08-15', _SPEC10)),
+
+    SeriesSpec(
         id='n_stocks', title='포트폴리오 종목 수 민감도', kind='A',
         changes='종목 수 n — 재실행 4개(10/12/13/20) + tape 절단 곡선 n=1..20',
         baseline='F_pbr_ma200_n13',
@@ -1060,10 +1076,6 @@ _META_FILES = ('.gitkeep', 'README.md', 'ARTIFACTS_MANIFEST.json')
 #: 깨진다(새 사각지대) ② 아무 파일도 안 걸리는 패턴이 남으면 깨진다(해소됐으니 지워라).
 #: `dashboard/claims.KNOWN` 과 같은 자기만료 구조다.
 UNCOVERED: dict[str, str] = {
-    'experiments/daily_nav/*': (
-        '일별 NAV — **Sharpe·MDD 의 SSOT 이고 G5 판정(−58.12%)이 여기서 나온다**'
-        '(SPEC_13 §9-1). 그런데 전용 축이 없어 CANONICAL 배너가 값만 띄운다. '
-        '구간별 재구성·정합 CSV 는 화면 어디에도 없다. 축 신설 대기 (2026-08-16).'),
     'experiments/momentum_criteria/*': (
         '모멘텀 판정 기준별 진단 — fail-closed 커버리지(요구 이력 부족으로 걸러진 '
         '종목 수)를 담는다. 모멘텀 그리드 축이 성적만 보여주고 이 진단은 안 가리킨다. '

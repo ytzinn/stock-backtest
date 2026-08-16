@@ -44,6 +44,7 @@ REPRESENTATIVE = [
     'regime_overlay',      # B형 전용 뷰 (철회된 실행 + 히트맵 + PNG)
     'pbr_rules',           # A형 + 왜-지도 + 세트 + "다른 데 있는 태그"
     'benchmarks',          # A형인데 `paths` 를 쓴다 (원본 목록이 B형 전용이었다)
+    'daily_nav',           # B형 전용 뷰 (G5 판정 + 낙폭 세 층)
 ]
 
 
@@ -196,6 +197,78 @@ def test_regime_overlay_view_flags_the_retracted_run():
     boxes = ' '.join(str(getattr(e, 'value', '')) for e in at.error)
     assert '철회된 실행' in boxes, '철회 경고가 화면에 없다'
     assert '68/144' in boxes, '철회된 수치가 무엇이었는지 화면이 밝히지 않는다'
+
+
+def test_daily_nav_view_shows_g5_next_to_its_pre_registered_limit():
+    """G5 판정과 **그것을 만든 한계선**이 한 화면에 함께 떠야 한다.
+
+    이 축이 없던 동안 일별 NAV 36개가 화면 밖에 있었는데, **채택 보류의 유일한
+    사유(G5 FAIL)가 거기서 나온다.** 판정 근거가 화면에 없으면 낡아도 아무도 모른다 —
+    `C_pbr_path_random` 이 G1 귀무분포인데 안 보이던 것과 같은 상황이었다.
+    """
+    at = _run('series_explorer.py', series_pick=SERIES_BY_ID['daily_nav'])
+    _assert_clean(at, 'series_explorer[daily_nav]')
+
+    text = ' '.join(
+        str(getattr(e, 'value', '') or getattr(e, 'body', ''))
+        for group in (at.markdown, at.caption, at.warning, at.info, at.error)
+        for e in group)
+    for must in ('G5', '사전 등록', '-45%'):
+        assert must in text, f'일별 NAV 뷰에 `{must}` 이 화면에 없다'
+    assert '새로 판정하지 않' in text, \
+        '이 화면이 판정을 소유하지 않는다는 사실이 안 적혀 있다'
+
+
+def test_daily_nav_view_separates_the_two_mdd_axes():
+    """낙폭 **세 층**이 표로 떠야 한다. 하나만 인용하면 24%p 가 사라진다.
+
+    같은 전략의 낙폭이 −34% 로도 −58% 로도 인용돼 왔다. 축이 둘(측정 빈도 × 비용)인데
+    화면이 하나만 보여주면 그 혼동이 계속된다.
+    """
+    from dashboard.series_view import daily_nav_summary, mdd_layers
+
+    d = daily_nav_summary()
+    if d is None:
+        pytest.skip('일별 NAV 산출물이 없다 (git 미추적).')
+
+    at = _run('series_explorer.py', series_pick=SERIES_BY_ID['daily_nav'])
+    _assert_clean(at, 'series_explorer[daily_nav]')
+    frames = ' '.join(df.value.to_csv() for df in at.dataframe)
+    for basis in ('구간 · gross', '일별 · gross', '일별 · net'):
+        assert basis in frames, f'낙폭 표에 `{basis}` 층이 없다'
+
+    # 화면 값이 산출물과 같아야 한다 — 화면은 지표를 다시 계산하지 않는다.
+    from backtest.canonical_state import collect
+
+    t = d['tags'][collect()['key']]
+    rows = mdd_layers(t)
+    assert rows[0]['값'] == round(t['endpoint_mdd_gross'] * 100, 2)
+    assert rows[1]['값'] == round(t['daily_mdd_gross'] * 100, 2)
+    assert rows[2]['값'] == round(t['net']['daily_mdd'] * 100, 2)
+    # 빈도 몫이 비용 몫보다 훨씬 커야 한다 (캡션이 그렇게 말한다).
+    assert abs(rows[1]['앞 줄 대비 (%p)']) > 10 * abs(rows[2]['앞 줄 대비 (%p)']), \
+        '빈도와 비용의 크기 관계가 바뀌었다 — 캡션 문구를 다시 확인하라'
+
+
+def test_daily_nav_view_flags_tags_whose_reconciliation_failed():
+    """정합 게이트가 실패한 전략을 **경고로** 띄우는가.
+
+    그 전략의 일별 값은 판정에 쓰면 안 된다. 표에 섞여만 있으면 같은 무게로 읽힌다.
+    """
+    from dashboard.series_view import daily_nav_summary, nav_gate_rows
+
+    d = daily_nav_summary()
+    if d is None:
+        pytest.skip('일별 NAV 산출물이 없다 (git 미추적).')
+    failed = [r for r in nav_gate_rows(d) if r['정합 게이트'] != 'PASS']
+    if not failed:
+        pytest.skip('정합 실패 전략이 없다 — 경고 경로를 확인할 수 없다.')
+
+    at = _run('series_explorer.py', series_pick=SERIES_BY_ID['daily_nav'])
+    _assert_clean(at, 'series_explorer[daily_nav]')
+    warns = ' '.join(str(getattr(e, 'value', '')) for e in at.warning)
+    assert '정합 게이트가 실패한 전략' in warns, '정합 실패 경고가 화면에 없다'
+    assert failed[0]['전략'] in warns, f"{failed[0]['전략']} 이 경고에 안 적혀 있다"
 
 
 def test_decomposition_view_says_there_is_no_pre_registration():

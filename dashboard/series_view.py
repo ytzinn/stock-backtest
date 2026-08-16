@@ -671,6 +671,122 @@ def alpha_survives_episode_22(df) -> dict:
     }
 
 
+# ── B형: 일별 NAV (SPEC_13 §9-1 SSOT) ───────────────────────────────────────
+
+NAV_DIR = ROOT / 'experiments/daily_nav'
+
+#: SPEC_10 G5 한계선 (2026-07-19 사전 등록). `scripts/robustness/gate_analysis.py`
+#: 가 판정의 단일 정의이고, 여기서는 **화면에 문턱을 함께 띄우려고** 참조만 한다.
+G5_MDD_LIMIT = -0.45
+
+
+def daily_nav_summary(path: Path | None = None) -> dict | None:
+    """일별 NAV 요약. 없으면 None."""
+    path = path or NAV_DIR / 'summary.json'
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding='utf-8'))
+
+
+def mdd_layers(tag_summary: dict) -> list[dict]:
+    """낙폭 **세 층**을 한 표에 편다. 이 축이 존재하는 첫째 이유다.
+
+    같은 전략의 낙폭이 −34% 로도 −58% 로도 인용돼 왔다. 축이 둘이기 때문이다 —
+    **측정 빈도**(리밸런싱 종점만 vs 일별 경로)와 **비용**(gross vs net). 하나만
+    밝히고 인용하면 24%p 가 사라진다. 두 축을 분해해 보이면 어느 쪽이 얼마나
+    기여했는지가 드러난다 (빈도가 대부분이고 비용은 1%p 남짓이다).
+
+    **뺄셈만 한다.** 산출물이 기록한 세 값을 늘어놓고 인접 차이를 보일 뿐이고,
+    지표를 다시 계산하지 않는다.
+    """
+    ep = tag_summary.get('endpoint_mdd_gross')
+    dg = tag_summary.get('daily_mdd_gross')
+    dn = (tag_summary.get('net') or {}).get('daily_mdd')
+    rows = [
+        {'기준': '구간 · gross', '값': _pct(ep), '무엇이 빠져 있나':
+         '리밸런싱 시점 종가만 이어 붙인 값 — 구간 **안**의 낙폭이 안 보인다',
+         '앞 줄 대비 (%p)': None},
+        {'기준': '일별 · gross', '값': _pct(dg), '무엇이 빠져 있나':
+         '일별 경로를 포함한다. 거래비용은 아직 빠져 있다',
+         '앞 줄 대비 (%p)': None if None in (ep, dg) else round((dg - ep) * 100, 2)},
+        {'기준': '일별 · net  ← 판정', '값': _pct(dn), '무엇이 빠져 있나':
+         '거래비용까지 반영. **SPEC_10 G5 가 재는 값이고 SPEC_13 §9-1 의 SSOT** 다',
+         '앞 줄 대비 (%p)': None if None in (dg, dn) else round((dn - dg) * 100, 2)},
+    ]
+    return rows
+
+
+def g5_verdict(tag_summary: dict) -> dict:
+    """G5 판정과 **그 판정을 만든 문턱**을 함께 돌려준다.
+
+    판정 문자열만 띄우면 사람은 옆 숫자로 사후 설명을 만든다 — 이 저장소의 B형 뷰가
+    전부 같은 규칙을 따른다. 여기서 새로 판정하지 않는다: 값과 문턱을 나란히 놓을 뿐이고,
+    공식 판정은 `experiments/robustness/gate_results_*.json` 이 소유한다.
+    """
+    mdd = (tag_summary.get('net') or {}).get('daily_mdd')
+    return {
+        'mdd': mdd,
+        'limit': G5_MDD_LIMIT,
+        'pass': None if mdd is None else mdd > G5_MDD_LIMIT,
+        'peak': (tag_summary.get('net') or {}).get('mdd_peak_date'),
+        'trough': (tag_summary.get('net') or {}).get('mdd_trough_date'),
+        'worst_month': (tag_summary.get('net') or {}).get('worst_month'),
+        'worst_month_return': (tag_summary.get('net') or {}).get('worst_month_return'),
+    }
+
+
+def nav_gate_rows(summary: dict) -> list[dict]:
+    """태그별 **일별 NAV 정합 게이트**. 구간 지표와 일별 재구성이 맞는가.
+
+    이게 통과해야 일별 지표를 인용할 수 있다. `U_pbr_path_ew` 는 실패하는데, 전 종목
+    동일가중이라 상폐 haircut 시점 차이가 누적되기 때문이다 — 그 태그의 일별 값
+    (net CAGR 6.32%)을 판정에 쓰면 안 된다는 뜻이고, 실제로 G2 는 **구간** net 을 쓴다.
+    """
+    rows = []
+    for key, t in (summary.get('tags') or {}).items():
+        net = t.get('net') or {}
+        rows.append({
+            '전략': key,
+            '정합 게이트': 'PASS' if t.get('all_gates_pass') else '**FAIL**',
+            'net CAGR': _pct(t.get('net_cagr')),
+            '일별 MDD (net)': _pct(net.get('daily_mdd')),
+            'Sharpe (일별)': None if net.get('daily_sharpe') is None
+            else round(net['daily_sharpe'], 3),
+            '최악월': net.get('worst_month') or '—',
+            '완결 구간': t.get('n_closed_periods'),
+            '산출': (t.get('generated_at') or '')[:10],
+        })
+    return sorted(rows, key=lambda r: (r['정합 게이트'] == 'PASS', r['전략']))
+
+
+def reconciliation_rows(tag: str, path: Path | None = None) -> list[dict]:
+    """구간별 정합 대조 — **어느 구간에서 얼마나 어긋났나.**
+
+    "게이트 실패" 한 줄만 보면 전 구간이 틀린 것처럼 읽힌다. 실제로는 몇 구간에서
+    허용오차를 넘을 뿐이고, 그 크기를 봐야 그 태그의 일별 값을 어디까지 믿을지 정한다.
+    """
+    path = path or NAV_DIR / f'{tag}_reconciliation.csv'
+    if not path.exists():
+        return []
+    import csv
+
+    out = []
+    with path.open(encoding='utf-8') as f:
+        for r in csv.DictReader(f):
+            gates = {g: r.get(g) == 'True' for g in ('G_NAV_1', 'G_NAV_2', 'G_NAV_4')}
+            out.append({
+                '구간 시작': r['rebalance_date'],
+                '종목': int(r['n_stocks']) if r.get('n_stocks') else None,
+                '상폐 포함': r.get('has_delisted') == 'True',
+                'gross 차이': round(float(r['diff_gross']), 8),
+                '허용오차': round(float(r['tol_gross']), 8),
+                'net 차이': round(float(r['diff_net']), 8),
+                '통과': all(gates.values()),
+                '깨진 게이트': ', '.join(g for g, ok in gates.items() if not ok) or '—',
+            })
+    return out
+
+
 # ── B형: 성과 분해 / 라이브 전환 ────────────────────────────────────────────
 
 ANALYSIS_DIR = ROOT / 'experiments/analysis'

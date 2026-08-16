@@ -28,8 +28,12 @@ from dashboard.series_view import (
     block_sensitivity_rows,
     bootstrap_excludes_zero,
     contrast_rows,
+    daily_nav_summary,
     decomposition,
     direction_hold_is_undefined,
+    g5_verdict,
+    mdd_layers,
+    nav_gate_rows,
     layer2_frame,
     layer2_gate_rows,
     membership_verdict_rows,
@@ -38,6 +42,7 @@ from dashboard.series_view import (
     phase_b_runs,
     preferred_scan,
     rank_shift_rows,
+    reconciliation_rows,
     rule_membership,
     stage_b,
     time_split,
@@ -574,10 +579,94 @@ def render_regime_overlay() -> None:
                 st.image(str(p), caption=p.name, use_container_width=True)
 
 
+def render_daily_nav() -> None:
+    """일별 NAV — **G5 판정과 낙폭 세 층**.
+
+    이 축이 없던 동안 일별 NAV 36개 파일이 화면 밖에 있었다. 그런데 **G5 FAIL 이
+    거기서 나온다** — 채택 보류의 유일한 사유이고, Sharpe·MDD 의 SSOT 이기도 하다
+    (SPEC_13 §9-1). 판정 근거가 화면에 없으면 아무도 그게 낡았는지 모른다
+    (`C_pbr_path_random` 이 G1 귀무분포인데 안 보이던 것과 같은 상황이었다).
+    """
+    from backtest.canonical_state import collect
+
+    d = daily_nav_summary()
+    if d is None:
+        st.info('일별 NAV 산출물이 없습니다 — `python -m scripts.run_daily_nav` 로 만듭니다. '
+                '대용량이라 git 미추적이고 **서버가 원본**입니다.')
+        return
+
+    key = collect()['key']
+    tags = d.get('tags') or {}
+    if key not in tags:
+        st.error(f'현행 채택 산출물 `{key}` 의 일별 NAV 가 없습니다 — '
+                 f'요약에 있는 것: {", ".join(sorted(tags))}')
+        return
+    t = tags[key]
+
+    # ── G5 판정 + 문턱 ──────────────────────────────────────────────────────
+    v = g5_verdict(t)
+    ok = v['pass']
+    st.markdown(
+        f"<span style='background:{'#16a34a' if ok else '#dc2626'};color:white;"
+        f"padding:3px 12px;border-radius:6px;font-size:0.85rem'>"
+        f"G5 {'PASS' if ok else 'FAIL'}</span> "
+        f"<b>일별 net MDD {v['mdd']:.2%}</b> vs 사전등록 한계 "
+        f"<b>{v['limit']:.0%}</b> · 대상 <code>{key}</code>", unsafe_allow_html=True)
+    st.caption(
+        f"한계선은 2026-07-19 **사전 등록**(SPEC_10 §5)이고 실행 후 수정하지 않습니다. "
+        f"낙폭 구간은 {v['peak']} → {v['trough']}, 최악월은 {v['worst_month']} "
+        f"({v['worst_month_return']:.2%}). 공식 판정은 "
+        f"`experiments/robustness/gate_results_{key}.json` 이 소유하고, 이 화면은 "
+        f"값과 문턱을 나란히 놓을 뿐 새로 판정하지 않습니다.")
+
+    # ── 낙폭 세 층 ──────────────────────────────────────────────────────────
+    st.subheader('낙폭은 축이 둘이다 — 측정 빈도 × 비용')
+    st.dataframe(pd.DataFrame(mdd_layers(t)), use_container_width=True, hide_index=True,
+                 column_config={'앞 줄 대비 (%p)':
+                                st.column_config.NumberColumn(format='%+.2f')})
+    st.caption(
+        '같은 전략의 낙폭이 −34% 로도 −58% 로도 인용돼 왔습니다. **하나만 밝히고 '
+        '인용하면 24%p 가 사라집니다.** 위 표가 그 24%p 를 두 축으로 갈라 놓습니다 — '
+        '대부분이 측정 빈도(구간 종점만 보느냐 일별 경로를 보느냐)에서 오고, '
+        '거래비용 몫은 1%p 남짓입니다.')
+
+    c = st.columns(4)
+    net = t.get('net') or {}
+    c[0].metric('일별 net CAGR', f"{t['net_cagr']:.2%}")
+    c[1].metric('Sharpe (일별)', f"{net.get('daily_sharpe', float('nan')):.3f}")
+    c[2].metric('연율 변동성', f"{net.get('daily_vol_ann', float('nan')):.2%}")
+    c[3].metric('CVaR 5% (1개월)', f"{net.get('cvar_5pct_1m', float('nan')):.2%}")
+    st.caption(f"일별 {net.get('n_days')}일 · {net.get('n_months')}개월 · "
+               f"TE(KOSPI) {t.get('tracking_error_kospi', float('nan')):.2%}")
+
+    # ── 정합 게이트 ─────────────────────────────────────────────────────────
+    st.subheader('정합 게이트 — 이 값을 인용해도 되나')
+    rows = nav_gate_rows(d)
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    failed = [r['전략'] for r in rows if r['정합 게이트'] != 'PASS']
+    if failed:
+        st.warning(
+            f"**정합 게이트가 실패한 전략: {', '.join(f'`{x}`' for x in failed)}** — "
+            f"구간 지표와 일별 재구성이 허용오차 안에서 만나지 않습니다. 그 전략의 "
+            f"일별 값은 판정에 쓰면 안 됩니다. `U_pbr_path_ew` 는 필터 통과 **전 종목**을 "
+            f"담아 상폐 haircut 시점 차이가 누적되는 것이 원인이고, 그래서 G2 는 일별이 "
+            f"아니라 **구간** net 을 씁니다.")
+        with st.expander(f'구간별 정합 대조 — `{failed[0]}`'):
+            rec = reconciliation_rows(failed[0])
+            if rec:
+                st.dataframe(pd.DataFrame(rec), use_container_width=True, hide_index=True)
+                bad = sum(1 for r in rec if not r['통과'])
+                st.caption(f'{len(rec)}구간 중 **{bad}구간**이 허용오차를 넘습니다. '
+                           f'"게이트 실패"가 전 구간이 틀렸다는 뜻은 아닙니다.')
+            else:
+                st.info('정합 CSV 가 이 PC 에 없습니다 — 서버가 원본입니다.')
+
+
 #: `SeriesSpec.renderer` → 렌더 함수. 여기 없는 키는 raw fallback 으로 떨어진다.
 B_RENDERERS = {
     'time_overfit': render_time_overfit,
     'calendar_bootstrap': render_calendar_bootstrap,
     'live_decomposition': render_live_decomposition,
     'regime_overlay': render_regime_overlay,
+    'daily_nav': render_daily_nav,
 }
