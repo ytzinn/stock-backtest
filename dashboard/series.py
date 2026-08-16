@@ -1080,6 +1080,21 @@ UNCOVERED: dict[str, str] = {
     'experiments/robustness/*.csv.gz': (
         '추첨 구간·기여도 원본(대용량, git 미추적). `gate_analysis` 가 G3′·G4′ 에 '
         '쓰지만 화면은 요약만 띄운다 (2026-08-16).'),
+    # ── 날짜·실행 접미사가 붙은 **옛 벌** ────────────────────────────────
+    # 래칫이 처음 돌 때 서버에서 잡은 것들이다(개발 PC 엔 없다 — 미추적 대용량).
+    # 이 계열이 위험한 이유는 이미 겪었다: 같은 태그의 벌이 여럿이면 어느 것이 현행인지
+    # 이름만으로 안 갈린다 (`pools.json` 과 `pools_n13.json` 이 md5 동일이었던 건).
+    'experiments/ablation/*_periods_*.csv': (
+        '손으로 남긴 **실행별 구간 대조본** (`_0715run`·`_run3_presweep`). '
+        '2026-07-15 재실행 오염 사고(DRIFT-INGEST-001) 규명 때의 증거물이고 정규 '
+        '부속(`{키}_periods.csv`)이 아니다. 지우지 말 것 — 그 사고의 유일한 기록이다 '
+        '(2026-08-16).'),
+    'experiments/robustness/*_draws_[0-9]*.csv': (
+        '**폐기된 벌**의 추첨 원본 (`_20260720`). 현행은 접미사 없는 쪽이다. '
+        '남겨 두는 이유는 판정이 왜 바뀌었는지 되짚을 수 있어야 해서다 (2026-08-16).'),
+    'experiments/robustness/*_[AC]_draws.csv': (
+        '캘린더 A/C 추첨 원본 — 위 `qg_results_*`·`random_summary_[AC]` 와 한 벌이다. '
+        '`calendar_phase` 축에 배정 대기 (2026-08-16).'),
     'experiments/runs/*': (
         '실행 리포트 아카이브. 축이 **인용할 때만** 도달한다(왜-지도 `sources`·B형 '
         '`paths`). 전부를 화면에 걸 대상은 아니지만, 인용되지 않은 것이 쌓이면 '

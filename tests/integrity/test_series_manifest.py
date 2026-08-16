@@ -283,15 +283,30 @@ def test_no_new_unreachable_artifact_family(catalog):
         '`series.UNCOVERED` 에 사유와 날짜를 적어라')
 
 
+#: 산출물 **원본**이 있는 트리. CLAUDE.md 가 못 박은 위치다 — 개발 PC 는 부분 사본이라
+#: (대용량 산출물이 git 미추적) "해소됨"과 "이 기계엔 없음"을 구별할 수 없다.
+_AUTHORITATIVE_TREE = '/opt/stock-backtest'
+
+
 def test_uncovered_patterns_expire_when_covered():
     """**아무 파일도 안 걸리는 `UNCOVERED` 패턴은 지워야 한다.**
 
     자기만료가 없으면 억제 목록이 되고, 억제 목록은 시간이 지나면 아무도 안 보는
     사각지대가 된다 — 이 저장소가 이미 두 번 겪은 실패다.
+
+    **원본 트리에서만 엄격하게 잰다.** 개발 PC 는 대용량 산출물을 git 미추적으로
+    일부만 갖고 있어서(예: `C_pbr_path_random_A_draws.csv` 는 서버에만 있다), 거기서
+    "패턴이 아무것도 안 건드린다"는 해소됐다는 뜻일 수도 있고 파일이 없다는 뜻일 수도
+    있다. 구별 못 하는 자리에서 실패시키면 늑대소년이 된다 — 배포마다 서버에서 같은
+    검사를 돌리므로 놓치지 않는다.
     """
     import fnmatch as _fn
 
     from dashboard.series import UNCOVERED, unreachable_files
+
+    if ROOT.as_posix() != _AUTHORITATIVE_TREE:
+        pytest.skip(f'부분 사본이다 ({ROOT}). 만료 판정은 원본 트리'
+                    f'({_AUTHORITATIVE_TREE})에서만 — 서버 배포 검사가 잡는다.')
 
     left = unreachable_files()
     stale = [pat for pat in UNCOVERED
