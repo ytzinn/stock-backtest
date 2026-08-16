@@ -967,10 +967,14 @@ SERIES: tuple[SeriesSpec, ...] = (
         # SSOT 인데(SPEC_13 §9-1) 축이 없어 36개 파일이 화면 밖에 있었다 — CANONICAL
         # 배너가 값만 띄웠다. 판정 근거가 화면에 없으면 낡아도 아무도 모른다
         # (`C_pbr_path_random` 이 G1 귀무분포인데 안 보이던 것과 같은 상황).
+        # `_daily_positions.csv` 는 **개발 PC 에 없어서** 처음엔 빠뜨렸다. 도달범위
+        # 래칫이 서버(원본 트리)에서 잡아 줬다 — 부분 사본만 보고 축을 정의하면
+        # 이렇게 계열 하나가 통째로 샌다.
         paths=('experiments/daily_nav/summary.json',
                'experiments/daily_nav/summary_[AC].json',
                'experiments/daily_nav/benchmarks_daily.csv',
                'experiments/daily_nav/*_daily_nav.csv',
+               'experiments/daily_nav/*_daily_positions.csv',
                'experiments/daily_nav/*_reconciliation.csv'),
         renderer='daily_nav',
         status=Status('CLOSED_FAIL', 'G5 FAIL — 일별 net MDD −58.12% (한계 −45%)',
