@@ -108,6 +108,57 @@ def test_universe_axes_ignore_ranking_but_not_momentum():
     assert universe_axes('F_pbr_ma200', 'C_pbr_path_random') == ['모멘텀']
 
 
+def test_the_n_chain_is_verified_not_stripped(tmp_path):
+    """**종목 수 축이 검증기에 들어가 있는가.**
+
+    조건표는 태그 단위라 n 을 모른다(n 은 실행 파라미터다). 그래서 `base_tag()` 가
+    `_n13` 을 떼어 내는데, 거기서 멈추면 **2026-08-12 에 G1 을 깨뜨린 바로 그 축**이
+    새 검증기의 사각지대가 된다 — 그때 n=13 전략을 n=20 귀무분포로 판정하고 있었고,
+    그 방향은 합격선을 낮춰 게이트를 관대하게 만드는 쪽이었다.
+
+    그래서 산출물이 **기록한** n 을 사슬로 대조한다: 게이트가 적은 n ↔ 대상 산출물의
+    n ↔ 귀무분포 요약의 n, 그리고 대상 n == 귀무 n.
+    """
+    import json
+
+    from dashboard.claims import ROOT, _gate_claims, _recorded_n
+
+    path = ROOT / 'experiments/robustness/gate_results_F_pbr_ma200_n13.json'
+    if not path.exists():
+        pytest.skip('채택안 게이트 산출물이 없다 (git 미추적 환경).')
+    g = json.loads(path.read_text(encoding='utf-8'))
+
+    # 사슬이 실제로 이어져 있어야 한다 — 하나라도 None 이면 검증이 헛돈다.
+    assert g['n_stocks'] == g['draws_n_stocks'], '게이트가 대상과 귀무의 n 을 다르게 적었다'
+    assert _recorded_n(g['tag']) == g['n_stocks'], '대상 산출물의 기록 n 이 다르다'
+    assert _recorded_n(g['draws_tag']) == g['draws_n_stocks'], '귀무분포 요약의 기록 n 이 다르다'
+
+    # 그리고 검사가 그 불일치를 **실제로 잡는지** 확인한다. 실제 산출물은 건드리지
+    # 않는다 — 검사가 추적 중인 데이터를 고치면 그 자체가 오염 통로다.
+    tmp = tmp_path / 'robustness'
+    tmp.mkdir()
+    (tmp / path.name).write_text(
+        json.dumps({**g, 'draws_n_stocks': g['n_stocks'] + 7}, ensure_ascii=False),
+        encoding='utf-8')
+    keys = {v.key[0] for v in _gate_claims(rob_dir=tmp)}
+    assert 'gate_null_n' in keys, f'n 을 어긋나게 했는데 검사가 조용하다 (잡힌 것: {keys})'
+
+
+def test_gate_artifacts_declare_their_subject():
+    """게이트 산출물은 **어느 전략의 성적표인지 스스로 밝혀야** 한다.
+
+    종전 검증기는 밝히지 않은 산출물에 기본 태그를 채워 넣고 아는 척 검증했다 —
+    CLAUDE.md 가 금지하는 "조용한 기본값"이다. 지금은 위반으로 보고하고, 필드가
+    생기기 전 산출물만 사유와 함께 예외로 둔다.
+    """
+    from dashboard.claims import KNOWN, _gate_claims
+
+    undeclared = {v.key for v in _gate_claims() if v.key[0] == 'gate_undeclared'}
+    assert undeclared <= set(KNOWN), (
+        f'대상을 안 밝힌 게이트 산출물이 예외에 없다: {undeclared - set(KNOWN)} — '
+        f'새 산출물이라면 `--f-tag` 를 주고 다시 산출하라')
+
+
 def test_the_g2_mismatch_is_registered_not_forgotten():
     """알면서 두기로 한 G2 불일치가 **기록으로** 남아 있는가.
 

@@ -70,6 +70,11 @@ class Violation:
 #: 찾아내 지우게 만든다. 그게 없으면 예외가 조용히 쌓여, 지금 매트릭스와 똑같이
 #: 아무도 안 보는 사각지대가 된다.
 KNOWN: dict[tuple, str] = {
+    ('gate_undeclared', 'gate_results.json', ''):
+        '2026-07-30 산출 — `tag`·`draws_tag`·`u_tag` 필드가 생기기 전(2026-08-12 정정) '
+        '산출물이라 대상을 안 밝힌다. 조상 `F_pbr_no_r3r4`(n=20)의 기록이고 '
+        '`gate_results_F_pbr_ma200_n13.json` 로 대체됐다. **소급 편집하지 않는다** — '
+        '그 실행이 실제로 기록한 것을 왜곡하게 된다 (2026-08-16 판단).',
     ('gate_benchmark', 'F_pbr_ma200', 'U_pbr_path_ew'):
         'G2 벤치의 모멘텀이 레거시 MA 20/60 이라 채택안(MA 200)과 유니버스가 다르다. '
         '사전등록 게이트의 벤치마크 교체는 별도 결정이라 보류 '
@@ -143,31 +148,86 @@ def _contrast_claims() -> list[Violation]:
     return out
 
 
-def _gate_claims() -> list[Violation]:
-    """`gate_results_*.json` 의 귀무분포·벤치가 판정 대상과 같은 유니버스인가.
+def _recorded_n(key: str) -> int | None:
+    """산출물이 **기록한** 종목 수. 이름에서 추론하지 않는다.
+
+    이름과 내용이 어긋나는 사고가 이미 있었으므로(2026-08-12) 여기서는 내용만 읽는다.
+    이름↔내용 일치는 `tests/integrity/test_artifact_naming.py` 가 따로 지킨다.
+    """
+    for path in (ROOT / f'experiments/ablation/{key}.json',
+                 ROOT / f'experiments/robustness/random_summary_{key}.json'):
+        if path.exists():
+            return json.loads(path.read_text(encoding='utf-8')).get('n_stocks')
+    # `random_summary` 의 레거시 규약 — 파일명에 태그가 없고 `_n{K}` 만 붙는다.
+    sfx = key.rsplit('_', 1)[-1]
+    legacy = ROOT / f'experiments/robustness/random_summary{"_" + sfx if sfx.startswith("n") else ""}.json'
+    if legacy.exists():
+        return json.loads(legacy.read_text(encoding='utf-8')).get('n_stocks')
+    return None
+
+
+def _gate_claims(rob_dir: Path | None = None) -> list[Violation]:
+    """`gate_results_*.json` 의 귀무분포·벤치가 판정 대상과 **같은 유니버스·같은 n** 인가.
 
     이 검사가 2026-08-15 에 G1(모멘텀 불일치)과 G2 를 스스로 짚었다. 산출물이 자기
     입으로 "이게 저것의 귀무분포다"라고 적어 두는데 아무도 대조하지 않고 있었다.
+
+    **n 도 함께 본다.** 종목 수가 다르면 분산이 달라 p95(합격선) 자체가 달라진다 —
+    2026-08-12 에 n=13 전략을 n=20 귀무분포로 판정하고 있었고 그 방향은 게이트를
+    **관대하게** 만드는 쪽이었다. 조건표는 태그 단위라 n 을 모르므로(n 은 실행
+    파라미터다) 산출물이 기록한 값을 직접 사슬로 대조한다.
     """
+    # 디렉터리를 인자로 받는 이유: **검사가 추적 중인 산출물을 건드리지 않게** 하려고.
+    # 종전에는 실제 파일을 고쳤다 되돌렸는데, 윈도우에서 줄바꿈이 변환돼 원복이
+    # 정확하지 않았다 (검사가 데이터를 오염시키는 통로다).
     out = []
-    for path in sorted((ROOT / 'experiments/robustness').glob('gate_results*.json')):
+    for path in sorted((rob_dir or ROOT / 'experiments/robustness').glob('gate_results*.json')):
         g = json.loads(path.read_text(encoding='utf-8'))
-        f_tag = base_tag(g.get('tag') or 'F_pbr_no_r3r4')
-        for field, kind, label in (('draws_tag', 'gate_null', 'G1 귀무분포'),
-                                   ('u_tag', 'gate_benchmark', 'G2 벤치마크')):
-            other = g.get(field)
-            if not other:
+        src = f'robustness/{path.name}'
+        key = g.get('tag')
+        if not key:
+            # **추측하지 않는다.** 종전에는 기본 태그로 채워 넣었는데, 그러면 어느
+            # 전략의 성적표인지 모르는 산출물을 아는 척 검증하게 된다.
+            out.append(Violation(
+                src, '판정 대상을 스스로 밝힌다',
+                '`tag` 필드가 없다 — 어느 전략의 게이트인지 산출물만 보고 알 수 없다',
+                ('gate_undeclared', path.name, '')))
+            continue
+
+        f_tag, f_n = base_tag(key), g.get('n_stocks')
+        if f_n is not None and _recorded_n(key) not in (None, f_n):
+            out.append(Violation(
+                src, f'판정 대상 `{key}` 의 종목 수가 {f_n}',
+                f'산출물은 {_recorded_n(key)} 로 기록 — 이름·게이트·내용이 갈렸다',
+                ('gate_target_n', key, '')))
+
+        for field, n_field, kind, label in (
+                ('draws_tag', 'draws_n_stocks', 'gate_null', 'G1 귀무분포'),
+                ('u_tag', None, 'gate_benchmark', 'G2 벤치마크')):
+            other_key = g.get(field)
+            if not other_key:
                 continue
-            other = base_tag(other)
-            if f_tag not in ABLATION_CONFIGS or other not in ABLATION_CONFIGS:
-                continue
-            axes = universe_axes(f_tag, other)
-            if axes:
+            other = base_tag(other_key)
+            if f_tag in ABLATION_CONFIGS and other in ABLATION_CONFIGS:
+                axes = universe_axes(f_tag, other)
+                if axes:
+                    out.append(Violation(
+                        src, f'{label} `{other}` 가 `{f_tag}` 의 짝이다',
+                        f'유니버스가 다르다 — {" · ".join(axes)}',
+                        (kind, f_tag, other)))
+            if n_field is None:
+                continue        # EW 벤치는 전 종목이라 n 개념이 없다
+            other_n = g.get(n_field)
+            if other_n != f_n:
                 out.append(Violation(
-                    f'robustness/{path.name}',
-                    f'{label} `{other}` 가 `{f_tag}` 의 짝이다',
-                    f'유니버스가 다르다 — {" · ".join(axes)}',
-                    (kind, f_tag, other)))
+                    src, f'{label} 의 종목 수가 판정 대상과 같다',
+                    f'대상 n={f_n} vs 귀무 n={other_n} — 분산이 달라 합격선이 어긋난다',
+                    (f'{kind}_n', f_tag, other)))
+            if other_n is not None and _recorded_n(other_key) not in (None, other_n):
+                out.append(Violation(
+                    src, f'{label} `{other_key}` 의 종목 수가 {other_n}',
+                    f'산출물은 {_recorded_n(other_key)} 로 기록',
+                    (f'{kind}_recorded_n', other_key, '')))
     return out
 
 
