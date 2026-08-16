@@ -315,7 +315,11 @@ def _upsert_financials(cur, ticker: str, corp_code: str, year: int,
                     std_nm = f'지배기업소유주지분_{_jibae_idx}'
                 else:
                     # alias 미등록 BS 계정 — 합계성 계정 포함 시 로깅 (alias 보강용)
-                    if any(kw in cleaned for kw in ('자본', '자산', '부채')):
+                    # '차입'·'사채' 를 넣은 이유: 종전 키워드가 자본/자산/부채뿐이라
+                    # `유동성 금융기관 차입금(사채 제외)` 처럼 셋 중 어느 글자도 없는
+                    # 이름이 로그에 안 남았다. R2 는 계정 부재를 무차입으로 읽으므로
+                    # 이 사각지대가 곧 조용한 통과였다.
+                    if any(kw in cleaned for kw in ('자본', '자산', '부채', '차입', '사채')):
                         log.info(
                             f'ALIAS_MISS_BS {ticker} {year} {report_type} '
                             f'fs_div={fs_div} raw="{raw_nm}"'

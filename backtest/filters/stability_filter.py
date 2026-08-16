@@ -57,6 +57,32 @@ class StabilityFilter:
         return passed, rejected
 
 
+# 차입 성격 계정 — R2 의 단일 정의 (복제 금지)
+_BORROW_SPLIT = ('단기차입금', '유동성장기부채', '장기차입금', '사채', '유동성사채')
+_LEASE_SPLIT  = ('리스부채', '비유동리스부채')
+_LEASE_TOTAL  = '리스부채합계'
+
+
+def _borrowings(pit: dict) -> float:
+    """차입 총액. 계정 부재는 0 으로 읽히므로(= 무차입 판정) 매핑 누락이 곧 오탐이다.
+
+    `[정의 변경 2026-08-16, 사용자 결정]` **리스부채를 포함한다.** IFRS16 이후 리스부채는
+    실질적으로 차입인데 종전 정의(차입금 3종 + 사채)가 이를 제외하고 있었다. R2 의 목적이
+    '차입 규모 측정' 이므로 정의 쪽이 실질을 놓친 것으로 보고 고쳤다. 표본 150종목에서
+    리스부채가 175건으로 차입 계열 전체보다 많아, 이 변경은 R2 판정을 실질적으로 바꾼다.
+
+    총액 태그(`리스부채합계`)는 **분리값이 하나도 없을 때만** 쓴다 — 유동/비유동과 함께
+    더하면 중복 계상된다.
+    """
+    total = sum(pit.get(k, 0) or 0 for k in _BORROW_SPLIT)
+    lease_split = [pit.get(k) for k in _LEASE_SPLIT]
+    if any(v is not None for v in lease_split):
+        total += sum(v or 0 for v in lease_split)
+    else:
+        total += pit.get(_LEASE_TOTAL, 0) or 0
+    return total
+
+
 def _financial_stability_filter(
     ticker:        str,
     rebalance_date: date,
@@ -88,17 +114,13 @@ def _financial_stability_filter(
 
     # [R2] 차입금비율 > 150%
     # 예외: 최근 3FY 단조 감소 + 누적 10%p 이상 개선 시 통과
-    borrowings = sum(
-        pit_data.get(k, 0) or 0
-        for k in ['단기차입금', '유동성장기부채', '장기차입금', '사채']
-    )
+    borrowings = _borrowings(pit_data)
 
     def _borrow_ratio(pit: dict) -> float | None:
         eq = pit.get('자본총계', 0) or 0
         if eq <= 0:
             return None
-        br = sum(pit.get(k, 0) or 0 for k in ['단기차입금', '유동성장기부채', '장기차입금', '사채'])
-        return br / eq
+        return _borrowings(pit) / eq
 
     if 'R2' in active_rules and equity > 0 and (borrowings / equity) > 1.5:
         trend_ok = False
