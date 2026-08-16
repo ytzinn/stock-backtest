@@ -915,7 +915,19 @@ SERIES: tuple[SeriesSpec, ...] = (
         tags=('F_pbr_no_r3r4', 'F_pbr_no_r3r4_A', 'F_pbr_no_r3r4_C',
               'U_pbr_path_ew', 'U_pbr_path_ew_A', 'U_pbr_path_ew_C'),
         periods_per_year=None,   # 안A=분기·안C/현행=반기 — 하나로 못 적는다
-        status=_CLOSED('두 후보 FAIL — 캘린더 축 종결', '2026-08-10', _SPEC13)),
+        # status 는 "두 후보 FAIL" 이라 적어 두고 **그 판정을 만든 산출물을 아무 데서도
+        # 가리키지 않았다** (도달범위 측정, 2026-08-16). 결론만 있고 근거가 화면 밖이면
+        # 나중에 "왜 FAIL 이었더라"를 문서에서 다시 찾아야 하고, 그 사이 근거가 낡아도
+        # 아무도 모른다 — G1 귀무분포가 실제로 그렇게 낡았다.
+        paths=('experiments/robustness/qg_results_[AC].json',
+               'experiments/robustness/random_summary_[AC].json',
+               'experiments/robustness/pools_[AC].json',
+               'experiments/robustness/*_[AC]_draws.csv',
+               'experiments/robustness/*_[AC]_periods.csv.gz',
+               'experiments/robustness/*_[AC]_contrib.csv.gz'),
+        renderer='calendar_gates',
+        status=_CLOSED('두 후보 FAIL (QG1·QG3·QG5) — 캘린더 축 종결',
+                       '2026-08-10', _SPEC13)),
 
     SeriesSpec(
         id='regime_overlay', title='레짐/타이밍 오버레이 (Phase A/B)', kind='B',
@@ -1087,12 +1099,6 @@ UNCOVERED: dict[str, str] = {
     'experiments/robustness/pools*.json': (
         '추첨 풀 스냅샷 — 감사·재현용. `momentum_decomposition`·`preferred_scan` 이 '
         '읽지만 화면에는 없다 (2026-08-16).'),
-    'experiments/robustness/qg_results_*.json': (
-        '캘린더 A/C 의 관문 결과 — `calendar_phase` 축이 안A/안C 를 비교하는데 **그 '
-        '판정 근거를 아무 데서도 안 가리킨다.** G1 귀무분포가 안 보이던 것과 같은 '
-        '상황이다. 배정 대기 (2026-08-16).'),
-    'experiments/robustness/random_summary_[AC].json': (
-        '캘린더 A/C 의 귀무분포 요약 — 위와 같은 이유 (2026-08-16).'),
     'experiments/robustness/*.csv.gz': (
         '추첨 구간·기여도 원본(대용량, git 미추적). `gate_analysis` 가 G3′·G4′ 에 '
         '쓰지만 화면은 요약만 띄운다 (2026-08-16).'),
@@ -1108,9 +1114,6 @@ UNCOVERED: dict[str, str] = {
     'experiments/robustness/*_draws_[0-9]*.csv': (
         '**폐기된 벌**의 추첨 원본 (`_20260720`). 현행은 접미사 없는 쪽이다. '
         '남겨 두는 이유는 판정이 왜 바뀌었는지 되짚을 수 있어야 해서다 (2026-08-16).'),
-    'experiments/robustness/*_[AC]_draws.csv': (
-        '캘린더 A/C 추첨 원본 — 위 `qg_results_*`·`random_summary_[AC]` 와 한 벌이다. '
-        '`calendar_phase` 축에 배정 대기 (2026-08-16).'),
     'experiments/runs/*': (
         '실행 리포트 아카이브. 축이 **인용할 때만** 도달한다(왜-지도 `sources`·B형 '
         '`paths`). 전부를 화면에 걸 대상은 아니지만, 인용되지 않은 것이 쌓이면 '

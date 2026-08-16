@@ -369,8 +369,15 @@ else:
             st.dataframe(pd.DataFrame(provenance_rows(series, catalog)),
                          use_container_width=True, hide_index=True)
 
+        # A형 축에도 전용 뷰가 붙는다 (비교표 아래에 덧그린다). 종전에는 종목 수
+        # 곡선만 이름으로 특별 취급했는데, 그러면 새 A형 뷰를 붙일 때마다 여기에
+        # 분기를 하나씩 더해야 한다 — 캘린더 관문 뷰가 그 두 번째였다.
         if spec.renderer == 'n_stocks_curve':
             _render_n_curve()
+        else:
+            extra = B_RENDERERS.get(spec.renderer)
+            if extra is not None:
+                extra()
 
     # ── 구간별 ──────────────────────────────────────────────────────────────
     with tab_period:

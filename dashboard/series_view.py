@@ -19,7 +19,7 @@ from pathlib import Path
 
 from backtest.ablation import ABLATION_CONFIGS, build_ablation_pipeline
 from dashboard.artifacts import ArtifactCatalog
-from dashboard.series import Series, SeriesSpec
+from dashboard.series import CALENDAR_VARIANTS, Series, SeriesSpec
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -785,6 +785,94 @@ def reconciliation_rows(tag: str, path: Path | None = None) -> list[dict]:
                 '깨진 게이트': ', '.join(g for g, ok in gates.items() if not ok) or '—',
             })
     return out
+
+
+# ── 캘린더 후보의 관문 (SPEC_13 Q-H) ────────────────────────────────────────
+
+ROB_DIR = ROOT / 'experiments/robustness'
+
+
+def calendar_gate_results(rob_dir: Path | None = None) -> dict[str, dict]:
+    """안A·안C 의 관문 산출물. 없으면 빈 dict.
+
+    `calendar_phase` 축은 "두 후보 FAIL — 캘린더 축 종결"이라고 status 에 적어 두고도
+    **그 판정을 만든 산출물을 아무 데서도 가리키지 않았다.** 도달범위 측정에서 드러난
+    6개 파일이 이것이다 (2026-08-16).
+    """
+    rob_dir = rob_dir or ROB_DIR
+    out = {}
+    for variant in CALENDAR_VARIANTS:
+        path = rob_dir / f'qg_results_{variant}.json'
+        if path.exists():
+            out[variant] = json.loads(path.read_text(encoding='utf-8'))
+    return out
+
+
+#: 관문 코드 → 무엇을 재는가. 코드만 띄우면 처음 보는 사람은 물어볼 데가 없다.
+QG_MEANING = {
+    'QG1': '같은 캘린더의 무작위 추첨 p95 를 넘는가 (랭킹 고유 기여)',
+    'QG2': '적격 유니버스 동일가중보다 나은가 (선별의 기여)',
+    'QG3': '현행 반기보다 나은가 — **교체하려면 이걸 넘어야 한다**',
+    'QG5_PROD': '일별 net MDD 가 한계선 안인가',
+}
+
+
+def calendar_gate_rows(results: dict[str, dict]) -> list[dict]:
+    """안별 관문 판정 표. **판정과 그 근거 수치를 한 줄에** 놓는다."""
+    rows = []
+    for variant, d in sorted(results.items()):
+        for code, g in (d.get('hard_gates') or {}).items():
+            ref = (g.get('random_p95') if code == 'QG1' else
+                   g.get('ew_net_cagr') if code == 'QG2' else
+                   g.get('threshold') if code == 'QG3' else g.get('limit'))
+            val = (g.get('candidate_daily_mdd_net') if code == 'QG5_PROD'
+                   else g.get('candidate_net_cagr'))
+            rows.append({
+                '안': f'안{variant}',
+                '관문': code,
+                '판정': 'PASS' if g.get('pass') else '**FAIL**',
+                '후보': _pct(val),
+                '기준': _pct(ref),
+                '무엇을 재나': QG_MEANING.get(code, ''),
+            })
+    return rows
+
+
+def calendar_candidate_rows(results: dict[str, dict]) -> list[dict]:
+    """후보·현행·EW 를 **공통 기간**에서 나란히. 기간이 다르면 비교가 성립하지 않는다."""
+    rows = []
+    for variant, d in sorted(results.items()):
+        m = d.get('metrics_common_period') or {}
+        for role, label in (('candidate', '후보'), ('incumbent', '현행 반기'), ('ew', 'EW 벤치')):
+            v = m.get(role) or {}
+            rows.append({
+                '안': f'안{variant}', '역할': label, '태그': v.get('tag', '—'),
+                'net CAGR': _pct(v.get('net_cagr')),
+                '일별 MDD (net)': _pct(v.get('daily_mdd')),
+                'Sharpe (일별)': None if v.get('daily_sharpe') is None
+                else round(v['daily_sharpe'], 3),
+            })
+        r = m.get('random') or {}
+        rows.append({
+            '안': f'안{variant}', '역할': '무작위 p95', '태그': f'추첨 {r.get("n_draws")}회',
+            'net CAGR': _pct(r.get('p95_net_cagr')), '일별 MDD (net)': None,
+            'Sharpe (일별)': None})
+    return rows
+
+
+def calendar_bootstrap_note(d: dict) -> dict:
+    """현행 대비 차이의 bootstrap. **CI 가 0 을 배제하는가**가 요점이다."""
+    b = d.get('bootstrap') or {}
+    lo, hi = b.get('ci_low'), b.get('ci_high')
+    return {
+        'delta': b.get('delta_cagr_point'),
+        'ci': (lo, hi),
+        'excludes_zero': None if lo is None or hi is None else (lo > 0 or hi < 0),
+        'p_gt_0': b.get('p_gt_0'),
+        'n_months': b.get('n_months'),
+        'block_months': b.get('block_months'),
+        'n_resamples': b.get('n_resamples'),
+    }
 
 
 # ── B형: 성과 분해 / 라이브 전환 ────────────────────────────────────────────

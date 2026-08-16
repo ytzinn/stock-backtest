@@ -22,11 +22,16 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from dashboard.series import CALENDAR_VARIANTS
 from dashboard.series_view import (
     RUNS_DIR,
     alpha_survives_episode_22,
     block_sensitivity_rows,
     bootstrap_excludes_zero,
+    calendar_bootstrap_note,
+    calendar_candidate_rows,
+    calendar_gate_results,
+    calendar_gate_rows,
     contrast_rows,
     daily_nav_summary,
     decomposition,
@@ -662,6 +667,72 @@ def render_daily_nav() -> None:
                 st.info('정합 CSV 가 이 PC 에 없습니다 — 서버가 원본입니다.')
 
 
+def render_calendar_gates() -> None:
+    """캘린더 후보(안A·안C)의 **관문 판정과 사전등록 문턱**.
+
+    `calendar_phase` 축은 status 에 "두 후보 FAIL — 캘린더 축 종결"이라 적어 두고도
+    **그 판정을 만든 산출물을 아무 데서도 가리키지 않았다.** 도달범위 측정에서 나온
+    6개 파일이 그것이다. 결론만 있고 근거가 화면 밖이면, 나중에 "왜 FAIL 이었더라"를
+    문서에서 다시 찾아야 하고 그 사이 근거가 낡아도 아무도 모른다.
+    """
+    results = calendar_gate_results()
+    if not results:
+        st.info('캘린더 관문 산출물(`experiments/robustness/qg_results_[AC].json`)이 '
+                '없습니다 — 서버가 원본입니다.')
+        return
+
+    any_d = next(iter(results.values()))
+    pr = any_d.get('pre_registered') or {}
+    cp = any_d.get('common_period') or {}
+    st.caption(
+        f"`{any_d.get('spec')}` · 공통 기간 **{cp.get('S')} ~ {cp.get('E')}** "
+        f"({cp.get('n_obs')}거래일). 문턱은 **사전 등록**이고 결과 열람 후 수정하지 "
+        f"않습니다 — {pr.get('note', '')}")
+
+    for variant, d in sorted(results.items()):
+        label = CALENDAR_VARIANTS.get(variant, variant)
+        ok = d.get('all_hard_gates_pass')
+        ev = d.get('evidence_label')
+        st.markdown(
+            f"<span style='background:{'#16a34a' if ok else '#dc2626'};color:white;"
+            f"padding:3px 12px;border-radius:6px;font-size:0.85rem'>"
+            f"{ev}</span> <b>{label}</b>", unsafe_allow_html=True)
+
+    st.subheader('관문별 판정 — 값과 문턱을 나란히')
+    st.dataframe(pd.DataFrame(calendar_gate_rows(results)),
+                 use_container_width=True, hide_index=True)
+    st.caption(
+        '**QG3 이 교체의 관문입니다** — 현행 반기를 넘어야 바꿀 이유가 생깁니다. '
+        '둘 다 여기서 떨어졌고(안A −6.64%p · 안C −4.49%p), QG1(무작위 추첨 p95)도 '
+        '못 넘었습니다. QG2 만 통과했는데 그건 "동일가중보다는 낫다"는 뜻이지 '
+        '"현행보다 낫다"가 아닙니다.')
+
+    st.subheader('공통 기간 대조')
+    st.dataframe(pd.DataFrame(calendar_candidate_rows(results)),
+                 use_container_width=True, hide_index=True)
+    st.caption('**같은 기간으로 맞춰 재산출한 값**입니다. 안A 는 분기라 구간 수 자체가 '
+               '달라서, 전체기간 수치를 그대로 견주면 기간이 다른 둘을 비교하게 됩니다.')
+
+    st.subheader('현행 대비 차이 — bootstrap')
+    for variant, d in sorted(results.items()):
+        b = calendar_bootstrap_note(d)
+        if b['delta'] is None:
+            continue
+        lo, hi = b['ci']
+        st.markdown(
+            f"**{CALENDAR_VARIANTS.get(variant, variant)}** — 현행 대비 "
+            f"**{b['delta']:+.2%}**, CI95 [{lo:+.2%}, {hi:+.2%}] · "
+            f"P(차이>0) = {b['p_gt_0']:.4f}")
+        if b['excludes_zero']:
+            st.caption(f'CI 가 0 을 **배제합니다** — {b["n_months"]}개월 · '
+                       f'블록 {b["block_months"]}개월 · {b["n_resamples"]:,}회 재표본.')
+        else:
+            st.warning(
+                f'CI 가 0 을 **배제하지 못합니다** ([{lo:+.2%}, {hi:+.2%}]). 이 안이 '
+                f'현행보다 확실히 나쁘다고까지는 말할 수 없다는 뜻입니다 — 다만 '
+                f'**낫다는 증거가 없으므로 교체 사유가 없다**는 판정은 그대로입니다.')
+
+
 #: `SeriesSpec.renderer` → 렌더 함수. 여기 없는 키는 raw fallback 으로 떨어진다.
 B_RENDERERS = {
     'time_overfit': render_time_overfit,
@@ -669,4 +740,7 @@ B_RENDERERS = {
     'live_decomposition': render_live_decomposition,
     'regime_overlay': render_regime_overlay,
     'daily_nav': render_daily_nav,
+    # A형 축에도 붙는다 — 비교표 아래에 관문 판정을 덧그린다. 페이지가 유형과
+    # 무관하게 이 표를 찾으므로, 전용 뷰가 B형 전용이라는 제약은 없다.
+    'calendar_gates': render_calendar_gates,
 }

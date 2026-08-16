@@ -45,6 +45,7 @@ REPRESENTATIVE = [
     'pbr_rules',           # A형 + 왜-지도 + 세트 + "다른 데 있는 태그"
     'benchmarks',          # A형인데 `paths` 를 쓴다 (원본 목록이 B형 전용이었다)
     'daily_nav',           # B형 전용 뷰 (G5 판정 + 낙폭 세 층)
+    'calendar_phase',      # A형인데 전용 뷰가 붙는다 (관문 판정 덧그리기)
 ]
 
 
@@ -269,6 +270,55 @@ def test_daily_nav_view_flags_tags_whose_reconciliation_failed():
     warns = ' '.join(str(getattr(e, 'value', '')) for e in at.warning)
     assert '정합 게이트가 실패한 전략' in warns, '정합 실패 경고가 화면에 없다'
     assert failed[0]['전략'] in warns, f"{failed[0]['전략']} 이 경고에 안 적혀 있다"
+
+
+def test_calendar_axis_shows_the_gates_behind_its_verdict():
+    """축 status 가 "두 후보 FAIL" 이라고 말하면 **그 관문이 화면에 있어야** 한다.
+
+    이 축은 결론만 status 에 적어 두고 판정을 만든 산출물 6개를 아무 데서도 가리키지
+    않았다 (도달범위 측정, 2026-08-16). 결론만 있고 근거가 화면 밖이면 나중에 "왜
+    FAIL 이었더라"를 문서에서 다시 찾아야 하고, 그 사이 근거가 낡아도 아무도 모른다 —
+    G1 귀무분포가 실제로 그렇게 낡았다.
+    """
+    from dashboard.series_view import calendar_gate_results
+
+    if not calendar_gate_results():
+        pytest.skip('캘린더 관문 산출물이 없다 (서버가 원본).')
+
+    at = _run('series_explorer.py', series_pick=SERIES_BY_ID['calendar_phase'])
+    _assert_clean(at, 'series_explorer[calendar_phase]')
+
+    text = ' '.join(
+        str(getattr(e, 'value', '') or getattr(e, 'body', ''))
+        for group in (at.markdown, at.caption, at.warning, at.info)
+        for e in group)
+    for must in ('QG3', '사전 등록', 'INFERIOR'):
+        assert must in text, f'캘린더 관문 뷰에 `{must}` 이 화면에 없다'
+    assert '교체의 관문' in text, \
+        'QG3 가 교체 관문이라는 설명이 없다 — QG2 통과만 보고 "나은 안"으로 읽는다'
+
+    frames = ' '.join(df.value.to_csv() for df in at.dataframe)
+    for code in ('QG1', 'QG2', 'QG3', 'QG5_PROD'):
+        assert code in frames, f'관문 표에 `{code}` 가 없다'
+
+
+def test_calendar_gate_rows_match_the_artifacts():
+    """화면 값이 산출물과 같은가. 화면은 판정을 다시 하지 않는다."""
+    from dashboard.series_view import calendar_gate_results, calendar_gate_rows
+
+    results = calendar_gate_results()
+    if not results:
+        pytest.skip('캘린더 관문 산출물이 없다 (서버가 원본).')
+
+    rows = {(r['안'], r['관문']): r for r in calendar_gate_rows(results)}
+    for variant, d in results.items():
+        for code, g in d['hard_gates'].items():
+            row = rows[(f'안{variant}', code)]
+            assert (row['판정'] == 'PASS') == bool(g['pass']), \
+                f'안{variant} {code}: 화면 판정이 산출물과 다르다'
+        # 축 status 가 "두 후보 FAIL" 이라고 적었다 — 산출물이 아직 그런가.
+        assert not d['all_hard_gates_pass'], (
+            f'안{variant} 이 이제 전 관문을 통과한다 — 축 status 와 왜-지도를 다시 보라')
 
 
 def test_decomposition_view_says_there_is_no_pre_registration():
