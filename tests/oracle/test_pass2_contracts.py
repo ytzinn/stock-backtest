@@ -80,6 +80,9 @@ def _patch_hard_filter_env(monkeypatch, listed_date=None, first_price_date=None)
     monkeypatch.setattr(hard_filter_mod, 'get_listed_date', lambda *a, **k: listed_date)
     monkeypatch.setattr(hard_filter_mod, 'get_first_price_date',
                         lambda *a, **k: first_price_date)
+    # 상장기간 계약을 재는 테스트다. 금융업 배제(GATE-FINANCIAL, 2026-08-17 추가)가
+    # 먼저 걸려 탈락하면 정작 재려던 것을 못 잰다 — 비금융으로 고정한다.
+    monkeypatch.setattr(hard_filter_mod, 'is_financial_company', lambda *a, **k: False)
 
 
 def test_unknown_listed_date_must_not_bypass_seasoning_filter(monkeypatch):
@@ -115,5 +118,61 @@ def test_unknown_listed_date_with_long_price_history_passes(monkeypatch):
     ok, _ = _hard_filter(
         'OLDIE', rebal, pit_series_for_ticker=[{'자본총계': 1.0}], conn=None,
         min_turnover=100_000_000, min_listed_months=6,
+    )
+    assert ok is True
+
+
+# ── GATE-FINANCIAL: 금융업 배제 계약 (2026-08-17) ──────────────────────────────
+
+def test_financial_company_must_not_enter_universe(monkeypatch):
+    """
+    [GATE-FINANCIAL 확정 계약]
+    stability_filter 주석은 "금융업은 DQ Gate에서 is_financial=TRUE로 이미 제거됨"이라
+    단언했으나 사실이 아니었다 — is_financial 을 읽는 필터가 없어 증권사가 유니버스에
+    남았다 (2026 2분기 산출에서 후보 21위로 실편입 확인).
+
+    안정성 룰로는 대체할 수 없다: 증권사는 차입을 다른 계정명으로 보고해 R2 가 0 으로
+    통과하고, 제조업 기준 부채비율 200% 상한도 금융업엔 무의미하다.
+    """
+    rebal = date(2024, 4, 3)
+    _patch_hard_filter_env(monkeypatch, listed_date=date(2000, 1, 1))
+    monkeypatch.setattr(hard_filter_mod, 'is_financial_company', lambda *a, **k: True)
+
+    ok, reason = _hard_filter(
+        'SECURITIES', rebal, pit_series_for_ticker=[{'자본총계': 1.0}], conn=None,
+        min_turnover=100_000_000, min_listed_months=6,
+    )
+    assert ok is False, '금융업(is_financial=TRUE)이 Hard Filter 를 통과했다 (GATE-FINANCIAL)'
+    assert '금융업' in reason
+
+
+def test_unknown_financial_flag_is_rejected_not_passed(monkeypatch):
+    """
+    [GATE-FINANCIAL — fail-closed 계약]
+    판정 불가(stocks 미등재/NULL)를 '금융업 아님'으로 접어 읽으면 안 된다.
+    결측을 통과로 읽는 것이 R2(차입 계정 없음 → 무차입)·R3·R4 를 무력화한 구조다
+    (RULE-SILENT-PASS). 모멘텀 필터가 on_insufficient='reject' 로 간 것과 같은 방향.
+    """
+    rebal = date(2024, 4, 3)
+    _patch_hard_filter_env(monkeypatch, listed_date=date(2000, 1, 1))
+    monkeypatch.setattr(hard_filter_mod, 'is_financial_company', lambda *a, **k: None)
+
+    ok, reason = _hard_filter(
+        'UNKNOWN', rebal, pit_series_for_ticker=[{'자본총계': 1.0}], conn=None,
+        min_turnover=100_000_000, min_listed_months=6,
+    )
+    assert ok is False, '금융업 여부 판정 불가 종목이 통과했다 — 결측은 통과가 아니다'
+    assert '판정 불가' in reason
+
+
+def test_financial_exclusion_can_be_disabled_for_ablation(monkeypatch):
+    """`exclude_financials=False` 는 실제로 소비돼야 한다 (CORR-ENGINE-001: 미소비 파라미터 금지)."""
+    rebal = date(2024, 4, 3)
+    _patch_hard_filter_env(monkeypatch, listed_date=date(2000, 1, 1))
+    monkeypatch.setattr(hard_filter_mod, 'is_financial_company', lambda *a, **k: True)
+
+    ok, _ = _hard_filter(
+        'SECURITIES', rebal, pit_series_for_ticker=[{'자본총계': 1.0}], conn=None,
+        min_turnover=100_000_000, min_listed_months=6, exclude_financials=False,
     )
     assert ok is True
