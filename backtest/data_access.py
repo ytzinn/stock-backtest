@@ -227,6 +227,20 @@ def get_listed_date(conn, ticker: str) -> date | None:
     return row[0] if row else None
 
 
+def is_financial_company(conn, ticker: str) -> bool | None:
+    """stocks.is_financial 반환. **None = 판정 불가**(stocks 미등재 또는 NULL)이지 '아니다'가
+    아니다 — 호출자가 None 을 False 로 접어 읽으면 금융업이 조용히 통과한다 (GATE-FINANCIAL).
+
+    DQ Gate 는 이 플래그를 읽지 않는다. 2026-08-17 기준 게이트 통과 종목의 1.5%(37종목)가
+    is_financial=TRUE 다. 금융업은 차입 계정 이름이 달라 R2 가 0으로 무조건 통과하고
+    제조업 기준 부채비율 상한도 무의미해 R1 도 못 잡으므로, 배제는 HardFilter 몫이다."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT is_financial FROM stocks WHERE TRIM(ticker) = %s",
+                    (ticker.strip(),))
+        row = cur.fetchone()
+    return row[0] if row else None
+
+
 def get_first_price_date(conn, ticker: str) -> date | None:
     """price_history 최초 거래일. 상장일 프록시 (실제 상장일보다 늦을 수 없는 하한이 아니라
     수집 시작일(2014-01)로 절단된 값 — 2014년 이전 상장 종목은 2014년으로 나온다.

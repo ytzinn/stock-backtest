@@ -108,7 +108,9 @@ def _financial_stability_filter(
     equity = pit_data.get('자본총계', 0) or 0
 
     # [R1] 부채비율 > 200%
-    # 금융업은 DQ Gate에서 is_financial=TRUE로 이미 제거됨.
+    # `[정정 2026-08-17]` 종전 주석은 "금융업은 DQ Gate에서 is_financial=TRUE로 이미
+    # 제거됨"이었으나 **사실이 아니었다** — DQ Gate 는 그 플래그를 읽지 않는다.
+    # 배제는 HardFilter(exclude_financials=True) 몫이다 (GATE-FINANCIAL).
     if 'R1' in active_rules and equity > 0 and (debt / equity) > 2.0:
         fails.append('부채비율 > 200%')
 
