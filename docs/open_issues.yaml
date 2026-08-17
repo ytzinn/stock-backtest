@@ -17,9 +17,9 @@ issues:
   - id: G5-MDD
     status: open
     severity: high
-    summary: 일별 net MDD 가 SPEC_10 G5 한계선(−45%)을 위반한다. 종목 수 축으로는 풀리지
-             않는다 — 구간간 표준편차가 n=1 18.78% 에서 n=20 21.06% 로 거의 줄지 않아
-             전 종목이 같은 저PBR 팩터에 물려 있다 (n=1..20 곡선은 tape 절단 산출).
+    summary: 일별 net MDD 가 SPEC_10 G5 한계선을 위반한다. 종목 수 축으로는 풀리지 않는다 —
+             구간간 표준편차가 n 을 늘려도 이론값(1/√n)만큼 줄지 않아 전 종목이 같은 저PBR
+             팩터에 물려 있다 (n=1..20 곡선은 tape 절단 산출).
     ref: experiments/analysis/n_stocks_curve.json
 
   - id: SECTOR-DATA
@@ -43,6 +43,31 @@ issues:
     summary: universe_gate_pit 의 PK 에 시점 차원이 없어 정정 공시 이후 시점에는 게이트 판정이
              stale 하다.
     ref: docs/설계/SPEC_06_phases.md
+
+  - id: GATE-FINANCIAL
+    status: open
+    severity: high
+    summary: stocks.is_financial 이 채워져 있는데도 어떤 필터도 읽지 않아 금융업이 유니버스에
+             남는다. stability_filter 주석은 "DQ Gate 에서 이미 제거됨"이라 적혀 있으나 사실이
+             아니다. 증권사는 차입 계정 이름이 달라 R2 가 0 으로 무조건 통과하고, 제조업
+             기준 부채비율 상한도 무의미해 R1 도 못 잡는다. 2026 2분기 실제 편입으로 확인.
+    ref: backtest/filters/stability_filter.py
+
+  - id: TRADE-HALT
+    status: open
+    severity: medium
+    summary: has_recent_trade 가 최근 5 '영업일'이 아니라 최근 5 '행'을 본다. 거래정지로
+             가격 행 자체가 안 쌓이면 오래된 행 5개를 보고 통과시킨다. 2026 2분기 산출에서
+             거래정지 종목이 후보에 올라온 것으로 확인.
+    ref: backtest/data_access.py
+
+  - id: RULE-SILENT-PASS
+    status: open
+    severity: medium
+    summary: R3·R4 가 입력 결측 시 규칙을 건너뛰고 통과시킨다(R2 에서 고친 것과 같은 구조).
+             모멘텀만 on_insufficient='reject' 로 fail-closed 이고 안정성 규칙은 아니다.
+             결측 비율과 판정 영향은 미측정.
+    ref: backtest/filters/stability_filter.py
 
   - id: RF-ERP-SENS
     status: open
