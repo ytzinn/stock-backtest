@@ -66,6 +66,11 @@ def test_benchmark_fetch_failure_must_not_become_zero_return(monkeypatch, fn_nam
     ⚠ 의도적 실패 — 현재 구현은 except Exception → log.warning + return 0.0.
     """
     _install_broken_fdr(monkeypatch)
+    # 재시도(2026-08-17 추가, 레이트리밋 대응)는 여기서 재는 계약이 아니다 — 백오프
+    # 대기로 fast suite 를 느리게 만들지 않도록 1회로 줄인다. 계약은 "0.0 이 아니라
+    # 예외"이고 그건 그대로 검증된다.
+    monkeypatch.setattr(engine, '_BENCH_RETRIES', 1)
+    engine._calc_index_return.cache_clear()
     fn = getattr(engine, fn_name)
     with pytest.raises(Exception):
         fn(date(2024, 4, 3), date(2024, 8, 20))

@@ -13,7 +13,9 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import date
+from functools import lru_cache
 
 import pandas as pd
 
@@ -431,6 +433,17 @@ def _last_known_price(conn, ticker: str, before_date: date) -> float:
     return float(prices.iloc[-1]) if not prices.empty else 0.0
 
 
+# 지수 구간 수익률은 (symbol, start, end) 에 대해 결정론적이라 프로세스 안에서 재사용한다.
+# 캐시가 없으면 랜덤 귀무분포(500회 × 23구간 × 2지수 = 23,000 요청)가 Naver Finance
+# 레이트리밋에 걸려 "0행"으로 돌아오고, fail-closed 계약대로 예외가 나면서 8시간짜리
+# 실행이 통째로 죽는다 (2026-08-17 C_pbr_ma200_random 실패). 워커당 23×2 회로 줄어든다.
+# 주의: 장수 프로세스에서 **열린 구간**(end_date 가 아직 진행 중)을 캐시하면 갱신되지
+# 않는다. 엔진은 배치 실행이고 valuation_date 가 고정 주입이라 문제되지 않는다.
+_BENCH_RETRIES = 3
+_BENCH_BACKOFF = 2.0   # 초. 시도마다 2배
+
+
+@lru_cache(maxsize=None)
 def _calc_index_return(symbol: str, name: str, start_date: date, end_date: date) -> float:
     """
     지수 구간 수익률 (FDR, Naver Finance 라우트).
@@ -438,22 +451,35 @@ def _calc_index_return(symbol: str, name: str, start_date: date, end_date: date)
     계약: 조회 실패·데이터 부족 시 **BenchmarkDataUnavailable을 던진다** — 0.0을
     반환하지 않는다 (CORR-BENCH-001: 장애가 '정상 수익률 0%'로 둔갑해 alpha·robustness를
     조용히 오염시키고 백테스트가 성공 상태로 끝나는 것을 차단).
+
+    일시적 장애와 진짜 결측을 구분하려고 재시도만 넣는다 — 소진되면 계약대로 던진다.
     """
     import FinanceDataReader as fdr
-    try:
-        df = fdr.DataReader(symbol, str(start_date), str(end_date))
-    except Exception as e:
-        raise BenchmarkDataUnavailable(
-            f'{name}({symbol}) 조회 실패 ({start_date}~{end_date}): {e}'
-        ) from e
 
-    close = df['Close'].dropna() if df is not None and not df.empty else None
-    if close is None or len(close) < 2:
-        raise BenchmarkDataUnavailable(
-            f'{name}({symbol}) 데이터 부족 ({start_date}~{end_date}): '
-            f'{0 if close is None else len(close)}행'
-        )
-    return float(close.iloc[-1] / close.iloc[0] - 1)
+    last_err = None
+    for attempt in range(_BENCH_RETRIES):
+        try:
+            df = fdr.DataReader(symbol, str(start_date), str(end_date))
+        except Exception as e:
+            last_err = f'조회 실패: {e}'
+            df = None
+        else:
+            close = df['Close'].dropna() if df is not None and not df.empty else None
+            if close is not None and len(close) >= 2:
+                return float(close.iloc[-1] / close.iloc[0] - 1)
+            last_err = f'데이터 부족: {0 if close is None else len(close)}행'
+
+        if attempt < _BENCH_RETRIES - 1:
+            wait = _BENCH_BACKOFF * (2 ** attempt)
+            log.warning('[%s] %s~%s %s — %.0f초 후 재시도 (%d/%d)',
+                        name, start_date, end_date, last_err, wait,
+                        attempt + 2, _BENCH_RETRIES)
+            time.sleep(wait)
+
+    raise BenchmarkDataUnavailable(
+        f'{name}({symbol}) {start_date}~{end_date}: {last_err} '
+        f'({_BENCH_RETRIES}회 재시도 소진)'
+    )
 
 
 def _calc_kosdaq_return(start_date: date, end_date: date) -> float:
