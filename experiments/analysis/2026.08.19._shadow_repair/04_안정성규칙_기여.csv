@@ -1,0 +1,20 @@
+﻿계보,규칙,켠_태그,끈_태그,기여_수정전_%p,기여_수정후_%p,변화_%p,부호반전
+PBR 계보,R1,F_pbr_no_r3r4,F_pbr_no_r1r3r4,1.2626,1.9456,0.6829,
+PBR 계보,R2,F_pbr_no_r3r4,F_pbr_no_r2r3r4,-0.108,-1.7921,-1.6841,
+PBR 계보,R5,F_pbr_no_r3r4,F_pbr_no_r3r4r5,1.0979,0.3508,-0.7471,
+PBR 계보,R6,F_pbr_no_r3r4,F_pbr_no_r3r4r6,1.1958,-0.6803,-1.876,반전
+PBR 계보,"{R1,R2}",F_pbr_no_r3r4,F_pbr_no_r1r2r3r4,2.1825,2.1209,-0.0615,
+PBR 계보,"{R3,R4}",F_pbr_r6,F_pbr_no_r3r4,-1.2816,-0.9796,0.3019,
+PBR 계보,전체,F_pbr_no_r3r4,F_pbr_nostab,1.3639,-1.045,-2.4089,반전
+RIM D경로,R1,D_rim_only,D_no_r1,1.2888,-0.03,-1.3187,반전
+RIM D경로,R2,D_rim_only,D_no_r2,0.0,-0.1807,-0.1807,
+RIM D경로,R3,D_rim_only,D_no_r3,0.2509,1.1439,0.893,
+RIM D경로,R4,D_rim_only,D_no_r4,-0.0307,-0.0734,-0.0428,
+RIM D경로,R5,D_rim_only,D_no_r5,0.0998,0.2653,0.1655,
+RIM D경로,R6,D_rim_only,D_no_r6,0.7469,-2.7026,-3.4495,반전
+RIM D경로,전체,D_rim_only,D_no_stability,-1.0473,-4.9564,-3.9091,
+RIM F경로,R2,F_momentum_rim,F_no_r2,0.0,-0.2397,-0.2397,
+RIM F경로,R3,F_momentum_rim,F_no_r3,0.0535,0.4366,0.3832,
+RIM F경로,R4,F_momentum_rim,F_no_r4,0.9316,-0.0267,-0.9583,반전
+RIM F경로,R6,F_momentum_rim,F_no_r6,0.4379,-1.7929,-2.2308,반전
+RIM F경로,전체,F_momentum_rim,F_no_stability_clean,0.2605,-3.422,-3.6825,반전
