@@ -345,6 +345,34 @@ def get_price_freshness() -> list[dict[str, Any]]:
 
 
 @st.cache_data(ttl=CACHE_TTL_SEC)
+def get_table_freshness() -> list[dict[str, Any]]:
+    """적재 경로별 최종 갱신일 — 한 화면에 모아 본다.
+
+    `[추가 2026-08-19]` 종전 신선도 감시는 price_history · market_cap_history 둘뿐이었고,
+    그 둘은 크론에 등록된 유일한 잡이었다. 즉 **감시 대상이 크론 잡과 1:1로 묶여 있어
+    크론에 없는 적재 경로는 감시에도 없었다.** stock_listing_events 적재가 2026-05-07
+    이후 멈춘 것을 3개월 반 동안 아무도 몰랐던 이유다 (상폐 판정 is_delisted_at 무력화).
+    """
+    return _query(
+        """
+        SELECT 'price_history' AS source, MAX(date) AS latest_date,
+               COUNT(*)::bigint AS row_count FROM price_history
+        UNION ALL
+        SELECT 'market_cap_history', MAX(date), COUNT(*)::bigint FROM market_cap_history
+        UNION ALL
+        SELECT 'stock_listing_events(delisted)', MAX(delisted_date), COUNT(*)::bigint
+        FROM stock_listing_events WHERE event_type = 'delisted'
+        UNION ALL
+        SELECT 'financials(rcept)', MAX(d.rcept_dt), COUNT(*)::bigint FROM disclosures d
+        UNION ALL
+        SELECT 'krx_listing_snapshots', MAX(snapshot_date), COUNT(*)::bigint
+        FROM krx_listing_snapshots
+        ORDER BY 1
+        """
+    )
+
+
+@st.cache_data(ttl=CACHE_TTL_SEC)
 def get_market_cap_freshness() -> list[dict[str, Any]]:
     return _query(
         """
