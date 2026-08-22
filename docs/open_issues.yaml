@@ -69,6 +69,27 @@ issues:
              결측 비율과 판정 영향은 미측정.
     ref: backtest/filters/stability_filter.py
 
+  - id: SOURCE-NOTE-NAN-CAST
+    status: open
+    severity: medium
+    summary: delisting_ingest 가 pandas NaN 을 str() 로 감싸 상폐 사유가 문자열 "nan" 으로
+             적재된다. 결측이 결측으로 표현되지 않고 값처럼 보이는 유형 —
+             factor_screener 의 결측 -> 최하위 백분위와 같은 구조다.
+             **단독으로 고치지 마라**: v10 유니크 키가 source_note 를 포함하는데,
+             "nan" 을 NULL 로 바꾸면 Postgres UNIQUE 가 NULL 을 서로 다르게 취급해
+             제약이 조용히 무력화된다. NULL 전환과 COALESCE 기반 부분 인덱스 추가를
+             반드시 한 세트로 처리한다.
+    ref: ingest/delisting_ingest.py
+
+  - id: INGEST-CRON-GAPS
+    status: open
+    severity: medium
+    summary: 적재 경로 9개 중 6개가 crontab 에 등록돼 있지 않다 (DART 재무·공시, PIT 재무,
+             DQ 게이트, KRX 상장 스냅샷, KRX 일별 스냅샷, 검증 로그). 상폐 이벤트가
+             3개월 반 멈춘 것과 같은 구조의 사고가 재발할 수 있다. 각 경로가 수동 실행이
+             맞는지, 자동화 대상인지 판단이 필요하다.
+    ref: experiments/analysis/2026.08.19._trade_halt_impact/ingest_coverage.csv
+
   - id: RF-ERP-SENS
     status: open
     severity: low
