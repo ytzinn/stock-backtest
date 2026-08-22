@@ -68,6 +68,33 @@ def _freshness_status(latest_date: str | None) -> tuple[str, int | None]:
     return "OK", lag
 
 
+# 적재 주기가 경로마다 다르다 — 가격은 매일, 상폐 공시는 드문드문 들어온다.
+# (warn_days, fail_days). 미등록 경로는 기본 (7, 21).
+STALE_DAYS = {
+    "price_history":                  (2, 4),
+    "market_cap_history":             (2, 4),
+    "stock_listing_events(delisted)": (30, 60),
+    "financials(rcept)":              (45, 120),
+    "krx_listing_snapshots":          (200, 400),
+}
+
+
+def _freshness_status_days(latest_date: Any, warn: int, fail: int) -> tuple[str, int | None]:
+    """경로별 임계값을 받는 신선도 판정. 날짜가 없으면 UNKNOWN(통과 아님)."""
+    if not latest_date:
+        return "UNKNOWN", None
+    try:
+        latest = date.fromisoformat(str(latest_date)[:10])
+    except ValueError:
+        return "UNKNOWN", None
+    lag = (date.today() - latest).days
+    if lag >= fail:
+        return "FAIL", lag
+    if lag >= warn:
+        return "WARN", lag
+    return "OK", lag
+
+
 def _collect_db() -> dict[str, Any]:
     calls = {
         "row_counts": queries.get_row_counts,
@@ -76,6 +103,7 @@ def _collect_db() -> dict[str, Any]:
         "ingest_errors": queries.get_ingest_errors,
         "price_freshness": queries.get_price_freshness,
         "market_cap_freshness": queries.get_market_cap_freshness,
+        "table_freshness": queries.get_table_freshness,
         "recent_price_coverage": queries.get_recent_price_coverage,
         "recent_market_cap_coverage": queries.get_recent_market_cap_coverage,
         "dq_gate_summary": queries.get_dq_gate_summary,
@@ -181,6 +209,26 @@ def _build_findings(raw: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str
         sections["data_integrity"]["checks"].append(check)
         if status != "OK":
             findings.append({**check, "suggested_next_check": f"Inspect {area_key} ingest log and latest coverage."})
+
+    # `[추가 2026-08-19]` 적재 경로별 신선도. 종전에는 크론에 등록된 두 잡(price·market_cap)
+    # 만 감시해, 크론에 없는 경로(stock_listing_events)가 3개월 반 멈춘 것을 놓쳤다.
+    # 상폐/공시 피드는 매일 갱신되지 않으므로 임계값을 따로 둔다.
+    for row in data.get("table_freshness") or []:
+        source = str(row.get("source") or "unknown")
+        warn, fail = STALE_DAYS.get(source, (7, 21))
+        status, lag = _freshness_status_days(row.get("latest_date"), warn, fail)
+        check = {
+            "severity": status,
+            "area": "data_integrity",
+            "title": f"{source} 최종 갱신",
+            "evidence": {"latest_date": row.get("latest_date"), "lag_days": lag,
+                         "row_count": row.get("row_count"),
+                         "threshold_days": {"warn": warn, "fail": fail}},
+        }
+        sections["data_integrity"]["checks"].append(check)
+        if status != "OK":
+            findings.append({**check, "suggested_next_check":
+                             f"{source} 적재 잡이 크론에 등록돼 있는지, 마지막 성공 로그가 언제인지 확인."})
 
     pit = (data.get("pit_fallback_rate") or [{}])[0]
     fallback_pct = float(pit.get("fallback_pct") or 0)
