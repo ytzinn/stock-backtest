@@ -100,8 +100,16 @@ def test_no_rows_at_all_raises():
 
 
 def test_uses_shared_trading_calendar():
-    """캘린더를 새로 만들지 않고 daily_nav.trading_dates 를 재사용하는가 (CLAUDE.md 관례)."""
+    """캘린더를 새로 만들지 않고 daily_nav.trading_dates 를 재사용하는가 (CLAUDE.md 관례).
+
+    docstring 은 옛 구현을 인용하므로 **본문만** 본다 — 설명과 코드를 섞어 검사하면
+    이 함수가 고치려던 것과 같은 종류의 오탐이 난다.
+    """
+    import ast
     import inspect
     src = inspect.getsource(da.has_recent_trade)
-    assert 'from backtest.daily_nav import trading_dates' in src
-    assert 'ORDER BY date DESC' not in src, '종목 자신의 행을 자르는 옛 구현이 남아 있다'
+    fn = ast.parse(src.lstrip()).body[0]
+    body = fn.body[1:] if ast.get_docstring(fn) else fn.body   # docstring 제외
+    code = chr(10).join(ast.unparse(n) for n in body)
+    assert 'trading_dates' in code, '공용 거래일 캘린더를 쓰지 않는다'
+    assert 'ORDER BY date DESC' not in code, '종목 자신의 행을 자르는 옛 구현이 남아 있다'
