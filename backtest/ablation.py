@@ -445,6 +445,35 @@ _C_MA200_RANDOM.update(use_rim_filter=False, random_n=20)
 ABLATION_CONFIGS['C_pbr_ma200_random'] = _C_MA200_RANDOM
 del _C_MA200_RANDOM
 
+# ── STALE: A-2(R3·R4 fail-closed, 2026-08-22) 로 산출물이 무효화된 태그 ──────────
+# R3·R4 가 "입력 결측 시 건너뛰고 통과" 에서 "판정 불가 시 탈락" 으로 바뀌었다.
+# **규칙 정의 변경**이므로 이 규칙을 켠 태그의 기존 산출물은 더 이상 현재 코드의 결과가
+# 아니다. 재실행하지 않는 이유는 ① 구간 절단(데이터 지평) 후에 어떤 태그를 만들지가
+# 정해지고 ② 이 태그들의 용도인 "R3·R4 제외 결정" 자체가 이미 각주가 붙은 결론이기
+# 때문이다 (2016-04·2016-08·2017-08 에서 R3·R4 가 아예 작동하지 않았음 — CLAUDE.md
+# '데이터 지평' 절).
+#
+# 목록을 손으로 적지 않는다 — 설정에서 유도한다. 규칙 구성이 바뀌면 자동으로 따라간다.
+_ALL_STABILITY_RULES = frozenset({'R1', 'R2', 'R3', 'R4', 'R5', 'R6'})
+
+
+def _stale_by_r3r4() -> dict[str, str]:
+    out = {}
+    for tag, cfg in ABLATION_CONFIGS.items():
+        if not cfg.get('use_stability'):
+            continue
+        rules = set(cfg.get('stability_rules', _ALL_STABILITY_RULES))
+        if not cfg.get('stability_r6', True):
+            rules -= {'R6'}
+        hit = sorted(rules & {'R3', 'R4'})
+        if hit:
+            out[tag] = f'A-2 fail-closed ({",".join(hit)}) — 2026-08-22 이후 미재실행'
+    return out
+
+
+STALE_TAGS: dict[str, str] = _stale_by_r3r4()
+
+
 RANDOM_TAGS    = frozenset({'A_random', 'B_hard_random', 'C_stability_random', 'C_no_r6',
                             'C_pbr_path_random', 'C_pbr_ma200_random'})
 RANDOM_REPEATS = 500  # C_pbr_path_random은 1,000회 — fast-path 러너에서 별도 지정 (SPEC_10 §3-1)

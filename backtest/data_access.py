@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 
 import pandas as pd
 
@@ -77,33 +77,52 @@ def get_avg_turnover(conn, ticker: str, as_of: date, window: int = 20,
     return float(avg) if avg is not None else 0.0
 
 
+# window 거래일을 확보하기 위해 넉넉히 잡는 캘린더 창 (연휴 포함). 판정에는 쓰이지 않고
+# trading_dates 조회 범위만 정한다.
+_TRADING_DAY_LOOKBACK = 40
+
+
 def has_recent_trade(conn, ticker: str, as_of: date, window: int = 5) -> bool:
-    """최근 window 영업일(KRX 거래일 기준) 중 거래가 한 건이라도 있으면 True.
+    """as_of 이하 **시장 거래일** 최근 window 일 중 실제 거래가 하루라도 있으면 True.
+
+    창 규약: window=5 는 `[T-4, T]` — as_of 를 포함한 시장 거래일 5일. (종전과 동일.)
+
+    `[수정 2026-08-22 — TRADE-HALT]` 종전 구현은 **그 종목 자신의 최근 5 '행'** 을 봤다
+    (`ORDER BY date DESC LIMIT 5`). docstring 은 "영업일 기준"이라 적혀 있었으나 코드는
+    아니었고, 그 불일치가 결함의 본질이었다. 거래정지로 행이 더 이상 쌓이지 않으면
+    몇 달 전 행 5개를 보고 통과시킨다. 이제 `daily_nav.trading_dates`(price_history
+    DISTINCT date — CLAUDE.md 관례)로 **시장 거래일**을 잡아 그 날짜에 실거래가 있는지 본다.
+
+    **이 함수의 역할은 좁다.** 상폐 방어선은 게이트 로더(`load_gate_passed_tickers`
+    조건 3)에 있고, #24 후보 오염의 원인도 상폐 이벤트 피드 정지였지 이 결함이 아니었다.
+    또한 정지 기간에 `is_suspended=TRUE` 행이 쌓이는 종목은 **종전 구현도 올바로 탈락**
+    시켰다 (2014~2025 매년 300~470종목이 그 형태). 이 함수가 담당하는 것은
+    **"상폐는 아닌데 행 생성이 완전히 끊긴"** 좁은 틈뿐이다.
+    근거는 주석이 아니라 tests/oracle/test_trade_halt_contract.py 에 있다.
 
     계약 (CORR-DA-001): price_history에 이 종목의 행이 아예 없으면
     PriceDataUnavailable을 던진다 — '거래정지'(False)와 '데이터 미수집'은 다른 상태다.
-
-    price_history에서 as_of 이전 최근 window 거래일을 조회해 is_suspended=FALSE인
-    날이 하나라도 있는지 확인한다. 없으면 거래정지 상태로 간주.
     """
+    # 지연 import — data_access ← engine ← daily_nav 순환을 피한다.
+    from backtest.daily_nav import trading_dates
+
+    days = trading_dates(conn, as_of - timedelta(days=_TRADING_DAY_LOOKBACK), as_of)[-window:]
     with conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT COUNT(*) FROM (
-                SELECT is_suspended
-                FROM price_history
-                WHERE ticker = %s AND date <= %s AND adj_close IS NOT NULL
-                ORDER BY date DESC
-                LIMIT %s
-            ) sub
-            WHERE is_suspended = FALSE
-            """,
-            (ticker, as_of, window),
-        )
-        row = cur.fetchone()
-        if (not row or row[0] == 0) and not _has_any_price_row(cur, ticker, as_of):
+        traded = False
+        if days:
+            cur.execute(
+                """
+                SELECT 1 FROM price_history
+                WHERE ticker = %s AND date = ANY(%s)
+                  AND adj_close IS NOT NULL AND is_suspended = FALSE
+                LIMIT 1
+                """,
+                (ticker, days),
+            )
+            traded = cur.fetchone() is not None
+        if not traded and not _has_any_price_row(cur, ticker, as_of):
             raise PriceDataUnavailable(f'{ticker}: price_history에 {as_of} 이전 행 없음')
-    return (row[0] > 0) if row else False
+    return traded
 
 
 def get_adj_close_range(conn, ticker: str, as_of: date, lookback: int) -> pd.Series:

@@ -73,6 +73,14 @@ RIM(잔여이익모델) 기반 한국 주식 멀티팩터 백테스트 머신.
   단, `universe_gate_pit` PK에 시점 차원이 없어 정정 이후 시점에는 판정이 stale하다 —
   미해결 항목 CORR-GATE-003 (SPEC_06 §24 참조).
 - `stock_listing_events` 기준으로 리밸런싱 기준일 상장 여부 판단 (stock_listing_history 사용 금지).
+- **상폐 방어선은 HardFilter 가 아니라 게이트 로더에 있다** (`load_gate_passed_tickers`
+  조건 3: `delisted_date <= rebalance_date` 인 종목 제외). HardFilter 의 `is_delisted_at`
+  검사는 2차 방어일 뿐이다. 함의: **상폐 이벤트 피드가 멈추면 필터가 아니라 유니버스
+  정의부터 오염된다.** `DQ Gate -> Hard Filter -> Stability -> Momentum` 에서 가장 상류가
+  가장 취약하고, 여기가 뚫리면 하류 어떤 필터도 복구하지 못한다.
+  (2026-05-07~08-20 피드 정지 때 실제로 상폐 종목이 #24 후보 4위로 올라왔다.
+  진단 중 이 사실을 몰라 계측을 두 번 헛돌렸다 — HardFilter 만 무력화해 백필 이전
+  상태를 복원하려 했으나 게이트가 이미 걸러 0건이 나왔다.)
 - `stocks.listed_date` 백필됨(FDR **KRX-DESC** + listing_events, `ingest/backfill_listed_dates.py`).
   NULL 잔여분은 hard_filter가 가격 이력 최초일(`get_first_price_date`) 프록시로 상장기간 판정.
 

@@ -55,10 +55,24 @@ issues:
 
   - id: TRADE-HALT
     status: open
+    severity: low
+    summary: has_recent_trade 가 최근 5 '영업일'이 아니라 최근 5 '행'을 본다. 정지 기간에도
+             is_suspended=TRUE 행이 생성되는 종목은 기존 구현도 올바로 탈락시키므로,
+             결함이 발동하는 조건은 '행 생성이 완전히 끊긴 경우'로 좁다.
+             `[정정 2026-08-22]` 2026 2분기(#24) 후보 4위 오염의 원인은 이 결함이 아니라
+             상폐 이벤트 피드 정지였다 — 해당 종목은 거래정지가 아니라 상장폐지 상태였고,
+             is_delisted_at 이 이벤트 부재로 False 를 반환했다. 피드 복구로 그 건은 해소됐다.
+             현재 이 결함만으로 걸러지지 않는 종목은 상폐 미확정 거래정지 1건뿐이다.
+    ref: backtest/data_access.py
+
+  - id: SNAPSHOT-MARKET-FALLBACK
+    status: open
     severity: medium
-    summary: has_recent_trade 가 최근 5 '영업일'이 아니라 최근 5 '행'을 본다. 거래정지로
-             가격 행 자체가 안 쌓이면 오래된 행 5개를 보고 통과시킨다. 2026 2분기 산출에서
-             거래정지 종목이 후보에 올라온 것으로 확인.
+    summary: krx_daily_snapshot 이 멈춘 구간에서는 신규 상장 종목이 스냅샷에 없어
+             get_markets 가 stocks.market 로 조용히 대체되고, 시장 미상이면 KOSPI 기본
+             매도요율이 붙는다. 없으면 기본값으로 조용히 대체되는 이 저장소의 반복 패턴이다.
+             거래비용 산출에만 쓰이므로 판정을 바꾸지는 않으나, 스냅샷 정지가 이어지면
+             신규 상장이 쌓이며 잘못된 비용이 누적된다.
     ref: backtest/data_access.py
 
   - id: RULE-SILENT-PASS

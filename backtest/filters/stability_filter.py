@@ -137,21 +137,29 @@ def _financial_stability_filter(
             fails.append('차입금비율 > 150% (개선 추세 없음)')
 
     # [R3] 매출 역성장 — 최근 3FY 중 2회 이상 YoY < -5%
+    # `[fail-closed 2026-08-22 — RULE-SILENT-PASS]` 매출 시계열이 2개 미만이면 종전에는
+    # 조건문을 건너뛰어 **그 종목이 자동 통과**했다. R2 를 무력화한 것과 같은 구조이고,
+    # 모멘텀이 on_insufficient='reject' 로 간 것과 방향을 맞춘다. 판정할 수 없으면 탈락이다.
     rev_series = _revenue_from_pit([pit_2y_ago, pit_prev, pit_data])
-    if 'R3' in active_rules and len(rev_series) >= 2:
-        yoy_list = [
-            rev_series[i] / rev_series[i - 1] - 1
-            for i in range(1, len(rev_series))
-            if rev_series[i - 1] != 0
-        ]
-        if sum(1 for yoy in yoy_list if yoy < -0.05) >= 2:
-            fails.append('최근 3FY 내 매출 -5% 이상 역성장 2회 이상')
+    if 'R3' in active_rules:
+        if len(rev_series) < 2:
+            fails.append('R3 판정 불가: 매출 시계열 2개 미만')
+        else:
+            yoy_list = [
+                rev_series[i] / rev_series[i - 1] - 1
+                for i in range(1, len(rev_series))
+                if rev_series[i - 1] != 0
+            ]
+            if sum(1 for yoy in yoy_list if yoy < -0.05) >= 2:
+                fails.append('최근 3FY 내 매출 -5% 이상 역성장 2회 이상')
 
-    # [R4] 영업CF 2년 연속 음수
+    # [R4] 영업CF 2년 연속 음수 — 결측은 통과가 아니라 탈락 (위와 동일)
     cfo_cur  = pit_data.get('영업활동현금흐름')
     cfo_prev = pit_prev.get('영업활동현금흐름') if pit_prev else None
-    if 'R4' in active_rules and cfo_cur is not None and cfo_prev is not None:
-        if cfo_cur < 0 and cfo_prev < 0:
+    if 'R4' in active_rules:
+        if cfo_cur is None or cfo_prev is None:
+            fails.append('R4 판정 불가: 영업CF 2개년 결측')
+        elif cfo_cur < 0 and cfo_prev < 0:
             fails.append('영업CF 2년 연속 음수')
 
     # [R5] 영업CF < 0 AND 재무CF > 0 (차입으로 운영)
