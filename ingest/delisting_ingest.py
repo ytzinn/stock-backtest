@@ -4,6 +4,7 @@
 실행:
     python -m ingest.delisting_ingest
 """
+import argparse
 import logging
 from datetime import date, datetime, timezone
 
@@ -148,7 +149,22 @@ def ingest_delisting_prices() -> None:
 
 
 def main() -> None:
+    """CLI.
+
+    **크론은 반드시 `--universe-only` 로 돈다.** ingest_delisting_prices() 는 상폐종목
+    4,000여개의 가격 이력을 통째로 다시 긁어 과거 행을 재작성한다 — DRIFT-INGEST-001
+    (과거 행 재작성은 `--full` · 수정주가 조정 감지 · `--rebuild-from-snapshot` 세 경로뿐)
+    위반이고, 백테스트 기준선을 매일 흔든다. 상폐 목록 갱신과는 무관한 작업이다.
+    """
+    parser = argparse.ArgumentParser(description='상장폐지 종목 수집')
+    parser.add_argument('--universe-only', action='store_true',
+                        help='상폐 목록만 갱신 (크론 기본값). 가격 재수집을 하지 않는다.')
+    args = parser.parse_args()
+
     ingest_delisting_universe()
+    if args.universe_only:
+        log.info('--universe-only: 상폐종목 가격 재수집 생략')
+        return
     ingest_delisting_prices()
 
 
