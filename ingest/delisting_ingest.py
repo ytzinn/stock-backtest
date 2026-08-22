@@ -123,8 +123,22 @@ def ingest_delisting_universe() -> None:
             log.warning('   %s %s: %r → %r', tk, dd, old_note, new_note)
 
 
-def ingest_delisting_prices() -> None:
-    """상장폐지 종목 가격 이력 수집."""
+def ingest_delisting_prices(allow_full_rewrite: bool) -> None:
+    """상장폐지 종목 가격 이력 **전체 재수집**.
+
+    `[차단 2026-08-22]` 이 함수는 상폐종목 694개의 전 이력을 pykrx 로 다시 받아
+    price_history 를 덮어쓴다 (`ON CONFLICT DO UPDATE` — adj_close 포함).
+    haircut 이 읽는 값이 실행 시점마다 달라지므로 DRIFT-INGEST-001 위반이다.
+    상폐 **목록** 갱신과는 무관한 작업인데 main() 이 조건 없이 함께 불러 왔다.
+
+    allow_full_rewrite 에 기본값을 주지 않는다 — 호출자가 재작성을 의도했다고
+    명시해야 한다.
+    """
+    if not allow_full_rewrite:
+        raise ValueError(
+            'ingest_delisting_prices 는 과거 가격 행을 재작성한다 — '
+            'allow_full_rewrite=True 를 명시해야 실행된다 (DRIFT-INGEST-001)'
+        )
     with db_conn() as conn:
         cur = conn.cursor()
         cur.execute("""
@@ -143,7 +157,8 @@ def ingest_delisting_prices() -> None:
         if start > end:
             continue
         try:
-            collect_price_and_turnover(ticker, start=start, end=end)
+            collect_price_and_turnover(ticker, start=start, end=end,
+                                       rewrite_reason='full')
         except Exception as e:
             log.warning(f'{ticker} 가격 수집 실패: {e}')
 
@@ -159,13 +174,16 @@ def main() -> None:
     parser = argparse.ArgumentParser(description='상장폐지 종목 수집')
     parser.add_argument('--universe-only', action='store_true',
                         help='상폐 목록만 갱신 (크론 기본값). 가격 재수집을 하지 않는다.')
+    parser.add_argument('--allow-full-rewrite', action='store_true',
+                        help='상폐종목 가격 이력을 전체 재작성한다. '
+                             'DRIFT-INGEST-001 — 백테스트 기준선이 바뀐다.')
     args = parser.parse_args()
 
     ingest_delisting_universe()
     if args.universe_only:
         log.info('--universe-only: 상폐종목 가격 재수집 생략')
         return
-    ingest_delisting_prices()
+    ingest_delisting_prices(allow_full_rewrite=args.allow_full_rewrite)
 
 
 if __name__ == '__main__':

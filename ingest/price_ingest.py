@@ -106,23 +106,46 @@ def _upsert_rows(rows: list[tuple]) -> int:
                 adj_close    = EXCLUDED.adj_close,
                 volume       = EXCLUDED.volume,
                 turnover     = EXCLUDED.turnover,
-                is_suspended = EXCLUDED.is_suspended
+                is_suspended = EXCLUDED.is_suspended,
+                updated_at   = now()          -- v11: 재작성 추적 (DRIFT-INGEST-001)
             """,
             rows,
         )
     return len(rows)
 
 
+# 과거 행 재작성이 허용된 경로 (DRIFT-INGEST-001). 이 셋 밖에서 부르면 거부한다.
+#   full         — `--full` 명시 실행
+#   adj_detected — 겹침 구간 종가 불일치로 수정주가 조정 감지 (해당 종목만)
+#   new_ticker   — price_history 에 행이 없는 종목 (재작성이 아니라 최초 수집)
+REWRITE_REASONS = frozenset({'full', 'adj_detected', 'new_ticker'})
+
+
 def collect_price_and_turnover(ticker: str, start: str = DEFAULT_START,
-                                end: str | None = None) -> int:
+                                end: str | None = None, *,
+                                rewrite_reason: str) -> int:
     """
-    전체 구간 수집 → price_history upsert (과거 행 재작성 포함 — --full 및
-    수정주가 조정 감지 시에만 호출할 것).
+    전체 구간 수집 → price_history upsert. **과거 행을 재작성한다.**
+
+    `[강제 2026-08-22]` 종전에는 "--full 및 수정주가 조정 감지 시에만 호출할 것"이라는
+    **주석 경고만** 있었고 코드가 강제하지 않았다. 그래서 delisting_ingest 가 조건 없이
+    호출해 상폐종목 전 이력을 덮어쓰는 경로가 열려 있었다 — DRIFT-INGEST-001 위반이고,
+    haircut 이 읽는 adj_close 가 실행 시점마다 달라진다.
+    `stability_filter` 의 "DQ Gate 에서 이미 제거됨"(10개월간 거짓)과 같은 유형이라,
+    사실 주장을 주석에 두지 않고 **실행 시점 검사**로 옮겼다.
+
+    rewrite_reason 은 기본값이 없다 — 호출자가 어느 허용 경로인지 명시해야 한다
+    (규칙 함수의 on_insufficient 와 같은 원칙: 결정을 조용히 기본값에 맡기지 않는다).
 
     adjusted=True: open/high/low/close 전체가 동일 수정 계수 적용.
     adj_close = close (동일 값; 스키마 일관성 유지).
     반환: 저장된 행 수.
     """
+    if rewrite_reason not in REWRITE_REASONS:
+        raise ValueError(
+            f'{ticker}: 과거 행 재작성은 {sorted(REWRITE_REASONS)} 경로에서만 허용된다 '
+            f'(받은 값: {rewrite_reason!r}) — DRIFT-INGEST-001'
+        )
     df = _fetch_df(ticker, start, end or _today())
     if df is None:
         return 0
@@ -170,7 +193,8 @@ def collect_incremental(ticker: str, last_date: date) -> tuple[int, bool]:
                 f'{ticker} 수정주가 조정 감지 ({d}: 저장 {old} → 조회 {close}) '
                 f'— 전체 이력 재수집'
             )
-            return collect_price_and_turnover(ticker, start=DEFAULT_START), True
+            return collect_price_and_turnover(
+                ticker, start=DEFAULT_START, rewrite_reason='adj_detected'), True
 
     new_rows = [r for r in rows if r[1] > last_date]
     return _upsert_rows(new_rows), False
@@ -200,7 +224,8 @@ def ingest_all(start: str = DEFAULT_START, skip_if_done: bool = False,
     if full:
         log.info(f'가격 전체 재수집 (--full, pykrx): {len(tickers)}개 종목, {start}~')
         for i, ticker in enumerate(tickers, 1):
-            n = collect_price_and_turnover(ticker, start=start)
+            n = collect_price_and_turnover(ticker, start=start,
+                                           rewrite_reason='full')
             if i % 100 == 0:
                 log.info(f'  진행: {i}/{len(tickers)}  {ticker} ({n}행)')
         log.info('가격 수집 완료')
@@ -212,8 +237,9 @@ def ingest_all(start: str = DEFAULT_START, skip_if_done: bool = False,
     for i, ticker in enumerate(tickers, 1):
         last = last_dates.get(ticker)
         if last is None:
-            # 이력 없는 신규 종목 — 전체 수집
-            n = collect_price_and_turnover(ticker, start=start)
+            # 이력 없는 신규 종목 — 재작성이 아니라 최초 수집
+            n = collect_price_and_turnover(ticker, start=start,
+                                           rewrite_reason='new_ticker')
         else:
             n, refetched = collect_incremental(ticker, last)
             n_refetch += int(refetched)
