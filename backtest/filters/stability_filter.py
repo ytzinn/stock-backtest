@@ -153,9 +153,14 @@ def _financial_stability_filter(
     # `[정정 2026-08-17]` 종전 주석은 "금융업은 DQ Gate에서 is_financial=TRUE로 이미
     # 제거됨"이었으나 **사실이 아니었다** — DQ Gate 는 그 플래그를 읽지 않는다.
     # 배제는 HardFilter(exclude_financials=True) 몫이다 (GATE-FINANCIAL).
+    # 부채총계가 없으면 debt=0 이 되어 '무부채'로 읽힌다 — R2 의 차입 계정 부재와
+    # 같은 구조다. 계정 부재와 실제 무부채는 다른 상태이므로 분리해 정책에 맡긴다.
+    # (2026-08-23 fail-closed property test 가 잡아낸 7번째 같은 유형.)
     if 'R1' in active_rules:
         if equity <= 0:
             _insufficient('R1', '자본총계 결측 또는 0 이하')
+        elif pit_data.get('부채총계') is None:
+            _insufficient('R1', '부채총계 결측 (무부채와 구분 불가)')
         elif (debt / equity) > 2.0:
             fails.append('부채비율 > 200%')
 
