@@ -220,7 +220,8 @@ def market_cap_fallback_rows(conn, dates) -> list[list]:
 def save_coverage(tag: str, period_results: list[dict], out_tag: str | None = None) -> None:
     """구간 × 규칙/계정 **커버리지 매트릭스**를 매 실행마다 남긴다 (B-3).
 
-    R6 가 10개월간 반기 구간에서 죽어 있던 것도, 데이터 지평이 초기 3구간의 R3~R6 를
+    R6 가 도입(2026-05-11) 이후 수정(2026-08-16)까지 반기 구간에서 죽어 있던 것도,
+    데이터 지평이 초기 3구간의 R3~R6 를
     무력화한 것도 **이 숫자가 어느 산출물에도 없었기 때문에** 아무도 몰랐다.
     판정에는 쓰이지 않는다 — 눈에 띄게 하는 용도다.
     """

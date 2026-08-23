@@ -329,7 +329,8 @@ def _upsert_financials(cur, ticker: str, corp_code: str, year: int,
                 # 손익계산서·현금흐름표 미매핑 계정.
                 # 여기가 **여태 아무 기록도 안 남기던 사각지대**였다 — 위 BS 분기는
                 # 'alias 보강용' 이라고 목적까지 적어두고 로깅했는데, IS/CF 는 그냥
-                # continue 였다. 그래서 `반기순이익` 이 10년간 조용히 버려지는 동안
+                # continue 였다. 그래서 `반기순이익` 이 **10년치 데이터(2016~2026)에
+                # 걸쳐** 조용히 버려지는 동안
                 # 로그에 단서가 한 줄도 없었고, 2026-05 의 dart_ni_repair 는 증상(빈 행)만
                 # 반복해서 기웠다. 감지 장치가 없으면 같은 사고가 다른 계정에서 되풀이된다.
                 if sj_nm in _SJ_IS or sj_nm in _SJ_CF:
