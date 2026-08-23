@@ -44,27 +44,6 @@ issues:
              stale 하다.
     ref: docs/설계/SPEC_06_phases.md
 
-  - id: GATE-FINANCIAL
-    status: open
-    severity: high
-    summary: stocks.is_financial 이 채워져 있는데도 어떤 필터도 읽지 않아 금융업이 유니버스에
-             남는다. stability_filter 주석은 "DQ Gate 에서 이미 제거됨"이라 적혀 있으나 사실이
-             아니다. 증권사는 차입 계정 이름이 달라 R2 가 0 으로 무조건 통과하고, 제조업
-             기준 부채비율 상한도 무의미해 R1 도 못 잡는다. 2026 2분기 실제 편입으로 확인.
-    ref: backtest/filters/stability_filter.py
-
-  - id: TRADE-HALT
-    status: open
-    severity: low
-    summary: has_recent_trade 가 최근 5 '영업일'이 아니라 최근 5 '행'을 본다. 정지 기간에도
-             is_suspended=TRUE 행이 생성되는 종목은 기존 구현도 올바로 탈락시키므로,
-             결함이 발동하는 조건은 '행 생성이 완전히 끊긴 경우'로 좁다.
-             `[정정 2026-08-22]` 2026 2분기(#24) 후보 4위 오염의 원인은 이 결함이 아니라
-             상폐 이벤트 피드 정지였다 — 해당 종목은 거래정지가 아니라 상장폐지 상태였고,
-             is_delisted_at 이 이벤트 부재로 False 를 반환했다. 피드 복구로 그 건은 해소됐다.
-             현재 이 결함만으로 걸러지지 않는 종목은 상폐 미확정 거래정지 1건뿐이다.
-    ref: backtest/data_access.py
-
   - id: SNAPSHOT-MARKET-FALLBACK
     status: open
     severity: medium
@@ -77,11 +56,29 @@ issues:
 
   - id: RULE-SILENT-PASS
     status: open
+    severity: low
+    summary: R3·R4 는 fail-closed 로 닫혔고 나머지 네 규칙은 **선언된 정책**으로 여전히
+             결측을 통과시킨다. 이제 숨은 결함이 아니라 사전등록된 ablation 대상이다 —
+             정책을 뒤집으면 유니버스가 줄어 수익률 축이 함께 움직이므로 대조군 없이
+             바꾸면 안 된다. 범위는 property test 가 고정한다.
+    ref: tests/oracle/test_fail_closed_property.py
+
+  - id: MKTCAP-FDR-FALLBACK
+    status: open
+    severity: low
+    summary: market_cap_history 일부 행이 FDR **현재** 주식수를 과거에 소급해 만든 값이라
+             재수집 때마다 달라진다. 시총은 랭킹의 분자다. 현재 L2 유니버스에 닿는 것은
+             없다고 실측됐으나 그것은 오늘 기준이며, 커버리지 산출물의 고정 필드로
+             상시 노출시켜 두었다.
+    ref: experiments/analysis/2026.08.22._mktcap_reproducibility/
+
+  - id: ADJ-CLOSE-MANUAL-CORRECTION-UNTRACKED
+    status: open
     severity: medium
-    summary: R3·R4 가 입력 결측 시 규칙을 건너뛰고 통과시킨다(R2 에서 고친 것과 같은 구조).
-             모멘텀만 on_insufficient='reject' 로 fail-closed 이고 안정성 규칙은 아니다.
-             결측 비율과 판정 영향은 미측정.
-    ref: backtest/filters/stability_filter.py
+    summary: 과거 수정주가 보정이 사람 판단으로 DB 에 직접 반영됐고 코드·마이그레이션에
+             남아 있지 않다. price_history 를 재구축하면 그 보정이 조용히 사라져 RIM
+             유효성 판정이 되돌아간다. 보정 근거와 대상을 재적용 가능한 형태로 옮겨야 한다.
+    ref: docs/검토/2026.08.22._DATA_INTEGRITY_CLOSEOUT.md
 
   - id: SOURCE-NOTE-NAN-CAST
     status: open
@@ -103,6 +100,15 @@ issues:
              3개월 반 멈춘 것과 같은 구조의 사고가 재발할 수 있다. 각 경로가 수동 실행이
              맞는지, 자동화 대상인지 판단이 필요하다.
     ref: experiments/analysis/2026.08.19._trade_halt_impact/ingest_coverage.csv
+
+  - id: TAGMATRIX-MOMENTUM-LABEL-COLLISION
+    status: open
+    severity: low
+    summary: 모멘텀 열 이름이 태그마다 유일해야 한다는 단언이 안정성 축 변형에서 깨진다.
+             모멘텀 규칙이 같은 두 태그는 같은 이름이 나오는 것이 맞으므로 결함은 표시
+             쪽이 아니라 단언 쪽일 수 있다. 이름에 축을 덧붙일지 단언을 완화할지는
+             사람이 판단한다 — 테스트를 통과시키려고 먼저 고치지 마라.
+    ref: tests/integrity/test_series_view.py
 
   - id: RF-ERP-SENS
     status: open

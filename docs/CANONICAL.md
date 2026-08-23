@@ -68,10 +68,17 @@ Sharpe·MDD 의 SSOT 는 일별 NAV 다 (SPEC_13 §9-1). 구간 지표는 엔진
 
 | id | 심각도 | 내용 | 근거 |
 |---|---|---|---|
-| `G5-MDD` | high | 일별 net MDD 가 SPEC_10 G5 한계선(−45%)을 위반한다. 종목 수 축으로는 풀리지 않는다 — 구간간 표준편차가 n=1 18.78% 에서 n=20 21.06% 로 거의 줄지 않아 전 종목이 같은 저PBR 팩터에 물려 있다 (n=1..20 곡선은 tape 절단 산출). | `experiments/analysis/n_stocks_curve.json` |
+| `G5-MDD` | high | 일별 net MDD 가 SPEC_10 G5 한계선을 위반한다. 종목 수 축으로는 풀리지 않는다 — 구간간 표준편차가 n 을 늘려도 이론값(1/√n)만큼 줄지 않아 전 종목이 같은 저PBR 팩터에 물려 있다 (n=1..20 곡선은 tape 절단 산출). | `experiments/analysis/n_stocks_curve.json` |
 | `SECTOR-DATA` | high | 섹터 분류 데이터가 전무해 업종 집중도를 측정할 수 없다. 낙폭 원인 규명의 최대 병목이다 (pykrx 섹터 API 불작동 → DB 수동 입력 외 수단 없음). | `docs/검토/f_pbr_ma200_median_split.md` |
 | `TAPE-ASYNC` | medium | run_ablation 이 지표를 갱신해도 대응 holdings tape 은 그대로다. tape 에 생성 시각·코드 SHA·소스 지표 해시가 없어 소비처가 stale 을 감지할 수단이 없다. tape 자체가 없는 태그도 있다. | `docs/설계/[이슈] 모멘텀필터_coverage_gate_미구현.md` |
 | `CORR-GATE-003` | medium | universe_gate_pit 의 PK 에 시점 차원이 없어 정정 공시 이후 시점에는 게이트 판정이 stale 하다. | `docs/설계/SPEC_06_phases.md` |
+| `SNAPSHOT-MARKET-FALLBACK` | medium | krx_daily_snapshot 이 멈춘 구간에서는 신규 상장 종목이 스냅샷에 없어 get_markets 가 stocks.market 로 조용히 대체되고, 시장 미상이면 KOSPI 기본 매도요율이 붙는다. 없으면 기본값으로 조용히 대체되는 이 저장소의 반복 패턴이다. 거래비용 산출에만 쓰이므로 판정을 바꾸지는 않으나, 스냅샷 정지가 이어지면 신규 상장이 쌓이며 잘못된 비용이 누적된다. | `backtest/data_access.py` |
+| `RULE-SILENT-PASS` | low | R3·R4 는 fail-closed 로 닫혔고 나머지 네 규칙은 **선언된 정책**으로 여전히 결측을 통과시킨다. 이제 숨은 결함이 아니라 사전등록된 ablation 대상이다 — 정책을 뒤집으면 유니버스가 줄어 수익률 축이 함께 움직이므로 대조군 없이 바꾸면 안 된다. 범위는 property test 가 고정한다. | `tests/oracle/test_fail_closed_property.py` |
+| `MKTCAP-FDR-FALLBACK` | low | market_cap_history 일부 행이 FDR **현재** 주식수를 과거에 소급해 만든 값이라 재수집 때마다 달라진다. 시총은 랭킹의 분자다. 현재 L2 유니버스에 닿는 것은 없다고 실측됐으나 그것은 오늘 기준이며, 커버리지 산출물의 고정 필드로 상시 노출시켜 두었다. | `experiments/analysis/2026.08.22._mktcap_reproducibility/` |
+| `ADJ-CLOSE-MANUAL-CORRECTION-UNTRACKED` | medium | 과거 수정주가 보정이 사람 판단으로 DB 에 직접 반영됐고 코드·마이그레이션에 남아 있지 않다. price_history 를 재구축하면 그 보정이 조용히 사라져 RIM 유효성 판정이 되돌아간다. 보정 근거와 대상을 재적용 가능한 형태로 옮겨야 한다. | `docs/검토/2026.08.22._DATA_INTEGRITY_CLOSEOUT.md` |
+| `SOURCE-NOTE-NAN-CAST` | medium | delisting_ingest 가 pandas NaN 을 str() 로 감싸 상폐 사유가 문자열 "nan" 으로 적재된다. 결측이 결측으로 표현되지 않고 값처럼 보이는 유형 — factor_screener 의 결측 -> 최하위 백분위와 같은 구조다. **단독으로 고치지 마라** — v10 유니크 키가 source_note 를 포함하는데, "nan" 을 NULL 로 바꾸면 Postgres UNIQUE 가 NULL 을 서로 다르게 취급해 제약이 조용히 무력화된다. NULL 전환과 COALESCE 기반 부분 인덱스 추가를 반드시 한 세트로 처리한다. | `ingest/delisting_ingest.py` |
+| `INGEST-CRON-GAPS` | medium | 적재 경로 9개 중 6개가 crontab 에 등록돼 있지 않다 (DART 재무·공시, PIT 재무, DQ 게이트, KRX 상장 스냅샷, KRX 일별 스냅샷, 검증 로그). 상폐 이벤트가 3개월 반 멈춘 것과 같은 구조의 사고가 재발할 수 있다. 각 경로가 수동 실행이 맞는지, 자동화 대상인지 판단이 필요하다. | `experiments/analysis/2026.08.19._trade_halt_impact/ingest_coverage.csv` |
+| `TAGMATRIX-MOMENTUM-LABEL-COLLISION` | low | 모멘텀 열 이름이 태그마다 유일해야 한다는 단언이 안정성 축 변형에서 깨진다. 모멘텀 규칙이 같은 두 태그는 같은 이름이 나오는 것이 맞으므로 결함은 표시 쪽이 아니라 단언 쪽일 수 있다. 이름에 축을 덧붙일지 단언을 완화할지는 사람이 판단한다 — 테스트를 통과시키려고 먼저 고치지 마라. | `tests/integrity/test_series_view.py` |
 | `RF-ERP-SENS` | low | 할인율 r 이 고정값이라 출처가 불명확하고, 저금리 구간에서 기업가치를 과대 추정할 위험이 있다. 민감도 분석 미실시. | `docs/설계/SPEC_04_models.md` |
 
 이 표의 원본은 `docs/open_issues.yaml` 이다. 거기를 고쳐라.
@@ -87,4 +94,4 @@ Sharpe·MDD 의 SSOT 는 일별 NAV 다 (SPEC_13 §9-1). 구간 지표는 엔진
 | `experiments/daily_nav/summary.json` | 585079aebb0178d2 |
 | `experiments/robustness/gate_results_F_pbr_ma200_n13.json` | 6d14f0a3087f8aa7 |
 | `experiments/live/dryrun/manifest.yaml` | 7f3064fff5799ce0 |
-| `docs/open_issues.yaml` | 04c519b0e612a0af |
+| `docs/open_issues.yaml` | efa19a84127bff6f |
