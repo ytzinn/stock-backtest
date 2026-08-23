@@ -7,11 +7,18 @@
 산식은 전부 SSOT 재사용 (`backtest.metrics`) — 복제 금지.
 귀무분포 p95 추정량은 `gate_analysis.py` 와 동일하게 `sorted(x)[int(n*0.95)]`.
 
+⚠️ **기준선을 반드시 명시해야 한다** (`--baseline`, 2026-08-24 신설).
+최초 실행(커밋 bad40bd)은 수정 전 운영 tape 와 수정 후 섀도우 커버리지 매트릭스를
+섞어 읽었고, **양성 대조는 그것을 잡지 못했다** — 양성 대조는 같은 tape 안의
+산식 정합성만 보기 때문이다. 출처는 별개 축이라 별개로 검사한다
+(`scripts/analysis/baseline_registry.py`, 등록부 `experiments/BASELINES.json`).
+
 실행:
-    python -m scripts.analysis.period_truncation
+    python -m scripts.analysis.period_truncation --baseline shadow_20260819
 """
 from __future__ import annotations
 
+import argparse
 import csv
 import gzip
 import json
@@ -28,7 +35,9 @@ from backtest.metrics import (
     compute_robustness,
     compute_sharpe,
 )
+from scripts.analysis.baseline_registry import list_baselines, verify
 from scripts.analysis.coverage_slice import (
+    COVERAGE_CSV,
     PREREG_THRESHOLD,
     contiguous_tail,
     load_rule_coverage,
@@ -238,7 +247,34 @@ def summarize(rows_, m, gd, nd) -> dict:
     }
 
 
+# 등록부 키는 항상 POSIX 구분자다 (Windows 개발 PC 와 Ubuntu 서버가 같은 키를 써야 한다).
+REQUIRED_INPUTS = [p.as_posix() for p in (
+    ABL_DIR / f'{F_TAG}.json',
+    ABL_DIR / f'{F_TAG}_periods.csv',
+    ROB_DIR / f'gate_results_{F_TAG}.json',
+    ROB_DIR / f'{DRAWS_TAG}_draws.csv',
+    ROB_DIR / f'{DRAWS_TAG}_periods.csv.gz',
+)]
+
+
 def main() -> None:
+    ap = argparse.ArgumentParser(description='구간 절단 재슬라이스 (사전등록 09874a4)')
+    ap.add_argument('--baseline', required=True, choices=list_baselines(),
+                    help='입력 tape 의 기준선. **필수** — 생략 가능하게 만들지 마라. '
+                         '선언과 실제 파일이 어긋나면 결과를 산출하지 않고 중단한다.')
+    args = ap.parse_args()
+
+    prov = verify(args.baseline, REQUIRED_INPUTS, extra=[str(COVERAGE_CSV).replace('\\', '/')])
+    log.info('== 기준선 %s (%s) ==', prov['baseline'], prov['label'])
+    log.info('  branch=%s  db_port=%s  commit=%s', prov['branch'], prov['db_port'],
+             prov['commit'])
+    log.info('  artifact_root=%s', prov['artifact_root'])
+    log.info('  입력 %d개 sha256 대조 통과 · 공식 수치 자격=%s\n',
+             len(prov['inputs']), prov['valid_for_official_numbers'])
+    if not prov['valid_for_official_numbers']:
+        log.warning('  !! 이 기준선은 공식 수치로 인용할 수 없다 '
+                    '(BASELINES.json 의 note 참조)\n')
+
     f_rows = load_f_periods()
     draws  = load_draw_periods()
     all_anchors = [r['rebalance_date'] for r in f_rows]
@@ -266,6 +302,7 @@ def main() -> None:
     cut_n = {s: v[1] for s, v in cut_pairs.items()}
 
     out = {'prereg_commit': '09874a4', 'generator': 'scripts/analysis/period_truncation.py',
+           'provenance': prov,
            'f_tag': F_TAG, 'draws_tag': DRAWS_TAG, 'rules': sorted(RULES),
            'threshold': PREREG_THRESHOLD,
            'dropped_by_threshold': sorted(set(all_anchors) - set(sel)),

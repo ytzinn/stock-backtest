@@ -1,0 +1,88 @@
+{
+  "_doc": [
+    "대조 기준선 등록부 (2026-08-24 신설).",
+    "",
+    "왜 있는가: 2026-08-24 재슬라이스가 '기존 공표 수치'라는 모호한 표현 하나로",
+    "수정 전(운영) tape 를 읽고 수정 후(섀도우) 커버리지 매트릭스를 섞어 썼다.",
+    "양성 대조는 '같은 tape 안에서 산식이 맞는가'만 보므로 이 혼입을 잡지 못했다.",
+    "출처는 산식과 별개의 축이고, 별개로 검사해야 한다.",
+    "",
+    "규칙: 모든 대조는 기준선을 네 가지로 명시한다 —",
+    "  branch / db_port / artifact_root / commit.",
+    "소비 스크립트는 --baseline 을 필수로 받고, inputs 의 sha256 을 전수 대조해",
+    "하나라도 어긋나면 **중단**한다 (fail-closed). 섞이면 조용히 통과하지 않는다.",
+    "",
+    "sha256 규약: 텍스트 파일은 CRLF→LF 정규화 후, `.gz` 는 raw 바이트.",
+    "(개발 PC 는 CRLF, 서버는 LF 로 같은 파일을 쓴다 — experiments/README.md 참조)",
+    "",
+    "새 재실행으로 tape 가 바뀌면 여기에 **새 기준선을 추가**한다.",
+    "기존 항목의 해시를 덮어쓰지 마라 — 그러면 등록부가 검사기가 아니게 된다."
+  ],
+  "baselines": {
+    "operational_20260815": {
+      "label": "운영 (계정 표준화 결함 수정 이전)",
+      "branch": "master",
+      "db_port": 5433,
+      "artifact_root": "/opt/stock-backtest/experiments",
+      "commit": "ab41f7b",
+      "generated_at": "2026-08-15",
+      "valid_for_official_numbers": false,
+      "note": [
+        "R6 계정 별칭 결함(2026-08-16 b7b0adf 수정) 이전에 생성된 tape.",
+        "F_pbr_ma200_n13 gross CAGR 20.3329% · 귀무 p95 15.4745% · G1 백분위 99.4%.",
+        "**현행 공표 수치가 아니다.** 승격되지 않은 것이 아니라 폐기된 것이다.",
+        "docs/검토/2026.08.19._SHADOW_REPAIR_SESSION.md §2 참조."
+      ],
+      "inputs": {
+        "experiments/ablation/F_pbr_ma200_n13.json": "848b940ce37588c6d61f089cb564a7f9ce91975f2c9b7c365f173ec64f223ccb",
+        "experiments/ablation/F_pbr_ma200_n13_periods.csv": "1a8f09d5e04b938bebd0c1b74d460f9b6c937a295ca4087f0893b8c35808c86d",
+        "experiments/robustness/gate_results_F_pbr_ma200_n13.json": "6d14f0a3087f8aa7d410161e53cfb5df71671f735caba7fbfd32b323ce5351fc",
+        "experiments/robustness/C_pbr_ma200_random_n13_draws.csv": "d052dcfa934720311d4801f420ed24accd6543e4dd0dd838c6681e5918e42be0",
+        "experiments/robustness/C_pbr_ma200_random_n13_periods.csv.gz": "7910f215f5b742c7b4f3a10ba73da09acc7b5bf831cf69426cd72b22ef10c6bb",
+        "experiments/daily_nav/summary.json": "585079aebb0178d2ba9d1e6f7da5fe8844f729be1e0db64fbf1f7b07ea976702"
+      }
+    },
+    "shadow_20260819": {
+      "label": "섀도우 (계정 표준화 결함 수정 이후)",
+      "branch": "shadow/fs-div-fallback",
+      "db_port": 5436,
+      "artifact_root": "/home/milmelmul/stock-backtest-shadow/experiments",
+      "commit": "0ac7245",
+      "generated_at": "2026-08-16 (F tape) / 2026-08-19 (귀무분포)",
+      "valid_for_official_numbers": true,
+      "note": [
+        "F_pbr_ma200_n13 gross CAGR 15.5640% · 귀무 p95 16.4111% · G1 백분위 93.4% (FAIL).",
+        "",
+        "⚠️ **추적 요약 JSON 은 이 기준선에서도 수정 전 값이다.**",
+        "`ablation/F_pbr_ma200_n13.json`(run_at 2026-08-15T12:42) ·",
+        "`robustness/random_summary_*.json` · `robustness/gate_results_*.json` ·",
+        "`daily_nav/summary.json` 넷은 섀도우 워크트리 안에서도 운영과 **바이트 동일**하다",
+        "— 재실행 후 재생성되지 않았다. 그래서 이 기준선의 inputs 에는 tape 세 개만 있다.",
+        "요약 JSON 을 이 기준선의 근거로 인용하지 마라. 지표는 tape 에서 재산출하라.",
+        "",
+        "로컬 개발 PC 에는 이 tape 사본이 없다. 회수:",
+        "  scp milmelmul@172.30.1.96:/home/milmelmul/stock-backtest-shadow/experiments/... "
+      ],
+      "inputs": {
+        "experiments/ablation/F_pbr_ma200_n13_periods.csv": "e82bdafd17aa9723eb9c51a586b2da900ce4fae49039524253295d499ef7d2ae",
+        "experiments/robustness/C_pbr_ma200_random_n13_draws.csv": "6ecd253f075aaa091b39c630161f836ffc5d369e3a419acb7d3f64d12f927104",
+        "experiments/robustness/C_pbr_ma200_random_n13_periods.csv.gz": "da9e41ad530e73e1d2bddfc9b69a5ff633f08a995da5035252081c8677aad49b"
+      }
+    }
+  },
+  "shared_inputs": {
+    "_doc": [
+      "기준선에 속하지 않는 입력 — 어느 기준선과 함께 써도 되는지 명시한다.",
+      "`account_coverage_matrix.csv` 는 **섀도우 브랜치에만 존재**한다",
+      "(운영 워크트리에 파일 자체가 없다, 커밋 820a456).",
+      "따라서 operational_20260815 과 함께 쓰면 **기준선 혼입**이다 —",
+      "2026-08-24 재슬라이스가 정확히 그렇게 했다."
+    ],
+    "experiments/analysis/2026.08.19._trade_halt_impact/account_coverage_matrix.csv": {
+      "sha256": "754db1ec66c6be71a2b4e82b0cb3b993f8120b49c048d0c46195a1811fd25824",
+      "commit": "820a456",
+      "branch": "shadow/fs-div-fallback",
+      "compatible_baselines": ["shadow_20260819"]
+    }
+  }
+}

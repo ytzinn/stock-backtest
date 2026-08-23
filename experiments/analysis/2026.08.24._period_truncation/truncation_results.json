@@ -1,4 +1,11 @@
 {
+  "INVALID_BASELINE_MIXUP": {
+    "retracted_at": "2026-08-24",
+    "reason": "수정 전 운영 tape(operational_20260815) + 수정 후 섀도우 커버리지 매트릭스 혼입",
+    "do_not_cite": "아래 수치는 판정이 아니다. G1=PASS 는 폐기된 기준선의 결과이며, 수정 후 20구간 G1 은 FAIL(백분위 93.4%)이다.",
+    "postmortem": "docs/검토/2026.08.24._BASELINE_MIXUP_POSTMORTEM.md",
+    "prereg_still_valid": "09874a4 — 기준은 유효, 입력만 틀렸다"
+  },
   "prereg_commit": "09874a4",
   "generator": "scripts/analysis/period_truncation.py",
   "f_tag": "F_pbr_ma200_n13",
