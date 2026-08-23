@@ -69,3 +69,8 @@ validate/docx_crops_right/
 validate/check.txt
 *.docx
 experiments/daily_nav/*_daily_positions.csv
+
+# 재수집 불가 자산 백업 — git 미추적. 119MB 규모라 지식베이스 인덱싱 한도를 넘긴다.
+# 원본은 서버 /opt/stock-backtest/backups/irrecoverable/ (sha256 동봉).
+# **이 디렉토리를 지우면 되살릴 수 없다** — CLAUDE.md 「재수집 불가 자산」 절 참조.
+backups/
