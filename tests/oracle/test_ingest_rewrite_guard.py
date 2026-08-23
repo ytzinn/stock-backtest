@@ -1,8 +1,9 @@
 """
 과거 행 재작성은 **명시된 경로에서만** — 주석이 아니라 실행 시점 검사여야 한다.
 
-같은 결함이 세 번 반복됐다: `stability_filter` 의 "DQ Gate 에서 이미 제거됨"(10개월간
-거짓), `price_ingest` 의 "--full 에서만 호출할 것"(delisting_ingest 가 조건 없이 호출),
+같은 결함이 세 번 반복됐다: `stability_filter` 의 "DQ Gate 에서 이미 제거됨"(98일간
+거짓 — `git log -S` 실측, `e6e622f` 2026-05-11 → `5c51de7` 2026-08-17),
+`price_ingest` 의 "--full 에서만 호출할 것"(delisting_ingest 가 조건 없이 호출),
 `market_cap_ingest` 의 "--full 전용"(같은 구조). 전부 **사실 주장을 주석에 둔** 결과다.
 
 이 테스트는 그 주장이 코드에 있는지만 본다. 네트워크·DB 를 타지 않는다 —

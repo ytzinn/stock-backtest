@@ -132,7 +132,7 @@ def collect_price_and_turnover(ticker: str, start: str = DEFAULT_START,
     **주석 경고만** 있었고 코드가 강제하지 않았다. 그래서 delisting_ingest 가 조건 없이
     호출해 상폐종목 전 이력을 덮어쓰는 경로가 열려 있었다 — DRIFT-INGEST-001 위반이고,
     haircut 이 읽는 adj_close 가 실행 시점마다 달라진다.
-    `stability_filter` 의 "DQ Gate 에서 이미 제거됨"(10개월간 거짓)과 같은 유형이라,
+    `stability_filter` 의 "DQ Gate 에서 이미 제거됨"(98일간 거짓)과 같은 유형이라,
     사실 주장을 주석에 두지 않고 **실행 시점 검사**로 옮겼다.
 
     rewrite_reason 은 기본값이 없다 — 호출자가 어느 허용 경로인지 명시해야 한다
