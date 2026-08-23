@@ -12,6 +12,7 @@ import FinanceDataReader as fdr
 
 from ingest.connection import db_conn
 from ingest.price_ingest import collect_price_and_turnover
+from ingest.schema_guard import DELISTING_INGEST, require_schema
 
 BACKTEST_START = date(2014, 1, 1)
 
@@ -178,6 +179,8 @@ def main() -> None:
                         help='상폐종목 가격 이력을 전체 재작성한다. '
                              'DRIFT-INGEST-001 — 백테스트 기준선이 바뀐다.')
     args = parser.parse_args()
+
+    require_schema(DELISTING_INGEST, who='delisting_ingest')
 
     ingest_delisting_universe()
     if args.universe_only:

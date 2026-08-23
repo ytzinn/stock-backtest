@@ -26,6 +26,7 @@ from pykrx import stock as krx
 
 from ingest.connection import db_conn
 from ingest.logging_config import configure_logging
+from ingest.schema_guard import PRICE_INGEST, require_schema
 
 configure_logging('price.log')
 log = logging.getLogger(__name__)
@@ -256,6 +257,9 @@ def main() -> None:
     parser.add_argument('--from',         dest='start', default=DEFAULT_START,
                         help='--full 재수집 시작일 (기본 20140101)')
     args = parser.parse_args()
+
+    require_schema(PRICE_INGEST, who='price_ingest')
+
     ingest_all(start=args.start, skip_if_done=args.skip_if_done, full=args.full)
 
 

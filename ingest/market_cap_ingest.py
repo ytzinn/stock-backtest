@@ -33,6 +33,7 @@ import FinanceDataReader as fdr
 from ingest.connection import db_conn
 from ingest.krx_daily_ingest import collect_date as collect_snapshot_date
 from ingest.logging_config import configure_logging
+from ingest.schema_guard import MARKET_CAP_INGEST, require_schema
 
 configure_logging('market_cap.log')
 log = logging.getLogger(__name__)
@@ -354,6 +355,9 @@ def main() -> None:
     parser.add_argument('--rebuild-from-snapshot', action='store_true',
                         help='krx_daily_snapshot으로 PIT 주식수 재구축 (백테스트 기준선 변경 주의)')
     args = parser.parse_args()
+
+    # 어떤 경로든 DB 에 쓰기 전에 스키마부터 본다 — 실패를 진입 시점으로 당긴다.
+    require_schema(MARKET_CAP_INGEST, who='market_cap_ingest')
 
     if args.supplement_delisted:
         supplement_delisted(start=args.start)
