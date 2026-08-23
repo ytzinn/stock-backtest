@@ -445,6 +445,19 @@ _C_MA200_RANDOM.update(use_rim_filter=False, random_n=20)
 ABLATION_CONFIGS['C_pbr_ma200_random'] = _C_MA200_RANDOM
 del _C_MA200_RANDOM
 
+# ── R2 제거 검증 (2026-08-16) ─────────────────────────────────────────────
+# 계정 매핑 결함 수정 후, MA 20/60 기반에서 R2(차입금+리스)를 빼면 낙폭 손해 없이
+# net 이 올랐다. MA200 채택안 라인에서도 이월되는지 확인한 태그.
+# **결과: 기각.** 23구간 중 2025-08-20 한 구간만 달라졌다 (docs/검토/REJECTED.md).
+# 산출물이 experiments/ablation/ 에 남아 있으므로 설정도 함께 있어야 한다 —
+# 없으면 series manifest 가 "설정 없는 산출물"로 잡는다.
+# **채택안에서 파생시킨다** — 손으로 베끼지 않는다.
+_F_MA200_NOR2 = copy.deepcopy(ABLATION_CONFIGS['F_pbr_ma200'])
+_F_MA200_NOR2['stability_rules'] = {'R1', 'R5', 'R6'}
+_F_MA200_NOR2['momentum_criterion']['tag'] = 'F_pbr_ma200_nor2'   # 진단 파일 분리
+ABLATION_CONFIGS['F_pbr_ma200_nor2'] = _F_MA200_NOR2
+del _F_MA200_NOR2
+
 # ── STALE: A-2(R3·R4 fail-closed, 2026-08-22) 로 산출물이 무효화된 태그 ──────────
 # R3·R4 가 "입력 결측 시 건너뛰고 통과" 에서 "판정 불가 시 탈락" 으로 바뀌었다.
 # **규칙 정의 변경**이므로 이 규칙을 켠 태그의 기존 산출물은 더 이상 현재 코드의 결과가
