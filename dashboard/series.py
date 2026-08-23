@@ -1099,6 +1099,11 @@ _META_FILES = ('.gitkeep', 'README.md', 'ARTIFACTS_MANIFEST.json')
 #: 깨진다(새 사각지대) ② 아무 파일도 안 걸리는 패턴이 남으면 깨진다(해소됐으니 지워라).
 #: `dashboard/claims.KNOWN` 과 같은 자기만료 구조다.
 UNCOVERED: dict[str, str] = {
+    'experiments/analysis/2026.08.19._*/*': (
+        '2026-08 무결성 진단 세션의 계측 산출물 — **화면 대상이 아니라 보고서 부속이다.** '
+        '계정 커버리지·상폐 피드 공백·풀 오염·적재 경로 커버리지 등 "왜 이 결론에 '
+        '이르렀는지"의 증거물이고, 인용처는 docs/검토/2026.08.19._SHADOW_REPAIR_SESSION.md '
+        '와 CLAUDE.md 데이터 지평 절이다. 지우면 그 결론들의 근거가 사라진다 (2026-08-23).'),
     'experiments/ablation/F_pbr_ma200_nor2*': (
         'R2 제거 검증 태그 — **기각된 가설**이라 왜-지도 축에 올리지 않는다. '
         '23구간 중 2025-08-20 한 구간만 달라졌다(net +0.34~0.45%p, MDD·회전율 동일). '
