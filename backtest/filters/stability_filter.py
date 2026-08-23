@@ -33,6 +33,7 @@ class StabilityFilter:
                       쪽이다 (거기엔 기본값이 없다).
         """
         self.on_insufficient = dict(on_insufficient or CURRENT_INSUFFICIENT_POLICY)
+        self.last_coverage: dict = {}      # B-3: 구간별 규칙·계정 커버리지
         self.r2_exception = r2_exception
         if active_rules is not None:
             self.active_rules = frozenset(active_rules)
@@ -50,20 +51,86 @@ class StabilityFilter:
         conn,
     ) -> tuple[list[str], dict]:
         passed, rejected = [], {}
+        insufficient_n = {r: 0 for r in sorted(self.active_rules)}
+        acct_n = {a: 0 for a in COVERAGE_ACCOUNTS}
         for t in tickers:
             series  = pit_series.get(t, [])
             pit0    = series[0] if len(series) > 0 else {}
             pit1    = series[1] if len(series) > 1 else None
             pit2    = series[2] if len(series) > 2 else None
+            miss: list[str] = []
             ok, reasons = _financial_stability_filter(
                 t, rebalance_date, pit0, pit1, pit2, self.r2_exception, self.active_rules,
-                on_insufficient=self.on_insufficient,
+                on_insufficient=self.on_insufficient, insufficient_out=miss,
             )
+            for r in miss:
+                insufficient_n[r] = insufficient_n.get(r, 0) + 1
+            for a in COVERAGE_ACCOUNTS:
+                if sum(1 for p in series if _account_present(p, a)) >= 2:
+                    acct_n[a] += 1
             if ok:
                 passed.append(t)
             else:
                 rejected[t] = reasons
+        self.last_coverage = _build_coverage(len(tickers), insufficient_n, acct_n,
+                                             self.on_insufficient)
         return passed, rejected
+
+
+# ── 커버리지 상시 계측 (B-3) ──────────────────────────────────────────────────
+#: 구간마다 세는 계정. R6 가 10개월간 죽어 있던 것도, 데이터 지평이 3구간을 무력화한
+#: 것도 **이 숫자가 어느 화면에도 없었기 때문에** 아무도 몰랐다.
+COVERAGE_ACCOUNTS = ('매출액', '매출원가', '매출총이익', '당기순이익',
+                     '자산총계', '지배주주지분', '차입금(+리스)', '영업활동현금흐름')
+
+#: 이 아래면 산출물에 경고 플래그를 단다. **판정에는 쓰이지 않는다** — 눈에 띄게 하는 용도.
+COVERAGE_WARN_PCT = 50.0
+
+_COVERAGE_BORROW_KEYS = ('단기차입금', '유동성장기부채', '장기차입금', '사채',
+                         '유동성사채', '리스부채', '비유동리스부채', '리스부채합계')
+
+
+def _account_present(pit: dict | None, account: str) -> bool:
+    """계정 하나가 이 PIT 스냅샷에 있는가. 별칭 묶음은 여기서 단일 정의한다."""
+    if not pit:
+        return False
+    if account == '지배주주지분':
+        return (pit.get('지배기업소유주지분') is not None
+                or pit.get('지배기업소유주지분_1') is not None)
+    if account == '차입금(+리스)':
+        return any(pit.get(k) is not None for k in _COVERAGE_BORROW_KEYS)
+    return pit.get(account) is not None
+
+
+def _build_coverage(n_pop: int, insufficient_n: dict, acct_n: dict,
+                    policy: dict) -> dict:
+    """구간 하나의 커버리지 요약. 산출물의 **고정 필드**로 들어간다."""
+    def pct(x):
+        return round(x / n_pop * 100, 2) if n_pop else None
+
+    rules = {}
+    for r, miss in sorted(insufficient_n.items()):
+        rules[r] = {
+            'population':   n_pop,
+            'evaluable':    n_pop - miss,
+            'insufficient': miss,
+            'evaluable_pct': pct(n_pop - miss),
+            'policy':       policy.get(r),
+            # 'pass' 정책에서만 "결측인데 통과"가 실제로 일어난다
+            'silent_pass':  miss if policy.get(r) == 'pass' else 0,
+        }
+    accounts = {a: {'with_2plus': acct_n.get(a, 0), 'coverage_pct': pct(acct_n.get(a, 0))}
+                for a in COVERAGE_ACCOUNTS}
+    warnings = (
+        [f'{r} 판정가능 {v["evaluable_pct"]}% < {COVERAGE_WARN_PCT}%'
+         for r, v in rules.items() if v['evaluable_pct'] is not None
+         and v['evaluable_pct'] < COVERAGE_WARN_PCT]
+        + [f'{a} 커버리지 {v["coverage_pct"]}% < {COVERAGE_WARN_PCT}%'
+           for a, v in accounts.items() if v['coverage_pct'] is not None
+           and v['coverage_pct'] < COVERAGE_WARN_PCT]
+    )
+    return {'population': n_pop, 'rules': rules, 'accounts': accounts,
+            'warn_threshold_pct': COVERAGE_WARN_PCT, 'warnings': warnings}
 
 
 #: `on_insufficient` 허용값. 'pass' = 판정 불가 시 통과(fail-open), 'reject' = 탈락.
@@ -121,6 +188,7 @@ def _financial_stability_filter(
     active_rules:  frozenset[str] = frozenset({'R1', 'R2', 'R3', 'R4', 'R5', 'R6'}),
     *,
     on_insufficient: dict[str, str],
+    insufficient_out: list[str] | None = None,
 ) -> tuple[bool, list[str]]:
     """
     True = 통과. 반환: (pass_flag, fail_reasons)
@@ -140,7 +208,14 @@ def _financial_stability_filter(
     fails = []
 
     def _insufficient(rule: str, why: str) -> None:
-        """판정 불가를 정책대로 처리한다. 'pass' 면 아무것도 하지 않는다(종전 동작)."""
+        """판정 불가를 정책대로 처리하고 **항상 기록**한다.
+
+        기록은 정책과 무관하다 — 'pass' 로 통과시키더라도 "그 규칙이 실제로는 판정되지
+        않았다"는 사실 자체가 커버리지 계측의 대상이다. R6 가 10개월간 죽어 있던 것을
+        아무도 몰랐던 이유가 이 숫자가 어디에도 없었기 때문이다.
+        """
+        if insufficient_out is not None:
+            insufficient_out.append(rule)
         if on_insufficient[rule] == 'reject':
             fails.append(f'{rule} 판정 불가: {why}')
 

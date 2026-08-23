@@ -487,6 +487,29 @@ def _stale_by_r3r4() -> dict[str, str]:
 STALE_TAGS: dict[str, str] = _stale_by_r3r4()
 
 
+# ── B-4: 주석의 사실 주장을 실행 시점 검사로 (2026-08-23) ──────────────────────
+# `stability_filter` 의 "DQ Gate 에서 이미 제거됨" 이 10개월간 거짓이었던 것처럼,
+# 사실 주장을 주석에 두면 코드가 옮겨가도 주석은 남는다. 아래 둘은 이 표에서 기계로
+# 확인할 수 있는 주장이라 assert 로 옮긴다.
+
+#: 사후 탐색으로 추가된 진단 전용 셀 — **채택 후보가 될 수 없다** (SPEC_13 §9-6
+#: 자동선택 금지와 같은 취지). 위 주석의 주장을 여기서 강제한다.
+POST_HOC_DIAGNOSTIC_TAGS = frozenset({'F_pbr_no_r1r2r3r4', 'F_pbr_no_r1r3r4'})
+ADOPTED_TAG = 'F_pbr_ma200'
+
+assert ADOPTED_TAG not in POST_HOC_DIAGNOSTIC_TAGS, (
+    f'{ADOPTED_TAG} 가 사후 탐색 셀로 표시돼 있다 — 채택 후보가 될 수 없는 셀이다')
+
+# "R2/R3/R4 단일·조합 제외" 사다리는 **R1·R5·R6 를 항상 유지**한다는 주석의 주장.
+# 하나라도 빠지면 그 셀은 사다리가 재려던 것(R2~R4 의 효과)을 재지 못한다.
+_R2R4_LADDER = ('F_no_r2', 'F_no_r3', 'F_no_r4', 'F_no_r2r3', 'F_no_r2r4', 'F_no_r3r4')
+for _t in _R2R4_LADDER:
+    _rules = ABLATION_CONFIGS[_t].get('stability_rules', set())
+    assert {'R1', 'R5', 'R6'} <= set(_rules), (
+        f'{_t}: R2~R4 사다리는 R1·R5·R6 를 항상 유지해야 한다 (현재 {sorted(_rules)})')
+del _t, _rules
+
+
 RANDOM_TAGS    = frozenset({'A_random', 'B_hard_random', 'C_stability_random', 'C_no_r6',
                             'C_pbr_path_random', 'C_pbr_ma200_random'})
 RANDOM_REPEATS = 500  # C_pbr_path_random은 1,000회 — fast-path 러너에서 별도 지정 (SPEC_10 §3-1)

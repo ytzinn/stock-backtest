@@ -183,6 +183,41 @@ def save_deterministic(tag: str, result: dict, out_tag: str | None = None) -> No
     log.info(f'  → {path}')
 
 
+def save_coverage(tag: str, period_results: list[dict], out_tag: str | None = None) -> None:
+    """구간 × 규칙/계정 **커버리지 매트릭스**를 매 실행마다 남긴다 (B-3).
+
+    R6 가 10개월간 반기 구간에서 죽어 있던 것도, 데이터 지평이 초기 3구간의 R3~R6 를
+    무력화한 것도 **이 숫자가 어느 산출물에도 없었기 때문에** 아무도 몰랐다.
+    판정에는 쓰이지 않는다 — 눈에 띄게 하는 용도다.
+    """
+    import csv
+    rows = []
+    for r in period_results:
+        cov = ((r.get('universe_stats') or {}).get('StabilityFilter') or {}).get('coverage')
+        if not cov:
+            continue
+        d = r.get('rebalance_date')
+        for rule, v in sorted((cov.get('rules') or {}).items()):
+            rows.append([d, '규칙', rule, cov['population'], v['evaluable'],
+                         v['insufficient'], v['evaluable_pct'], v['policy'],
+                         v['silent_pass'],
+                         'WARN' if (v['evaluable_pct'] is not None
+                                    and v['evaluable_pct'] < cov['warn_threshold_pct']) else ''])
+        for acct, v in sorted((cov.get('accounts') or {}).items()):
+            rows.append([d, '계정', acct, cov['population'], v['with_2plus'],
+                         cov['population'] - v['with_2plus'], v['coverage_pct'], '', '',
+                         'WARN' if (v['coverage_pct'] is not None
+                                    and v['coverage_pct'] < cov['warn_threshold_pct']) else ''])
+    path = OUT_DIR / f'{out_tag or tag}_coverage.csv'
+    with path.open('w', newline='', encoding='utf-8-sig') as f:
+        w = csv.writer(f)
+        w.writerow(['구간', '구분', '항목', '모집단_n', '판정가능_n', '결측_n',
+                    '판정가능_%', '결측정책', '결측통과_n', '경고'])
+        w.writerows(rows)
+    n_warn = sum(1 for r in rows if r[-1] == 'WARN')
+    log.info(f'  → {path} ({len(rows)}행, 경고 {n_warn}건)')
+
+
 def save_periods(tag: str, period_results: list[dict], out_tag: str | None = None) -> None:
     """구간별 수익률 및 필터 통과 수를 CSV로 저장."""
     import csv
@@ -449,6 +484,7 @@ def main() -> None:
                                                        valuation_date, n_stocks=args.n_stocks)
             save_deterministic(tag, result, out_tag)
             save_periods(tag, period_results, out_tag)
+            save_coverage(tag, period_results, out_tag)
             det_results[key] = result
 
     # 캘린더별 분리 저장 — 접미사 없이 쓰면 기존 공식 산출물(반기) 기록이 유실된다.

@@ -1099,6 +1099,11 @@ _META_FILES = ('.gitkeep', 'README.md', 'ARTIFACTS_MANIFEST.json')
 #: 깨진다(새 사각지대) ② 아무 파일도 안 걸리는 패턴이 남으면 깨진다(해소됐으니 지워라).
 #: `dashboard/claims.KNOWN` 과 같은 자기만료 구조다.
 UNCOVERED: dict[str, str] = {
+    'experiments/ablation/F_pbr_ma200_nor2*': (
+        'R2 제거 검증 태그 — **기각된 가설**이라 왜-지도 축에 올리지 않는다. '
+        '23구간 중 2025-08-20 한 구간만 달라졌다(net +0.34~0.45%p, MDD·회전율 동일). '
+        '산출물을 지우지 않는 이유는 같은 실험을 네 번째로 돌리지 않기 위해서다 — '
+        '기각 사유는 docs/검토/REJECTED.md (2026-08-23).'),
     'experiments/robustness/pools*.json': (
         '추첨 풀 스냅샷 — 감사·재현용. `momentum_decomposition`·`preferred_scan` 이 '
         '읽지만 화면에는 없다 (2026-08-16).'),
