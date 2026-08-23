@@ -16,6 +16,10 @@
   교체한다(source='krx_pit'). RIM 주식수 입력이 바뀌므로 **백테스트 기준선이
   변한다** — 공식 수치 재발행과 함께 실행할 것.
 
+과거 행 재작성은 `rewrite_reason` 필수 인자로 게이트돼 있다 (REWRITE_REASONS).
+기본값이 없으므로 호출자가 어느 허용 경로인지 명시해야 한다 — 주석 경고가 아니라
+실행 시점 검사다. 시각은 `market_cap_history.updated_at`(v12)에 남는다.
+
 구(전체 재수집) 동작:
     python -m ingest.market_cap_ingest --full          # FDR 현재 주식수 × 전체 이력
     python -m ingest.market_cap_ingest --supplement-delisted
@@ -35,6 +39,21 @@ log = logging.getLogger(__name__)
 
 DEFAULT_START = '20140101'
 
+# 과거 행 재작성이 허용되는 경로. 주석 경고가 아니라 **실행 시점 검사**다
+# (price_ingest.REWRITE_REASONS 와 같은 원칙 — DRIFT-INGEST-001).
+#   full        — `--full` 명시 실행
+#   new_ticker  — market_cap_history 에 행이 없는 종목 (재작성이 아니라 최초 수집)
+#   rebuild_pit — `--rebuild-from-snapshot` 명시 실행. **백테스트 기준선이 변한다**
+REWRITE_REASONS = frozenset({'full', 'new_ticker', 'rebuild_pit'})
+
+
+def _check_rewrite(who: str, reason: str) -> None:
+    if reason not in REWRITE_REASONS:
+        raise ValueError(
+            f'{who}: 과거 행 재작성은 {sorted(REWRITE_REASONS)} 경로에서만 허용된다 '
+            f'(받은 값: {reason!r}) — DRIFT-INGEST-001'
+        )
+
 
 def _today() -> str:
     return date.today().strftime('%Y%m%d')
@@ -52,12 +71,21 @@ def _load_shares() -> dict[str, int]:
 
 def collect_market_cap(ticker: str, shares: int,
                         start: str = DEFAULT_START,
-                        end: str | None = None) -> int:
+                        end: str | None = None, *,
+                        rewrite_reason: str) -> int:
     """
     FDR 종가 × 상장주식수 → market_cap 추정 후 market_cap_history upsert.
-    과거 행 재작성 경로 — --full / --supplement-delisted에서만 호출.
+    **과거 행을 재작성한다.**
+
+    `[강제 2026-08-23]` 종전에는 "--full / --supplement-delisted에서만 호출"이라는
+    **주석 경고만** 있었고 코드가 강제하지 않았다. price_ingest 가 같은 구조에서
+    delisting_ingest 에 뚫린 것과 동일한 결함이라, 사실 주장을 실행 시점 검사로 옮긴다.
+    여기서 쓰는 shares 는 **FDR 현재 주식수**라 과거 구간에 소급되면 PIT 위반이다.
+
+    rewrite_reason 은 기본값이 없다 — 호출자가 어느 허용 경로인지 명시해야 한다.
     반환: 저장된 행 수.
     """
+    _check_rewrite(ticker, rewrite_reason)
     end = end or _today()
     try:
         df = fdr.DataReader(ticker, start, end)
@@ -87,7 +115,8 @@ def collect_market_cap(ticker: str, shares: int,
             VALUES (%s, %s, %s, %s, %s)
             ON CONFLICT (ticker, date) DO UPDATE SET
                 market_cap = EXCLUDED.market_cap,
-                shares     = EXCLUDED.shares
+                shares     = EXCLUDED.shares,
+                updated_at = now()
             """,
             rows,
         )
@@ -136,7 +165,8 @@ def _fill_date_from_snapshot(d: date, fdr_shares: dict[str, int] | None) -> tupl
             ON CONFLICT (ticker, date) DO UPDATE SET
                 market_cap = EXCLUDED.market_cap,
                 shares     = EXCLUDED.shares,
-                source     = EXCLUDED.source
+                source     = EXCLUDED.source,
+                updated_at = now()
             """,
             (d,),
         )
@@ -196,11 +226,17 @@ def ingest_incremental() -> None:
     log.info('시가총액 증분 수집 완료')
 
 
-def rebuild_from_snapshot(start: str = DEFAULT_START) -> None:
+def rebuild_from_snapshot(start: str = DEFAULT_START, *,
+                          rewrite_reason: str) -> None:
     """
     krx_daily_snapshot 전체로 market_cap_history를 PIT 주식수 기준으로 재구축.
     ⚠️ RIM 주식수 입력이 바뀌어 백테스트 기준선이 변한다 — 공식 수치 재발행과 함께 실행.
+
+    `[계측 2026-08-23]` 현재 이력의 96.91%(7,201,395행)가 source='krx_pit' 이다.
+    이 값을 쓰는 경로는 여기뿐이므로 과거에 최소 1회 실행됐다 — 그런데 v12 이전에는
+    시각 컬럼이 없어 **언제였는지 답할 수 없었다.**
     """
+    _check_rewrite('rebuild_from_snapshot', rewrite_reason)
     with db_conn() as conn:
         cur = conn.cursor()
         cur.execute(
@@ -212,7 +248,8 @@ def rebuild_from_snapshot(start: str = DEFAULT_START) -> None:
             ON CONFLICT (ticker, date) DO UPDATE SET
                 market_cap = EXCLUDED.market_cap,
                 shares     = EXCLUDED.shares,
-                source     = EXCLUDED.source
+                source     = EXCLUDED.source,
+                updated_at = now()
             """,
             (start,),
         )
@@ -270,7 +307,8 @@ def supplement_delisted(start: str = DEFAULT_START) -> None:
             log.debug(f'{ticker} KRX-DELISTING에도 주식수 없음 — 건너뜀')
             skip += 1
             continue
-        n = collect_market_cap(ticker, shares, start=start)
+        # NOT EXISTS 로 고른 종목이라 재작성이 아니라 최초 수집이다.
+        n = collect_market_cap(ticker, shares, start=start, rewrite_reason='new_ticker')
         if n > 0:
             ok += 1
         else:
@@ -279,8 +317,14 @@ def supplement_delisted(start: str = DEFAULT_START) -> None:
     log.info(f'상장폐지 종목 보완 완료: 성공={ok}, 건너뜀={skip}')
 
 
-def ingest_all_full(start: str = DEFAULT_START) -> None:
-    """구 동작: FDR 현재 주식수 × 전체 이력 재수집 (--full 전용, 과거 행 재작성)."""
+def ingest_all_full(start: str = DEFAULT_START, *, rewrite_reason: str) -> None:
+    """구 동작: FDR 현재 주식수 × 전체 이력 재수집. **전 종목 과거 행을 재작성한다.**
+
+    FDR 현재 주식수를 2014년까지 소급하므로 PIT 를 정면으로 위반한다 — 시총은
+    랭킹의 분자라(`_PBRRankPipeline`: pbr = mktcap/equity) 한 종목이 틀리면
+    그 뒤 순위가 전부 밀린다. rewrite_reason 기본값 없음.
+    """
+    _check_rewrite('ingest_all_full', rewrite_reason)
     with db_conn() as conn:
         cur = conn.cursor()
         cur.execute("SELECT ticker FROM stocks WHERE is_excluded = FALSE ORDER BY ticker")
@@ -293,7 +337,7 @@ def ingest_all_full(start: str = DEFAULT_START) -> None:
         shares = shares_map.get(ticker)
         if not shares:
             continue
-        n = collect_market_cap(ticker, shares, start=start)
+        n = collect_market_cap(ticker, shares, start=start, rewrite_reason=rewrite_reason)
         if i % 200 == 0:
             log.info(f'  진행: {i}/{len(tickers)}  {ticker} ({n}행)')
     log.info('시가총액 수집 완료')
@@ -314,9 +358,9 @@ def main() -> None:
     if args.supplement_delisted:
         supplement_delisted(start=args.start)
     elif args.rebuild_from_snapshot:
-        rebuild_from_snapshot(start=args.start)
+        rebuild_from_snapshot(start=args.start, rewrite_reason='rebuild_pit')
     elif args.full:
-        ingest_all_full(start=args.start)
+        ingest_all_full(start=args.start, rewrite_reason='full')
     else:
         if args.skip_if_done:
             with db_conn() as conn:
