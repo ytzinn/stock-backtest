@@ -69,3 +69,6 @@ validate/docx_crops_right/
 validate/check.txt
 *.docx
 experiments/daily_nav/*_daily_positions.csv
+
+# 기준선별 tape 사본 (2026-08-24) — 대용량 untracked. experiments/BASELINES.json 이 sha256 을 고정한다.
+experiments/_baselines/

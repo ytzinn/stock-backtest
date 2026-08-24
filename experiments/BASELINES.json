@@ -9,8 +9,12 @@
     "",
     "규칙: 모든 대조는 기준선을 네 가지로 명시한다 —",
     "  branch / db_port / artifact_root / commit.",
-    "소비 스크립트는 --baseline 을 필수로 받고, inputs 의 sha256 을 전수 대조해",
-    "하나라도 어긋나면 **중단**한다 (fail-closed). 섞이면 조용히 통과하지 않는다.",
+    "소비 스크립트는 --baseline 을 필수로 받고, required_inputs 의 sha256 을 전수",
+    "대조해 하나라도 어긋나면 **중단**한다 (fail-closed). 섞이면 조용히 통과하지 않는다.",
+    "",
+    "local_root: 개발 PC 에서 그 기준선의 파일이 놓인 루트 (저장소 상대).",
+    "  운영본은 working tree 그대로('.'), 섀도우본은 experiments/_baselines/ 아래에",
+    "  격리해 둔다 — 같은 이름의 두 세대가 한 디렉토리에서 서로를 덮어쓰지 않게.",
     "",
     "sha256 규약: 텍스트 파일은 CRLF→LF 정규화 후, `.gz` 는 raw 바이트.",
     "(개발 PC 는 CRLF, 서버는 LF 로 같은 파일을 쓴다 — experiments/README.md 참조)",
@@ -18,20 +22,47 @@
     "새 재실행으로 tape 가 바뀌면 여기에 **새 기준선을 추가**한다.",
     "기존 항목의 해시를 덮어쓰지 마라 — 그러면 등록부가 검사기가 아니게 된다."
   ],
+  "_poisoned_summaries": {
+    "_doc": [
+      "⚠️ **재실행 후 재생성되지 않은 요약 JSON.** 섀도우 워크트리 안에서도 운영과",
+      "바이트 동일하며 전부 run_at/generated_at = 2026-08-15 (수정 전) 이다.",
+      "브랜치를 맞춰도 이 파일들은 20.3329% 를 반환한다.",
+      "",
+      "**어떤 기준선의 근거로도 인용하지 마라. 지표는 tape 에서 재산출하라.**",
+      "`baseline_registry.assert_not_poisoned()` 가 실행 시점에 거부한다.",
+      "근본 해결은 재실행 시 요약 JSON 을 함께 재생성해 커밋하는 것이며,",
+      "승격 논의와 묶여 있어 2026-08-24 시점에 미해결이다."
+    ],
+    "paths": [
+      "experiments/ablation/F_pbr_ma200_n13.json",
+      "experiments/ablation/summary.json",
+      "experiments/robustness/random_summary_C_pbr_ma200_random_n13.json",
+      "experiments/robustness/gate_results_F_pbr_ma200_n13.json",
+      "experiments/daily_nav/summary.json"
+    ],
+    "stale_as_of": "2026-08-15",
+    "detected": "2026-08-24",
+    "issue": "SUMMARY-JSON-STALE"
+  },
   "baselines": {
     "operational_20260815": {
       "label": "운영 (계정 표준화 결함 수정 이전)",
       "branch": "master",
       "db_port": 5433,
       "artifact_root": "/opt/stock-backtest/experiments",
+      "local_root": ".",
       "commit": "ab41f7b",
       "generated_at": "2026-08-15",
       "valid_for_official_numbers": false,
       "note": [
         "R6 계정 별칭 결함(2026-08-16 b7b0adf 수정) 이전에 생성된 tape.",
-        "F_pbr_ma200_n13 gross CAGR 20.3329% · 귀무 p95 15.4745% · G1 백분위 99.4%.",
-        "**현행 공표 수치가 아니다.** 승격되지 않은 것이 아니라 폐기된 것이다.",
+        "**현행 공표 수치가 아니다.** 폐기됐다.",
         "docs/검토/2026.08.19._SHADOW_REPAIR_SESSION.md §2 참조."
+      ],
+      "required_inputs": [
+        "experiments/ablation/F_pbr_ma200_n13_periods.csv",
+        "experiments/robustness/C_pbr_ma200_random_n13_draws.csv",
+        "experiments/robustness/C_pbr_ma200_random_n13_periods.csv.gz"
       ],
       "inputs": {
         "experiments/ablation/F_pbr_ma200_n13.json": "848b940ce37588c6d61f089cb564a7f9ce91975f2c9b7c365f173ec64f223ccb",
@@ -40,6 +71,25 @@
         "experiments/robustness/C_pbr_ma200_random_n13_draws.csv": "d052dcfa934720311d4801f420ed24accd6543e4dd0dd838c6681e5918e42be0",
         "experiments/robustness/C_pbr_ma200_random_n13_periods.csv.gz": "7910f215f5b742c7b4f3a10ba73da09acc7b5bf831cf69426cd72b22ef10c6bb",
         "experiments/daily_nav/summary.json": "585079aebb0178d2ba9d1e6f7da5fe8844f729be1e0db64fbf1f7b07ea976702"
+      },
+      "expected_metrics": {
+        "_source": "experiments/ablation/F_pbr_ma200_n13.json (전정밀 JSON) + gate_results_*.json",
+        "_precision": "full",
+        "f_cagr": 0.20332883254284506,
+        "f_net_cagr": 0.18689083784884652,
+        "f_net_sharpe": 0.6196834114774528,
+        "f_mdd": -0.3413778730984435,
+        "f_robustness": 0.65,
+        "f_alpha": 0.09721422210842956,
+        "null_p95": 0.15474465234698154,
+        "null_median": 0.07603069745649105,
+        "null_net_p95": 0.1340922310580337,
+        "f_percentile": 0.994,
+        "pool_2016_08_18": 674,
+        "_tolerance_mode": "full",
+        "_tolerance_note": [
+          "전정밀 JSON 이 참조값이므로 전 지표 1e-12. 반올림 문제가 없다."
+        ]
       }
     },
     "shadow_20260819": {
@@ -47,26 +97,73 @@
       "branch": "shadow/fs-div-fallback",
       "db_port": 5436,
       "artifact_root": "/home/milmelmul/stock-backtest-shadow/experiments",
+      "local_root": "experiments/_baselines/shadow_20260819",
       "commit": "0ac7245",
       "generated_at": "2026-08-16 (F tape) / 2026-08-19 (귀무분포)",
       "valid_for_official_numbers": true,
       "note": [
-        "F_pbr_ma200_n13 gross CAGR 15.5640% · 귀무 p95 16.4111% · G1 백분위 93.4% (FAIL).",
+        "F tape 는 2026-08-16 21:08, 귀무분포는 2026-08-19 11:14 생성.",
         "",
-        "⚠️ **추적 요약 JSON 은 이 기준선에서도 수정 전 값이다.**",
-        "`ablation/F_pbr_ma200_n13.json`(run_at 2026-08-15T12:42) ·",
-        "`robustness/random_summary_*.json` · `robustness/gate_results_*.json` ·",
-        "`daily_nav/summary.json` 넷은 섀도우 워크트리 안에서도 운영과 **바이트 동일**하다",
-        "— 재실행 후 재생성되지 않았다. 그래서 이 기준선의 inputs 에는 tape 세 개만 있다.",
-        "요약 JSON 을 이 기준선의 근거로 인용하지 마라. 지표는 tape 에서 재산출하라.",
-        "",
-        "로컬 개발 PC 에는 이 tape 사본이 없다. 회수:",
-        "  scp milmelmul@172.30.1.96:/home/milmelmul/stock-backtest-shadow/experiments/... "
+        "⚠️ 이 기준선의 **요약 JSON 은 전부 _poisoned_summaries 다.** 그래서 inputs 에",
+        "tape 만 있다. F 지표의 **전정밀 기록은 존재하지 않는다** — 공표값은 08-19",
+        "문서의 소수점 4자리 반올림뿐이다. 따라서 F 축 양성 대조는 1e-12 가 불가능하고",
+        "반올림 반폭(5e-7)으로 판정한다. 귀무 축은 draws.csv 가 전정밀이라 1e-12 가능.",
+        "문서의 소수점 4자리 반올림뿐이다. 따라서 F 축 양성 대조는 1e-12 가 불가능하고 지표별 반올림 반폭으로 판정한다. 귀무 축은 draws.csv 가 전정밀이라 1e-12 가능.",
+        "서버 원본에서 회수: scp milmelmul@172.30.1.96:{artifact_root}/... {local_root}/experiments/..."
+      ],
+      "required_inputs": [
+        "experiments/ablation/F_pbr_ma200_n13_periods.csv",
+        "experiments/robustness/C_pbr_ma200_random_n13_draws.csv",
+        "experiments/robustness/C_pbr_ma200_random_n13_periods.csv.gz",
+        "experiments/robustness/pools_C_pbr_ma200_random_n13.json"
       ],
       "inputs": {
         "experiments/ablation/F_pbr_ma200_n13_periods.csv": "e82bdafd17aa9723eb9c51a586b2da900ce4fae49039524253295d499ef7d2ae",
         "experiments/robustness/C_pbr_ma200_random_n13_draws.csv": "6ecd253f075aaa091b39c630161f836ffc5d369e3a419acb7d3f64d12f927104",
-        "experiments/robustness/C_pbr_ma200_random_n13_periods.csv.gz": "da9e41ad530e73e1d2bddfc9b69a5ff633f08a995da5035252081c8677aad49b"
+        "experiments/robustness/C_pbr_ma200_random_n13_periods.csv.gz": "da9e41ad530e73e1d2bddfc9b69a5ff633f08a995da5035252081c8677aad49b",
+        "experiments/robustness/pools_C_pbr_ma200_random_n13.json": "5c9bebc4add4facab855c7096750846accd7ec1e235dcd925a3ba24b5baaba23"
+      },
+      "expected_metrics": {
+        "_source": "docs/검토/2026.08.19._SHADOW_REPAIR_SESSION.md §2·§3 (공표 기록) + pools_*.json",
+        "_precision": "published — 08-19 문서 표기 그대로 (지표별 형식은 _published_as)",
+        "f_cagr": 0.15564,
+        "f_net_cagr": 0.139757,
+        "f_net_sharpe": 0.5025,
+        "f_mdd": -0.330156,
+        "f_robustness": 0.7,
+        "f_alpha": 0.049525,
+        "null_p95": 0.164111,
+        "null_median": 0.083641,
+        "null_net_p95": 0.143372,
+        "f_percentile": 0.934,
+        "pool_2016_08_18": 686,
+        "_tolerance_mode": "published",
+        "_published_as": {
+          "f_cagr": "percent_4dp",
+          "f_net_cagr": "percent_4dp",
+          "f_net_sharpe": "ratio_4dp",
+          "f_mdd": "percent_4dp",
+          "f_robustness": "ratio_4dp",
+          "f_alpha": "percent_4dp",
+          "null_p95": "percent_4dp",
+          "null_median": "percent_4dp",
+          "null_net_p95": "percent_4dp",
+          "f_percentile": "percent_1dp",
+          "pool_2016_08_18": "exact"
+        },
+        "_tolerance_note": [
+          "허용오차는 **지표마다 그 공표 형식의 반올림 반폭**이다. 일괄값을 쓰지 마라.",
+          "  percent_4dp (예: '15.5640%')  -> 5e-7  (분수 기준)",
+          "  ratio_4dp   (예: '0.5025')     -> 5e-5",
+          "  percent_1dp (예: '93.4%')      -> 5e-4",
+          "  exact       (풀 크기 등 정수)  -> 0",
+          "",
+          "`[정정 2026-08-24]` 최초 등록은 5e-7 일괄이었고, 백분율에서 유도한 값을",
+          "**비율로 공표된 net_sharpe 에 적용**해 양성 대조가 걸렸다(|d|=4.16e-05).",
+          "tape 가 아니라 이 등록부가 틀렸던 것이다 — 검출기를 느슨하게 한 것이 아니라",
+          "각 지표의 반올림 반폭을 제대로 계산했다. 0.5024584282 는 4자리 반올림 시",
+          "정확히 0.5025 이므로 공표값과 정합적이다."
+        ]
       }
     }
   },
@@ -82,7 +179,9 @@
       "sha256": "754db1ec66c6be71a2b4e82b0cb3b993f8120b49c048d0c46195a1811fd25824",
       "commit": "820a456",
       "branch": "shadow/fs-div-fallback",
-      "compatible_baselines": ["shadow_20260819"]
+      "compatible_baselines": [
+        "shadow_20260819"
+      ]
     }
   }
 }

@@ -1,0 +1,229 @@
+{
+  "prereg_commit": "09874a4",
+  "generator": "scripts/analysis/period_truncation.py",
+  "provenance": {
+    "baseline": "shadow_20260819",
+    "label": "섀도우 (계정 표준화 결함 수정 이후)",
+    "branch": "shadow/fs-div-fallback",
+    "db_port": 5436,
+    "artifact_root": "/home/milmelmul/stock-backtest-shadow/experiments",
+    "commit": "0ac7245",
+    "valid_for_official_numbers": true,
+    "local_root": "experiments/_baselines/shadow_20260819",
+    "verified_at": "2026-08-24T09:18:18.031508+00:00",
+    "inputs": {
+      "experiments/ablation/F_pbr_ma200_n13_periods.csv": {
+        "sha256": "e82bdafd17aa9723eb9c51a586b2da900ce4fae49039524253295d499ef7d2ae",
+        "size": 3831,
+        "mtime": "2026-08-24T09:12:27.934972+00:00"
+      },
+      "experiments/robustness/C_pbr_ma200_random_n13_draws.csv": {
+        "sha256": "6ecd253f075aaa091b39c630161f836ffc5d369e3a419acb7d3f64d12f927104",
+        "size": 45179,
+        "mtime": "2026-08-24T09:12:28.481842+00:00"
+      },
+      "experiments/robustness/C_pbr_ma200_random_n13_periods.csv.gz": {
+        "sha256": "da9e41ad530e73e1d2bddfc9b69a5ff633f08a995da5035252081c8677aad49b",
+        "size": 487220,
+        "mtime": "2026-08-24T09:12:29.679550+00:00"
+      },
+      "experiments/robustness/pools_C_pbr_ma200_random_n13.json": {
+        "sha256": "5c9bebc4add4facab855c7096750846accd7ec1e235dcd925a3ba24b5baaba23",
+        "size": 71504,
+        "mtime": "2026-08-24T09:12:30.209922+00:00"
+      },
+      "experiments/analysis/2026.08.19._trade_halt_impact/account_coverage_matrix.csv": {
+        "sha256": "754db1ec66c6be71a2b4e82b0cb3b993f8120b49c048d0c46195a1811fd25824",
+        "size": 15286,
+        "mtime": "2026-08-23T14:59:13.264861+00:00",
+        "shared_input": true
+      }
+    }
+  },
+  "f_tag": "F_pbr_ma200_n13",
+  "draws_tag": "C_pbr_ma200_random_n13",
+  "rules": [
+    "R1",
+    "R2",
+    "R5",
+    "R6"
+  ],
+  "threshold": 0.5,
+  "dropped_by_threshold": [
+    "2016-08-18"
+  ],
+  "dropped_by_contiguity": [
+    "2016-04-05"
+  ],
+  "full20": {
+    "periods": [
+      "2016-04-05",
+      "2016-08-18",
+      "2017-04-05",
+      "2017-08-18",
+      "2018-04-04",
+      "2018-08-20",
+      "2019-04-03",
+      "2019-08-20",
+      "2020-04-03",
+      "2020-08-20",
+      "2021-04-05",
+      "2021-08-19",
+      "2022-04-05",
+      "2022-08-18",
+      "2023-04-05",
+      "2023-08-18",
+      "2024-04-03",
+      "2024-08-20",
+      "2025-04-03",
+      "2025-08-20"
+    ],
+    "metrics": {
+      "n_periods": 20,
+      "start": "2016-04-05",
+      "end": "2026-04-03",
+      "years": 9.99315537303217,
+      "cagr": 0.15564001502841318,
+      "net_cagr": 0.13975702707683135,
+      "sharpe": 0.5543977498308321,
+      "net_sharpe": 0.5024584281707888,
+      "mdd": -0.33015637011354915,
+      "robustness": 0.7,
+      "benchmark_cagr": 0.1061146104344155,
+      "kosdaq_cagr": 0.04340854321234855,
+      "alpha": 0.04952540459399768,
+      "alpha_kosdaq": 0.11223147181606463,
+      "avg_turnover": 0.7730769230769232
+    },
+    "null_gross": {
+      "median": 0.08364126635549018,
+      "p5": 0.01070259800203699,
+      "p95": 0.16411077280408226,
+      "ci95_of_p95": [
+        0.15640922484690978,
+        0.1699528969487607
+      ],
+      "f_percentile": 0.934
+    },
+    "null_net": {
+      "median": 0.06433798730183571,
+      "p5": -0.007190337363509047,
+      "p95": 0.14337163859528812,
+      "ci95_of_p95": [
+        0.13569094367444468,
+        0.14935773588295542
+      ],
+      "f_percentile": 0.945
+    },
+    "G1": {
+      "pass": false,
+      "label": "FAIL",
+      "f_cagr": 0.15564001502841318,
+      "random_p95": 0.16411077280408226,
+      "n_draws": 1000
+    },
+    "G1_net_report_only": {
+      "f_net_cagr": 0.13975702707683135,
+      "random_p95_net": 0.14337163859528812,
+      "label": "INCONCLUSIVE (FAIL 쪽)"
+    }
+  },
+  "cut18": {
+    "periods": [
+      "2017-04-05",
+      "2017-08-18",
+      "2018-04-04",
+      "2018-08-20",
+      "2019-04-03",
+      "2019-08-20",
+      "2020-04-03",
+      "2020-08-20",
+      "2021-04-05",
+      "2021-08-19",
+      "2022-04-05",
+      "2022-08-18",
+      "2023-04-05",
+      "2023-08-18",
+      "2024-04-03",
+      "2024-08-20",
+      "2025-04-03",
+      "2025-08-20"
+    ],
+    "metrics": {
+      "n_periods": 18,
+      "start": "2017-04-05",
+      "end": "2026-04-03",
+      "years": 8.993839835728952,
+      "cagr": 0.15629885560160894,
+      "net_cagr": 0.14007749939448355,
+      "sharpe": 0.5395274098514758,
+      "net_sharpe": 0.48925851813587523,
+      "mdd": -0.33015637011354915,
+      "robustness": 0.7222222222222222,
+      "benchmark_cagr": 0.10668347827945612,
+      "kosdaq_cagr": 0.05994164146971559,
+      "alpha": 0.04961537732215282,
+      "alpha_kosdaq": 0.09635721413189335,
+      "avg_turnover": 0.7564102564102565
+    },
+    "null_gross": {
+      "median": 0.09397371779290098,
+      "p5": 0.015189767788851727,
+      "p95": 0.17971622189639436,
+      "ci95_of_p95": [
+        0.17549579364446832,
+        0.1871005291758603
+      ],
+      "f_percentile": 0.874
+    },
+    "null_net": {
+      "median": 0.07397907044165519,
+      "p5": -0.0034787091515012802,
+      "p95": 0.15826620713527761,
+      "ci95_of_p95": [
+        0.1542572491836265,
+        0.16484957609040696
+      ],
+      "f_percentile": 0.888
+    },
+    "G1": {
+      "pass": false,
+      "label": "FAIL",
+      "f_cagr": 0.15629885560160894,
+      "random_p95": 0.17971622189639436,
+      "n_draws": 1000
+    },
+    "G1_net_report_only": {
+      "f_net_cagr": 0.14007749939448355,
+      "random_p95_net": 0.15826620713527761,
+      "label": "FAIL"
+    },
+    "S1_fresh_start_tc": {
+      "note": "첫 채택 구간 tc -> 0.0035 (매수전용). 전 추첨 동일 적용. 보고 전용.",
+      "null_median": 0.07464388618262663,
+      "null_p95": 0.15901321115395706
+    }
+  },
+  "decomposition": {
+    "dropped_periods": [
+      {
+        "rebalance_date": "2016-04-05",
+        "next_date": "2016-08-18",
+        "gross": 0.12642578774312904,
+        "net": 0.12292578774312904,
+        "kospi": 0.04724517765980196
+      },
+      {
+        "rebalance_date": "2016-08-18",
+        "next_date": "2017-04-05",
+        "gross": 0.020588783059883195,
+        "net": 0.01233493690603704,
+        "kospi": 0.051268079806565
+      }
+    ],
+    "dropped_gross_growth": 1.1496175239200304,
+    "dropped_net_growth": 1.1367770064851026,
+    "full_gross_growth": 4.244198772825592,
+    "cut_gross_growth": 3.691835488340057
+  }
+}

@@ -35,7 +35,14 @@ from backtest.metrics import (
     compute_robustness,
     compute_sharpe,
 )
-from scripts.analysis.baseline_registry import list_baselines, verify
+from scripts.analysis.baseline_registry import (
+    expected_metrics,
+    list_baselines,
+    local_root,
+    metric_tolerance,
+    required_inputs,
+    verify,
+)
 from scripts.analysis.coverage_slice import (
     COVERAGE_CSV,
     PREREG_THRESHOLD,
@@ -55,26 +62,28 @@ F_TAG     = 'F_pbr_ma200_n13'
 DRAWS_TAG = 'C_pbr_ma200_random_n13'
 RULES     = frozenset({'R1', 'R2', 'R5', 'R6'})   # ablation.py:109-113 채택안 조합
 
-TOL_POSITIVE_CONTROL = 1e-12    # 사전등록 §1
+TOL_FULL_PRECISION = 1e-12      # 사전등록 §1 — 전정밀 참조값이 있을 때만
 BOOT_B    = 10_000              # 사전등록 §0-4
 BOOT_SEED = 20260824
 FRESH_START_TC = 0.0035         # 매수만 발생하는 신규 진입 구간의 tc (실측 상수)
 
 
 # ── 입력 ────────────────────────────────────────────────────────────────────
-def load_f_periods() -> list[dict]:
+def load_f_periods(root: Path = Path('.')) -> list[dict]:
     """F 태그의 **완결 구간** 행 (n_stocks>0, 열린 구간 제외) — 시간순."""
-    rows = list(csv.DictReader((ABL_DIR / f'{F_TAG}_periods.csv').open(encoding='utf-8')))
+    rows = list(csv.DictReader(
+        (root / ABL_DIR / f'{F_TAG}_periods.csv').open(encoding='utf-8')))
     active = [r for r in rows if int(r['n_stocks']) > 0]
     # 열린 구간 = next_date 가 리밸런싱 앵커가 아닌 행 (engine.is_open_period 와 동치)
     anchors = {r['rebalance_date'] for r in rows}
     return [r for r in active if r['next_date'] in anchors]
 
 
-def load_draw_periods() -> dict[int, dict[str, dict]]:
+def load_draw_periods(root: Path = Path('.')) -> dict[int, dict[str, dict]]:
     """{seed: {rebalance_date: row}} — 추첨 구간별 gross/net/turnover/tc."""
     out: dict[int, dict[str, dict]] = {}
-    with gzip.open(ROB_DIR / f'{DRAWS_TAG}_periods.csv.gz', 'rt', encoding='utf-8') as f:
+    with gzip.open(root / ROB_DIR / f'{DRAWS_TAG}_periods.csv.gz',
+                   'rt', encoding='utf-8') as f:
         for row in csv.DictReader(f):
             out.setdefault(int(row['seed']), {})[row['rebalance_date']] = row
     return out
@@ -169,61 +178,89 @@ def pctl_below(x: float, xs: list[float]) -> float:
 
 
 # ── 실행 ────────────────────────────────────────────────────────────────────
-def positive_control(f_rows, draws, all_anchors) -> tuple[dict, dict, dict]:
-    """전체 20구간 재슬라이스 == 기존 공표 수치. 실패하면 중단한다."""
-    log.info('== 양성 대조: 전체 %d구간 재슬라이스 vs 기존 공표 ==', len(f_rows))
-    published = json.loads((ABL_DIR / f'{F_TAG}.json').read_text(encoding='utf-8'))
-    gate_pub  = json.loads(
-        (ROB_DIR / f'gate_results_{F_TAG}.json').read_text(encoding='utf-8'))
-    full = slice_f(f_rows)
-    fails = []
-    for k in ('cagr', 'net_cagr', 'sharpe', 'net_sharpe', 'mdd', 'robustness',
-              'alpha', 'alpha_kosdaq', 'benchmark_cagr', 'kosdaq_cagr',
-              'avg_turnover', 'n_periods'):
-        d = abs(full[k] - published[k])
-        ok = d <= TOL_POSITIVE_CONTROL
-        log.info('  F.%-15s 재슬라이스=%.15g 공표=%.15g |d|=%.2e %s',
-                 k, full[k], published[k], d, 'OK' if ok else '**불일치**')
-        if not ok:
-            fails.append(f'F.{k}')
+def positive_control(f_rows, draws, all_anchors, name: str, root: Path
+                     ) -> tuple[dict, dict, dict]:
+    """전체 20구간 재슬라이스 == 그 기준선의 **공표 수치**. 실패하면 중단한다.
 
+    두 층으로 본다 — 층이 갈리는 이유는 참조값의 정밀도가 다르기 때문이다.
+
+      층1 (전정밀, 1e-12): 귀무 축. `{tag}_draws.csv` 가 같은 실행이 남긴 전정밀
+            seed별 CAGR 이라 periods.gz 재계산과 비트 수준으로 맞출 수 있다.
+      층2 (공표 정밀도): 기준선의 `expected_metrics`. 허용오차는 **지표마다**
+            그 값이 공표된 형식의 반올림 반폭이다 (`metric_tolerance`).
+            백분율 공표값과 비율 공표값에 같은 허용오차를 쓰면 후자가 오탐한다.
+            shadow_20260819 의 F 축은 **전정밀 기록이 존재하지 않아**
+            (요약 JSON 이 전부 _poisoned_summaries) 이보다 좁힐 수 없다.
+            **이보다 좁게 주장하지 마라.**
+    """
+    exp = expected_metrics(name)
+    log.info('== 양성 대조: 전체 %d구간 재슬라이스 vs %s 공표 ==', len(f_rows), name)
+    log.info('   참조: %s', exp['_source'])
+    log.info('   정밀도: %s (허용오차는 지표별 반올림 반폭)', exp['_precision'])
+
+    full = slice_f(f_rows)
+    fails: list[str] = []
+
+    def chk(label, got, key):
+        want = exp[key]
+        t = metric_tolerance(exp, key)
+        d = abs(got - want)
+        ok = d <= t
+        log.info('  %-18s 재슬라이스=%.10f 공표=%.10f |d|=%.2e tol=%.0e %s',
+                 label, got, want, d, t, 'OK' if ok else '**불일치**')
+        if not ok:
+            fails.append(label)
+
+    chk('F.cagr',       full['cagr'],       'f_cagr')
+    chk('F.net_cagr',   full['net_cagr'],   'f_net_cagr')
+    chk('F.net_sharpe', full['net_sharpe'], 'f_net_sharpe')
+    chk('F.mdd',        full['mdd'],        'f_mdd')
+    chk('F.robustness', full['robustness'], 'f_robustness')
+    chk('F.alpha',      full['alpha'],      'f_alpha')
+
+    # -- 층1: 귀무 축 전정밀 --------------------------------------------------
     span_full = _span(f_rows)
     pub = {int(r['seed']): (float(r['cagr']), float(r['net_cagr'])) for r in
-           csv.DictReader((ROB_DIR / f'{DRAWS_TAG}_draws.csv').open(encoding='utf-8'))}
+           csv.DictReader((root / ROB_DIR / f'{DRAWS_TAG}_draws.csv')
+                          .open(encoding='utf-8'))}
     re_g, re_n = {}, {}
     worst_g = worst_n = 0.0
-    for s, per in draws.items():
+    for sd, per in draws.items():
         if set(per) != set(all_anchors):
-            raise SystemExit(f'seed={s}: 추첨 구간 집합이 F와 불일치 - 중단')
+            raise SystemExit(f'seed={sd}: 추첨 구간 집합이 F와 불일치 - 중단')
         g, n = slice_draw(per, all_anchors, span_full)
-        re_g[s], re_n[s] = g, n
-        worst_g = max(worst_g, abs(g - pub[s][0]))
-        worst_n = max(worst_n, abs(n - pub[s][1]))
-    log.info('  귀무분포 %d추첨 gross 최대|d|=%.2e / net 최대|d|=%.2e',
-             len(draws), worst_g, worst_n)
-    if worst_g > TOL_POSITIVE_CONTROL:
-        fails.append('draws.cagr')
-    if worst_n > TOL_POSITIVE_CONTROL:
-        fails.append('draws.net_cagr')
+        re_g[sd], re_n[sd] = g, n
+        worst_g = max(worst_g, abs(g - pub[sd][0]))
+        worst_n = max(worst_n, abs(n - pub[sd][1]))
+    ok1 = max(worst_g, worst_n) <= TOL_FULL_PRECISION
+    log.info('  %-18s %d추첨 gross 최대|d|=%.2e / net 최대|d|=%.2e (전정밀 tol %g) %s',
+             'draws(층1)', len(draws), worst_g, worst_n, TOL_FULL_PRECISION,
+             'OK' if ok1 else '**불일치**')
+    if not ok1:
+        fails.append('draws(전정밀)')
 
-    p95_full = p95(list(re_g.values()))
-    pub_p95 = gate_pub['hard_gates']['G1']['random_p95']
-    d_p95 = abs(p95_full - pub_p95)
-    log.info('  p95 재슬라이스=%.15g 공표=%.15g |d|=%.2e %s',
-             p95_full, pub_p95, d_p95, 'OK' if d_p95 <= TOL_POSITIVE_CONTROL else '**불일치**')
-    if d_p95 > TOL_POSITIVE_CONTROL:
-        fails.append('p95')
+    # -- 층2: 분포 통계 -------------------------------------------------------
+    chk('null.p95',     p95(list(re_g.values())),              'null_p95')
+    chk('null.median',  sorted(re_g.values())[len(re_g) // 2], 'null_median')
+    chk('null.net_p95', p95(list(re_n.values())),              'null_net_p95')
+    chk('F.percentile', pctl_below(full['cagr'], list(re_g.values())), 'f_percentile')
 
-    d_pct = abs(pctl_below(full['cagr'], list(re_g.values()))
-                - gate_pub['hard_gates']['G1']['f_percentile_in_null'])
-    log.info('  G1 백분위 |d|=%.2e %s', d_pct,
-             'OK' if d_pct <= TOL_POSITIVE_CONTROL else '**불일치**')
-    if d_pct > TOL_POSITIVE_CONTROL:
-        fails.append('f_percentile')
+    # -- 풀 크기: 오염 구간의 지문 --------------------------------------------
+    pools_p = root / ROB_DIR / f'pools_{DRAWS_TAG}.json'
+    if pools_p.exists():
+        pools = json.loads(pools_p.read_text(encoding='utf-8'))
+        got, want = len(pools['2016-08-18']), exp['pool_2016_08_18']
+        log.info('  %-18s 실측=%d 공표=%d %s', 'pool 2016-08-18', got, want,
+                 'OK' if got == want else '**불일치**')
+        if got != want:
+            fails.append('pool_2016_08_18')
+    else:
+        log.info('  %-18s 이 기준선에 pools 파일 없음 - 대조 생략', 'pool 2016-08-18')
 
     if fails:
-        raise SystemExit(f'양성 대조 실패 - 재슬라이스 코드가 틀렸다: {fails}')
-    log.info('  >> 양성 대조 통과 (허용오차 %g)\n', TOL_POSITIVE_CONTROL)
+        raise SystemExit(f'양성 대조 실패 - 재슬라이스가 틀렸거나 tape 가 다르다: {fails}')
+    log.info('  >> 양성 대조 통과')
+    log.info('')
     return full, re_g, re_n
 
 
@@ -247,16 +284,6 @@ def summarize(rows_, m, gd, nd) -> dict:
     }
 
 
-# 등록부 키는 항상 POSIX 구분자다 (Windows 개발 PC 와 Ubuntu 서버가 같은 키를 써야 한다).
-REQUIRED_INPUTS = [p.as_posix() for p in (
-    ABL_DIR / f'{F_TAG}.json',
-    ABL_DIR / f'{F_TAG}_periods.csv',
-    ROB_DIR / f'gate_results_{F_TAG}.json',
-    ROB_DIR / f'{DRAWS_TAG}_draws.csv',
-    ROB_DIR / f'{DRAWS_TAG}_periods.csv.gz',
-)]
-
-
 def main() -> None:
     ap = argparse.ArgumentParser(description='구간 절단 재슬라이스 (사전등록 09874a4)')
     ap.add_argument('--baseline', required=True, choices=list_baselines(),
@@ -264,22 +291,29 @@ def main() -> None:
                          '선언과 실제 파일이 어긋나면 결과를 산출하지 않고 중단한다.')
     args = ap.parse_args()
 
-    prov = verify(args.baseline, REQUIRED_INPUTS, extra=[str(COVERAGE_CSV).replace('\\', '/')])
+    root = local_root(args.baseline)
+    prov = verify(args.baseline, required_inputs(args.baseline),
+                  extra=[COVERAGE_CSV.as_posix()])
     log.info('== 기준선 %s (%s) ==', prov['baseline'], prov['label'])
     log.info('  branch=%s  db_port=%s  commit=%s', prov['branch'], prov['db_port'],
              prov['commit'])
     log.info('  artifact_root=%s', prov['artifact_root'])
-    log.info('  입력 %d개 sha256 대조 통과 · 공식 수치 자격=%s\n',
+    log.info('  local_root=%s', prov['local_root'])
+    log.info('  입력 %d개 sha256 대조 통과 · 공식 수치 자격=%s',
              len(prov['inputs']), prov['valid_for_official_numbers'])
+    for rel, meta in prov['inputs'].items():
+        log.info('    %s  %s', meta['sha256'][:16], rel)
+    log.info('')
     if not prov['valid_for_official_numbers']:
         log.warning('  !! 이 기준선은 공식 수치로 인용할 수 없다 '
                     '(BASELINES.json 의 note 참조)\n')
 
-    f_rows = load_f_periods()
-    draws  = load_draw_periods()
+    f_rows = load_f_periods(root)
+    draws  = load_draw_periods(root)
     all_anchors = [r['rebalance_date'] for r in f_rows]
 
-    full, re_g, re_n = positive_control(f_rows, draws, all_anchors)
+    full, re_g, re_n = positive_control(
+        f_rows, draws, all_anchors, args.baseline, root)
 
     # ---- 사전등록 구간 선택 ------------------------------------------------
     cov = load_rule_coverage()
@@ -331,8 +365,11 @@ def main() -> None:
         'cut_gross_growth': _prod(cut_rows, 'period_return'),
     }
 
+    # 파일명에 기준선을 넣는다. 이름을 공유하면 다른 세대가 서로를 덮어쓴다 —
+    # run_random_pool 의 pools.json 사고와 같은 구조 (ablation.py:441 주석 참조).
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    (OUT_DIR / 'truncation_results.json').write_text(
+    out_path = OUT_DIR / f'truncation_results_{args.baseline}.json'
+    out_path.write_text(
         json.dumps(out, indent=2, ensure_ascii=False, default=float), encoding='utf-8')
 
     for name in ('full20', 'cut18'):
@@ -359,7 +396,7 @@ def main() -> None:
     s1r = out['cut18']['S1_fresh_start_tc']
     log.info('  S1(첫구간 tc 매수전용) 귀무 net median %.4f%% p95 %.4f%%',
              s1r['null_median'] * 100, s1r['null_p95'] * 100)
-    log.info('산출물: %s', OUT_DIR / 'truncation_results.json')
+    log.info('산출물: %s', out_path)
 
 
 def _prod(rows: list[dict], col: str) -> float:

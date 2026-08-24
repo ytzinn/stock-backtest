@@ -48,6 +48,77 @@ def list_baselines() -> list[str]:
     return sorted(_load()['baselines'])
 
 
+def poisoned_summaries() -> set[str]:
+    """재실행 후 재생성되지 않은 요약 JSON — 어떤 기준선의 근거로도 못 쓴다."""
+    return {Path(p).as_posix() for p in _load()['_poisoned_summaries']['paths']}
+
+
+def assert_not_poisoned(*paths: str | Path) -> None:
+    """낡은 요약 JSON 을 읽으려 하면 거부한다 (SUMMARY-JSON-STALE).
+
+    이 파일들은 섀도우 워크트리 안에서도 운영과 바이트 동일하고 전부 수정 전
+    값(2026-08-15)을 담고 있다. **브랜치를 맞춰도 안전하지 않다.**
+    예외를 경고로 낮추지 마라 — 그러면 봉쇄가 아니다.
+    """
+    bad = [Path(p).as_posix() for p in paths
+           if Path(p).as_posix() in poisoned_summaries()]
+    if bad:
+        meta = _load()['_poisoned_summaries']
+        raise BaselineMismatch(
+            f'{meta["issue"]}: 낡은 요약 JSON 을 근거로 쓸 수 없다 '
+            f'(재실행 후 미재생성, {meta["stale_as_of"]} 값 고착): {bad}. '
+            f'지표는 tape 에서 재산출하라.')
+
+
+def local_root(name: str) -> Path:
+    """개발 PC 에서 그 기준선의 파일이 놓인 루트."""
+    return Path(resolve(name).get('local_root', '.'))
+
+
+# 공표 형식 -> 반올림 반폭. **지표마다 다르다.**
+# 백분율로 공표된 값과 비율로 공표된 값에 같은 허용오차를 쓰면 후자가 오탐한다
+# (2026-08-24 net_sharpe 사고). 일괄값으로 되돌리지 마라.
+_ROUNDING_HALF_WIDTH = {
+    'percent_4dp': 5e-7,    # '15.5640%'  -> 0.00005%p = 5e-7 (분수)
+    'percent_2dp': 5e-5,    # '15.56%'
+    'percent_1dp': 5e-4,    # '93.4%'
+    'ratio_4dp':   5e-5,    # '0.5025'
+    'ratio_3dp':   5e-4,    # '0.502'
+    'exact':       0.0,     # 정수 (풀 크기 등)
+}
+
+
+def expected_metrics(name: str) -> dict:
+    """공표 기준값 + 그 정밀도에 맞는 허용오차."""
+    return resolve(name)['expected_metrics']
+
+
+def metric_tolerance(exp: dict, key: str) -> float:
+    """지표 하나의 허용오차 — 참조값이 어떤 형식으로 공표됐는지에서 유도한다.
+
+    `_tolerance_mode == 'full'` 이면 전정밀 참조값이므로 1e-12.
+    `'published'` 면 `_published_as[key]` 의 반올림 반폭.
+    등록되지 않은 지표는 **예외를 던진다** — 조용히 관대한 기본값을 주면
+    검사기가 아니게 된다.
+    """
+    if exp.get('_tolerance_mode') == 'full':
+        return 1e-12
+    form = exp.get('_published_as', {}).get(key)
+    if form is None:
+        raise BaselineMismatch(
+            f'지표 {key!r} 의 공표 형식이 등록부에 없다 — 허용오차를 정할 수 없다. '
+            f'experiments/BASELINES.json 의 `_published_as` 에 추가하라.')
+    if form not in _ROUNDING_HALF_WIDTH:
+        raise BaselineMismatch(
+            f'알 수 없는 공표 형식 {form!r} (지표 {key}). '
+            f'등록된 형식: {sorted(_ROUNDING_HALF_WIDTH)}')
+    return _ROUNDING_HALF_WIDTH[form]
+
+
+def required_inputs(name: str) -> list[str]:
+    return list(resolve(name)['required_inputs'])
+
+
 def resolve(name: str) -> dict:
     reg = _load()
     if name not in reg['baselines']:
@@ -70,17 +141,22 @@ def verify(name: str, required: list[str], extra: list[str] | None = None) -> di
     """
     reg = _load()
     bl = resolve(name)
+    root = Path(bl.get('local_root', '.'))
     problems: list[str] = []
     files: dict[str, dict] = {}
 
+    assert_not_poisoned(*required, *(extra or []))
+
     for rel in [Path(r).as_posix() for r in required]:
-        p = Path(rel)
+        p = root / rel
         expected = bl['inputs'].get(rel)
         if expected is None:
             problems.append(f'{rel}: 기준선 {name} 에 등록되지 않은 입력이다')
             continue
         if not p.exists():
-            problems.append(f'{rel}: 파일 없음 (artifact_root={bl["artifact_root"]} 에서 회수하라)')
+            problems.append(
+                f'{rel}: 파일 없음 — {p} 에 없다. '
+                f'{bl["artifact_root"]}/… 에서 {root}/experiments/… 로 회수하라')
             continue
         actual = file_digest(p)
         files[rel] = {'sha256': actual, 'size': p.stat().st_size,
@@ -125,6 +201,7 @@ def verify(name: str, required: list[str], extra: list[str] | None = None) -> di
         'artifact_root': bl['artifact_root'],
         'commit': bl['commit'],
         'valid_for_official_numbers': bl['valid_for_official_numbers'],
+        'local_root': root.as_posix(),
         'verified_at': datetime.now(timezone.utc).isoformat(),
         'inputs': files,
     }
