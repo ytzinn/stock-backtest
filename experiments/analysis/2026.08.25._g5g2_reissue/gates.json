@@ -1,0 +1,107 @@
+{
+  "generated_for": "G5·G2 재산출 (섀도우 세대)",
+  "prereg": "experiments/runs/2026.08.25._G5G2_REISSUE.md",
+  "provenance": {
+    "baseline": "shadow_20260819",
+    "label": "섀도우 (계정 표준화 결함 수정 이후)",
+    "branch": "shadow/fs-div-fallback",
+    "db_port": 5436,
+    "artifact_root": "/home/milmelmul/stock-backtest-shadow/experiments",
+    "commit": "0ac7245",
+    "valid_for_official_numbers": true,
+    "local_root": "experiments/_baselines/shadow_20260819",
+    "verified_at": "2026-08-25T11:02:52.488407+00:00",
+    "inputs": {
+      "experiments/ablation/F_pbr_ma200_n13_periods.csv": {
+        "sha256": "e82bdafd17aa9723eb9c51a586b2da900ce4fae49039524253295d499ef7d2ae",
+        "size": 3831,
+        "mtime": "2026-08-24T09:12:27.934972+00:00"
+      },
+      "experiments/ablation/U_pbr_path_ew_periods.csv": {
+        "sha256": "79fa0d4c4c38b01bcf4ed34642869be15d9cca7f5bed27b5807ccc01145fe8e9",
+        "size": 3866,
+        "mtime": "2026-08-25T10:56:01.725305+00:00"
+      },
+      "experiments/daily_nav/F_pbr_ma200_n13_daily_nav.csv": {
+        "sha256": "88503bf2853a120f286f7d1b3d1ebbebcc4d01149b2790fa0cf6453221da4e38",
+        "size": 118325,
+        "mtime": "2026-08-25T10:56:58.516737+00:00"
+      },
+      "experiments/analysis/2026.08.19._trade_halt_impact/account_coverage_matrix.csv": {
+        "sha256": "754db1ec66c6be71a2b4e82b0cb3b993f8120b49c048d0c46195a1811fd25824",
+        "size": 15286,
+        "mtime": "2026-08-23T14:59:13.264861+00:00",
+        "shared_input": true
+      }
+    }
+  },
+  "period_set": {
+    "n": 18,
+    "dates": [
+      "2017-04-05",
+      "2017-08-18",
+      "2018-04-04",
+      "2018-08-20",
+      "2019-04-03",
+      "2019-08-20",
+      "2020-04-03",
+      "2020-08-20",
+      "2021-04-05",
+      "2021-08-19",
+      "2022-04-05",
+      "2022-08-18",
+      "2023-04-05",
+      "2023-08-18",
+      "2024-04-03",
+      "2024-08-20",
+      "2025-04-03",
+      "2025-08-20"
+    ],
+    "sha256": "d318d475e89c438dce62873a6c38d1b422c2d042c52cf99eadccb7797495d383",
+    "source": "e2c2b8d 절단 집합",
+    "start": "2017-04-05",
+    "end": "2026-04-03",
+    "full_closed_n": 20
+  },
+  "G5": {
+    "pass": false,
+    "limit": -0.45,
+    "judgment": {
+      "label": "판정 n=18",
+      "n_days": 2204,
+      "first_day": "2017-04-05",
+      "last_day": "2026-04-03",
+      "daily_mdd_net": -0.5781770253373704,
+      "mdd_peak": "2018-05-14",
+      "mdd_trough": "2020-03-19",
+      "net_sharpe": 0.5566792272560409
+    },
+    "diagnostic_full": {
+      "label": "진단 전구간 n=20",
+      "n_days": 2452,
+      "first_day": "2016-04-05",
+      "last_day": "2026-04-03",
+      "daily_mdd_net": -0.5781770253373704,
+      "mdd_peak": "2018-05-14",
+      "mdd_trough": "2020-03-19",
+      "net_sharpe": 0.5613483674125062
+    }
+  },
+  "G2": {
+    "pass": true,
+    "benchmark": "U_pbr_path_ew",
+    "judgment": {
+      "f_net_cagr": 0.14007749939448355,
+      "u_net_cagr": 0.07240571109082539,
+      "margin": 0.06767178830365816,
+      "n": 18
+    },
+    "diagnostic_full": {
+      "f_net_cagr": 0.13975702707683135,
+      "u_net_cagr": 0.050507391020094605,
+      "margin": 0.08924963605673675,
+      "n": 20
+    },
+    "known_limitation": "U_pbr_path_ew 의 모멘텀은 MA 20/60, 채택안은 MA200 — 다른 유니버스의 동일가중과 견준다. SPEC_10 미해결 항목, dashboard/claims.KNOWN 등록분. 벤치마크 교체는 사전등록 게이트 정의 변경이라 이 세션에서 하지 않았다."
+  }
+}

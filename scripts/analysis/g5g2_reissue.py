@@ -37,6 +37,8 @@ from scripts.analysis.coverage_slice import (
     load_rule_coverage,
     selected_anchors,
 )
+from scripts.analysis.baseline_registry import local_root, verify
+from scripts.analysis.coverage_slice import COVERAGE_CSV
 from scripts.analysis.period_truncation import RULES, load_f_periods
 from scripts.robustness.gate_analysis import G5_MDD_LIMIT
 
@@ -58,6 +60,32 @@ PREREG_PERIOD_SHA256 = 'd318d475e89c438dce62873a6c38d1b422c2d042c52cf99eadccb779
 
 #: tape 의 `ret` 은 round(..., 6) 이므로 6자리 반올림 반폭. 등가중 평균도 같은 상한을 갖는다.
 TOL_TAPE_RET = 5e-7
+
+#: 기본 기준선. `verify()` 가 sha256 을 전수 대조하고 어긋나면 BaselineMismatch 를 던진다.
+#: **--root 를 직접 받지 않는다** — 경로를 손으로 넘기면 2026-08-24 혼입이 그대로 재현된다.
+#: 어느 트리를 읽을지는 등록부의 local_root 가 정한다.
+DEFAULT_BASELINE = 'shadow_20260819'
+
+TAPE_FILES = ['experiments/ablation/F_pbr_ma200_n13_holdings.json',
+              'experiments/ablation/F_pbr_ma200_n20_holdings.json',
+              'experiments/ablation/F_pbr_ma200_n13_periods.csv']
+GATE_FILES = ['experiments/ablation/F_pbr_ma200_n13_periods.csv',
+              'experiments/ablation/U_pbr_path_ew_periods.csv',
+              'experiments/daily_nav/F_pbr_ma200_n13_daily_nav.csv']
+
+
+def _provenance(baseline: str, files: list[str], *, with_coverage: bool = False) -> dict:
+    """기준선 전수 대조. 실패하면 BaselineMismatch — **경고로 낮추지 마라.**"""
+    prov = verify(baseline, files,
+                  extra=[COVERAGE_CSV.as_posix()] if with_coverage else None)
+    log.info('== 기준선 %s (%s) ==', prov['baseline'], prov['label'])
+    log.info('  branch=%s  db_port=%s  commit=%s', prov['branch'], prov['db_port'],
+             prov['commit'])
+    log.info('  local_root=%s', prov['local_root'])
+    log.info('  입력 %d개 sha256 대조 통과 · 공식 수치 자격=%s',
+             len(prov['inputs']), prov['valid_for_official_numbers'])
+    log.info('')
+    return prov
 
 
 # ── 구간 집합 ───────────────────────────────────────────────────────────────
@@ -179,8 +207,10 @@ def _tape_ew_return(period: dict) -> float:
     return sum(rets) / len(rets)
 
 
-def stage_tape(root: Path = Path('.')) -> dict:
+def stage_tape(baseline: str = DEFAULT_BASELINE) -> dict:
     """PC-1 세대 판별 / PC-2 전 구간 대조 / PC-3 편입 집합 대조."""
+    prov = _provenance(baseline, TAPE_FILES)
+    root = local_root(baseline)
     tape    = _load_tape(F_TAG, root)
     periods = _load_periods(F_TAG, root)
 
@@ -251,6 +281,7 @@ def stage_tape(root: Path = Path('.')) -> dict:
     log.info('')
     return {
         'all_pass': True,
+        'provenance': prov,
         'PC-1': {'probe': probe, 'tape': obs, 'csv': exp, 'diff': abs(obs - exp), 'ok': pc1_ok},
         'PC-2': {'n': len(rows), 'max_diff': worst, 'tol': TOL_TAPE_RET, 'ok': pc2_ok},
         'PC-3': pc3,
@@ -287,7 +318,9 @@ def _g5(nav_csv: Path, dates: list[str], end: str, label: str) -> dict:
     }
 
 
-def stage_gates(root: Path = Path('.')) -> dict:
+def stage_gates(baseline: str = DEFAULT_BASELINE) -> dict:
+    prov = _provenance(baseline, GATE_FILES, with_coverage=True)
+    root = local_root(baseline)
     ps = period_set(root)
     keep, end = set(ps['dates']), ps['end']
 
@@ -324,8 +357,7 @@ def stage_gates(root: Path = Path('.')) -> dict:
     out = {
         'generated_for': 'G5·G2 재산출 (섀도우 세대)',
         'prereg': 'experiments/runs/2026.08.25._G5G2_REISSUE.md',
-        'baseline': {'branch': 'shadow/fs-div-fallback', 'db_port': 5436,
-                     'artifact_root': '/home/milmelmul/stock-backtest-shadow/experiments'},
+        'provenance': prov,
         'period_set': ps,
         'G5': {'pass': bool(g5_pass), 'limit': G5_MDD_LIMIT,
                'judgment': g5_cut, 'diagnostic_full': g5_full},
@@ -349,12 +381,13 @@ def stage_gates(root: Path = Path('.')) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument('--stage', required=True, choices=['controls', 'tape', 'gates'])
-    ap.add_argument('--root', default='.')
+    ap.add_argument('--baseline', default=DEFAULT_BASELINE,
+                    help='기준선 이름. 경로가 아니라 이름을 받는다 — local_root 는 등록부가 정한다.')
     args = ap.parse_args()
-    root = Path(args.root)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    res = {'controls': stage_controls, 'tape': lambda: stage_tape(root),
-           'gates': lambda: stage_gates(root)}[args.stage]()
+    res = {'controls': stage_controls,
+           'tape':  lambda: stage_tape(args.baseline),
+           'gates': lambda: stage_gates(args.baseline)}[args.stage]()
     (OUT_DIR / f'{args.stage}.json').write_text(
         json.dumps(res, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
 

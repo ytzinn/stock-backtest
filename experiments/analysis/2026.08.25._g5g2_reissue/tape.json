@@ -1,0 +1,50 @@
+{
+  "all_pass": true,
+  "provenance": {
+    "baseline": "shadow_20260819",
+    "label": "섀도우 (계정 표준화 결함 수정 이후)",
+    "branch": "shadow/fs-div-fallback",
+    "db_port": 5436,
+    "artifact_root": "/home/milmelmul/stock-backtest-shadow/experiments",
+    "commit": "0ac7245",
+    "valid_for_official_numbers": true,
+    "local_root": "experiments/_baselines/shadow_20260819",
+    "verified_at": "2026-08-25T11:02:38.534489+00:00",
+    "inputs": {
+      "experiments/ablation/F_pbr_ma200_n13_holdings.json": {
+        "sha256": "35ac8e3ff31ce9f3bcc6709fb0f3e5ae3abb3046582f6c6ab0fb8b14e8084e7b",
+        "size": 168920,
+        "mtime": "2026-08-25T10:56:00.735327+00:00"
+      },
+      "experiments/ablation/F_pbr_ma200_n20_holdings.json": {
+        "sha256": "ce87ea674057f4d94d144b1a7d1578519f83eb69991dd1e14f9e6df890679b92",
+        "size": 195285,
+        "mtime": "2026-08-25T10:56:01.224469+00:00"
+      },
+      "experiments/ablation/F_pbr_ma200_n13_periods.csv": {
+        "sha256": "e82bdafd17aa9723eb9c51a586b2da900ce4fae49039524253295d499ef7d2ae",
+        "size": 3831,
+        "mtime": "2026-08-24T09:12:27.934972+00:00"
+      }
+    }
+  },
+  "PC-1": {
+    "probe": "2017-04-05",
+    "tape": 0.035119923076923076,
+    "csv": 0.03511974875693458,
+    "diff": 1.7431998849959385e-07,
+    "ok": true
+  },
+  "PC-2": {
+    "n": 21,
+    "max_diff": 1.7431998849959385e-07,
+    "tol": 5e-07,
+    "ok": true
+  },
+  "PC-3": {
+    "ran": true,
+    "checked": 21,
+    "mismatches": [],
+    "ok": true
+  }
+}

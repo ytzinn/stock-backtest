@@ -110,6 +110,28 @@ issues:
              사람이 판단한다 — 테스트를 통과시키려고 먼저 고치지 마라.
     ref: tests/integrity/test_series_view.py
 
+  - id: SUMMARY-JSON-STALE
+    status: blocked
+    severity: high
+    summary: CANONICAL 의 성적·게이트 표가 폐기된 세대의 요약 JSON 에서 생성된다. 2026-08-25
+             에 daily_nav 요약만 섀도우 세대로 대체됐고 나머지는 그대로다. 남은 둘은 각자
+             다른 이유로 막혀 있다 — run_ablation 은 요약 JSON 을 낼 때 등록된 기준선 입력인
+             periods.csv 를 **항상 함께 덮어쓰고**(건너뛸 플래그 없음), gate_analysis 는
+             전 구간에서 G1 을 스스로 다시 계산해 현행 G1(절단 집합 산출)과 모순된다.
+             후자의 근인은 **생성기가 구간 집합 개념을 갖고 있지 않다**는 것이다.
+             둘 다 사용자 결정이 필요하다.
+    ref: experiments/BASELINES.json
+
+  - id: DOTENV-CWD-SILENT-5433
+    status: open
+    severity: high
+    summary: 워크트리 밖(예 /tmp)에서 실행된 스크립트는 load_dotenv 가 그 워크트리의 .env 를
+             찾지 못하고, get_connection 이 선언 없이 운영 DB 기본값으로 붙는다. 섀도우
+             실험 중 운영 DB 에 접속하는 경로이며, 실패하지 않고 조용히 성공하기 때문에
+             결과가 오염돼도 드러나지 않는다. 2026-08-25 에 assert 로 한 번 걸렸다.
+             기본값을 두지 말고 미설정 시 예외를 던지게 하는 것이 근본 대책이다.
+    ref: ingest/connection.py
+
   - id: RF-ERP-SENS
     status: open
     severity: low

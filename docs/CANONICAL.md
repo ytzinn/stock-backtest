@@ -79,6 +79,8 @@ Sharpe·MDD 의 SSOT 는 일별 NAV 다 (SPEC_13 §9-1). 구간 지표는 엔진
 | `SOURCE-NOTE-NAN-CAST` | medium | delisting_ingest 가 pandas NaN 을 str() 로 감싸 상폐 사유가 문자열 "nan" 으로 적재된다. 결측이 결측으로 표현되지 않고 값처럼 보이는 유형 — factor_screener 의 결측 -> 최하위 백분위와 같은 구조다. **단독으로 고치지 마라** — v10 유니크 키가 source_note 를 포함하는데, "nan" 을 NULL 로 바꾸면 Postgres UNIQUE 가 NULL 을 서로 다르게 취급해 제약이 조용히 무력화된다. NULL 전환과 COALESCE 기반 부분 인덱스 추가를 반드시 한 세트로 처리한다. | `ingest/delisting_ingest.py` |
 | `INGEST-CRON-GAPS` | medium | 적재 경로 9개 중 6개가 crontab 에 등록돼 있지 않다 (DART 재무·공시, PIT 재무, DQ 게이트, KRX 상장 스냅샷, KRX 일별 스냅샷, 검증 로그). 상폐 이벤트가 3개월 반 멈춘 것과 같은 구조의 사고가 재발할 수 있다. 각 경로가 수동 실행이 맞는지, 자동화 대상인지 판단이 필요하다. | `experiments/analysis/2026.08.19._trade_halt_impact/ingest_coverage.csv` |
 | `TAGMATRIX-MOMENTUM-LABEL-COLLISION` | low | 모멘텀 열 이름이 태그마다 유일해야 한다는 단언이 안정성 축 변형에서 깨진다. 모멘텀 규칙이 같은 두 태그는 같은 이름이 나오는 것이 맞으므로 결함은 표시 쪽이 아니라 단언 쪽일 수 있다. 이름에 축을 덧붙일지 단언을 완화할지는 사람이 판단한다 — 테스트를 통과시키려고 먼저 고치지 마라. | `tests/integrity/test_series_view.py` |
+| `SUMMARY-JSON-STALE` | high | CANONICAL 의 성적·게이트 표가 폐기된 세대의 요약 JSON 에서 생성된다. 2026-08-25 에 daily_nav 요약만 섀도우 세대로 대체됐고 나머지는 그대로다. 남은 둘은 각자 다른 이유로 막혀 있다 — run_ablation 은 요약 JSON 을 낼 때 등록된 기준선 입력인 periods.csv 를 **항상 함께 덮어쓰고**(건너뛸 플래그 없음), gate_analysis 는 전 구간에서 G1 을 스스로 다시 계산해 현행 G1(절단 집합 산출)과 모순된다. 후자의 근인은 **생성기가 구간 집합 개념을 갖고 있지 않다**는 것이다. 둘 다 사용자 결정이 필요하다. | `experiments/BASELINES.json` |
+| `DOTENV-CWD-SILENT-5433` | high | 워크트리 밖(예 /tmp)에서 실행된 스크립트는 load_dotenv 가 그 워크트리의 .env 를 찾지 못하고, get_connection 이 선언 없이 운영 DB 기본값으로 붙는다. 섀도우 실험 중 운영 DB 에 접속하는 경로이며, 실패하지 않고 조용히 성공하기 때문에 결과가 오염돼도 드러나지 않는다. 2026-08-25 에 assert 로 한 번 걸렸다. 기본값을 두지 말고 미설정 시 예외를 던지게 하는 것이 근본 대책이다. | `ingest/connection.py` |
 | `RF-ERP-SENS` | low | 할인율 r 이 고정값이라 출처가 불명확하고, 저금리 구간에서 기업가치를 과대 추정할 위험이 있다. 민감도 분석 미실시. | `docs/설계/SPEC_04_models.md` |
 
 이 표의 원본은 `docs/open_issues.yaml` 이다. 거기를 고쳐라.
@@ -94,4 +96,4 @@ Sharpe·MDD 의 SSOT 는 일별 NAV 다 (SPEC_13 §9-1). 구간 지표는 엔진
 | `experiments/daily_nav/summary.json` | 585079aebb0178d2 |
 | `experiments/robustness/gate_results_F_pbr_ma200_n13.json` | 6d14f0a3087f8aa7 |
 | `experiments/live/dryrun/manifest.yaml` | 7f3064fff5799ce0 |
-| `docs/open_issues.yaml` | efa19a84127bff6f |
+| `docs/open_issues.yaml` | f4cf9170a0e25850 |

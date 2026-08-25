@@ -42,7 +42,39 @@
     ],
     "stale_as_of": "2026-08-15",
     "detected": "2026-08-24",
-    "issue": "SUMMARY-JSON-STALE"
+    "issue": "SUMMARY-JSON-STALE",
+    "_partial_resolution_20260825": {
+      "_doc": [
+        "G5·G2 재산출(2026-08-25)이 5종 중 **하나에 대해서만** 섀도우 세대 대체본을 만들었다.",
+        "**목록에서 지우지 않는다** — 위 paths 는 저장소 **루트**의 파일을 가리키고,",
+        "그 파일들은 여전히 2026-08-15 산출분이다. 대체본은 local_root 아래 별도 경로에 있다.",
+        "",
+        "지우려면 루트 파일 자체가 섀도우 세대로 교체돼야 하고, 그것은 승격 논의와 묶여 있다."
+      ],
+      "superseded_in_shadow": {
+        "experiments/daily_nav/summary.json": "experiments/_baselines/shadow_20260819/experiments/daily_nav/summary.json (2026-08-25 생성, sha256 de51b842…)"
+      },
+      "still_stale": [
+        "experiments/ablation/F_pbr_ma200_n13.json",
+        "experiments/ablation/summary.json",
+        "experiments/robustness/random_summary_C_pbr_ma200_random_n13.json",
+        "experiments/robustness/gate_results_F_pbr_ma200_n13.json"
+      ],
+      "why_not_regenerated": [
+        "ablation/*.json 을 다시 내려면 run_ablation 을 돌려야 하는데, 그 스크립트는",
+        "`{tag}_periods.csv` 를 **항상 함께 덮어쓴다**(save_periods, 건너뛸 플래그 없음).",
+        "그 파일은 이 등록부에 sha256 e82bdafd… 로 등재된 **기준선 입력**이다.",
+        "덮어써서 바이트가 달라지면 등록된 기준선 위에 새 세대를 조용히 얹는 것이 된다",
+        "— 이 등록부가 막으려고 만들어진 바로 그 사고다.",
+        "",
+        "gate_results 는 별도 문제다. gate_analysis.py 는 **전 구간**에서 G1 을 스스로",
+        "다시 계산하는데, 현행 G1(FAIL)은 e2c2b8d 가 n=18 절단 집합에서 낸 것이다.",
+        "그대로 돌리면 사전등록과 다른 구간 집합의 G1 이 나와 서로 모순된다.",
+        "**생성기가 period_set 개념을 갖고 있지 않다** — 그것이 진짜 결함이다.",
+        "",
+        "둘 다 사용자 결정이 필요해 2026-08-25 세션에서 하지 않았다."
+      ]
+    }
   },
   "baselines": {
     "operational_20260815": {
@@ -121,7 +153,39 @@
         "experiments/ablation/F_pbr_ma200_n13_periods.csv": "e82bdafd17aa9723eb9c51a586b2da900ce4fae49039524253295d499ef7d2ae",
         "experiments/robustness/C_pbr_ma200_random_n13_draws.csv": "6ecd253f075aaa091b39c630161f836ffc5d369e3a419acb7d3f64d12f927104",
         "experiments/robustness/C_pbr_ma200_random_n13_periods.csv.gz": "da9e41ad530e73e1d2bddfc9b69a5ff633f08a995da5035252081c8677aad49b",
-        "experiments/robustness/pools_C_pbr_ma200_random_n13.json": "5c9bebc4add4facab855c7096750846accd7ec1e235dcd925a3ba24b5baaba23"
+        "experiments/robustness/pools_C_pbr_ma200_random_n13.json": "5c9bebc4add4facab855c7096750846accd7ec1e235dcd925a3ba24b5baaba23",
+
+        "experiments/ablation/F_pbr_ma200_n13_holdings.json": "35ac8e3ff31ce9f3bcc6709fb0f3e5ae3abb3046582f6c6ab0fb8b14e8084e7b",
+        "experiments/ablation/F_pbr_ma200_n20_holdings.json": "ce87ea674057f4d94d144b1a7d1578519f83eb69991dd1e14f9e6df890679b92",
+        "experiments/ablation/U_pbr_path_ew_periods.csv": "79fa0d4c4c38b01bcf4ed34642869be15d9cca7f5bed27b5807ccc01145fe8e9",
+        "experiments/daily_nav/F_pbr_ma200_n13_daily_nav.csv": "88503bf2853a120f286f7d1b3d1ebbebcc4d01149b2790fa0cf6453221da4e38",
+        "experiments/daily_nav/summary.json": "de51b842a344f06c2587ee56f9a5a62fb58a9682625aab1c012ff66c8822d5b5"
+      },
+      "_added_20260825": {
+        "_doc": [
+          "G5·G2 재산출(2026-08-25) 에서 추가된 입력 5종. **기존 4종의 해시는 손대지 않았다.**",
+          "",
+          "n13_holdings.json 는 이 세션이 섀도우 워크트리(0ac7245, DB 5436)에서 새로 생성했다.",
+          "생성 전 섀도우 세대에는 n=20 tape 만 있었다 — 그래서 G5 를 산출할 수 없었고,",
+          "SPEC_15 의 L-1 배관 게이트도 참조물이 없었다. 둘 다 이 tape 로 풀린다.",
+          "",
+          "n20_holdings.json 는 **기존 자산**이며 이 세션이 만들지 않았다. PC-3(편입 집합)",
+          "의 독립 참조물로 쓰려고 해시를 등재한다 — periods.csv 에는 멤버십이 없어",
+          "이것 말고 대조할 것이 없다.",
+          "",
+          "daily_nav 2종은 이 세션의 run_daily_nav 산출물이다.",
+          "summary.json 은 섀도우 워크트리 것이며, **저장소 루트의 동명 파일과 다르다**",
+          "(루트 쪽은 여전히 _poisoned_summaries 다). 경로를 혼동하지 마라."
+        ],
+        "generated_at": "2026-08-25 (UTC 10:45~10:56)",
+        "prereg": "experiments/runs/2026.08.25._G5G2_REISSUE.md (커밋 629885e)",
+        "controls_passed": [
+          "PC-1 세대 판별 2017-04-05 |diff|=1.74e-07 < 5e-7 (섀도우 세대 확정)",
+          "PC-2 전 구간 21구간 최대 |diff|=1.74e-07 < 5e-7",
+          "PC-3 편입 집합 21구간 불일치 0 (허용오차 없음, 참조 = n20 tape 상위 13)",
+          "PC-4 MDD 계산기 양성/음성/문턱근방 4건",
+          "run_daily_nav 내부 G-NAV-1/2/3 reconciliation PASS"
+        ]
       },
       "expected_metrics": {
         "_source": "docs/검토/2026.08.19._SHADOW_REPAIR_SESSION.md §2·§3 (공표 기록) + pools_*.json",
