@@ -75,8 +75,10 @@ def _panel_rows(conn, rp, next_date, layers: dict, candidates: list[dict],
     from backtest.data_access import is_delisted_at
 
     deepest = max(k for k in layers if k.startswith('L'))
-    members = layers[deepest]
     ranked  = {c['ticker']: c for c in candidates}
+    # 종목마다 set() 을 다시 만들면 O(n²) 이다 — 한 번만 만든다
+    layer_sets = {lk: set(v) for lk, v in layers.items()}
+    members    = layer_sets[deepest]
 
     rows = []
     for ticker in layers['L0']:
@@ -106,11 +108,11 @@ def _panel_rows(conn, rp, next_date, layers: dict, candidates: list[dict],
             if exit_ is not None:
                 fwd_ret = exit_ / price - 1
 
-        in_l3 = ticker in set(members)
+        in_l3 = ticker in members
         rows.append({
             'tag': tag, 'rebalance_date': rp.date.isoformat(), 'next_date': next_date.isoformat(),
             'ticker': ticker,
-            **{lk: (ticker in set(v)) for lk, v in layers.items()},
+            **{lk: (ticker in v) for lk, v in layer_sets.items()},
             'in_L3R': ticker in ranked,
             'l3r_exclusion': ','.join(reasons) if (in_l3 and reasons) else '',
             'equity': equity, 'market_cap': mktcap, 'price_start': price,
@@ -181,7 +183,8 @@ def extract_portfolio_periods(
             layers = _layers(gate_passed, univ_result, pipeline)
             deepest = max(k for k in layers if k.startswith('L'))
             ctx = crit.prepare(layers[deepest], rebal_date, conn)         # 배치 조회 (1회)
-            mom = {t: crit.evaluate(t, ctx).value for t in layers[deepest]}
+            # CriterionResult.score 가 formation_return (§3-5 mom_126). `.value` 아님.
+            mom = {t: crit.evaluate(t, ctx).score for t in layers[deepest]}
             panel.extend(_panel_rows(conn, rp, next_date, layers, candidates,
                                      pit_series, mom, tag))
 
