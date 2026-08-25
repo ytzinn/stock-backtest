@@ -49,12 +49,94 @@ def get_stock_names(conn) -> dict[str, str]:
     return {r[0]: r[1] for r in cur.fetchall()}
 
 
+def _layers(gate_passed: list[str], univ_result: dict, pipeline) -> dict[str, list[str]]:
+    """L0~L3 — 필터를 순서대로 빼면서 만든다 (SPEC_15 §2-1).
+
+    `stats[...]['rejected']` 가 필터별 전수 탈락 목록이므로 차집합으로 계층이 복원된다.
+    필터 순서는 `build_ablation_pipeline` 이 조립한 그대로 따른다 — 이름을 하드코딩하지 않는다.
+    """
+    out: dict[str, list[str]] = {'L0': list(gate_passed)}
+    cur = list(gate_passed)
+    for i, f in enumerate(pipeline.filters, start=1):
+        key = getattr(f, 'stats_key', f.__class__.__name__)
+        rejected = set(univ_result['stats'][key]['rejected'])
+        cur = [t for t in cur if t not in rejected]
+        out[f'L{i}'] = list(cur)
+    if out.get(f'L{len(pipeline.filters)}') != list(univ_result['universe']):
+        raise RuntimeError('계층 복원이 build_universe 결과와 다르다 — 차집합 전제가 깨졌다')
+    return out
+
+
+def _panel_rows(conn, rp, next_date, layers: dict, candidates: list[dict],
+                pit_series: dict, mom_ctx, tag: str) -> list[dict]:
+    """한 구간의 패널 행. **원자료만** 담는다 — 표준화·winsorize 는 S-4 의 일이다 (§3-4)."""
+    from backtest.data_access import get_avg_turnover, get_close_price, get_market_cap
+    from backtest.engine import DELISTING_HAIRCUT, _last_known_price
+    from backtest.data_access import is_delisted_at
+
+    deepest = max(k for k in layers if k.startswith('L'))
+    members = layers[deepest]
+    ranked  = {c['ticker']: c for c in candidates}
+
+    rows = []
+    for ticker in layers['L0']:
+        pit0   = pit_series.get(ticker, [{}])[0]
+        equity = pit0.get('자본총계')
+        mktcap = get_market_cap(conn, ticker, rp.date)
+        price  = get_close_price(conn, ticker, rp.date)
+
+        # L3ᴿ 4사유 (§2-1). `pbr>0` 은 앞 둘이 양수면 자동 성립이라 사문이지만,
+        # 사문임을 산출물로 보이기 위해 그대로 센다.
+        reasons = []
+        if not equity or equity <= 0:            reasons.append('equity_nonpositive')
+        if not mktcap or mktcap <= 0:            reasons.append('mktcap_nonpositive')
+        if price is None:                        reasons.append('price_missing')
+        if equity and mktcap and equity > 0 and mktcap > 0 and (mktcap / equity) <= 0:
+            reasons.append('pbr_nonpositive')
+
+        # 종속변수 — engine._period_stock_data 와 같은 정의. D-1: 상폐를 제외하지 않는다.
+        fwd_ret, delisted, exit_ = None, False, None
+        if price is not None and price > 0:
+            delisted = is_delisted_at(conn, ticker, next_date)
+            if delisted:
+                last  = _last_known_price(conn, ticker, next_date)
+                exit_ = last * DELISTING_HAIRCUT if last else None
+            else:
+                exit_ = get_close_price(conn, ticker, next_date)
+            if exit_ is not None:
+                fwd_ret = exit_ / price - 1
+
+        in_l3 = ticker in set(members)
+        rows.append({
+            'tag': tag, 'rebalance_date': rp.date.isoformat(), 'next_date': next_date.isoformat(),
+            'ticker': ticker,
+            **{lk: (ticker in set(v)) for lk, v in layers.items()},
+            'in_L3R': ticker in ranked,
+            'l3r_exclusion': ','.join(reasons) if (in_l3 and reasons) else '',
+            'equity': equity, 'market_cap': mktcap, 'price_start': price,
+            'price_end': exit_, 'delisted': delisted, 'fwd_ret': fwd_ret,
+            'inv_pbr': (equity / mktcap) if (equity and mktcap and mktcap > 0) else None,
+            'avg_turnover': get_avg_turnover(conn, ticker, rp.date) if in_l3 else None,
+            'mom_126': mom_ctx.get(ticker) if in_l3 else None,
+        })
+
+    # **내장 양성 대조** — 4사유로 유도한 L3ᴿ 이 score_and_rank 의 통과분과 정확히 같아야 한다.
+    # 어긋나면 사유 유도가 프로덕션과 다른 것이다 (재구현 위험이 여기서 잡힌다).
+    derived = {r['ticker'] for r in rows if r[deepest] and not r['l3r_exclusion']}
+    if derived != set(ranked):
+        raise RuntimeError(
+            f'{rp.date} L3R 유도 불일치 — 유도만 {sorted(derived - set(ranked))[:5]} / '
+            f'랭킹만 {sorted(set(ranked) - derived)[:5]}')
+    return rows
+
+
 def extract_portfolio_periods(
     tag:              str,
     config:           dict,
     rebalance_points: list[RebalancePoint],
     date_filter:      bool = True,
     n_stocks:         int | None = None,
+    panel:            list | None = None,
 ) -> list[dict]:
     """`n_stocks`가 None이면 `build_ablation_pipeline`의 기본값(20)을 쓴다.
 
@@ -65,6 +147,12 @@ def extract_portfolio_periods(
     kw = {} if n_stocks is None else {'n_stocks': n_stocks}
     pipeline = build_ablation_pipeline(tag, config, seed=None, **kw)
     conn = get_connection()
+    if panel is not None:
+        # SPEC_15 S-1 은 섀도우 전용이다 (DOTENV-CWD-SILENT-5433).
+        # **패널 모드에서만** 건다 — 이 함수는 운영 tape 생성에도 쓰이는 공용 경로라
+        # 무조건 걸면 운영 사용이 깨진다.
+        from scripts.xsec._guard import assert_shadow_db
+        assert_shadow_db(conn)
     names = get_stock_names(conn)
     results = []
 
@@ -84,6 +172,18 @@ def extract_portfolio_periods(
         )
         univ_result = pipeline.build_universe(gate_passed, rebal_date, pit_series, conn)
         candidates  = pipeline.score_and_rank(univ_result['universe'], rebal_date, pit_series, conn)
+
+        # SPEC_15 S-1 — **상위 n 절단 전** 전 종목 방출. `panel is None` 이면 아무 일도
+        # 일어나지 않으므로 기존 tape 은 비트 단위로 그대로다 (회귀 검사가 이를 강제한다).
+        if panel is not None:
+            from backtest.filters.momentum_criteria import AbsReturnCriterion
+            crit = AbsReturnCriterion(formation_days=126, skip_days=21)   # §3-5 Family A 재사용
+            layers = _layers(gate_passed, univ_result, pipeline)
+            deepest = max(k for k in layers if k.startswith('L'))
+            ctx = crit.prepare(layers[deepest], rebal_date, conn)         # 배치 조회 (1회)
+            mom = {t: crit.evaluate(t, ctx).value for t in layers[deepest]}
+            panel.extend(_panel_rows(conn, rp, next_date, layers, candidates,
+                                     pit_series, mom, tag))
 
         from backtest.portfolio import build_portfolio
         portfolio = build_portfolio(candidates, n_stocks=pipeline.n_stocks)
@@ -132,6 +232,59 @@ def extract_portfolio_periods(
     return results
 
 
+def _write_panel(panel: list[dict], key: str) -> None:
+    """계층별 parquet + L3ᴿ 제외율 리포트 (SPEC_15 §3-5).
+
+    **전 구간으로 만들고 슬라이싱은 소비처에 맡긴다** — 여기서 T=19 로 잘라 저장하면
+    tape 이 존재하는 나머지 구간에서 L-1a 대조가 불가능해진다 (직전 세션이 tape 을
+    전 구간으로 만든 것과 같은 이유).
+    """
+    import subprocess
+
+    import pandas as pd
+
+    out_dir = Path('experiments/panel')
+    out_dir.mkdir(parents=True, exist_ok=True)
+    df = pd.DataFrame(panel)
+    layer_cols = sorted([c for c in df.columns if c.startswith('L') and c[1:].isdigit()])
+
+    for lc in layer_cols:
+        df[df[lc]].to_parquet(out_dir / f'panel_{key}_{lc}.parquet', index=False)
+    df[df['in_L3R']].to_parquet(out_dir / f'panel_{key}_L3R.parquet', index=False)
+
+    deepest = layer_cols[-1]
+    l3 = df[df[deepest]]
+    reasons: dict = {}
+    for _, r in l3[l3['l3r_exclusion'] != ''].iterrows():
+        for why in r['l3r_exclusion'].split(','):
+            reasons.setdefault(why, {}).setdefault(r['rebalance_date'], 0)
+            reasons[why][r['rebalance_date']] += 1
+
+    sha = subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True,
+                         text=True).stdout.strip()
+    report = {
+        'key': key,
+        'source_commit': sha,                    # 출처 체인 (배포 후 로컬 HEAD 와 대조)
+        'rows_total': int(len(df)),
+        'periods': sorted(df['rebalance_date'].unique().tolist()),
+        'layer_rows': {lc: int(df[lc].sum()) for lc in layer_cols},
+        'L3R_rows': int(df['in_L3R'].sum()),
+        'per_period_N': {lc: df[df[lc]].groupby('rebalance_date').size().to_dict()
+                         for lc in layer_cols + []},
+        'L3R_per_period_N': df[df['in_L3R']].groupby('rebalance_date').size().to_dict(),
+        'exclusion_by_reason': {k: {'total': int(sum(v.values())), 'per_period': v}
+                                for k, v in reasons.items()},
+        'delisted_rows_kept': int(df['delisted'].sum()),          # D-1 준수 증거
+        'delisted_in_L3R': int(df[df['in_L3R']]['delisted'].sum()),
+        'fwd_ret_null_rows': int(df['fwd_ret'].isna().sum()),
+        'note': '원자료만. 표준화·winsorize 는 S-4 (SPEC_15 §3-4).',
+    }
+    (out_dir / f'exclusion_report_{key}.json').write_text(
+        json.dumps(report, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
+    log.info(f'  → panel {len(df)}행, L3R {report["L3R_rows"]}행, '
+             f'상폐 보존 {report["delisted_rows_kept"]}행 → {out_dir}')
+
+
 def main() -> None:
     import argparse
     parser = argparse.ArgumentParser()
@@ -142,6 +295,9 @@ def main() -> None:
     parser.add_argument('--calendar', choices=CALENDAR_CHOICES, default='SEMIANNUAL',
                         help='리밸런싱 캘린더 (SPEC_13 §7). 기본 SEMIANNUAL = 기존 동작·'
                              '기존 파일명. A/C는 산출물에 _A/_C 접미사가 붙는다.')
+    parser.add_argument('--panel', action='store_true',
+                        help='SPEC_15 S-1: 상위 n 절단 **전** 전 종목 패널을 함께 방출한다. '
+                             '섀도우 전용(assert_shadow_db). 미지정 시 기존 동작과 비트 동일.')
     args = parser.parse_args()
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -158,13 +314,16 @@ def main() -> None:
     for tag in det_tags:
         config = ABLATION_CONFIGS[tag]
         log.info(f'=== {tag}{n_sfx}{suffix} 추출 시작 ===')
+        panel: list | None = [] if args.panel else None
         periods = extract_portfolio_periods(
             tag, config, rebalance_points, date_filter=(args.calendar == 'SEMIANNUAL'),
-            n_stocks=args.n_stocks,
+            n_stocks=args.n_stocks, panel=panel,
         )
         out = OUT_DIR / f'{tag}{n_sfx}{suffix}_holdings.json'
         out.write_text(json.dumps(periods, ensure_ascii=False, indent=2), encoding='utf-8')
         log.info(f'  → {out}')
+        if panel is not None:
+            _write_panel(panel, f'{tag}{n_sfx}{suffix}')
 
     log.info('전체 완료')
 

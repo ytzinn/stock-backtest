@@ -67,6 +67,9 @@ BOOT_SEED = 20260825
 ALPHA = 0.05      # 단측
 POWER = 0.80
 
+#: 해석적·부트스트랩 SE 합치 밴드 (§2-1). 중심은 √((T−1)/T), 폭은 MC 표준오차의 3σ 여유.
+RATIO_BAND = 5e-4
+
 
 # ── 순수 함수 (오라클 대상) ─────────────────────────────────────────────────
 def g_vec(logr_matrix: np.ndarray, years: float) -> np.ndarray:
@@ -124,22 +127,31 @@ def _one(logr: np.ndarray, years: float, label: str) -> dict:
     g   = annualized_log_return(logr, years)          # SSOT
     an  = se_g_analytic(logr, years)
     bs, _ = se_g_bootstrap(logr, years)
-    # 합치 조건: 부트스트랩은 모집단 sd(n 분모)에 가까워 해석적(ddof=1)보다 √((T−1)/T) 배 작다
+    # 합치 조건 — **밴드**다. 부트스트랩 SE 의 기댓값이 해석적 SE × √((T−1)/T) 이므로
+    # (부트스트랩은 모집단 sd `÷n`, 해석식은 표본 sd `÷n−1`) 그 값은 하한이 아니라 **중심**이다.
+    #
+    # `[정정 2026-08-25]` 최초 구현은 단측 하한(`비 ≥ √((T−1)/T)`)이었다. 하한이 곧
+    # 기댓값이면 MC 잡음이 위아래로 균등해 **약 50% 확률로 실패하는 동전 던지기**가 된다
+    # — 검사가 아니다. 직전 세션이 통과한 것은 위쪽이 나왔기 때문일 뿐이다(+2.6e-5).
+    # B=200,000 에서 부트스트랩 SE 의 MC 표준오차 ≈ SE/√(2B) ≈ 1.3e-4 이므로 ±5e-4 는
+    # 3σ보다 넉넉하면서 진짜 산식 오류(×√2 = 41% 차이)는 확실히 잡는다.
     ratio, floor = bs / an, math.sqrt((T - 1) / T)
-    ok = floor - 1e-3 <= ratio <= 1.0 + 1e-3
+    ok = abs(ratio - floor) < RATIO_BAND
     mde = mde_one_sided(bs)
     log.info('  [%s] T=%d  years=%.4f  g=%.6f  CAGR=%.4f%%', label, T, years, g,
              cagr_from_g(g) * 100)
     log.info('      SE 해석적=%.6f  부트스트랩=%.6f  비(bs/an)=%.6f  하한 √((T−1)/T)=%.6f  -> %s',
              an, bs, ratio, floor, 'OK' if ok else 'FAIL')
+    log.info('      |비 − 중심| = %.3e  (밴드 %.0e)', abs(ratio - floor), RATIO_BAND)
     log.info('      MDE(단측 α=%.2f, 검정력 %.2f) = %.4f%%p (로그)  →  CAGR 환산 %.4f%%p',
              ALPHA, POWER, mde * 100, (math.exp(mde) - 1) * 100)
     log.info('      연율 변동성 = %.4f%%', annual_vol(logr, years) * 100)
     if not ok:
         raise SystemExit('FATAL 해석적·부트스트랩 SE 불합치 — 중단. 문턱을 완화하지 마라.')
     return {'label': label, 'T': T, 'years': years, 'g': g, 'cagr': cagr_from_g(g),
-            'se_analytic': an, 'se_bootstrap': bs, 'ratio': ratio, 'ratio_floor': floor,
-            'agree': ok, 'mde_log': mde, 'mde_cagr_equiv': math.exp(mde) - 1,
+            'se_analytic': an, 'se_bootstrap': bs, 'ratio': ratio, 'ratio_center': floor,
+            'agree': ok, 'ratio_band': RATIO_BAND,
+            'ratio_dev_from_center': abs(ratio - floor), 'mde_log': mde, 'mde_cagr_equiv': math.exp(mde) - 1,
             'annual_vol': annual_vol(logr, years),
             'alpha': ALPHA, 'power': POWER, 'tail': 'one-sided',
             'boot_b': BOOT_B, 'boot_seed': BOOT_SEED}
