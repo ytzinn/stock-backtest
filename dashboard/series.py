@@ -1132,6 +1132,11 @@ UNCOVERED: dict[str, str] = {
         'CANONICAL 이 찍어야 하지만 생성기에 구간 집합(period_set) 개념이 없어 아직 못 넣는다 '
         '(SUMMARY-JSON-STALE). 그때까지 판정의 근거는 여기뿐이고, 인용처는 '
         'experiments/runs/2026.08.25._G5G2_REISSUE.md 다 (2026-08-26).'),
+    'experiments/analysis/2026.08.26._xsec_controls/*': (
+        'SPEC_15 S-3 대조군 산출물 — **화면 대상이 아니라 S-4 의 선행 게이트 입력이다.** '
+        '`estimate.py` 가 `all_pass=true` 없이는 본 측정을 거부한다. P-1·P-2 는 합성 신호, '
+        'N-1 은 치환된 신호라 실제 신호의 IC 는 여기 없다(§6-1 방화벽). 지우면 본 측정의 '
+        '전제인 "계측이 산다" 가 근거를 잃는다 (2026-08-26).'),
     'experiments/analysis/2026.08.25._xsec_prelim/*': (
         'SPEC_15 선행 산출 A-0(구간 집합)·A-1(CAGR MDE) — **결과 열람 전에 커밋해야 하는 '
         '값**이라 화면이 아니라 사전등록 체인에 속한다. A-1 이 §0-1(a) 전제의 반증 조건이고, '

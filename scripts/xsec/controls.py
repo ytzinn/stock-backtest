@@ -126,8 +126,41 @@ def n1(periods) -> dict:
 
 
 # ── N-2a / N-2b-1 (DB 필요) ─────────────────────────────────────────────────
+#
+# `[정정 2026-08-26]` **최초 구현의 N-2b-1 은 공허했다.**
+#   changed = {t for t in common if now[t] != fut[t]}      # 다르다고 정의하고
+#   for t in changed:
+#       if now[t] == fut[t]: viol.append(...)              # 같은지 물었다 → 항상 거짓
+# 위배 0건이 측정 결과가 아니라 **구성상 0** 이었다. 게다가 `changed` 는 "정정 공시로
+# 갱신" 이 아니라 **회계기간이 FY→H1 로 넘어간 것**을 세고 있어서(구간당 ~1,900종목)
+# 사전등록이 말한 집합 S 가 아니었다.
+#
+# `[검증된 사실]` financials_pit 은 (ticker, year, report_type, account_nm) 당 **1행**이고
+# (중복 그룹 0), 정정은 행 중복이 아니라 **컬럼**으로 표현된다:
+#   original_amount = 최초 공시값(구),  amount = 정정 반영값(신),  amendment_from = 정정 공시일
+# 자본총계 기준 amount != original_amount 인 행이 1,121건 실재한다.
+#
+# 그래서 S 는 이렇게 정의된다 — CLAUDE.md 의 PIT 규칙을 그대로 검사한다:
+#   "amendment_from > rebalance_date 면 원본값 사용" (그 이후엔 정정값, stale 방지)
+
+
+def _amend_rows(conn, d: str, year: int, rtype: str) -> list[tuple]:
+    """구간 d 에서 **정정이 실재하는** 자본총계 행. 신/구 값이 다른 것만."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT ticker, amount, original_amount, amendment_from, fs_div
+            FROM financials_pit
+            WHERE account_nm = %s AND year = %s AND report_type = %s
+              AND available_from <= %s
+              AND original_amount IS NOT NULL
+              AND amendment_from  IS NOT NULL
+              AND amount IS DISTINCT FROM original_amount
+        """, ('자본총계', year, rtype, d))
+        return cur.fetchall()
+
+
 def n2(dates: list[str]) -> dict:
-    """손잡이 자기검증 + lookahead 값 수준 대조. 대상 계정은 **자본총계 하나**."""
+    """N-2a 손잡이 자기검증 + N-2b-1 lookahead(값 수준). 대상 계정은 **자본총계 하나**."""
     from backtest.configs.schedule import get_schedule
     from backtest.data_access import load_pit_series_ttm
     from ingest.connection import get_connection
@@ -138,32 +171,57 @@ def n2(dates: list[str]) -> dict:
     pts = {p.date.isoformat(): p for p in get_schedule('SEMIANNUAL')}
     order = sorted(pts)
 
-    a_rows, s_total, viol = [], 0, []
+    a_rows = []
+    s_total = ok_old = viol = unmatched = post_ok = post_viol = 0
+    viol_ex, unmatched_ex = [], []
+
     for d in dates:
         i = order.index(d)
-        if i + 1 >= len(order):
-            continue
-        cur, nxt = pts[d], pts[order[i + 1]]
-        pit_now = load_pit_series_ttm(conn, cur.date, report_type=cur.report_type,
-                                      fiscal_year=cur.fiscal_year)
-        # **as_of 손잡이** — 재무만 미래로 민다. fiscal_year=미래 는 0행이다
-        pit_fut = load_pit_series_ttm(conn, nxt.date, report_type=nxt.report_type,
-                                      fiscal_year=nxt.fiscal_year)
-
+        cur_p = pts[d]
+        pit_now = load_pit_series_ttm(conn, cur_p.date, report_type=cur_p.report_type,
+                                      fiscal_year=cur_p.fiscal_year)
         now = {t: v[0].get('자본총계') for t, v in pit_now.items() if v and v[0].get('자본총계')}
-        fut = {t: v[0].get('자본총계') for t, v in pit_fut.items() if v and v[0].get('자본총계')}
-        common = set(now) & set(fut)
-        changed = {t for t in common if now[t] != fut[t]}
 
-        a_rows.append({'date': d, 'n_pit': len(now), 'n_future': len(fut),
-                       'coverage': (len(common) / len(now)) if now else 0.0,
-                       'n_changed': len(changed),
-                       'changed_ratio': (len(changed) / len(common)) if common else 0.0})
-        s_total += len(changed)
-        # N-2b-1: 갱신된 종목에서 PIT 경로가 **구 공시값** 이어야 한다 (= 미래값이 아니어야)
-        for t in changed:
-            if now[t] == fut[t]:
-                viol.append({'date': d, 'ticker': t})
+        # ── N-2a: as_of 손잡이가 실제로 움직이는가 ──────────────────────────
+        # `[Claude 의견]` 이 검사가 보이는 것은 "미래 as_of 가 **다른 재무**를 준다" 이지
+        # "정정을 준다" 가 아니다. 다음 앵커는 회계기간이 넘어가 있으므로 대부분 종목의
+        # 값이 바뀐다 — 손잡이가 죽지 않았다는 증거로는 충분하되, 그 이상을 주장하지 않는다.
+        if i + 1 < len(order):
+            nxt = pts[order[i + 1]]
+            pit_fut = load_pit_series_ttm(conn, nxt.date, report_type=nxt.report_type,
+                                          fiscal_year=nxt.fiscal_year)
+            fut = {t: v[0].get('자본총계') for t, v in pit_fut.items()
+                   if v and v[0].get('자본총계')}
+            common = set(now) & set(fut)
+            a_rows.append({'date': d, 'n_pit': len(now), 'n_future': len(fut),
+                           'coverage': (len(common) / len(now)) if now else 0.0,
+                           'n_changed': sum(1 for t in common if now[t] != fut[t])})
+
+        # ── N-2b-1: 정정 공시 기준 값 수준 대조 (primary) ───────────────────
+        for ticker, amount, original, amend_from, _fs in _amend_rows(
+                conn, d, cur_p.fiscal_year, cur_p.report_type):
+            v = now.get(ticker)
+            if v is None:
+                continue
+            after = amend_from.isoformat() > d          # 정정이 이 구간 **이후**에 왔나
+            if after:
+                s_total += 1
+                if v == original:
+                    ok_old += 1                          # 정상: 아직 원본값을 본다
+                elif v == amount:
+                    viol += 1                            # **룩어헤드**: 미래 정정값을 봤다
+                    if len(viol_ex) < 5:
+                        viol_ex.append({'date': d, 'ticker': ticker})
+                else:
+                    unmatched += 1                       # fs_div 선택 차이 등 — 숨기지 않는다
+                    if len(unmatched_ex) < 5:
+                        unmatched_ex.append({'date': d, 'ticker': ticker})
+            else:
+                # 정정이 이미 왔으면 정정값을 봐야 한다 (stale 방지) — 진단으로 병기
+                if v == amount:
+                    post_ok += 1
+                elif v == original:
+                    post_viol += 1
 
     conn.close()
 
@@ -171,24 +229,33 @@ def n2(dates: list[str]) -> dict:
     cond2 = all(r['coverage'] >= 0.9 for r in a_rows)
     cond3 = all(r['n_changed'] >= 1 for r in a_rows)
     log.info('== N-2a 손잡이 자기검증 (as_of) ==')
-    log.info('  조건1 N_future>0        : %s', cond1)
-    log.info('  조건2 커버리지 >= 0.9    : %s  (최소 %.4f)', cond2,
+    log.info('  조건1 N_future>0      : %s', cond1)
+    log.info('  조건2 커버리지 >= 0.9  : %s  (최소 %.4f)', cond2,
              min(r['coverage'] for r in a_rows))
-    log.info('  조건3 자본총계 갱신 >= 1 : %s  (최소 %d, 합계 %d)', cond3,
-             min(r['n_changed'] for r in a_rows), s_total)
+    log.info('  조건3 값 갱신 >= 1     : %s  (최소 %d)', cond3,
+             min(r['n_changed'] for r in a_rows))
+    log.info('  ※ 조건3 이 세는 것은 **회계기간 진행**이지 정정이 아니다. 손잡이가')
+    log.info('     죽지 않았다는 증거로만 쓴다 — 그 이상을 주장하지 않는다.')
     if not (cond1 and cond2 and cond3):
-        raise SystemExit('FATAL N-2a 실패 — 손잡이가 움직이지 않았다. "다른 값이면 통과" 로 낮추지 마라.')
+        raise SystemExit('FATAL N-2a 실패 — "다른 값이면 통과" 로 낮추지 마라.')
 
-    log.info('== N-2b-1 lookahead (값 수준, primary) ==')
-    log.info('  |S| = %d  위배 %d건  -> %s', s_total, len(viol),
-             'PASS' if not viol else 'FAIL')
+    log.info('== N-2b-1 lookahead (값 수준, primary) — 정정 공시 기준 ==')
+    log.info('  |S| (정정이 구간 이후에 온 자본총계) = %d', s_total)
+    log.info('    원본값을 봤다(정상) = %d   **정정값을 봤다(룩어헤드) = %d**   미매칭 = %d',
+             ok_old, viol, unmatched)
+    log.info('  진단(정정이 이미 온 구간): 정정값 %d / 원본값(stale) %d', post_ok, post_viol)
     if s_total == 0:
-        raise SystemExit('FATAL |S|=0 — 검사가 공허하다. N-2a 조건 3 을 재확인하라.')
+        raise SystemExit('FATAL |S|=0 — 검사가 공허하다. 정정 데이터가 있는지 재확인하라.')
     if viol:
-        raise SystemExit(f'FATAL N-2b-1 위배 {len(viol)}건 — PIT 가 깨졌다: {viol[:5]}')
-    return {'N2a': {'per_period': a_rows, 'cond1': cond1, 'cond2': cond2, 'cond3': cond3},
-            'N2b1': {'S_size': s_total, 'violations': len(viol), 'pass': True,
-                     'account': '자본총계',
+        raise SystemExit(f'FATAL N-2b-1 위배 {viol}건 — PIT 가 깨졌다: {viol_ex}')
+
+    return {'N2a': {'per_period': a_rows, 'cond1': cond1, 'cond2': cond2, 'cond3': cond3,
+                    'measures': '회계기간 진행에 따른 값 변화 (정정 아님)'},
+            'N2b1': {'S_size': s_total, 'saw_original': ok_old, 'violations': viol,
+                     'unmatched': unmatched, 'unmatched_examples': unmatched_ex,
+                     'post_amendment_used_amended': post_ok,
+                     'post_amendment_stale': post_viol,
+                     'account': '자본총계', 'pass': viol == 0,
                      'note': 'N-2b-2(IC 수준 진단)는 S-4 로 이월 — 착수 기록 §1-1'}}
 
 
