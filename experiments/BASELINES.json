@@ -159,7 +159,27 @@
         "experiments/ablation/F_pbr_ma200_n20_holdings.json": "ce87ea674057f4d94d144b1a7d1578519f83eb69991dd1e14f9e6df890679b92",
         "experiments/ablation/U_pbr_path_ew_periods.csv": "79fa0d4c4c38b01bcf4ed34642869be15d9cca7f5bed27b5807ccc01145fe8e9",
         "experiments/daily_nav/F_pbr_ma200_n13_daily_nav.csv": "88503bf2853a120f286f7d1b3d1ebbebcc4d01149b2790fa0cf6453221da4e38",
-        "experiments/daily_nav/summary.json": "de51b842a344f06c2587ee56f9a5a62fb58a9682625aab1c012ff66c8822d5b5"
+        "experiments/daily_nav/summary.json": "de51b842a344f06c2587ee56f9a5a62fb58a9682625aab1c012ff66c8822d5b5",
+
+        "experiments/panel/panel_F_pbr_ma200_n13_L0.parquet": "a0b67080949ab783535ff398182359623cb8f40df58e8dc6abdfe6ca1b9ed20d",
+        "experiments/panel/panel_F_pbr_ma200_n13_L1.parquet": "0dc1de8264bbaf25b4b2bc78263f605529009c2c405d6b009a321c43d9d22b57",
+        "experiments/panel/panel_F_pbr_ma200_n13_L2.parquet": "bc3b346f1a792fb2ee16457023e468a57b1d052ac121dd33ac9c00839ca5990f",
+        "experiments/panel/panel_F_pbr_ma200_n13_L3.parquet": "dcd61b16559b808dfa9de7fd4bb53327665b38dbfe85c9dd30c73edadad316dc",
+        "experiments/panel/panel_F_pbr_ma200_n13_L3R.parquet": "f32c1478b304e65e17ea6eeb91140577021698b06ff3e3196b88192afb97dfcf",
+        "experiments/panel/exclusion_report_F_pbr_ma200_n13.json": "323daae47075a9b66e17a7d5ed5972ba27cfdf934c4c87b88399539b12f19219"
+      },
+      "_added_20260826_panel": {
+        "_doc": [
+          "SPEC_15 S-1 패널 6종 (2026-08-26 회수, 생성 2026-08-25 UTC 12:07).",
+          "생성 커밋 453ae24 — 산출물의 source_commit 필드와 대조하라.",
+          "`.parquet` 은 이진이라 **raw sha256**, 리포트 JSON 은 텍스트라 LF 정규화 후.",
+          "",
+          "전 구간(21) 생성이다. T=19 슬라이싱은 소비처(S-4)가 한다 —",
+          "여기서 잘라 저장하면 tape 이 있는 나머지 구간에서 L-1a 대조가 불가능해진다.",
+          "",
+          "S-2 배관 게이트 통과분이다: L-1a 21구간 멤버십 완전 일치(허용오차 없음),",
+          "L-1b 최대 |diff| < 5e-7, 상폐 192행 보존(D-1)."
+        ]
       },
       "_added_20260825": {
         "_doc": [

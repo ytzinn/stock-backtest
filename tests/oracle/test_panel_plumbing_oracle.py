@@ -171,6 +171,10 @@ def test_meta_oracle_actually_exercises_production(test_name, target, monkeypatc
     fn = globals()[test_name]
     with pytest.raises(Exception) as ei:
         fn()
-    assert 'META' in str(ei.value) or isinstance(ei.value, AssertionError), (
-        f'{test_name} 이 {target} 를 타지 않는다 — 오라클이 형식뿐이다')
+    # **`META` 문자열을 반드시 요구한다.** `or isinstance(..., AssertionError)` 를 함께 두면
+    # 패치와 무관한 이유로 실패해도 통과해 버린다 — 그러면 이 메타 테스트 자체가
+    # "형식뿐인 검사" 가 되어 자기가 잡으려던 것과 같은 결함이 된다.
+    assert f'META: {target}' in str(ei.value), (
+        f'{test_name} 이 {target} 를 타지 않는다 — 오라클이 형식뿐이다. '
+        f'실제 예외: {type(ei.value).__name__}: {ei.value}')
     _load.cache_clear()

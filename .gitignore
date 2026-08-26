@@ -72,3 +72,6 @@ experiments/daily_nav/*_daily_positions.csv
 
 # 기준선별 tape 사본 (2026-08-24) — 대용량 untracked. experiments/BASELINES.json 이 sha256 을 고정한다.
 experiments/_baselines/
+
+# SPEC_15 S-1 패널 (대용량, experiments/README.md 정책 — 해시는 BASELINES.json 에 등재)
+experiments/panel/*.parquet

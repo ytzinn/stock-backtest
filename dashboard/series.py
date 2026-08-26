@@ -1099,11 +1099,44 @@ _META_FILES = ('.gitkeep', 'README.md', 'ARTIFACTS_MANIFEST.json')
 #: 깨진다(새 사각지대) ② 아무 파일도 안 걸리는 패턴이 남으면 깨진다(해소됐으니 지워라).
 #: `dashboard/claims.KNOWN` 과 같은 자기만료 구조다.
 UNCOVERED: dict[str, str] = {
+    'experiments/BASELINES.json': (
+        '대조 기준선 등록부 — **화면 대상이 아니라 검사기 입력이다.** 2026-08-24 재슬라이스가 '
+        '수정 전 운영 tape 과 수정 후 섀도우 커버리지 매트릭스를 섞어 쓴 사고 뒤에 신설됐고, '
+        '소비 스크립트가 `verify()` 로 입력 sha256 을 전수 대조하는 데 쓴다. 산출물이 아니라 '
+        '산출물의 출처를 고정하는 파일이라 왜-지도 축에 올릴 것이 없다 (2026-08-26).'),
+    'experiments/_baselines/*': (
+        '섀도우 기준선의 **로컬 사본 트리** — 원본은 서버 '
+        '`/home/milmelmul/stock-backtest-shadow/experiments` 이고 여기는 회수분이다. '
+        '`BASELINES.json` 의 `local_root` 가 가리키는 곳으로, 운영 세대와 같은 이름의 파일을 '
+        '같은 디렉토리에 두지 않으려고 격리했다(pools.json 사고 구조). 화면은 운영 산출물만 '
+        '읽으므로 축에 배정하지 않는다. 해시는 등록부가 관리한다 (2026-08-26).'),
+    'experiments/panel/*': (
+        'SPEC_15 S-1 횡단면 패널(대용량, git 미추적) — 상위 n 절단 **전** 전 종목의 '
+        '(ticker, rebalance_date) 관측 단위다. IC/Fama-MacBeth 추정의 입력이고 화면 대상이 '
+        '아니다. 아직 본 측정(S-4) 전이라 인용할 수치가 없다 — 지금 지우면 S-2 배관 게이트를 '
+        '통과한 패널을 다시 만들어야 한다. 사전등록은 '
+        'docs/설계/SPEC_15_cross_sectional_estimator_v0.4.md (2026-08-26).'),
     'experiments/analysis/2026.08.19._*/*': (
         '2026-08 무결성 진단 세션의 계측 산출물 — **화면 대상이 아니라 보고서 부속이다.** '
         '계정 커버리지·상폐 피드 공백·풀 오염·적재 경로 커버리지 등 "왜 이 결론에 '
         '이르렀는지"의 증거물이고, 인용처는 docs/검토/2026.08.19._SHADOW_REPAIR_SESSION.md '
         '와 CLAUDE.md 데이터 지평 절이다. 지우면 그 결론들의 근거가 사라진다 (2026-08-23).'),
+    'experiments/analysis/2026.08.24._period_truncation/*': (
+        '구간 절단 재슬라이스 산출물 — 보고서 부속이다. 사전등록 규칙을 커버리지 매트릭스에 '
+        '기계적으로 적용해 n=18 을 얻고 G1 을 재산출한 증거물이며, 인용처는 '
+        'docs/검토/2026.08.24._PERIOD_TRUNCATION_RESULTS_SHADOW.md 다. '
+        '`*_operational_20260815_INVALID.json` 은 기준선 혼입으로 무효화된 최초 실행분인데 '
+        '**개명만 하고 남겨 뒀다** — 지우면 무엇이 왜 무효였는지가 사라진다 (2026-08-26).'),
+    'experiments/analysis/2026.08.25._g5g2_reissue/*': (
+        'G5·G2 재산출(섀도우 세대) 산출물 — 보고서 부속이다. 게이트 판정값 자체는 '
+        'CANONICAL 이 찍어야 하지만 생성기에 구간 집합(period_set) 개념이 없어 아직 못 넣는다 '
+        '(SUMMARY-JSON-STALE). 그때까지 판정의 근거는 여기뿐이고, 인용처는 '
+        'experiments/runs/2026.08.25._G5G2_REISSUE.md 다 (2026-08-26).'),
+    'experiments/analysis/2026.08.25._xsec_prelim/*': (
+        'SPEC_15 선행 산출 A-0(구간 집합)·A-1(CAGR MDE) — **결과 열람 전에 커밋해야 하는 '
+        '값**이라 화면이 아니라 사전등록 체인에 속한다. A-1 이 §0-1(a) 전제의 반증 조건이고, '
+        '지우면 FAIL 이 났을 때 "효과 없음"과 "검출력 없음"을 구별할 수단이 사라진다. '
+        '사전등록은 docs/설계/SPEC_15_cross_sectional_estimator_v0.4.md (2026-08-26).'),
     'experiments/analysis/2026.08.22._mktcap_reproducibility/*': (
         '시가총액 재현성 대조 — 보고서 부속이다. KRX Open API 재호출분과 기존 '
         'market_cap_history 를 신호일별로 대조한 증거물로, 결론은 "상위13·상위20 상이 0, '
