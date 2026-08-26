@@ -319,7 +319,12 @@ def stage_a2() -> dict:
         d = abs(pred - lv['detection_rate']); worst = max(worst, d)
         log.info('    설계 IC=%s  실측=%.3f  예측=%.3f  |차|=%.3f',
                  k, lv['detection_rate'], pred, d)
-    log.info('  최대 |차| = %.3f  (허용 0.05)  -> %s', worst, 'OK' if worst < 0.05 else 'FAIL')
+    # 허용오차 0.05 의 근거 (§4-1): R=1,000 반복에서 검출률 p̂ 의 SE = √(p(1−p)/R) 이고
+    # p=0.5 에서 최대 0.0158 이다. 0.05 는 그 3σ 남짓이며, 근사가 √2 배쯤 어긋나는 진짜
+    # 오류(예: SE 차원 혼동)는 검출률을 0.2 이상 움직이므로 확실히 걸린다.
+    # a2 산출물에는 적지 않는다 — §6-1 화이트리스트를 근거 한 줄 때문에 열지 않는다.
+    log.info('  최대 |차| = %.3f  (허용 0.05 = 검출률 SE 의 약 3σ)  -> %s',
+             worst, 'OK' if worst < 0.05 else 'FAIL')
     if worst >= 0.05:
         raise SystemExit('FATAL P-2 실측과 정규근사가 어긋난다 — 근사 쪽을 의심하라. 문턱을 낮추지 마라.')
 

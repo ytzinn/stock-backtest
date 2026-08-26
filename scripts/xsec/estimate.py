@@ -34,6 +34,10 @@ OUT_DIR = Path('experiments/analysis/2026.08.26._xsec_controls')
 CONTROLS = OUT_DIR / 'controls.json'
 A2       = Path('experiments/analysis/2026.08.25._xsec_prelim') / 'a2_power.json'
 
+#: S-3 이 **반드시 전부** 돌았어야 하는 대조 집합. 생산자(controls.py)와 소비자(여기)가
+#: 서로 다른 파일에서 같은 집합을 주장한다 — 한쪽만 알면 그것은 신뢰이지 검사가 아니다.
+EXPECTED_RAN = frozenset({'N1', 'N2a', 'N2b1', 'P1', 'P2'})
+
 
 class GateRefused(SystemExit):
     """선행 게이트 미충족. 본 측정으로 넘어가지 않는다."""
@@ -48,6 +52,17 @@ def check_gates(controls_path: Path = CONTROLS, a2_path: Path = A2) -> dict:
             f'거부: {controls_path} 의 all_pass 가 true 가 아니다 '
             f'(현재 {controls.get("all_pass")!r}). 대조군이 서지 않으면 본 측정은 무의미하다.')
     log.info('  게이트 1 (controls.all_pass=true) 통과')
+
+    # 게이트 1-b — **기대 집합을 소비처에 둔다.**
+    # `all_pass` 는 controls.py 가 `ran` 을 정직하게 채운다는 전제 위에 있다
+    # (직전 세션에 그 자리가 fail-open 이었다). 기대 집합을 여기 적어 두면 그 전제가
+    # 검사로 바뀐다 — 생산자와 소비자가 서로 다른 파일에서 같은 집합을 주장해야 한다.
+    ran = set(controls.get('ran') or ())
+    if ran != EXPECTED_RAN:
+        raise GateRefused(
+            f'거부: 대조 집합 불일치 — 기대 {sorted(EXPECTED_RAN)}, 실제 {sorted(ran)}. '
+            f'부족 {sorted(EXPECTED_RAN - ran)} / 초과 {sorted(ran - EXPECTED_RAN)}.')
+    log.info('  게이트 1-b (ran == %s) 통과', sorted(EXPECTED_RAN))
 
     if not a2_path.exists():
         raise GateRefused(f'거부: A-2 산출물이 없다 — {a2_path}. S-5b 를 먼저 돌려라.')
