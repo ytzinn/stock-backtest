@@ -122,6 +122,17 @@ issues:
              둘 다 사용자 결정이 필요하다.
     ref: experiments/BASELINES.json
 
+  - id: XSEC-GATE-COMBINATION-RULE
+    status: blocked
+    severity: medium
+    summary: SPEC_15 사전등록이 게이트 셋을 나열했으나 셋을 하나의 PASS/FAIL 로 합치는 규칙을
+             적지 않았고, 조합별 해석표는 그 단일 판정을 키로 쓴다. 본 측정에서 게이트 하나가
+             나머지와 갈려 공백이 실제로 문제가 됐다. 두 읽기(primary 게이트만 / 전부 충족)가
+             각각 다른 행을 가리키지만 **두 행의 다음 행동은 같다** — 채택도 폐기도 하지
+             않는다. 그래서 결과를 본 뒤 임의로 고르지 않고 남긴다. 다음 SPEC 은 게이트 결합
+             규칙을 사전등록에 명시해야 한다.
+    ref: experiments/runs/2026.08.26._XSEC_OFFICIAL.md
+
   - id: MOMENTUM-DRIFT-016600
     status: open
     severity: medium
