@@ -220,10 +220,13 @@ def stage_a1(baseline: str = DEFAULT_BASELINE) -> dict:
 def main() -> None:
     assert_no_db_imported('scripts.xsec.power')
     ap = argparse.ArgumentParser()
-    ap.add_argument('--stage', required=True, choices=['a1'])
+    ap.add_argument('--stage', required=True, choices=['a1', 'a2'])
     ap.add_argument('--baseline', default=DEFAULT_BASELINE)
     args = ap.parse_args()
 
+    if args.stage == 'a2':
+        stage_a2()
+        return
     prov = verify(args.baseline, [F_PERIODS])
     log.info('== 기준선 %s · commit=%s · 공식자격=%s ==', prov['baseline'], prov['commit'],
              prov['valid_for_official_numbers'])
@@ -233,6 +236,111 @@ def main() -> None:
     p = OUT_DIR / f'{args.stage}_power.json'
     p.write_text(json.dumps(res, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
     log.info('→ %s', p)
+
+
+
+
+# ── A-2 (SPEC_15 §6, S-5b) ──────────────────────────────────────────────────
+#
+# 유도 (SPEC 에서 베끼지 않았다. 오라클이 몬테카를로로 고정한다):
+#   mean(IC) 의 표준오차가 두 가지로 잡힌다 — 무엇을 귀무로 두느냐가 다르다.
+#     MDE_perm : 분모 = permutation 귀무의 sd. 이미 **mean(IC) 의 sd** 다
+#                (permutation_mean_ic 가 재표본마다 mean 을 돌려주므로).
+#                → SE = sd_null_ic          → MDE = z · sd_null_ic
+#     MDE_ICIR : 분모 = **실현** sd(IC_t). 구간별 계열의 sd 이므로 평균의 SE 로
+#                바꾸려면 √T 로 나눈다.
+#                → SE = sd_realized_ic/√T   → MDE = z · sd_realized_ic/√T
+#   z = z_{1−α} + z_{power}  (단측). A-1 과 같은 `mde_one_sided` 를 쓴다.
+#
+# `[Claude 의견]` 실현 sd 가 귀무 sd 보다 크면 MDE_ICIR 가 더 크다 — 참 IC 가 시간에
+# 따라 변하기 때문이다. permutation 은 그 시변성을 귀무에 넣지 않아 낙관적이다.
+# §7-3 분기가 보수적인 쪽(MDE_ICIR)을 쓰는 이유다.
+
+def se_mean_ic_from_null(sd_null_ic: float) -> float:
+    """permutation 귀무는 이미 mean(IC) 의 분포다 — √T 로 다시 나누지 않는다."""
+    return float(sd_null_ic)
+
+
+def se_mean_ic_from_series(sd_realized_ic: float, t: int) -> float:
+    """구간별 IC 계열의 sd → 평균의 SE."""
+    return float(sd_realized_ic / math.sqrt(t))
+
+
+def predicted_detection_rate(design_ic: float, se_mean_ic: float,
+                             alpha: float = ALPHA, power_unused: float = 0.0) -> float:
+    """정규근사 검출 성공률 — P-2 실측과 교차확인할 예측값."""
+    nd = NormalDist()
+    return float(nd.cdf(design_ic / se_mean_ic - nd.inv_cdf(1 - alpha)))
+
+
+def stage_a2() -> dict:
+    """A-2 — MDE_perm · MDE_ICIR.
+
+    ⚠ **§6-1 방화벽**: 실현 IC 계열을 계산하지만 `sd` 만 남긴다.
+    `mean(IC)`·`ICIR`·`t`·`p` 를 변수로도 만들지 않고, 산출물·로그 어디에도 넣지 않는다.
+    S-4(`estimate.py`)가 유일한 노출 지점이다.
+    """
+    import pandas as pd
+
+    from scripts.xsec import ic as icmod
+    from scripts.xsec.controls import PANEL, _periods
+    from scripts.xsec.firewall import assert_whitelisted
+
+    a0 = json.loads(A0_PATH.read_text(encoding='utf-8'))
+    ps = a0['period_set']
+    ctl = json.loads(Path('experiments/analysis/2026.08.26._xsec_controls/controls.json')
+                     .read_text(encoding='utf-8'))
+    if ctl.get('all_pass') is not True:
+        raise SystemExit('FATAL 대조군이 서지 않았다 — A-2 는 N-1·P-2 를 재료로 쓴다.')
+
+    periods = _periods(pd.read_parquet(PANEL), ps['dates'])
+    T = len(periods)
+
+    # 실현 sd 만 취한다. 아래 한 줄이 §6-1 이 지키는 지점이다.
+    sd_realized = float(icmod.ic_series(periods).std(ddof=1))
+
+    sd_null  = float(ctl['N1']['sd_null_ic'])
+    se_perm  = se_mean_ic_from_null(sd_null)
+    se_icir  = se_mean_ic_from_series(sd_realized, T)
+    mde_perm = mde_one_sided(se_perm)
+    mde_icir = mde_one_sided(se_icir)
+
+    log.info('== A-2 (SPEC_15 §6) ==')
+    log.info('  T=%d  sd_null_ic=%.6f  sd_realized_ic=%.6f  (실현/귀무 = %.3f배)',
+             T, sd_null, sd_realized, se_icir / se_perm)
+    log.info('  MDE_perm  = %.6f   (분모 = permutation 귀무)', mde_perm)
+    log.info('  MDE_ICIR  = %.6f   (분모 = 실현 sd(IC_t)/√T) ← §7-3 분기는 이쪽', mde_icir)
+
+    # 교차확인 — P-2 실측 검출률 vs 정규근사 예측
+    log.info('  교차확인 (P-2 실측 vs 정규근사):')
+    worst = 0.0
+    for k, lv in ctl['P2']['levels'].items():
+        pred = predicted_detection_rate(lv['design_ic'], se_perm)
+        d = abs(pred - lv['detection_rate']); worst = max(worst, d)
+        log.info('    설계 IC=%s  실측=%.3f  예측=%.3f  |차|=%.3f',
+                 k, lv['detection_rate'], pred, d)
+    log.info('  최대 |차| = %.3f  (허용 0.05)  -> %s', worst, 'OK' if worst < 0.05 else 'FAIL')
+    if worst >= 0.05:
+        raise SystemExit('FATAL P-2 실측과 정규근사가 어긋난다 — 근사 쪽을 의심하라. 문턱을 낮추지 마라.')
+
+    # §4-1 경계 대비 위치 — **기록만 한다. 판정은 S-6.**
+    ic_econ, ic_lit = 0.5 / math.sqrt(26), 0.03
+    log.info('  경계 대비 (기록만, 판정 아님): IC*_econ=%.4f  IC*_lit=%.4f', ic_econ, ic_lit)
+    log.info('    MDE_ICIR %s IC*_lit,  %s IC*_econ',
+             '<' if mde_icir < ic_lit else '>=', '<' if mde_icir < ic_econ else '>=')
+
+    out = {
+        'period_set': {'id': ps['id'], 'n': ps['n'], 'sha256': ps['sha256']},
+        'T': T, 'sd_null_ic': sd_null, 'sd_realized_ic': sd_realized,
+        'mde_perm': mde_perm, 'mde_icir': mde_icir,
+        'seed': ctl['N1']['seed'], 'B': ctl['N1']['B'],
+    }
+    assert_whitelisted(out, 'a2_power.json')      # 화이트리스트 + 금지 키 이중 검사
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    p = OUT_DIR / 'a2_power.json'
+    p.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding='utf-8')
+    log.info('→ %s', p)
+    return out
 
 
 if __name__ == '__main__':

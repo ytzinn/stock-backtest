@@ -1,0 +1,47 @@
+{
+  "period_set": {
+    "id": "SPEC15_T19_primary",
+    "n": 19,
+    "sha256": "7b1d7489522f87478c2f3feef89e67eee768f39a63364eed33d381c772b12e2b"
+  },
+  "P1": {
+    "min": 0.9999999999999998,
+    "max": 1.0000000000000002,
+    "n_periods": 19,
+    "pass": true
+  },
+  "P2": {
+    "seed": 2026082602,
+    "B_null": 1000,
+    "R": 1000,
+    "alpha": 0.05,
+    "crit_mean_ic": 0.02577946381701123,
+    "null_sd": 0.015409087280836183,
+    "levels": {
+      "0.03": {
+        "design_ic": 0.03,
+        "realized_mean_ic_avg": 0.029764772811501247,
+        "detection_rate": 0.585
+      },
+      "0.05": {
+        "design_ic": 0.05,
+        "realized_mean_ic_avg": 0.04859660943323601,
+        "detection_rate": 0.926
+      }
+    }
+  },
+  "N1": {
+    "B": 1000,
+    "seed": 2026082601,
+    "null_mean": -0.0002299031827104017,
+    "sd_null_ic": 0.015358589640293038,
+    "centered_at_zero": "True",
+    "crit_one_sided": 0.02454356556431753
+  },
+  "ran": [
+    "N1",
+    "P1",
+    "P2"
+  ],
+  "all_pass": false
+}
