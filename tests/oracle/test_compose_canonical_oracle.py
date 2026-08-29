@@ -111,15 +111,34 @@ def test_nc1_sha_mismatch_is_refused(tmp_path):
     assert 'sha256 불일치' in str(ei.value)
 
 
-def test_nc1b_poisoned_input_is_refused(tmp_path):
-    """1-b — 출처가 폐기 세대 요약 JSON 을 물고 있으면 거부."""
+def test_nc1b_poisoned_input_is_refused_by_path(tmp_path):
+    """1-b(경로 축) — 출처가 폐기 목록의 경로를 입력으로 물고 있으면 거부."""
     t, _ = _srcs()
     bad = copy.deepcopy(t)
     bad['provenance']['inputs']['experiments/ablation/summary.json'] = {'sha256': 'x'}
     p = _write(tmp_path, 'poisoned_input.json', bad)
     with pytest.raises(SystemExit) as ei:
         cc.compose(trunc_src=p, registry=_registry_for(p))
-    assert '_poisoned_summaries' in str(ei.value)
+    assert "경로 일치 ['experiments/ablation/summary.json']" in str(ei.value)
+
+
+def test_nc1b_poisoned_input_is_refused_by_digest(tmp_path):
+    """1-b(sha 축) — **경로를 갈아 끼워도** 기록된 폐기 sha256 이면 거부.
+
+    경로 축만 있으면 폐기본을 다른 이름으로 복사하는 것만으로 검사를 우회한다.
+    이 대조가 그 우회를 막는다.
+    """
+    from scripts.analysis.baseline_registry import poisoned_digests
+    dig = next(iter(poisoned_digests()))
+    t, _ = _srcs()
+    bad = copy.deepcopy(t)
+    bad['provenance']['inputs']['experiments/somewhere/else.json'] = {'sha256': dig}
+    p = _write(tmp_path, 'renamed_poison.json', bad)
+    with pytest.raises(SystemExit) as ei:
+        cc.compose(trunc_src=p, registry=_registry_for(p))
+    msg = str(ei.value)
+    assert 'sha 일치' in msg and 'experiments/somewhere/else.json' in msg
+    assert "경로 일치 없음" in msg, '경로 축이 아니라 sha 축이 잡았음을 확인한다'
 
 
 def test_nc2_missing_period_set_is_refused(tmp_path):

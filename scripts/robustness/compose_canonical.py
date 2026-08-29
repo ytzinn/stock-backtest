@@ -45,7 +45,11 @@ import logging
 from pathlib import Path
 
 from scripts.analysis.baseline_registry import _load as _load_registry
-from scripts.analysis.baseline_registry import file_digest, poisoned_summaries
+from scripts.analysis.baseline_registry import (
+    file_digest,
+    poisoned_digests,
+    poisoned_summaries,
+)
 from scripts.analysis.period_set_lib import identify_period_set, period_set_sha
 from scripts.robustness import compose_gate_results as cg
 from scripts.xsec._guard import assert_no_db_imported
@@ -121,12 +125,28 @@ def _check_registered(path: Path, registry: dict, rel: str | None = None) -> str
 
 
 def _check_not_poisoned(inputs) -> None:
-    """fail-closed 1-b — 출처가 **폐기 세대 요약 JSON** 을 입력으로 물고 있지 않은가."""
-    inter = set(inputs) & poisoned_summaries()
-    if inter:
+    """fail-closed 1-b — 출처가 **폐기 세대**를 입력으로 물고 있지 않은가.
+
+    `[검증된 사실]` 종전에는 선언된 **경로**를 폐기 목록과 교집합했다. 경로는 정체성이
+    아니므로(같은 경로에 다른 세대가 앉는다) 두 축으로 본다:
+
+      ① 기록된 폐기 sha256 과 일치하는 입력이 있는가 — **양성 식별**
+      ② 경로가 폐기 목록에 있는가 — 종전 검사. 참고로 남긴다
+
+    ②만으로는 재오염을 못 잡고, ①만으로는 아직 sha 가 기록되지 않은 폐기본을 놓친다.
+    **둘 다 본다** — 단일 판별자에 기대지 않는다.
+    """
+    dig = poisoned_digests()
+    by_sha = sorted(
+        f'{rel} (sha {(meta or {}).get("sha256", "?")[:16]}… = '
+        f'{dig[(meta or {}).get("sha256")]["generation"]} 세대)'
+        for rel, meta in (inputs or {}).items()
+        if isinstance(meta, dict) and meta.get('sha256') in dig)
+    by_path = sorted(set(inputs) & poisoned_summaries())
+    if by_sha or by_path:
         raise ComposeRefused(
-            f'출처가 _poisoned_summaries 를 입력으로 물고 있다: {sorted(inter)}. '
-            f'폐기 세대가 성적 표로 새는 경로다.')
+            f'출처가 폐기 세대를 입력으로 물고 있다 — sha 일치 {by_sha or "없음"}, '
+            f'경로 일치 {by_path or "없음"}. 폐기 세대가 성적 표로 새는 경로다.')
 
 
 def _check_period_set(block: dict | None, where: str) -> dict:

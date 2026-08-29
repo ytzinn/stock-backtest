@@ -29,7 +29,9 @@
       "브랜치를 맞춰도 이 파일들은 20.3329% 를 반환한다.",
       "",
       "**어떤 기준선의 근거로도 인용하지 마라. 지표는 tape 에서 재산출하라.**",
-      "`baseline_registry.assert_not_poisoned()` 가 실행 시점에 거부한다.",
+      "`baseline_registry.assert_not_poisoned()` 가 실행 시점에 거부한다 —",
+      "**2026-08-29 부터 이 경로 목록이 아니라 `generation.classify` 의 내용 판정을 쓴다.**",
+      "아래 `_by_content_20260829` 참조. `paths` 는 참고 정보다.",
       "근본 해결은 재실행 시 요약 JSON 을 함께 재생성해 커밋하는 것이며,",
       "승격 논의와 묶여 있어 2026-08-24 시점에 미해결이다."
     ],
@@ -68,6 +70,53 @@
       },
       "run_record": "experiments/runs/2026.08.29._CANONICAL_COMPOSE.md",
       "residual_issue": "SUMMARY-JSON-STALE (범위 축소)"
+    },
+    "_by_content_20260829": [
+      "**판별자 기준 재기술 (2026-08-29).** 종전에는 위 `paths` 가 곧 판정이었다 —",
+      "즉 경로가 정체성이었다. 그것이 틀렸다는 것이 이 절의 요지다.",
+      "",
+      "경로 기반 판정은 **두 방향 모두** 틀린다:",
+      "  거짓 음성 — 조립분 경로에 run_ablation 산출이 다시 앉아도 못 잡는다.",
+      "  거짓 양성 — 등재 섀도우본은 폐기본과 **상대경로 문자열이 같다**",
+      "             (_baselines/shadow_20260819/experiments/daily_nav/summary.json).",
+      "             경로로 보면 둘이 구분되지 않는다.",
+      "",
+      "그래서 판정은 `scripts/analysis/generation.classify` 가 **내용으로** 한다.",
+      "아래 `digests` 는 폐기 세대의 **양성 식별자**다 (판별자 D2).",
+      "위 `paths` 는 **참고 정보로만 남긴다** — 지우면 왜 오염인지가 기록에서 사라진다.",
+      "",
+      "미분류(`unknown`)는 **오염으로 떨어뜨린다** (fail-closed). 미분류가 불편하다고",
+      "판별자를 느슨하게 하지 마라 — 파일에 조립 지문을 채워라.",
+      "",
+      "sha256 규약은 이 등록부와 같다 (텍스트는 CRLF->LF 정규화 후, .gz 는 raw).",
+      "출처: 커밋 7cc70b0 (조립 전환 직전)."
+    ],
+    "digests": {
+      "848b940ce37588c6d61f089cb564a7f9ce91975f2c9b7c365f173ec64f223ccb": {
+        "recorded_as": "experiments/ablation/F_pbr_ma200_n13.json",
+        "generation": "2026-08-15",
+        "note": "2026-08-29 조립분으로 대체됨. 경로가 아니라 이 sha256 이 폐기본을 가리킨다."
+      },
+      "555e21eeb47202aee6709ebc7e04f75e003624dee24dc5b00b5916498be36a83": {
+        "recorded_as": "experiments/ablation/summary.json",
+        "generation": "2026-08-15",
+        "note": "현재도 이 파일이 그대로다 (69개 시나리오 + judgements 전부 폐기 세대)."
+      },
+      "9dc39b8024b75d9a7270101926e52d9b3abd833c6e5cde3a2babe6e09405f79c": {
+        "recorded_as": "experiments/robustness/random_summary_C_pbr_ma200_random_n13.json",
+        "generation": "2026-08-15",
+        "note": "현재도 이 파일이 그대로다. CANONICAL 입력이 아니다."
+      },
+      "6d14f0a3087f8aa7d410161e53cfb5df71671f735caba7fbfd32b323ce5351fc": {
+        "recorded_as": "experiments/robustness/gate_results_F_pbr_ma200_n13.json",
+        "generation": "2026-08-15",
+        "note": "2026-08-29 조립분으로 대체됨."
+      },
+      "585079aebb0178d2ba9d1e6f7da5fe8844f729be1e0db64fbf1f7b07ea976702": {
+        "recorded_as": "experiments/daily_nav/summary.json",
+        "generation": "2026-08-15",
+        "note": "2026-08-29 에 현행 태그만 조립분으로 교체 -> 파일 전체는 mixed 다."
+      }
     },
     "stale_as_of": "2026-08-15",
     "detected": "2026-08-24",
