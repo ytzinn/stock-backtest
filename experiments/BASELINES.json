@@ -266,6 +266,43 @@
       "compatible_baselines": [
         "shadow_20260819"
       ]
+    },
+    "experiments/analysis/2026.08.24._period_truncation/truncation_results_shadow_20260819.json": {
+      "_doc": [
+        "구간 절단 재슬라이스 산출물 (G1 판정의 출처). **파생 산출물이지만 등재한다.**",
+        "",
+        "왜 등재하는가 (2026-08-29): CANONICAL 성적 표를 run_ablation 요약 JSON 대신",
+        "이 산출물에서 **조립**하는 경로로 바꾸기 때문이다. CANONICAL 이 의존하는 값의",
+        "출처는 등록부가 sha256 으로 고정해야 한다 — 등재되지 않은 파일에서 공식 수치를",
+        "끌어오면 그 파일이 조용히 바뀌어도 아무도 모른다.",
+        "",
+        "등재 근거 (2026-08-29 세션이 전부 실측):",
+        "  - 입력 5종이 전부 고정·검증됨. 이 산출물의 provenance 가 담은 sha256 이 현행",
+        "    등록부 값과 전부 일치한다 (shadow_20260819.inputs 4종 + shared_inputs 1종).",
+        "  - 생성기가 scripts/analysis/period_truncation.py 다 — run_ablation 계열이 아니고,",
+        "    입력 중 _poisoned_summaries 와 겹치는 것이 없다.",
+        "  - cut18 의 net CAGR 이 af529ff(G5·G2 재산출)의 G2 판정값과 17자리까지 일치한다.",
+        "    서로 다른 세션이 독립 경로로 계산한 값이라 강한 교차 확인이다.",
+        "  - 구간 집합이 A-0 등재 SPEC15_T18_g1compat 과 sha256 역참조로 일치한다.",
+        "",
+        "**판정 세탁이 아니다.** 성적 산출물이지 판정 산출물이 아니며, 등재해도 G1·G5·G2",
+        "판정과 SPEC_15 §7-3 조합표는 하나도 바뀌지 않는다. 판정 자유도가 늘지 않는다.",
+        "",
+        "commit 은 **산출 커밋**(e2c2b8d)이다. 2026-08-29 에 period_set 필드를 추가해",
+        "sha256 이 바뀌었고(정규화 전 df078b65… -> 2a4f7399…), 그 변경은 순수 추가였다 —",
+        "필드를 도로 빼면 원본과 바이트 동일함을 확인하고 커밋했다."
+      ],
+      "sha256": "c0dc5ce13e0742b881ab6a7526e46f4b525416253f3e69b606257a6e0cbb1de1",
+      "commit": "e2c2b8d",
+      "branch": "shadow/fs-div-fallback",
+      "generator": "scripts/analysis/period_truncation.py",
+      "prereg_commit": "09874a4",
+      "period_set": "cut18 = SPEC15_T18_g1compat (d318d475e89c438d…). full20 은 A-0 등재 id 가 없어 필드를 넣지 않았다 — 이름을 지어내지 않는다.",
+      "registered": "2026-08-29",
+      "registered_reason": "CANONICAL 성적 표 조립 경로 전환의 입력으로 승인",
+      "compatible_baselines": [
+        "shadow_20260819"
+      ]
     }
   }
 }

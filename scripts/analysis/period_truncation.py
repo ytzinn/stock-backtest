@@ -43,6 +43,7 @@ from scripts.analysis.baseline_registry import (
     required_inputs,
     verify,
 )
+from scripts.analysis.period_set_lib import identify_period_set
 from scripts.analysis.coverage_slice import (
     COVERAGE_CSV,
     PREREG_THRESHOLD,
@@ -268,8 +269,15 @@ def summarize(rows_, m, gd, nd) -> dict:
     gv, nv = list(gd.values()), list(nd.values())
     gp, gci = p95(gv), bootstrap_p95_ci(gv)
     np_, nci = p95(nv), bootstrap_p95_ci(nv)
+    dates = [r['rebalance_date'] for r in rows_]
+    # 구간 집합에 **이름을 명시한다.** 역산(뒤에 남은 periods 배열로 되짚기)에 기대면,
+    # 그 배열이 없는 소비처에서는 이 산출물이 어느 집합인지 말할 방법이 사라진다.
+    # 이름은 손으로 붙이지 않고 sha256 으로 역참조한다 — 등재되지 않은 집합이면
+    # 키 자체를 넣지 않는다 (없는 이름을 지어내지 않는다).
+    ps = identify_period_set(dates)
     return {
-        'periods': [r['rebalance_date'] for r in rows_],
+        'periods': dates,
+        **({'period_set': ps} if ps is not None else {}),
         'metrics': m,
         'null_gross': {'median': sorted(gv)[len(gv) // 2], 'p5': sorted(gv)[int(len(gv) * .05)],
                        'p95': gp, 'ci95_of_p95': list(gci),
