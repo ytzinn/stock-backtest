@@ -31,6 +31,7 @@ from datetime import datetime
 from pathlib import Path
 
 from backtest.configs.schedule import REBALANCE_POINTS
+from scripts.analysis.period_set_lib import period_set_sha, resolve_period_set
 from scripts.run_ablation import DEFAULT_N_STOCKS
 from scripts.robustness.robustness_lib import (
     loo_reversal_count,
@@ -76,48 +77,19 @@ def _closed_dates() -> list[str]:
     return rebal_set
 
 
-def load_closed_periods(tag: str) -> dict[str, dict]:
-    """periods CSV의 완결 구간 행 (next_date ∈ REBALANCE_DATES, n_stocks>0)."""
+def load_closed_periods(tag: str, keep: set[str] | None = None) -> dict[str, dict]:
+    """periods CSV의 완결 구간 행 (next_date ∈ REBALANCE_DATES, n_stocks>0).
+
+    `keep` 이 주어지면 그 구간 집합으로 **절단**한다 (SPEC_15 이후 규약).
+    """
     rebal_set = _closed_dates()
     out = {}
     with (ABL_DIR / f'{tag}_periods.csv').open(encoding='utf-8') as f:
         for row in csv.DictReader(f):
             if row['next_date'] in rebal_set and int(row['n_stocks']) > 0:
-                out[row['rebalance_date']] = row
+                if keep is None or row['rebalance_date'] in keep:
+                    out[row['rebalance_date']] = row
     return out
-
-
-def load_period_stock(tag: str) -> dict[str, list[tuple[str, float, float]]]:
-    """holdings tape → {rebal_date: [(ticker, 1/n_valid, ret)]} (완결 구간만)."""
-    rebal_set = _closed_dates()
-    tape = json.loads((ABL_DIR / f'{tag}_holdings.json').read_text(encoding='utf-8'))
-    out = {}
-    for p in tape:
-        if p['next_date'] not in rebal_set or p['n_portfolio'] == 0:
-            continue
-        rows = [(h['ticker'], h['ret']) for h in p['holdings'] if h.get('ret') is not None]
-        if not rows:
-            continue
-        w = 1.0 / len(rows)
-        out[p['rebalance_date']] = [(t, w, r) for t, r in rows]
-    return out
-
-
-def load_draws(draws_tag: str = DEFAULT_DRAWS_TAG):
-    draws = []
-    with (ROB_DIR / f'{draws_tag}_draws.csv').open(encoding='utf-8') as f:
-        for row in csv.DictReader(f):
-            draws.append((int(row['seed']), float(row['cagr']), float(row['net_cagr'])))
-    periods: dict[int, dict[str, dict]] = {}
-    with gzip.open(ROB_DIR / f'{draws_tag}_periods.csv.gz', 'rt', encoding='utf-8') as f:
-        for row in csv.DictReader(f):
-            periods.setdefault(int(row['seed']), {})[row['rebalance_date']] = row
-    contrib: dict[int, dict[str, list]] = {}
-    with gzip.open(ROB_DIR / f'{draws_tag}_contrib.csv.gz', 'rt', encoding='utf-8') as f:
-        for row in csv.DictReader(f):
-            contrib.setdefault(int(row['seed']), {}).setdefault(row['rebalance_date'], []).append(
-                (row['ticker'], float(row['weight_eff']), float(row['ret'])))
-    return draws, periods, contrib
 
 
 def main() -> None:
@@ -130,13 +102,27 @@ def main() -> None:
                    help='G2 벤치마크. 필터 통과 전 종목 동일가중이라 n 개념이 없다.')
     p.add_argument('--draws-tag', default=DEFAULT_DRAWS_TAG,
                    help='G1 귀무분포 추첨 태그. **판정 대상과 같은 n 으로 추첨된 것**이어야 한다.')
+    # ── fail-closed: period_set 미지정 실행 금지 ──────────────────────────────
+    # `[검증된 사실]` 이 스크립트는 전 구간에서 G1 을 **스스로 다시 계산**한다.
+    # 현행 G1(FAIL)은 e2c2b8d 가 n=18 절단 집합에서 낸 것이라, 인자 없이 돌리면
+    # 사전등록된 판정이 전 구간 재계산값으로 조용히 덮인다.
+    # 기본값을 두지 않는 이유가 그것이다 — 기본값은 곧 사고 경로다.
+    p.add_argument('--period-set', required=True,
+                   help="구간 집합. 'full' 또는 A-0 산출물의 id "
+                        "(SPEC15_T19_primary / SPEC15_T18_g1compat). "
+                        "**미지정 실행은 거부된다** — 전 구간 재계산이 사전등록 판정을 덮는다.")
     args = p.parse_args()
     F_TAG, U_TAG = args.f_tag, args.u_tag
+    ps_id, ps_keep = resolve_period_set(args.period_set)
+    ps_dates = sorted(ps_keep) if ps_keep is not None else None
+    log.info('period_set = %s (%s)', ps_id,
+             f'n={len(ps_dates)} sha256={period_set_sha(ps_dates)[:16]}'
+             if ps_dates else '절단 없음')
 
     f_json = json.loads((ABL_DIR / f'{F_TAG}.json').read_text(encoding='utf-8'))
     u_json = json.loads((ABL_DIR / f'{U_TAG}.json').read_text(encoding='utf-8'))
-    f_periods = load_closed_periods(F_TAG)
-    u_periods = load_closed_periods(U_TAG)
+    f_periods = load_closed_periods(F_TAG, ps_keep)
+    u_periods = load_closed_periods(U_TAG, ps_keep)
     common = sorted(set(f_periods) & set(u_periods))
     if len(common) != len(f_periods) or len(common) != len(u_periods):
         raise SystemExit(f'구간 집합 불일치: F={len(f_periods)} U={len(u_periods)} 공통={len(common)}')

@@ -1132,6 +1132,11 @@ UNCOVERED: dict[str, str] = {
         'CANONICAL 이 찍어야 하지만 생성기에 구간 집합(period_set) 개념이 없어 아직 못 넣는다 '
         '(SUMMARY-JSON-STALE). 그때까지 판정의 근거는 여기뿐이고, 인용처는 '
         'experiments/runs/2026.08.25._G5G2_REISSUE.md 다 (2026-08-26).'),
+    'experiments/analysis/2026.08.29._plumbing/*': (
+        '배관 정리 세션의 증거물 — 화면 대상이 아니다. 착수 전 sha 전수 기록과, '
+        'run_ablation 을 워크트리 밖에서 재현했을 때의 scratch 산출물이다. '
+        '**등재본과 비트 동일하지 않다는 사실의 물증**이라 지우면 "왜 승격하지 않았는가" 의 '
+        '근거가 사라진다. 인용처는 experiments/runs/2026.08.29._PLUMBING.md (2026-08-29).'),
     'experiments/analysis/2026.08.26._xsec_controls/*': (
         'SPEC_15 S-3 대조군 산출물 — **화면 대상이 아니라 S-4 의 선행 게이트 입력이다.** '
         '`estimate.py` 가 `all_pass=true` 없이는 본 측정을 거부한다. P-1·P-2 는 합성 신호, '

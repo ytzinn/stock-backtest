@@ -123,8 +123,14 @@ def render(d: dict, problems: list[str]) -> str:
               f'여기 옮겨 적지 않는다. 그게 2026-08-12 에 실제로 일어난 오귀속이다.', '']
     else:
         hg = g.get('hard_gates', {})
+        # `period_set` 은 **판정이 무엇을 서술하는지**다. 없이 표를 읽으면 전 구간
+        # 판정으로 오독된다 — 2026-08 절단 이후 이 필드가 표의 일부다.
+        ps = g.get('period_set') or {}
+        ps_line = (f' · 구간 `{ps.get("id")}` (n={ps.get("n")}, sha256 '
+                   f'`{str(ps.get("sha256"))[:16]}…`)' if ps else '')
         L += [f'대상 `{g.get("tag")}` · 귀무분포 `{g.get("draws_tag")}` '
-              f'({g.get("draws_n_stocks")}종목) · 산출 {str(g.get("generated_at"))[:19]}', '',
+              f'({g.get("draws_n_stocks")}종목) · 산출 {str(g.get("generated_at"))[:19]}'
+              + ps_line, '',
               '| 게이트 | 판정 | 근거 |', '|---|---|---|']
         for name, fmt in (
             ('G1', lambda v: f'CAGR {_pct(v.get("f_cagr"))} vs 귀무 p95 {_pct(v.get("random_p95"))}'),
@@ -136,6 +142,9 @@ def render(d: dict, problems: list[str]) -> str:
             verdict = ('미산출' if v.get('pass') is None
                        else ('PASS' if v['pass'] else '**FAIL**'))
             note = v.get('not_computed_reason') or fmt(v)
+            # 단서는 **판정 옆에 붙어야** 한다. 떨어뜨려 두면 표만 인용될 때 사라진다.
+            if v.get('caveat'):
+                note += f'<br>⚠ {v["caveat"]}'
             L += [f'| {name} | {verdict} | {note} |']
         L += ['']
 

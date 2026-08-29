@@ -1,0 +1,30 @@
+{
+  "tag": "F_pbr_ma200_n13",
+  "run_at": "2026-08-29T07:08:46.320990",
+  "seed": null,
+  "cagr": 0.15564001502841318,
+  "net_cagr": 0.13975702707683135,
+  "alpha": 0.04952540459399768,
+  "alpha_kosdaq": 0.11223147181606463,
+  "sharpe": 0.5543977498308321,
+  "net_sharpe": 0.5024584281707888,
+  "mdd": -0.33015637011354915,
+  "robustness": 0.7,
+  "benchmark_cagr": 0.1061146104344155,
+  "kosdaq_cagr": 0.04340854321234855,
+  "avg_turnover": 0.7730769230769232,
+  "cagr_optimistic": 0.15789815229062065,
+  "cagr_conservative": 0.15021124099296124,
+  "n_periods": 20,
+  "n_stocks": 13,
+  "calendar": {
+    "id": "SEMIANNUAL",
+    "n_anchors": 23,
+    "report_types": {
+      "FY": 12,
+      "H1": 11
+    },
+    "first_anchor": "2015-04-03",
+    "last_anchor": "2026-04-03"
+  }
+}
