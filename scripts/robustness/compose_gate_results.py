@@ -109,7 +109,14 @@ def compose() -> dict:
                    'f_daily_mdd_net': g52['G5']['judgment']['daily_mdd_net'],
                    'limit': g52['G5']['limit'],
                    'mdd_peak': g52['G5']['judgment']['mdd_peak'],
-                   'mdd_trough': g52['G5']['judgment']['mdd_trough']},
+                   'mdd_trough': g52['G5']['judgment']['mdd_trough'],
+                   # 단서는 산출물이 가진 사실로만 쓴다. 낙폭 구간이 언제인지는
+                   # 판정 블록에 있고, "왜"는 없다 — 없는 것을 지어내지 않는다.
+                   'caveat': (
+                       f'낙폭 구간은 {g52["G5"]["judgment"]["mdd_peak"]} → '
+                       f'{g52["G5"]["judgment"]["mdd_trough"]} 다. 저점이 2020-03 '
+                       f'급락과 겹치나, 레짐 귀속은 이 산출물이 측정한 것이 아니다 '
+                       f'(미해결 G5-MDD). 종목 수 축으로는 풀리지 않는 것이 실측됐다.')},
         },
     }
     return out

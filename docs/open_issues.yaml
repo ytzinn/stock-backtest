@@ -111,17 +111,42 @@ issues:
     ref: tests/integrity/test_series_view.py
 
   - id: SUMMARY-JSON-STALE
-    status: blocked
-    severity: high
-    summary: CANONICAL 의 성적·게이트 표가 폐기된 세대의 요약 JSON 에서 생성된다. 2026-08-29 에
-             막힌 지점이 바뀌었다 — 종전에는 재생성이 등재 기준선을 덮어써서 못 했고, 이제는
-             워크트리 밖에서 안전하게 재생성해 본 결과 **등재본과 비트 동일하지 않다**는 것을
-             확인했다. 판정에 쓰이는 컬럼은 전 구간 동일했고 차이는 열린 구간의 실행일 의존과
-             필터 통과 개수뿐이지만, 승격의 전제("요약 JSON 이 등재 periods.csv 와 같은 상태에서
-             나왔다")가 성립하지 않으므로 승격하지 않았다. 게이트 표는 등재 산출물에서 조립하는
-             경로를 만들어 뒀으나, 성적 표가 함께 갱신되지 않으면 한 문서에 두 세대가 섞이므로
-             반만 실행하지 않았다. 재현 불일치 규명이 선행 조건이다.
-    ref: experiments/runs/2026.08.29._PLUMBING.md
+    status: open
+    severity: medium
+    summary: CANONICAL 이 읽는 성적·게이트 표는 2026-08-29 에 등재 산출물 조립 경로로 옮겼다 —
+             그 세 파일은 더 이상 run_ablation 요약 JSON 에서 오지 않는다. 남은 범위는 셋이다.
+             ① ablation/summary.json 은 시나리오 전체와 judgements 블록이 폐기 세대 그대로다
+             (CANONICAL 은 여기서 수치를 읽지 않고 키 존재만 본다. 한 키만 갈아 끼우면
+             judgements 와 어긋난 혼합물이 되어 손대지 않았다). ② daily_nav/summary.json 은
+             현행 채택안 태그만 조립분이고 나머지 태그는 폐기 세대다 — 파일 안 _composed
+             블록이 어느 키가 어느 세대인지 명시한다. ③ 폐기 세대 차단이 여전히 **경로 기반**
+             이라, 그 경로에 조립분이 놓인 지금도 가드는 무장한 채다. 경로만으로는 조립분과
+             재오염분을 구분할 수 없으므로 과잉 차단 쪽으로 두었다. 잔여 범위의 목록은
+             experiments/BASELINES.json 의 _status_20260829_composed 에 있다.
+    ref: experiments/runs/2026.08.29._CANONICAL_COMPOSE.md
+
+  - id: ABLATION-REPRO-DRIFT-2024
+    status: open
+    severity: medium
+    summary: 같은 코드·같은 섀도우 DB 로 tape 을 재생성하면 2024 이후 구간에서 필터 통과 종목
+             수가 줄어든다. 수익률 컬럼은 전 구간 동일해 성과 수치는 움직이지 않았고, 그래서
+             등재 기준선을 바꾸지는 않았다. 원인 미규명 — MOMENTUM-DRIFT-016600 과 같은
+             지문일 수 있으나 확인하지 않았다. 종목 단위로 규명하려면 현행 세대의 커버리지
+             산출물이 대조 상대로 필요해, 그 파일을 experiments/analysis/2026.08.29._plumbing/
+             에 보존해 두었다 (README 에 용도 명시 — 정리 대상으로 오인하지 마라).
+    ref: experiments/analysis/2026.08.29._plumbing/README.md
+
+  - id: NAME-BASED-TYPE-DETECTION
+    status: open
+    severity: medium
+    summary: 파일·레코드의 종류를 이름·접미사·패턴 매칭으로 판정하는 코드가 남아 있다. 이
+             저장소에서 같은 유형으로 세 번 틀렸다 — H1 결측 서명 오독, amount 변동을 정정으로
+             오독, 파일명 접미사로 요약 JSON 계열 오독. 세 번 다 내용 기반 판별자로 고쳐졌다.
+             신설 조립기 2종은 AST 검사로 이름 기반 판별을 금지했고, 소급 점검은 범위 밖이다.
+             미점검 지점은 넷이다 — baseline_registry.poisoned_summaries (경로 집합 비교로 조립분과
+             재오염분을 구분 못 한다), canonical_state.collect 의 키 조립(f-string 태그 이름),
+             dashboard/series.py 의 UNCOVERED 계열 분류, ingest 계열의 account_nm suffix 처리.
+    ref: tests/oracle/test_compose_canonical_oracle.py
 
   - id: XSEC-GATE-COMBINATION-RULE
     status: blocked
@@ -145,6 +170,8 @@ issues:
              실측하지 않았다. 원인 규명 전에는 재현성 주장을 종목 단위로 하지 마라.
              2026-08-29 재현 대조에서 같은 지문이 다시 나왔다 — 수익률은 안 움직이는데
              필터 통과 개수만 최근 구간에서 감소했다. 한 건일 가능성이 있으나 확인하지 않았다.
+             그 관측은 ABLATION-REPRO-DRIFT-2024 로 따로 등재했다. 두 항목이 같은 원인인지도
+             아직 모른다 — 같다고 가정하고 한쪽만 규명하지 마라.
     ref: experiments/runs/2026.08.29._PLUMBING.md
 
   - id: DOTENV-CWD-SILENT-5433

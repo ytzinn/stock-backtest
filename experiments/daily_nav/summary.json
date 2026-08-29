@@ -213,33 +213,61 @@
     },
     "F_pbr_ma200_n13": {
       "all_gates_pass": true,
-      "generated_at": "2026-08-15T12:52:21.319669",
+      "generated_at": "2026-08-25T10:56:33.965449",
       "n_closed_periods": 20,
-      "net_cagr": 0.18552485193680535,
-      "gross_cagr": 0.20332883254284506,
-      "endpoint_mdd_gross": -0.3413778730984435,
-      "daily_mdd_gross": -0.5708276888714627,
+      "net_cagr": 0.1388030267619058,
+      "gross_cagr": 0.1556400150284134,
+      "endpoint_mdd_gross": -0.33015637011354915,
+      "daily_mdd_gross": -0.567751606771304,
       "G_NAV_3": true,
       "net": {
-        "daily_mdd": -0.5811789152740876,
+        "daily_mdd": -0.5781770253373704,
         "mdd_peak_date": "2018-05-14",
         "mdd_trough_date": "2020-03-19",
-        "daily_vol_ann": 0.24746255234703163,
-        "daily_sharpe": 0.7252521189542334,
-        "worst_month_return": -0.1823457695480024,
+        "daily_vol_ann": 0.24496736027121435,
+        "daily_sharpe": 0.5613483674125086,
+        "worst_month_return": -0.16557683909184184,
         "worst_month": "2020-03",
-        "cvar_5pct_1m": -0.12873013193651103,
+        "cvar_5pct_1m": -0.13382956362799373,
         "cvar_1m_k": 6,
         "cvar_1m_fallback": false,
-        "cvar_5pct_3m": -0.1619964416978469,
+        "cvar_5pct_3m": -0.1586238270242519,
         "cvar_3m_k": 5,
         "n_days": 2452,
         "n_months": 121
       },
       "gross_mdd_peak": "2018-05-14",
       "gross_mdd_trough": "2020-03-19",
-      "tracking_error_kospi": 0.19301902662804077,
-      "tracking_error_kosdaq": 0.2068874642933827
+      "tracking_error_kospi": 0.19155741773030246,
+      "tracking_error_kosdaq": 0.20420224587772037,
+      "_layer": "이 블록의 값은 **전 구간(n=20) 일별 tape** 산출이다. 판정 구간의 값은 judgment_t18 에 있고, 두 층을 섞지 마라.",
+      "full_tape_n_periods": 20,
+      "composed_at": "2026-08-29",
+      "composed_from": "experiments/_baselines/shadow_20260819/experiments/daily_nav/summary.json (등재 섀도우 세대, 그대로 옮김)",
+      "method": "등재 산출물에서 읽어 옮겼다. 이 스크립트는 지표를 계산하지 않는다 — run_ablation 을 돌리면 등재 기준선 입력인 {tag}_periods.csv 가 함께 덮어써진다.",
+      "judgment_t18": {
+        "_doc": "판정 구간 값. **MDD·Sharpe 둘뿐이다** — 나머지 일별 통계는 이 구간으로 산출된 적이 없다.",
+        "composed_from": "experiments/analysis/2026.08.25._g5g2_reissue/gate_results_g5g2.json (af529ff, G5 판정 블록)",
+        "generated_at": "2026-08-25T11:02:52",
+        "period_set": {
+          "id": "SPEC15_T18_g1compat",
+          "n": 18,
+          "sha256": "d318d475e89c438dce62873a6c38d1b422c2d042c52cf99eadccb7797495d383"
+        },
+        "n_closed_periods": 18,
+        "net_cagr": null,
+        "net_cagr_unavailable": "n=18 구간의 일별 net CAGR 은 등재 산출물에 없다 (전 구간 값으로 메우지 않았다).",
+        "net_cagr_unavailable_why": "af529ff 의 G5 판정 블록은 SPEC15_T18_g1compat 구간에서 일별 MDD·Sharpe 만 담는다. 일별 NAV 에서 다시 계산하면 조립기가 판정기가 되고, 전 구간 값으로 채우면 성적 표에 두 층이 섞인다. 그래서 비운다.",
+        "net": {
+          "daily_mdd": -0.5781770253373704,
+          "mdd_peak_date": "2018-05-14",
+          "mdd_trough_date": "2020-03-19",
+          "daily_sharpe": 0.5566792272560409,
+          "n_days": 2204
+        },
+        "first_day": "2017-04-05",
+        "last_day": "2026-04-03"
+      }
     },
     "F_pbr_52w70": {
       "all_gates_pass": true,
@@ -421,5 +449,17 @@
       "tracking_error_kospi": 0.15787860859557853,
       "tracking_error_kosdaq": 0.1819237459793977
     }
+  },
+  "_composed": {
+    "_doc": [
+      "이 파일은 **두 세대가 섞여 있다.** 아래 키만 등재 산출물에서 조립된",
+      "현행 세대이고, 나머지 태그는 2026-08-15 산출분(계정 표준화 결함",
+      "수정 전)이다. 인용 전에 여기를 보라."
+    ],
+    "composed_at": "2026-08-29",
+    "composed_keys": [
+      "F_pbr_ma200_n13"
+    ],
+    "others_are": "2026-08-15 세대 (SUMMARY-JSON-STALE 잔여 범위)"
   }
 }

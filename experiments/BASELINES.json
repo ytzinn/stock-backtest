@@ -40,6 +40,35 @@
       "experiments/robustness/gate_results_F_pbr_ma200_n13.json",
       "experiments/daily_nav/summary.json"
     ],
+    "_status_20260829_composed": {
+      "_doc": [
+        "**CANONICAL 입력에서 은퇴.** 2026-08-29 에 성적 표·게이트 표의 조립 경로가",
+        "생겼다 — `scripts/robustness/compose_canonical.py` 와 `compose_gate_results.py`",
+        "가 등재 산출물(e2c2b8d 절단 재슬라이스 · af529ff G5·G2 재산출)에서 값을 읽어",
+        "아래 경로에 옮겨 담는다. 즉 CANONICAL 의 수치는 더 이상 run_ablation 요약",
+        "JSON 에서 오지 않는다.",
+        "",
+        "**목록에서 지우지 않았고, 가드도 무장한 채로 둔다.** 지금 그 경로에 놓인",
+        "파일은 조립분이지만, run_ablation 을 한 번 돌리면 같은 경로가 조용히 다시",
+        "폐기 세대가 된다. 경로만 보고는 둘을 구분할 방법이 없다 — 구분자는 파일",
+        "**내용**(`composed_from`·`method` 필드)이지 경로가 아니다. 경로 기반 가드를",
+        "풀면 재오염을 잡을 것이 아무것도 남지 않는다.",
+        "",
+        "내용 기반 판별로 바꾸는 것이 옳은 종착지다 (NAME-BASED-TYPE-DETECTION).",
+        "그때까지는 과잉 차단 쪽으로 둔다 — 이 등록부는 검사기이지 편의 도구가 아니다."
+      ],
+      "composed_now": {
+        "experiments/ablation/F_pbr_ma200_n13.json": "compose_canonical (구간 지표)",
+        "experiments/daily_nav/summary.json": "compose_canonical — 태그 F_pbr_ma200_n13 만. 나머지 태그는 여전히 2026-08-15 세대다 (파일 안 _composed 블록이 명시)",
+        "experiments/robustness/gate_results_F_pbr_ma200_n13.json": "compose_gate_results (G1·G2·G5)"
+      },
+      "still_stale_untouched": {
+        "experiments/ablation/summary.json": "69개 시나리오와 judgements 블록 전부 2026-08-15 세대. CANONICAL 은 이 파일에서 **수치를 읽지 않는다**(키 존재 여부만 본다). 한 키만 갈아 끼우면 judgements 와 어긋난 혼합물이 되므로 손대지 않았다.",
+        "experiments/robustness/random_summary_C_pbr_ma200_random_n13.json": "CANONICAL 입력이 아니다. 귀무분포 요약은 절단 산출물이 자기 안에 다시 갖고 있다."
+      },
+      "run_record": "experiments/runs/2026.08.29._CANONICAL_COMPOSE.md",
+      "residual_issue": "SUMMARY-JSON-STALE (범위 축소)"
+    },
     "stale_as_of": "2026-08-15",
     "detected": "2026-08-24",
     "issue": "SUMMARY-JSON-STALE",
