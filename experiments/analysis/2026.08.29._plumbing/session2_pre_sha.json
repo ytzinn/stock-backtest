@@ -1,0 +1,15 @@
+{
+  "recorded_at": "2026-08-29 성적표 전환 세션 착수 전",
+  "head": "773bb0f",
+  "files": {
+    "experiments/analysis/2026.08.24._period_truncation/truncation_results_shadow_20260819.json": "302b5c2b3d38fb5f9e3b2a483f330620d47a8abf7f905511dd75202043203eb4",
+    "experiments/analysis/2026.08.25._g5g2_reissue/gate_results_g5g2.json": "6a9ea5ac42ae2da406a5a013e5d1736374614dd90744cf46682f2ed7288b11a8",
+    "experiments/BASELINES.json": "5d3a8f720a37b9a1ecc712b6e97b85533c12716095af5a6f4d2517d230cb18be",
+    "docs/CANONICAL.md": "1a7b840f3bbd76f85c3ac21c57f226749640b249ee4e96b6f5c926a7baca21de",
+    "docs/open_issues.yaml": "5665ed7cf6b6dcc9d1abf4a51c3224655a55a86acb04220ae086fd23217ded3a",
+    "scripts/robustness/compose_gate_results.py": "bcef188fae9b144cc7d99b923d6313b0c28117d03f5f133255187bf4cc6bb3da",
+    "scripts/make_canonical.py": "f0310c557093f496cbaf6c9517b1ec7c1c7975e8ef9d7de2b8f61acdbdddcaf8",
+    "experiments/ablation/F_pbr_ma200_n13.json": "848b940ce37588c6d61f089cb564a7f9ce91975f2c9b7c365f173ec64f223ccb",
+    "experiments/robustness/gate_results_F_pbr_ma200_n13.json": "6d14f0a3087f8aa7d410161e53cfb5df71671f735caba7fbfd32b323ce5351fc"
+  }
+}

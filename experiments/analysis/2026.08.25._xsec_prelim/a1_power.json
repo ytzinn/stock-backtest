@@ -1,0 +1,108 @@
+{
+  "prereg": "SPEC_15 v0.4 (c369401) §1-2 / §0-1(a)",
+  "note_footnote": "이 MDE 는 1표본 근사다. G1 은 실제로 같은 풀 무작위 추첨 p95 비교이므로 검정 구조가 다르다. **결론이 같아도 다른 계산이다.**",
+  "primary": {
+    "label": "primary net n=18",
+    "T": 18,
+    "years": 8.993839835728952,
+    "g": 0.1310962420207234,
+    "cagr": 0.14007749939448355,
+    "se_analytic": 0.08574370621010842,
+    "se_bootstrap": 0.08333013403214215,
+    "ratio": 0.9718513196519405,
+    "ratio_floor": 0.97182531580755,
+    "agree": true,
+    "mde_log": 0.20719828339504903,
+    "mde_cagr_equiv": 0.23022648108171961,
+    "annual_vol": 0.2571430710088411,
+    "alpha": 0.05,
+    "power": 0.8,
+    "tail": "one-sided",
+    "boot_b": 200000,
+    "boot_seed": 20260825,
+    "period_set_id": "SPEC15_T18_g1compat",
+    "period_set_sha256": "d318d475e89c438dce62873a6c38d1b422c2d042c52cf99eadccb7797495d383",
+    "start": "2017-04-05",
+    "end": "2026-04-03"
+  },
+  "diagnostic": {
+    "gross_n18": {
+      "label": "진단 gross n=18",
+      "T": 18,
+      "years": 8.993839835728952,
+      "g": 0.14522426244512768,
+      "cagr": 0.15629885560160894,
+      "se_analytic": 0.08517077585011218,
+      "se_bootstrap": 0.08277561589930293,
+      "ratio": 0.9718781480278591,
+      "ratio_floor": 0.97182531580755,
+      "agree": true,
+      "mde_log": 0.2058194879980394,
+      "mde_cagr_equiv": 0.22853141931254406,
+      "annual_vol": 0.2554248682537301,
+      "alpha": 0.05,
+      "power": 0.8,
+      "tail": "one-sided",
+      "boot_b": 200000,
+      "boot_seed": 20260825
+    },
+    "net_n19": {
+      "label": "진단 net n=19",
+      "T": 19,
+      "years": 9.99315537303217,
+      "g": 0.12958831771340498,
+      "cagr": 0.1383596443441233,
+      "se_analytic": 0.07721526710294103,
+      "se_bootstrap": 0.0751806638675661,
+      "ratio": 0.9736502467489692,
+      "ratio_floor": 0.9733285267845752,
+      "agree": true,
+      "mde_log": 0.18693483070423714,
+      "mde_cagr_equiv": 0.20554871772892191,
+      "annual_vol": 0.24409253515863344,
+      "alpha": 0.05,
+      "power": 0.8,
+      "tail": "one-sided",
+      "boot_b": 200000,
+      "boot_seed": 20260825,
+      "period_set_id": "SPEC15_T19_primary",
+      "period_set_sha256": "7b1d7489522f87478c2f3feef89e67eee768f39a63364eed33d381c772b12e2b",
+      "start": "2016-04-05",
+      "end": "2026-04-03"
+    }
+  },
+  "reproducibility": {
+    "same_seed_identical": true,
+    "same_seed_value": 0.08333013403214215,
+    "alt_seed_value": 0.08343294141165924,
+    "abs_diff_alt_seed": 0.00010280737951709473,
+    "alt_seed_within_1e-3": true
+  },
+  "verdict_0_1_a": {
+    "mde_cagr_pp": 23.02264810817196,
+    "target_pp": [
+      1.0,
+      2.0
+    ],
+    "resolves_1to2pp": false,
+    "verdict": "PASS — 전제 유지, SPEC_15 계속"
+  },
+  "provenance": {
+    "baseline": "shadow_20260819",
+    "label": "섀도우 (계정 표준화 결함 수정 이후)",
+    "branch": "shadow/fs-div-fallback",
+    "db_port": 5436,
+    "artifact_root": "/home/milmelmul/stock-backtest-shadow/experiments",
+    "commit": "0ac7245",
+    "valid_for_official_numbers": true,
+    "local_root": "experiments/_baselines/shadow_20260819",
+    "verified_at": "2026-08-25T11:31:06.262613+00:00",
+    "inputs": {
+      "experiments/ablation/F_pbr_ma200_n13_periods.csv": {
+        "sha256": "e82bdafd17aa9723eb9c51a586b2da900ce4fae49039524253295d499ef7d2ae",
+        "size": 3831,
+        "mtime": "2026-08-24T09:12:27.934972+00:00"
+      }
+    }
+  }
+}

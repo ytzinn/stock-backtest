@@ -1,0 +1,40 @@
+{
+  "all_pass": true,
+  "checks": [
+    {
+      "id": "PC-4a",
+      "kind": "양성 — 설계 MDD −30%",
+      "expected": -0.3,
+      "observed": -0.30000000000000004,
+      "ok": true,
+      "peak": "2020-01-01",
+      "trough": "2020-07-28"
+    },
+    {
+      "id": "PC-4b",
+      "kind": "음성 — 단조 증가 (낙폭 없음)",
+      "expected": 0.0,
+      "observed": 0.0,
+      "ok": true
+    },
+    {
+      "id": "PC-4c(-44.99%)",
+      "kind": "G5 비교 방향",
+      "expected": true,
+      "observed": true,
+      "ok": true,
+      "mdd": -0.44989999999999997,
+      "limit": -0.45
+    },
+    {
+      "id": "PC-4c(-45.01%)",
+      "kind": "G5 비교 방향",
+      "expected": false,
+      "observed": false,
+      "ok": true,
+      "mdd": -0.45009999999999994,
+      "limit": -0.45
+    }
+  ],
+  "g5_limit": -0.45
+}

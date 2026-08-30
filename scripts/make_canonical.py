@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import re
 import sys
 
 # 수집·검사는 `backtest/canonical_state.py` 소유다. 이 파일은 **렌더러**다.
@@ -48,6 +49,7 @@ from backtest.canonical_state import (  # noqa: F401
     _sha256,
     check,
     collect,
+    judgment_view,
     momentum_label,
 )
 
@@ -63,19 +65,54 @@ G5_LIMIT = -0.45   # SPEC_10 §5 사전등록. gate_analysis.G5_MDD_LIMIT 과 �
 
 # ── 렌더링 ──────────────────────────────────────────────────────────────────
 
+#: 'YYYY-MM-DDTHH:MM:SS…' 모양인가. 자를 수 있는 값과 아닌 값을 가른다.
+_ISO_TS = re.compile(r'^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}')
+
+
 def _pct(v, digits=2):
     return '—' if v is None else f'{v * 100:.{digits}f}%'
 
 
 def _stamp(obj: dict | None) -> str:
+    """산출 일자. **ISO 타임스탬프일 때만** 19자로 자른다.
+
+    무조건 자르면 조립 산출물의 사람이 읽는 문구가 문장 중간에서 끊긴다
+    ("2026-08-29 (조립 — 재계"). 자를지 말지는 값의 **모양**으로 정한다.
+    """
     if not obj:
         return '—'
-    return (obj.get('run_at') or obj.get('generated_at') or '—')[:19]
+    v = str(obj.get('run_at') or obj.get('generated_at') or '—')
+    return v[:19] if _ISO_TS.match(v) else v
+
+
+def _period_set_line(*objs) -> list[str]:
+    """성적 표 머리의 구간 집합 줄. 여러 출처가 다른 집합을 말하면 **그대로 드러낸다.**
+
+    조용히 하나만 고르면 두 세대가 한 표에 섞이고 표만 인용될 때 사라진다.
+    (`canonical_state.check` 가 같은 사실을 종료 코드로도 잡는다.)
+    """
+    seen = {}
+    for o in objs:
+        ps = (o or {}).get('period_set')
+        if ps:
+            seen[ps.get('sha256')] = ps
+    if not seen:
+        return ['`period_set` 미기재 — 이 성적이 어느 구간 집합의 것인지 산출물이 '
+                '말하지 않는다.', '']
+    if len(seen) > 1:
+        ids = ', '.join(f'`{p.get("id")}`(n={p.get("n")})' for p in seen.values())
+        return [f'⚠ **구간 집합이 갈렸다** — {ids}. 한 표에 두 세대가 섞여 있다.', '']
+    ps = next(iter(seen.values()))
+    return [f'구간 `{ps.get("id")}` (n={ps.get("n")}, sha256 '
+            f'`{str(ps.get("sha256"))[:16]}…`)', '']
 
 
 def render(d: dict, problems: list[str]) -> str:
     key, n = d['key'], d['n_stocks']
-    abl, nav, cfg = d['abl_tag'], d['nav_tag'], d['config']
+    abl, cfg = d['abl_tag'], d['config']
+    # 일별 tape 은 전 구간 산출이고 판정은 절단 구간에서 났다. 성적 표는 **판정 층**을
+    # 읽는다 — 전 구간 통계를 판정 구간 라벨 아래 실으면 그게 층 혼입이다.
+    nav = judgment_view(d['nav_tag'])
     L: list[str] = []
 
     L += [f'# CANONICAL — 현행 채택 설정과 성적', '',
@@ -103,17 +140,26 @@ def render(d: dict, problems: list[str]) -> str:
           '필터 스택·모멘텀 기준은 `backtest/ablation.py` 의 `ABLATION_CONFIGS` 에서 읽는다 '
           '(산문이 아니라 파생물).', '']
 
-    L += ['## 성적', '',
-          '| 지표 | 값 | 출처 | 산출 일자 |', '|---|---|---|---|']
+    L += ['## 성적', '']
+    # 성적도 게이트와 같이 **어느 구간 집합의 성적인지**를 먼저 말한다. 없이 읽으면
+    # 전 구간 성적으로 오독된다 — 2026-08 절단 이후 이 줄이 표의 일부다.
+    L += _period_set_line(abl, nav)
+    L += ['| 지표 | 값 | 출처 | 산출 일자 |', '|---|---|---|---|']
     if abl:
         L += [f'| 구간 CAGR (gross) | {_pct(abl.get("cagr"), 4)} | `ablation/{key}.json` | {_stamp(abl)} |',
               f'| 구간 CAGR (net) | {_pct(abl.get("net_cagr"), 4)} | `ablation/{key}.json` | {_stamp(abl)} |',
               f'| 완결 구간 수 | {abl.get("n_periods", "—")} | `ablation/{key}.json` | {_stamp(abl)} |']
     if nav:
         net = nav.get('net') or {}
-        L += [f'| **일별 net CAGR** | **{_pct(nav.get("net_cagr"), 4)}** | `daily_nav/summary.json` | {_stamp(nav)} |',
+        # 값이 **없는 것**과 0 인 것을 구분한다. 없는 값을 0 이나 다른 구간 집합의
+        # 값으로 메우면 그것이 세대 혼입이다 — 사유를 표에 그대로 싣는다.
+        why = nav.get('net_cagr_unavailable')
+        cagr_cell = (f'**{_pct(nav.get("net_cagr"), 4)}**' if nav.get('net_cagr') is not None
+                     else (f'— <br>⚠ {why}' if why else '—'))
+        sharpe = net.get('daily_sharpe')
+        L += [f'| **일별 net CAGR** | {cagr_cell} | `daily_nav/summary.json` | {_stamp(nav)} |',
               f'| 일별 net MDD | {_pct(net.get("daily_mdd"))} | `daily_nav/summary.json` | {_stamp(nav)} |',
-              f'| 일별 net Sharpe | {net.get("daily_sharpe", 0):.3f} | `daily_nav/summary.json` | {_stamp(nav)} |']
+              f'| 일별 net Sharpe | {"—" if sharpe is None else f"{sharpe:.3f}"} | `daily_nav/summary.json` | {_stamp(nav)} |']
     L += ['', 'Sharpe·MDD 의 SSOT 는 일별 NAV 다 (SPEC_13 §9-1). 구간 지표는 엔진 산술값이다.', '']
 
     L += ['## SPEC_10 하드 게이트', '']
@@ -123,8 +169,14 @@ def render(d: dict, problems: list[str]) -> str:
               f'여기 옮겨 적지 않는다. 그게 2026-08-12 에 실제로 일어난 오귀속이다.', '']
     else:
         hg = g.get('hard_gates', {})
+        # `period_set` 은 **판정이 무엇을 서술하는지**다. 없이 표를 읽으면 전 구간
+        # 판정으로 오독된다 — 2026-08 절단 이후 이 필드가 표의 일부다.
+        ps = g.get('period_set') or {}
+        ps_line = (f' · 구간 `{ps.get("id")}` (n={ps.get("n")}, sha256 '
+                   f'`{str(ps.get("sha256"))[:16]}…`)' if ps else '')
         L += [f'대상 `{g.get("tag")}` · 귀무분포 `{g.get("draws_tag")}` '
-              f'({g.get("draws_n_stocks")}종목) · 산출 {str(g.get("generated_at"))[:19]}', '',
+              f'({g.get("draws_n_stocks")}종목) · 산출 {_stamp(g)}'
+              + ps_line, '',
               '| 게이트 | 판정 | 근거 |', '|---|---|---|']
         for name, fmt in (
             ('G1', lambda v: f'CAGR {_pct(v.get("f_cagr"))} vs 귀무 p95 {_pct(v.get("random_p95"))}'),
@@ -136,6 +188,9 @@ def render(d: dict, problems: list[str]) -> str:
             verdict = ('미산출' if v.get('pass') is None
                        else ('PASS' if v['pass'] else '**FAIL**'))
             note = v.get('not_computed_reason') or fmt(v)
+            # 단서는 **판정 옆에 붙어야** 한다. 떨어뜨려 두면 표만 인용될 때 사라진다.
+            if v.get('caveat'):
+                note += f'<br>⚠ {v["caveat"]}'
             L += [f'| {name} | {verdict} | {note} |']
         L += ['']
 

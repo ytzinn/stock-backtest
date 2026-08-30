@@ -1,0 +1,10 @@
+﻿적재경로,대상테이블,스크립트경로,크론등록여부,주기,신선도임계(warn/fail),최종갱신일,현재판정
+일별 가격,price_history,ingest/price_ingest.py,O,0 10 * * 1-5,2/4,2026-08-21,OK
+일별 시가총액,market_cap_history,ingest/market_cap_ingest.py,O,30 10 * * 1-5,2/4,2026-08-21,OK
+상장폐지 이벤트,stock_listing_events,ingest/delisting_ingest.py,O,0 11 * * 1-5,30/60,2026-08-20,OK
+DART 재무·공시,financials/disclosures,ingest/dart_ingest.py,X,(미등록),45/120,2026-08-14,OK
+PIT 재무,financials_pit,ingest/pit_loader.py,X,(미등록),,2026-11-19,감시대상 아님
+DQ 게이트,universe_gate_pit,ingest/dq_gate.py,X,(미등록),,2026-07-28,감시대상 아님
+KRX 상장 스냅샷,krx_listing_snapshots,ingest/krx_listing_ingest.py,X,(미등록),200/400,2026-08-13,OK
+KRX 일별 스냅샷,krx_daily_snapshot,ingest/krx_daily_ingest.py,X,(미등록),,2026-07-16,감시대상 아님
+검증 로그,validation_log,ingest/validator.py,X,(미등록),,,감시대상 아님

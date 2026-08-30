@@ -1,30 +1,37 @@
 {
   "tag": "F_pbr_ma200_n13",
-  "run_at": "2026-08-15T12:42:45.696659",
-  "seed": null,
-  "cagr": 0.20332883254284506,
-  "net_cagr": 0.18689083784884652,
-  "alpha": 0.09721422210842956,
-  "alpha_kosdaq": 0.1599202893304965,
-  "sharpe": 0.6670053429915754,
-  "net_sharpe": 0.6196834114774528,
-  "mdd": -0.3413778730984435,
-  "robustness": 0.65,
-  "benchmark_cagr": 0.1061146104344155,
-  "kosdaq_cagr": 0.04340854321234855,
-  "avg_turnover": 0.7807692307692309,
-  "cagr_optimistic": 0.20568015444249976,
-  "cagr_conservative": 0.19767603388818888,
-  "n_periods": 20,
+  "generated_at": "2026-08-24T09:18:18",
+  "composed_at": "2026-08-29",
+  "composed_from": "experiments/analysis/2026.08.24._period_truncation/truncation_results_shadow_20260819.json (e2c2b8d)",
+  "method": "등재 산출물에서 읽어 옮겼다. 이 스크립트는 지표를 계산하지 않는다 — run_ablation 을 돌리면 등재 기준선 입력인 {tag}_periods.csv 가 함께 덮어써진다.",
+  "period_set": {
+    "id": "SPEC15_T18_g1compat",
+    "n": 18,
+    "sha256": "d318d475e89c438dce62873a6c38d1b422c2d042c52cf99eadccb7797495d383"
+  },
   "n_stocks": 13,
-  "calendar": {
-    "id": "SEMIANNUAL",
-    "n_anchors": 23,
-    "report_types": {
-      "FY": 12,
-      "H1": 11
-    },
-    "first_anchor": "2015-04-03",
-    "last_anchor": "2026-04-03"
+  "n_periods": 18,
+  "start": "2017-04-05",
+  "end": "2026-04-03",
+  "years": 8.993839835728952,
+  "cagr": 0.15629885560160894,
+  "net_cagr": 0.14007749939448355,
+  "sharpe": 0.5395274098514758,
+  "net_sharpe": 0.48925851813587523,
+  "mdd": -0.33015637011354915,
+  "robustness": 0.7222222222222222,
+  "benchmark_cagr": 0.10668347827945612,
+  "kosdaq_cagr": 0.05994164146971559,
+  "alpha": 0.04961537732215282,
+  "alpha_kosdaq": 0.09635721413189335,
+  "avg_turnover": 0.7564102564102565,
+  "diagnostic_full20": {
+    "_doc": "전 구간(n=20) 진단값. **판정도 성적도 아니다** — 표에 싣지 마라. 절단 전후를 대조할 때만 쓴다.",
+    "n_periods": 20,
+    "start": "2016-04-05",
+    "end": "2026-04-03",
+    "cagr": 0.15564001502841318,
+    "net_cagr": 0.13975702707683135,
+    "mdd": -0.33015637011354915
   }
 }

@@ -1,0 +1,127 @@
+{
+  "prereg": "docs/설계/SPEC_15_cross_sectional_estimator_v0.4.md (c369401) §3-6",
+  "provenance": {
+    "baseline": "shadow_20260819",
+    "label": "섀도우 (계정 표준화 결함 수정 이후)",
+    "branch": "shadow/fs-div-fallback",
+    "db_port": 5436,
+    "artifact_root": "/home/milmelmul/stock-backtest-shadow/experiments",
+    "commit": "0ac7245",
+    "valid_for_official_numbers": true,
+    "local_root": "experiments/_baselines/shadow_20260819",
+    "verified_at": "2026-08-25T11:27:06.486110+00:00",
+    "inputs": {
+      "experiments/ablation/F_pbr_ma200_n13_periods.csv": {
+        "sha256": "e82bdafd17aa9723eb9c51a586b2da900ce4fae49039524253295d499ef7d2ae",
+        "size": 3831,
+        "mtime": "2026-08-24T09:12:27.934972+00:00"
+      },
+      "experiments/analysis/2026.08.19._trade_halt_impact/account_coverage_matrix.csv": {
+        "sha256": "754db1ec66c6be71a2b4e82b0cb3b993f8120b49c048d0c46195a1811fd25824",
+        "size": 15286,
+        "mtime": "2026-08-23T14:59:13.264861+00:00",
+        "shared_input": true
+      }
+    }
+  },
+  "sha256_convention": "sha256(\"\\n\".join(sorted(dates))) — 직전 세션과 동일",
+  "period_set": {
+    "id": "SPEC15_T19_primary",
+    "n": 19,
+    "dates": [
+      "2016-04-05",
+      "2017-04-05",
+      "2017-08-18",
+      "2018-04-04",
+      "2018-08-20",
+      "2019-04-03",
+      "2019-08-20",
+      "2020-04-03",
+      "2020-08-20",
+      "2021-04-05",
+      "2021-08-19",
+      "2022-04-05",
+      "2022-08-18",
+      "2023-04-05",
+      "2023-08-18",
+      "2024-04-03",
+      "2024-08-20",
+      "2025-04-03",
+      "2025-08-20"
+    ],
+    "sha256": "7b1d7489522f87478c2f3feef89e67eee768f39a63364eed33d381c772b12e2b",
+    "start": "2016-04-05",
+    "end": "2026-04-03",
+    "derivation": [
+      {
+        "step": 1,
+        "rule": "전 앵커",
+        "remaining": 23,
+        "dropped": []
+      },
+      {
+        "step": 2,
+        "rule": "완결 (next_date 가 앵커)",
+        "remaining": 22,
+        "dropped": [
+          "2026-04-03"
+        ]
+      },
+      {
+        "step": 3,
+        "rule": "커버리지 산출물에 행 존재",
+        "remaining": 20,
+        "dropped": [
+          "2015-04-03",
+          "2015-08-19"
+        ]
+      },
+      {
+        "step": 4,
+        "rule": "['R1', 'R2', 'R5', 'R6'] 전부 판정가능 > 0",
+        "remaining": 19,
+        "dropped": [
+          "2016-08-18"
+        ]
+      }
+    ],
+    "cross_check_vs_n18": {
+      "added": [
+        "2016-04-05"
+      ],
+      "removed": [],
+      "pass": true,
+      "n18_sha256": "d318d475e89c438dce62873a6c38d1b422c2d042c52cf99eadccb7797495d383",
+      "n18_n": 18
+    },
+    "note": "판정가능 > 0 (임계 50% 는 G1 절단 규칙이며 §3-6 4단계는 0 초과만 요구한다)"
+  },
+  "period_set_t18": {
+    "id": "SPEC15_T18_g1compat",
+    "n": 18,
+    "dates": [
+      "2017-04-05",
+      "2017-08-18",
+      "2018-04-04",
+      "2018-08-20",
+      "2019-04-03",
+      "2019-08-20",
+      "2020-04-03",
+      "2020-08-20",
+      "2021-04-05",
+      "2021-08-19",
+      "2022-04-05",
+      "2022-08-18",
+      "2023-04-05",
+      "2023-08-18",
+      "2024-04-03",
+      "2024-08-20",
+      "2025-04-03",
+      "2025-08-20"
+    ],
+    "sha256": "d318d475e89c438dce62873a6c38d1b422c2d042c52cf99eadccb7797495d383",
+    "start": "2017-04-05",
+    "end": "2026-04-03",
+    "note": "G1(e2c2b8d)·G5·G2(2026-08-25)와 같은 집합. 병기 전용, primary 아님."
+  }
+}

@@ -445,6 +445,71 @@ _C_MA200_RANDOM.update(use_rim_filter=False, random_n=20)
 ABLATION_CONFIGS['C_pbr_ma200_random'] = _C_MA200_RANDOM
 del _C_MA200_RANDOM
 
+# ── R2 제거 검증 (2026-08-16) ─────────────────────────────────────────────
+# 계정 매핑 결함 수정 후, MA 20/60 기반에서 R2(차입금+리스)를 빼면 낙폭 손해 없이
+# net 이 올랐다. MA200 채택안 라인에서도 이월되는지 확인한 태그.
+# **결과: 기각.** 23구간 중 2025-08-20 한 구간만 달라졌다 (docs/검토/REJECTED.md).
+# 산출물이 experiments/ablation/ 에 남아 있으므로 설정도 함께 있어야 한다 —
+# 없으면 series manifest 가 "설정 없는 산출물"로 잡는다.
+# **채택안에서 파생시킨다** — 손으로 베끼지 않는다.
+_F_MA200_NOR2 = copy.deepcopy(ABLATION_CONFIGS['F_pbr_ma200'])
+_F_MA200_NOR2['stability_rules'] = {'R1', 'R5', 'R6'}
+_F_MA200_NOR2['momentum_criterion']['tag'] = 'F_pbr_ma200_nor2'   # 진단 파일 분리
+ABLATION_CONFIGS['F_pbr_ma200_nor2'] = _F_MA200_NOR2
+del _F_MA200_NOR2
+
+# ── STALE: A-2(R3·R4 fail-closed, 2026-08-22) 로 산출물이 무효화된 태그 ──────────
+# R3·R4 가 "입력 결측 시 건너뛰고 통과" 에서 "판정 불가 시 탈락" 으로 바뀌었다.
+# **규칙 정의 변경**이므로 이 규칙을 켠 태그의 기존 산출물은 더 이상 현재 코드의 결과가
+# 아니다. 재실행하지 않는 이유는 ① 구간 절단(데이터 지평) 후에 어떤 태그를 만들지가
+# 정해지고 ② 이 태그들의 용도인 "R3·R4 제외 결정" 자체가 이미 각주가 붙은 결론이기
+# 때문이다 (2016-04·2016-08·2017-08 에서 R3·R4 가 아예 작동하지 않았음 — CLAUDE.md
+# '데이터 지평' 절).
+#
+# 목록을 손으로 적지 않는다 — 설정에서 유도한다. 규칙 구성이 바뀌면 자동으로 따라간다.
+_ALL_STABILITY_RULES = frozenset({'R1', 'R2', 'R3', 'R4', 'R5', 'R6'})
+
+
+def _stale_by_r3r4() -> dict[str, str]:
+    out = {}
+    for tag, cfg in ABLATION_CONFIGS.items():
+        if not cfg.get('use_stability'):
+            continue
+        rules = set(cfg.get('stability_rules', _ALL_STABILITY_RULES))
+        if not cfg.get('stability_r6', True):
+            rules -= {'R6'}
+        hit = sorted(rules & {'R3', 'R4'})
+        if hit:
+            out[tag] = f'A-2 fail-closed ({",".join(hit)}) — 2026-08-22 이후 미재실행'
+    return out
+
+
+STALE_TAGS: dict[str, str] = _stale_by_r3r4()
+
+
+# ── B-4: 주석의 사실 주장을 실행 시점 검사로 (2026-08-23) ──────────────────────
+# `stability_filter` 의 "DQ Gate 에서 이미 제거됨" 이 98일간 거짓이었던 것처럼,
+# 사실 주장을 주석에 두면 코드가 옮겨가도 주석은 남는다. 아래 둘은 이 표에서 기계로
+# 확인할 수 있는 주장이라 assert 로 옮긴다.
+
+#: 사후 탐색으로 추가된 진단 전용 셀 — **채택 후보가 될 수 없다** (SPEC_13 §9-6
+#: 자동선택 금지와 같은 취지). 위 주석의 주장을 여기서 강제한다.
+POST_HOC_DIAGNOSTIC_TAGS = frozenset({'F_pbr_no_r1r2r3r4', 'F_pbr_no_r1r3r4'})
+ADOPTED_TAG = 'F_pbr_ma200'
+
+assert ADOPTED_TAG not in POST_HOC_DIAGNOSTIC_TAGS, (
+    f'{ADOPTED_TAG} 가 사후 탐색 셀로 표시돼 있다 — 채택 후보가 될 수 없는 셀이다')
+
+# "R2/R3/R4 단일·조합 제외" 사다리는 **R1·R5·R6 를 항상 유지**한다는 주석의 주장.
+# 하나라도 빠지면 그 셀은 사다리가 재려던 것(R2~R4 의 효과)을 재지 못한다.
+_R2R4_LADDER = ('F_no_r2', 'F_no_r3', 'F_no_r4', 'F_no_r2r3', 'F_no_r2r4', 'F_no_r3r4')
+for _t in _R2R4_LADDER:
+    _rules = ABLATION_CONFIGS[_t].get('stability_rules', set())
+    assert {'R1', 'R5', 'R6'} <= set(_rules), (
+        f'{_t}: R2~R4 사다리는 R1·R5·R6 를 항상 유지해야 한다 (현재 {sorted(_rules)})')
+del _t, _rules
+
+
 RANDOM_TAGS    = frozenset({'A_random', 'B_hard_random', 'C_stability_random', 'C_no_r6',
                             'C_pbr_path_random', 'C_pbr_ma200_random'})
 RANDOM_REPEATS = 500  # C_pbr_path_random은 1,000회 — fast-path 러너에서 별도 지정 (SPEC_10 §3-1)

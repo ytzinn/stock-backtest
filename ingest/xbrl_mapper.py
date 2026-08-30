@@ -62,6 +62,40 @@ XBRL_TO_ACCOUNT: dict[str, str] = {
     'Goodwill':                                         '영업권',
     'TradeAndOtherPayables':                            '매입채무및기타채무',
     'BorrowingsCurrentAndNoncurrent':                   '차입금합계',
+    # ── 차입 계열 (R2 입력) ──────────────────────────────────────────────────
+    # R2 는 `sum(pit.get(k, 0) or 0 ...)` 라 **계정이 없으면 0 = 무차입**으로 읽고
+    # 무조건 통과시킨다. 한글 별칭이 네 개뿐이라 표기가 조금만 달라도 차입이 통째로
+    # 사라졌다 — 2026-08-16 실측: 게이트 통과 유니버스의 44.4%(2025-08)가 차입금 계정
+    # 전무였고, 그중 13.3%는 부채비율 100% 초과였다(코다코 793억 차입이 0으로 잡힘).
+    # **유동/비유동을 반드시 다른 표준명에 매핑한다.** 같은 이름에 넣으면
+    # `ON CONFLICT DO UPDATE` 로 뒤엣것이 앞엣것을 덮어써 절반이 날아간다.
+    'ShorttermBorrowings':                              '단기차입금',
+    'CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings': '단기차입금',
+    'CurrentLoansReceivedAndCurrentPortionOfNoncurrentLoansReceived': '단기차입금',
+    'CurrentPortionOfLongtermBorrowings':               '유동성장기부채',
+    'LongtermBorrowings':                               '장기차입금',
+    'LongTermBorrowingsGross':                          '장기차입금',
+    'NoncurrentPortionOfNoncurrentLoansReceived':       '장기차입금',
+    'NoncurrentPortionOfOtherNoncurrentBorrowings':     '장기차입금',
+    # 사채 계열 — 전환·교환·신주인수권부사채는 현행 정의의 '사채' 에 해당한다.
+    # 유동/비유동을 갈라야 서로 덮어쓰지 않는다.
+    'ConvertibleBonds':                                 '사채',
+    'ExchangeableBonds':                                '사채',
+    'CurrentPortionOfConvertibleBonds':                 '유동성사채',
+    'CurrentPortionOfExchangeableBond':                 '유동성사채',
+    'CurrentPortionOfBondWithWarrant':                  '유동성사채',
+    # ── 리스부채 (R2 정의 확장, 2026-08-16 사용자 결정) ──────────────────────
+    # IFRS16 이후 리스부채는 실질적으로 차입이다. 종전 R2 정의(차입금 3종 + 사채)는
+    # 이를 제외했는데, R2 의 목적이 '차입 규모 측정' 이므로 정의 쪽이 실질을 놓친
+    # 것으로 보고 포함하기로 했다. 표본 150종목에서 리스부채가 175건으로 차입 계열
+    # 전체보다 많다 — 즉 이 결정이 R2 판정을 실질적으로 바꾼다.
+    # 총액 태그(LeaseLiabilities)는 별도 이름으로 둔다 — 유동/비유동과 함께 더하면
+    # 중복 계상되므로, 소비처가 '분리값이 없을 때만' 쓰도록 한다.
+    'CurrentLeaseLiabilities':                          '리스부채',
+    'CurentPortionOfFinanceLeaseLiabilities':           '리스부채',
+    'NoncurrentLeaseLiabilities':                       '비유동리스부채',
+    'NonCurrentFinanceLeaseLiabilities':                '비유동리스부채',
+    'LeaseLiabilities':                                 '리스부채합계',
     'IssuedCapital':                                    '자본금',
     'RetainedEarnings':                                 '이익잉여금',
     'OtherEquity':                                      '기타자본',
@@ -85,6 +119,8 @@ _BS_ACCOUNTS = {
     '유동자산', '비유동자산', '유동부채', '비유동부채',
     '현금및현금성자산', '재고자산', '유형자산', '무형자산',
     '이익잉여금', '자본금', '기타자본',
+    '단기차입금', '유동성장기부채', '장기차입금', '사채', '유동성사채',
+    '리스부채', '비유동리스부채', '리스부채합계',
 }
 
 # 단위 스케일 자동 감지에 사용할 안정적 기준 계정

@@ -1,8 +1,12 @@
 """
 Step 1 — Hard Filter.
 
-거래유동성, 상장기간, PIT 데이터 존재, 상장폐지 여부를 검사한다.
+거래유동성, 상장기간, PIT 데이터 존재, 상장폐지, 금융업 여부를 검사한다.
 R06(감사의견), R08(관리종목)은 DB 데이터 미수집 → 미구현 (Phase 3 이후 추가 예정).
+
+`[추가 2026-08-17]` 금융업 배제(`exclude_financials`). 여태 어떤 필터도 `is_financial`
+을 읽지 않아 증권사가 유니버스에 남아 있었다 (GATE-FINANCIAL). 과거 20구간 실편입은
+0건이라 백테스트 수치는 바뀌지 않지만, 라이브 신호에는 후보로 올라온다.
 """
 import logging
 from datetime import date
@@ -14,6 +18,7 @@ from backtest.data_access import (
     get_listed_date,
     has_recent_trade,
     is_delisted_at,
+    is_financial_company,
 )
 
 log = logging.getLogger(__name__)
@@ -24,11 +29,13 @@ class HardFilter:
 
     def __init__(
         self,
-        min_turnover:      float = 100_000_000,  # 일평균 거래대금 1억원
-        min_listed_months: int   = 6,
+        min_turnover:       float = 100_000_000,  # 일평균 거래대금 1억원
+        min_listed_months:  int   = 6,
+        exclude_financials: bool  = True,
     ):
-        self.min_turnover      = min_turnover
-        self.min_listed_months = min_listed_months
+        self.min_turnover       = min_turnover
+        self.min_listed_months  = min_listed_months
+        self.exclude_financials = exclude_financials
 
     def apply(
         self,
@@ -46,6 +53,7 @@ class HardFilter:
                 conn,
                 self.min_turnover,
                 self.min_listed_months,
+                self.exclude_financials,
             )
             if ok:
                 passed.append(ticker)
@@ -61,8 +69,22 @@ def _hard_filter(
     conn,
     min_turnover:          float = 100_000_000,
     min_listed_months:     int   = 6,
+    exclude_financials:    bool  = True,
 ) -> tuple[bool, str]:
     """True = 통과. 반환: (pass_flag, reason)"""
+
+    # 금융업 배제 (GATE-FINANCIAL). DQ Gate 는 is_financial 을 읽지 않는다 —
+    # stability_filter 의 "게이트에서 이미 제거됨" 주석은 사실이 아니었고, 2026 2분기
+    # 산출에서 증권사가 실제로 후보에 올라왔다. 안정성 룰로는 못 잡는다: 차입 계정
+    # 이름이 달라 R2 가 0 으로 통과하고, 제조업 기준 부채비율 상한은 금융업에 무의미하다.
+    # **판정 불가(None)는 통과가 아니라 탈락이다** — 결측을 통과로 접는 것이 R2·R3·R4 를
+    # 무력화한 것과 같은 구조다 (RULE-SILENT-PASS).
+    if exclude_financials:
+        fin = is_financial_company(conn, ticker)
+        if fin is None:
+            return False, '금융업 여부 판정 불가 (stocks 미등재/NULL)'
+        if fin:
+            return False, '금융업 (is_financial)'
 
     # 가격 데이터 자체가 없는 종목(미수집/미상장)은 '거래정지'·'거래대금 부족'과
     # 구분해 명시 사유로 제외한다 (CORR-DA-001 — 조용한 유니버스 왜곡을 가시화).

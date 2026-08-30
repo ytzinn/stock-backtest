@@ -108,6 +108,21 @@ def _tape_cap(tag: str) -> int | None:
     return max((p['n_portfolio'] for p in tape), default=0) or None
 
 
+def judgment_view(nav: dict | None) -> dict | None:
+    """일별 지표 중 **판정 구간의 층**을 고른다.
+
+    일별 tape 은 전 구간에서 한 번 산출되고, 판정은 절단된 구간 집합에서 내려진다.
+    두 층이 한 딕셔너리에 섞여 있으면 소비처마다 다른 층을 읽는다 — 대시보드는 전
+    구간 통계(변동성·CVaR·최악월)를 쓰고, CANONICAL 성적 표는 판정 구간 값을 써야 한다.
+    조립기가 `judgment_t18` 로 나눠 두므로 여기서는 **있으면 그것을** 고른다.
+
+    없으면 전 구간 블록을 그대로 돌려준다 (판정 구간 절단 이전 산출물과의 호환).
+    """
+    if not nav:
+        return nav
+    return nav.get('judgment_t18') or nav
+
+
 # ── 수집 ────────────────────────────────────────────────────────────────────
 
 def collect() -> dict:
@@ -174,6 +189,23 @@ def check(d: dict) -> list[str]:
         if d['gates'].get('draws_n_stocks') not in (None, n):
             p.append(f'G1 귀무분포가 {d["gates"]["draws_n_stocks"]}종목 추첨인데 운영은 '
                      f'{n}종목이다 — 합격선 자체가 달라 판정이 성립하지 않는다.')
+
+    # 성적·게이트가 **같은 구간 집합**인가. 2026-08 절단 이후 이것이 정합성의 한 축이다 —
+    # 다른 집합의 성적과 판정을 한 문서에 실으면 표만 인용될 때 그 사실이 사라진다
+    # (2026-08-12 오귀속과 같은 구조). 조립기의 fail-closed 5 와 같은 사실을 문서 쪽에서
+    # 한 번 더 본다: 조립기는 쓰는 순간만 보고, 이쪽은 **지금 놓여 있는 것**을 본다.
+    ps_seen = {}
+    for label, obj in (('구간 지표', d['abl_tag']),
+                       ('일별 지표', judgment_view(d['nav_tag'])),
+                       ('게이트', d['gates'])):
+        ps = (obj or {}).get('period_set')
+        if ps and ps.get('sha256'):
+            ps_seen.setdefault(ps['sha256'], []).append(f'{label}({ps.get("id")})')
+    if len(ps_seen) > 1:
+        p.append('성적과 게이트의 `period_set` 이 갈렸다 — '
+                 + ' vs '.join(f'{sha[:16]}… {"·".join(who)}'
+                               for sha, who in ps_seen.items())
+                 + '. 한 문서에 두 세대가 섞여 있다.')
 
     if d['tape_cap'] is None:
         p.append(f'`{key}_holdings.json` (tape) 이 없다 — 종목 단위 분석·진단이 불가하다.')

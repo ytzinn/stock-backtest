@@ -1,0 +1,202 @@
+{
+  "period_set": {
+    "id": "SPEC15_T19_primary",
+    "n": 19,
+    "sha256": "7b1d7489522f87478c2f3feef89e67eee768f39a63364eed33d381c772b12e2b"
+  },
+  "P1": {
+    "min": 0.9999999999999998,
+    "max": 1.0000000000000002,
+    "n_periods": 19,
+    "pass": true
+  },
+  "P2": {
+    "seed": 2026082602,
+    "B_null": 1000,
+    "R": 1000,
+    "alpha": 0.05,
+    "crit_mean_ic": 0.02577946381701123,
+    "null_sd": 0.015409087280836183,
+    "levels": {
+      "0.03": {
+        "design_ic": 0.03,
+        "realized_mean_ic_avg": 0.029764772811501247,
+        "detection_rate": 0.585
+      },
+      "0.05": {
+        "design_ic": 0.05,
+        "realized_mean_ic_avg": 0.04859660943323601,
+        "detection_rate": 0.926
+      }
+    }
+  },
+  "N1": {
+    "B": 1000,
+    "seed": 2026082601,
+    "null_mean": -0.0002299031827104017,
+    "sd_null_ic": 0.015358589640293038,
+    "centered_at_zero": "True",
+    "crit_one_sided": 0.02454356556431753
+  },
+  "N2a": {
+    "per_period": [
+      {
+        "date": "2016-04-05",
+        "n_pit": 1550,
+        "n_future": 1524,
+        "coverage": 0.9574193548387097,
+        "n_changed": 1473
+      },
+      {
+        "date": "2017-04-05",
+        "n_pit": 1637,
+        "n_future": 1594,
+        "coverage": 0.952351863164325,
+        "n_changed": 1557
+      },
+      {
+        "date": "2017-08-18",
+        "n_pit": 1594,
+        "n_future": 1735,
+        "coverage": 0.9943538268506901,
+        "n_changed": 1583
+      },
+      {
+        "date": "2018-04-04",
+        "n_pit": 1735,
+        "n_future": 1696,
+        "coverage": 0.9590778097982708,
+        "n_changed": 1662
+      },
+      {
+        "date": "2018-08-20",
+        "n_pit": 1696,
+        "n_future": 1802,
+        "coverage": 0.9823113207547169,
+        "n_changed": 1664
+      },
+      {
+        "date": "2019-04-03",
+        "n_pit": 1802,
+        "n_future": 1783,
+        "coverage": 0.9700332963374029,
+        "n_changed": 1745
+      },
+      {
+        "date": "2019-08-20",
+        "n_pit": 1783,
+        "n_future": 1894,
+        "coverage": 0.9837352776219854,
+        "n_changed": 1752
+      },
+      {
+        "date": "2020-04-03",
+        "n_pit": 1894,
+        "n_future": 1866,
+        "coverage": 0.9619852164730729,
+        "n_changed": 1822
+      },
+      {
+        "date": "2020-08-20",
+        "n_pit": 1866,
+        "n_future": 1981,
+        "coverage": 0.992497320471597,
+        "n_changed": 1851
+      },
+      {
+        "date": "2021-04-05",
+        "n_pit": 1981,
+        "n_future": 1960,
+        "coverage": 0.9712266532054518,
+        "n_changed": 1924
+      },
+      {
+        "date": "2021-08-19",
+        "n_pit": 1960,
+        "n_future": 2046,
+        "coverage": 0.9801020408163266,
+        "n_changed": 1920
+      },
+      {
+        "date": "2022-04-05",
+        "n_pit": 2046,
+        "n_future": 2051,
+        "coverage": 0.9755620723362659,
+        "n_changed": 1995
+      },
+      {
+        "date": "2022-08-18",
+        "n_pit": 2051,
+        "n_future": 2152,
+        "coverage": 0.9921989273525109,
+        "n_changed": 2034
+      },
+      {
+        "date": "2023-04-05",
+        "n_pit": 2152,
+        "n_future": 2153,
+        "coverage": 0.9823420074349443,
+        "n_changed": 2113
+      },
+      {
+        "date": "2023-08-18",
+        "n_pit": 2153,
+        "n_future": 2319,
+        "coverage": 0.9902461681374826,
+        "n_changed": 2131
+      },
+      {
+        "date": "2024-04-03",
+        "n_pit": 2319,
+        "n_future": 2325,
+        "coverage": 0.9849072876239758,
+        "n_changed": 2283
+      },
+      {
+        "date": "2024-08-20",
+        "n_pit": 2325,
+        "n_future": 2421,
+        "coverage": 0.9883870967741936,
+        "n_changed": 2298
+      },
+      {
+        "date": "2025-04-03",
+        "n_pit": 2421,
+        "n_future": 2449,
+        "coverage": 0.9884345311854605,
+        "n_changed": 2393
+      },
+      {
+        "date": "2025-08-20",
+        "n_pit": 2449,
+        "n_future": 2517,
+        "coverage": 0.9836668027766435,
+        "n_changed": 2409
+      }
+    ],
+    "cond1": true,
+    "cond2": true,
+    "cond3": true,
+    "measures": "회계기간 진행에 따른 값 변화 (정정 아님)"
+  },
+  "N2b1": {
+    "S_size": 198,
+    "saw_original": 198,
+    "violations": 0,
+    "unmatched": 0,
+    "unmatched_examples": [],
+    "post_amendment_used_amended": 138,
+    "post_amendment_stale": 0,
+    "account": "자본총계",
+    "pass": true,
+    "note": "N-2b-2(IC 수준 진단)는 S-4 로 이월 — 착수 기록 §1-1"
+  },
+  "ran": [
+    "N1",
+    "N2a",
+    "N2b1",
+    "P1",
+    "P2"
+  ],
+  "all_pass": true
+}

@@ -64,6 +64,10 @@ class BacktestPipeline:
             }
             if hasattr(f, 'last_diagnostics'):
                 stats[key]['diagnostics'] = f.last_diagnostics
+            # B-3: 규칙·계정 커버리지를 **고정 필드**로 올린다. 산출물에 항상 들어가야
+            # "이 구간에서 그 규칙이 실제로 판정됐는가"를 나중에 되짚을 수 있다.
+            if getattr(f, 'last_coverage', None):
+                stats[key]['coverage'] = f.last_coverage
         return {'universe': tickers, 'stats': stats}
 
     def score_and_rank(

@@ -1,72 +1,67 @@
 {
-  "generated_at": "2026-08-15T12:55:24.720778",
-  "pre_registered": "2026-07-19 (SPEC_10 §5) — 실행 후 수정 금지",
+  "generated_at": "2026-08-29 (조립 — 재계산 아님)",
+  "composed_from": {
+    "G1": "experiments/analysis/2026.08.24._period_truncation/truncation_results_shadow_20260819.json (e2c2b8d)",
+    "G2": "experiments/analysis/2026.08.25._g5g2_reissue/gate_results_g5g2.json (af529ff)",
+    "G5": "experiments/analysis/2026.08.25._g5g2_reissue/gate_results_g5g2.json (af529ff)"
+  },
+  "method": "등재 산출물에서 읽어 옮겼다. 이 스크립트는 게이트 값을 계산하지 않는다 — gate_analysis 를 돌리면 전 구간에서 G1 이 재계산돼 사전등록 판정과 모순된다.",
   "tag": "F_pbr_ma200_n13",
-  "n_stocks": 13,
   "u_tag": "U_pbr_path_ew",
   "draws_tag": "C_pbr_ma200_random_n13",
   "draws_n_stocks": 13,
+  "n_stocks": 13,
+  "period_set": {
+    "n": 18,
+    "dates": [
+      "2017-04-05",
+      "2017-08-18",
+      "2018-04-04",
+      "2018-08-20",
+      "2019-04-03",
+      "2019-08-20",
+      "2020-04-03",
+      "2020-08-20",
+      "2021-04-05",
+      "2021-08-19",
+      "2022-04-05",
+      "2022-08-18",
+      "2023-04-05",
+      "2023-08-18",
+      "2024-04-03",
+      "2024-08-20",
+      "2025-04-03",
+      "2025-08-20"
+    ],
+    "sha256": "d318d475e89c438dce62873a6c38d1b422c2d042c52cf99eadccb7797495d383",
+    "source": "e2c2b8d 절단 집합",
+    "start": "2017-04-05",
+    "end": "2026-04-03",
+    "full_closed_n": 20,
+    "id": "SPEC15_T18_g1compat"
+  },
   "hard_gates": {
     "G1": {
-      "pass": true,
-      "not_computed_reason": null,
-      "f_cagr": 0.20332883254284506,
-      "random_p95": 0.15474465234698154,
-      "f_percentile_in_null": 0.994,
-      "n_draws": 1000
+      "pass": false,
+      "f_cagr": 0.15629885560160894,
+      "random_p95": 0.17971622189639436,
+      "n_draws": 1000,
+      "f_percentile_in_null": 0.874
     },
     "G2": {
       "pass": true,
-      "f_net_cagr": 0.18689083784884652,
-      "u_ew_net_cagr": 0.06930043934973251,
-      "margin_pp": 11.759039849911401
+      "f_net_cagr": 0.14007749939448355,
+      "u_ew_net_cagr": 0.07240571109082539,
+      "margin_pp": 6.7671788303658165,
+      "caveat": "U_pbr_path_ew 의 모멘텀은 MA 20/60, 채택안은 MA200 — 다른 유니버스의 동일가중과 견준다. SPEC_10 미해결 항목, dashboard/claims.KNOWN 등록분. 벤치마크 교체는 사전등록 게이트 정의 변경이라 이 세션에서 하지 않았다."
     },
     "G5": {
       "pass": false,
-      "f_daily_mdd_net": -0.5811789152740876,
-      "limit": -0.45
+      "f_daily_mdd_net": -0.5781770253373704,
+      "limit": -0.45,
+      "mdd_peak": "2018-05-14",
+      "mdd_trough": "2020-03-19",
+      "caveat": "낙폭 구간은 2018-05-14 → 2020-03-19 다. 저점이 2020-03 급락과 겹치나, 레짐 귀속은 이 산출물이 측정한 것이 아니다 (미해결 G5-MDD). 종목 수 축으로는 풀리지 않는 것이 실측됐다."
     }
-  },
-  "diagnostics": {
-    "G3_loo": {
-      "f_reversal_count": 0,
-      "f_reversal_periods": [],
-      "null_mean": 1.264,
-      "share_of_draws_more_dependent": 0.6779999999999999,
-      "warn": false
-    },
-    "G4_topk": {
-      "1": {
-        "f_margin_after_removal": 3.315366773583704,
-        "share_of_draws_below_f": 0.994,
-        "warn": false
-      },
-      "2": {
-        "f_margin_after_removal": 2.6633091835730918,
-        "share_of_draws_below_f": 0.994,
-        "warn": false
-      },
-      "3": {
-        "f_margin_after_removal": 2.4000361452529733,
-        "share_of_draws_below_f": 0.998,
-        "warn": false
-      }
-    },
-    "g4_warn": false,
-    "G6_sign_test": {
-      "positive": 15,
-      "n_effective": 20,
-      "p_value": 0.04138946533203125,
-      "note": "n=20 검정력 낮음 — 참고용 (사전 등록 명기)"
-    },
-    "G7_halves": {
-      "first_half_margin": 0.51632069313083,
-      "last_half_margin": 1.3992950137103333,
-      "direction_consistent": true
-    }
-  },
-  "verdict_inputs": {
-    "all_hard_pass": false,
-    "any_warning": false
   }
 }

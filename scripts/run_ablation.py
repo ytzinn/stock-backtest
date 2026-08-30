@@ -183,6 +183,84 @@ def save_deterministic(tag: str, result: dict, out_tag: str | None = None) -> No
     log.info(f'  → {path}')
 
 
+#: 시총 폴백 비율 경고선. 넘으면 그 구간 랭킹 분자의 재현성이 그만큼 없다는 뜻이다.
+MKTCAP_FALLBACK_WARN_PCT = 5.0
+
+
+def market_cap_fallback_rows(conn, dates) -> list[list]:
+    """구간별 `market_cap_history` 폴백(`fdr_shares`) 비율 — 커버리지 매트릭스의 고정 필드.
+
+    폴백 행은 **FDR 현재 주식수를 과거에 소급**해 만든 값이라 재작성 때마다 달라진다
+    (DRIFT-INGEST-001). 2026-08-23 실측에서 신호일 평균 2.55%·최대 4.54%였고 L2
+    유니버스에 닿는 것은 0건이었다 — 지금은 무해하다는 뜻이지 항구적 보장이 아니다.
+    **이 숫자가 산출물에 보여야 미래에 닿기 시작할 때 알아챌 수 있다.**
+    시총은 랭킹의 분자다(pbr = mktcap/equity).
+    """
+    rows = []
+    with conn.cursor() as cur:
+        for d in dates:
+            cur.execute(
+                """
+                SELECT COALESCE(source, '(NULL)'), COUNT(*)
+                FROM market_cap_history WHERE date = %s GROUP BY 1
+                """,
+                (d,),
+            )
+            by = dict(cur.fetchall())
+            tot = sum(by.values())
+            if not tot:
+                continue
+            fb = by.get('fdr_shares', 0)
+            pit_pct = round(100.0 * (tot - fb) / tot, 3)
+            rows.append([d, '시총', 'PIT유래(krx)', tot, tot - fb, fb, pit_pct, '', '',
+                         'WARN' if 100.0 - pit_pct > MKTCAP_FALLBACK_WARN_PCT else ''])
+    return rows
+
+
+def save_coverage(tag: str, period_results: list[dict], out_tag: str | None = None) -> None:
+    """구간 × 규칙/계정 **커버리지 매트릭스**를 매 실행마다 남긴다 (B-3).
+
+    R6 가 도입(2026-05-11) 이후 수정(2026-08-16)까지 반기 구간에서 죽어 있던 것도,
+    데이터 지평이 초기 3구간의 R3~R6 를
+    무력화한 것도 **이 숫자가 어느 산출물에도 없었기 때문에** 아무도 몰랐다.
+    판정에는 쓰이지 않는다 — 눈에 띄게 하는 용도다.
+    """
+    import csv
+    rows = []
+    for r in period_results:
+        cov = ((r.get('universe_stats') or {}).get('StabilityFilter') or {}).get('coverage')
+        if not cov:
+            continue
+        d = r.get('rebalance_date')
+        for rule, v in sorted((cov.get('rules') or {}).items()):
+            rows.append([d, '규칙', rule, cov['population'], v['evaluable'],
+                         v['insufficient'], v['evaluable_pct'], v['policy'],
+                         v['silent_pass'],
+                         'WARN' if (v['evaluable_pct'] is not None
+                                    and v['evaluable_pct'] < cov['warn_threshold_pct']) else ''])
+        for acct, v in sorted((cov.get('accounts') or {}).items()):
+            rows.append([d, '계정', acct, cov['population'], v['with_2plus'],
+                         cov['population'] - v['with_2plus'], v['coverage_pct'], '', '',
+                         'WARN' if (v['coverage_pct'] is not None
+                                    and v['coverage_pct'] < cov['warn_threshold_pct']) else ''])
+    if rows:
+        from ingest.connection import get_connection
+        conn = get_connection()
+        try:
+            rows += market_cap_fallback_rows(
+                conn, [r.get('rebalance_date') for r in period_results])
+        finally:
+            conn.close()
+    path = OUT_DIR / f'{out_tag or tag}_coverage.csv'
+    with path.open('w', newline='', encoding='utf-8-sig') as f:
+        w = csv.writer(f)
+        w.writerow(['구간', '구분', '항목', '모집단_n', '판정가능_n', '결측_n',
+                    '판정가능_%', '결측정책', '결측통과_n', '경고'])
+        w.writerows(rows)
+    n_warn = sum(1 for r in rows if r[-1] == 'WARN')
+    log.info(f'  → {path} ({len(rows)}행, 경고 {n_warn}건)')
+
+
 def save_periods(tag: str, period_results: list[dict], out_tag: str | None = None) -> None:
     """구간별 수익률 및 필터 통과 수를 CSV로 저장."""
     import csv
@@ -449,6 +527,7 @@ def main() -> None:
                                                        valuation_date, n_stocks=args.n_stocks)
             save_deterministic(tag, result, out_tag)
             save_periods(tag, period_results, out_tag)
+            save_coverage(tag, period_results, out_tag)
             det_results[key] = result
 
     # 캘린더별 분리 저장 — 접미사 없이 쓰면 기존 공식 산출물(반기) 기록이 유실된다.

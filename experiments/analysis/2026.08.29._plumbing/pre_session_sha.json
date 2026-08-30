@@ -1,0 +1,19 @@
+{
+  "recorded_at": "2026-08-29 착수 전",
+  "head": "8455057",
+  "files": {
+    "experiments/ablation/F_pbr_ma200_n13_periods.csv": "1a8f09d5e04b938bebd0c1b74d460f9b6c937a295ca4087f0893b8c35808c86d",
+    "experiments/ablation/F_pbr_ma200_n13.json": "848b940ce37588c6d61f089cb564a7f9ce91975f2c9b7c365f173ec64f223ccb",
+    "experiments/ablation/summary.json": "555e21eeb47202aee6709ebc7e04f75e003624dee24dc5b00b5916498be36a83",
+    "experiments/robustness/gate_results_F_pbr_ma200_n13.json": "6d14f0a3087f8aa7d410161e53cfb5df71671f735caba7fbfd32b323ce5351fc",
+    "experiments/robustness/random_summary_C_pbr_ma200_random_n13.json": "9dc39b8024b75d9a7270101926e52d9b3abd833c6e5cde3a2babe6e09405f79c",
+    "experiments/ablation/F_pbr_ma200_n13_holdings.json": "fd0f3c965c7bd23984eb4da033e7a9acf76eb140d4adb86b0f09af9caba76716",
+    "experiments/ablation/F_pbr_ma200_holdings.json": "67374edbc23d02bbfa1f4cb626dd37d105c48a9013c33d6f0f21b34253f45b18",
+    "experiments/daily_nav/summary.json": "585079aebb0178d2ba9d1e6f7da5fe8844f729be1e0db64fbf1f7b07ea976702",
+    "experiments/BASELINES.json": "5d3a8f720a37b9a1ecc712b6e97b85533c12716095af5a6f4d2517d230cb18be",
+    "docs/open_issues.yaml": "f53366298d6f18f293ad0dd1cbed29dff69102ac9988f31f87464eca6d4bf3dd",
+    "docs/CANONICAL.md": "a7a981b56e240f651a46e1538c66995a6eb52bc031606032797473fcd6b69272",
+    "experiments/_baselines/shadow_20260819/experiments/ablation/F_pbr_ma200_n13_periods.csv": "e82bdafd17aa9723eb9c51a586b2da900ce4fae49039524253295d499ef7d2ae",
+    "experiments/_baselines/shadow_20260819/experiments/ablation/F_pbr_ma200_n13_holdings.json": "35ac8e3ff31ce9f3bcc6709fb0f3e5ae3abb3046582f6c6ab0fb8b14e8084e7b"
+  }
+}
