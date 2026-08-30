@@ -60,6 +60,14 @@ RIM(잔여이익모델) 기반 한국 주식 멀티팩터 백테스트 머신.
   2. `git push origin master` (GitHub)
   3. `ssh -i "$env:USERPROFILE\.ssh\id_ed25519" milmelmul@172.30.1.96 "cd /opt/stock-backtest && git pull"` (서버)
 - 긴급 핫픽스도 동일 순서. scp 우회 시 세 곳 상태가 갈라져 다음 세션에서 충돌 발생.
+- **`[2026-08-30]` 위 3단계 자동 수행은 현재 보류 중이다** (감사 모드). 2026-08 내내
+  `shadow/fs-div-fallback` 에서 로컬 커밋만 쌓았고, 승격은 사용자 지시로 한 번에 했다 —
+  `master` 병합 `e19a889`, 기록 `experiments/runs/2026.08.30._PROMOTION.md`.
+  **의도적 push 1회는 자동 push 재개가 아니다.** 자동 수행 복귀는 별도 사용자 판단이고,
+  그때까지 3단계를 임의로 실행하지 마라.
+- **`/opt` 는 그 승격을 아직 받지 않았다** (`ab41f7b` 고정). crontab 에 `git pull` 이
+  없어 운영 반영은 자동이 아니며, 3단계는 사람이 실행한다. 반영은 크론 시간대
+  (UTC 10:00~10:45 = KST 19:00~19:45)를 피하라.
 
 ### 데이터 정합성
 - 백테스트 엔진의 모든 데이터 조회는 `available_from <= rebalance_date` 조건 필수 (룩어헤드 방지).
